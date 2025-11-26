@@ -15,7 +15,8 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.baitedz.domani-app"
+      "bundleIdentifier": "com.baitedz.domani-app",
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -28,9 +29,7 @@
       "bundler": "metro",
       "output": "static"
     },
-    "plugins": [
-      "expo-router"
-    ],
+    "plugins": ["expo-router", "expo-apple-authentication"],
     "extra": {
       "eas": {
         "projectId": "00000000-0000-0000-0000-000000000000"

@@ -1,9 +1,9 @@
-import React from 'react';
-import { View, ViewProps } from 'react-native';
-import clsx from 'clsx';
+import React from 'react'
+import { View, ViewProps } from 'react-native'
+import clsx from 'clsx'
 
 interface CardProps extends ViewProps {
-  className?: string;
+  className?: string
 }
 
 export const Card = ({ children, className, ...rest }: CardProps) => {
@@ -11,11 +11,11 @@ export const Card = ({ children, className, ...rest }: CardProps) => {
     <View
       className={clsx(
         'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4',
-        className
+        className,
       )}
       {...rest}
     >
       {children}
     </View>
-  );
-};
+  )
+}

@@ -1,9 +1,9 @@
-import React from 'react';
-import { TextInput, TextInputProps } from 'react-native';
-import clsx from 'clsx';
+import React from 'react'
+import { TextInput, TextInputProps } from 'react-native'
+import clsx from 'clsx'
 
 interface InputProps extends TextInputProps {
-  className?: string;
+  className?: string
 }
 
 export const Input = ({ className, ...rest }: InputProps) => {
@@ -13,9 +13,9 @@ export const Input = ({ className, ...rest }: InputProps) => {
       className={clsx(
         'w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 py-3 text-base text-slate-900 dark:text-slate-50',
         'focus:border-purple-600 dark:focus:border-purple-500',
-        className
+        className,
       )}
       {...rest}
     />
-  );
-};
+  )
+}

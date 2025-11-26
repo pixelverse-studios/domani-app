@@ -11,6 +11,7 @@ Current login page design trends emphasize minimalism, accessibility, and securi
 ### 1.1 Recommended Layout Architectures
 
 #### Centered Card Layout (Recommended for Most Applications)
+
 - **Structure**: Single centered card container with form fields
 - **Usage**: Most SaaS products, web applications
 - **Advantages**: Clean, focused, mobile-responsive, modern
@@ -19,6 +20,7 @@ Current login page design trends emphasize minimalism, accessibility, and securi
 - **Shadow**: Subtle elevation (4-12px blur radius, 0.1 opacity) for depth
 
 #### Split-Screen Layout
+
 - **Structure**: Content/branding on left, form on right (desktop only)
 - **Usage**: Marketing-focused applications, premium/enterprise products
 - **Advantages**: Storytelling opportunity, visual interest, brand showcase
@@ -27,6 +29,7 @@ Current login page design trends emphasize minimalism, accessibility, and securi
 - **Mobile Fallback**: Stacked layout with form below imagery
 
 #### Full-Bleed Layout
+
 - **Structure**: Form overlaid on full-width background image/gradient
 - **Usage**: Lifestyle apps, creative platforms
 - **Advantages**: Immersive, visually striking
@@ -34,6 +37,7 @@ Current login page design trends emphasize minimalism, accessibility, and securi
 - **Overlay**: Semi-transparent layer (rgba color with 0.6-0.8 opacity) for text readability
 
 #### Minimalist Inline Layout
+
 - **Structure**: Form as part of page flow without card container
 - **Usage**: Progressive web apps, mobile-first applications
 - **Advantages**: Modern, simple, integrated feel
@@ -43,16 +47,19 @@ Current login page design trends emphasize minimalism, accessibility, and securi
 ### 1.2 Container Specifications
 
 **Desktop (1024px+)**
+
 - Container width: 400-480px
 - Margin: Centered with auto margins
 - Max-width: 90% of viewport
 
 **Tablet (768px-1023px)**
+
 - Container width: 90% of viewport
 - Min-width: 320px
 - Padding: 20px
 
 **Mobile (< 768px)**
+
 - Container width: 100% with 16px padding
 - Appears as full-screen form
 - Bottom sheet or full-screen modal option
@@ -66,16 +73,19 @@ Current login page design trends emphasize minimalism, accessibility, and securi
 **Rationale**: 82.7% of users utilize dark mode on their devices. Dark mode is now expected as default or option.
 
 #### Background Colors
+
 - **Primary Background**: #121212 to #1F1F1F (dark gray/black)
 - **Card Background**: #1E1E1E to #282828 (slightly lighter gray)
 - **Elevated Surfaces**: #2A2A2A to #333333 (for depth perception)
 
 #### Text Colors
+
 - **Primary Text**: #FFFFFF or #F5F5F5 (98-100% white)
 - **Secondary Text**: #B0B0B0 to #D0D0D0 (70% gray)
 - **Disabled Text**: #757575 to #888888 (50-55% gray)
 
 #### Accent Colors (Primary Action)
+
 - **Primary Button**: Use brand color (high saturation)
 - **Examples**:
   - Blue: #4A9EFF, #5B9FFF, #448AFF
@@ -84,6 +94,7 @@ Current login page design trends emphasize minimalism, accessibility, and securi
 - **Contrast Ratio**: Minimum 4.5:1 against background
 
 #### Interactive States
+
 - **Hover**: Lighten primary color by 8-12% or add opacity highlight
 - **Active/Pressed**: Darken primary color by 8-12% or reduce opacity
 - **Focus**: 2-3px solid colored outline, offset 2px from element
@@ -91,11 +102,13 @@ Current login page design trends emphasize minimalism, accessibility, and securi
 ### 2.2 Light Mode (Secondary Option)
 
 #### Background Colors
+
 - **Primary Background**: #FFFFFF or #F9F9F9 (white/near-white)
 - **Card Background**: #FFFFFF with subtle shadow
 - **Inputs Background**: #F5F5F5 to #FAFAFA (slightly gray)
 
 #### Text Colors
+
 - **Primary Text**: #1A1A1A to #212121 (near-black)
 - **Secondary Text**: #5A5A5A to #666666 (60% gray)
 - **Disabled Text**: #BDBDBD to #CCCCCC (65% gray)
@@ -103,6 +116,7 @@ Current login page design trends emphasize minimalism, accessibility, and securi
 ### 2.3 Color Psychology for CTAs
 
 **Button Colors by Action Type**:
+
 - **Primary Login Button**: Brand color (blue, green, or purple recommended)
 - **Secondary Actions** (Register, Reset): Outlined style, less prominent
 - **Danger Actions**: Red (#DC3545, #E74C3C) only for destructive actions
@@ -126,6 +140,7 @@ Current login page design trends emphasize minimalism, accessibility, and securi
 ### 3.1 Font Families (2025 Trends)
 
 #### Primary Font (Headlines, Labels)
+
 - **Modern Recommendation**:
   - -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell
   - System fonts (native platform fonts) are preferred for performance and familiarity
@@ -134,16 +149,19 @@ Current login page design trends emphasize minimalism, accessibility, and securi
   - Use locally hosted or system fonts to avoid loading delays
 
 #### Secondary Font (Body Text)
+
 - **Modern Recommendation**: Same as primary (mono-font family preferred in 2025)
 - **Alternative**: Open Sans, Lato for warmth
 
 ### 3.2 Font Sizes & Weights
 
 **Headings**
+
 - **Main Title** (e.g., "Sign In"): 28-32px, weight 600-700
 - **Subtitle** (e.g., welcome message): 14-16px, weight 400, secondary text color
 
 **Body Text**
+
 - **Input Labels**: 12-14px, weight 500, secondary text color
 - **Input Placeholder**: 14px, weight 400, 50% opacity
 - **Button Text**: 14-16px, weight 600, center-aligned
@@ -151,6 +169,7 @@ Current login page design trends emphasize minimalism, accessibility, and securi
 - **Error Messages**: 12-13px, weight 400-500, error color
 
 **Line Heights**
+
 - **Headings**: 1.2-1.3
 - **Body Text**: 1.5-1.6
 - **Buttons**: 1.4
@@ -158,6 +177,7 @@ Current login page design trends emphasize minimalism, accessibility, and securi
 ### 3.3 Spacing & Hierarchy
 
 **Margin/Padding Ratios** (8px base unit system):
+
 - Extra small: 4px (icon spacing, tight elements)
 - Small: 8px (input margins, label-to-field)
 - Medium: 12-16px (field-to-field)
@@ -165,6 +185,7 @@ Current login page design trends emphasize minimalism, accessibility, and securi
 - Extra large: 32px+ (major section separation)
 
 **Recommended Spacing Structure**:
+
 ```
 Logo/Brand: 32px top padding
 Title: 24px below logo
@@ -182,6 +203,7 @@ Footer Text: 32px from button
 ### 4.1 Input Field Design
 
 #### Desktop Style
+
 ```
 Height: 44-48px (48px recommended for accessibility)
 Padding: 12px 16px
@@ -193,6 +215,7 @@ Background: Slightly lighter than background (#F5F5F5 light / #2A2A2A dark)
 ```
 
 #### Focus State
+
 ```
 Border Color: Brand primary color
 Border Width: 2px (often increases width on focus)
@@ -202,6 +225,7 @@ Outline: None (use border/shadow instead for accessibility)
 ```
 
 #### Active/Filled State
+
 ```
 Border: 1px solid primary color (optional)
 Background: Maintains input background
@@ -209,6 +233,7 @@ Label: Should move above input (if using floating labels)
 ```
 
 #### Disabled State
+
 ```
 Opacity: 0.5-0.65
 Cursor: not-allowed
@@ -219,6 +244,7 @@ Border: Dashed or grayed
 ### 4.2 Input Field Features
 
 **Label Placement**
+
 - **Option 1** (Recommended): Labels above input fields
   - Always visible, supports accessibility, clear hierarchy
   - Font size: 12-14px, weight 500, secondary color
@@ -231,6 +257,7 @@ Border: Dashed or grayed
   - Good for visual minimalism but consider accessibility
 
 **Password Visibility Toggle**
+
 - **Icon**: Eye icon (show/hide button)
 - **Position**: Right side of input field, 12px from edge
 - **Size**: 18-20px
@@ -239,6 +266,7 @@ Border: Dashed or grayed
 - **Accessibility**: Include aria-label="Toggle password visibility"
 
 **Helper Text & Validation**
+
 - **Helper Text** (password requirements):
   - Font size: 12px
   - Color: Secondary text color
@@ -256,6 +284,7 @@ Border: Dashed or grayed
   - Animation: Slight pulse or shake (50ms duration)
 
 **Caps Lock Warning**
+
 - **Display**: Only when password field is active AND caps lock is ON
 - **Position**: Below password field
 - **Message**: "Caps Lock is on"
@@ -265,6 +294,7 @@ Border: Dashed or grayed
 ### 4.3 Button Styling
 
 #### Primary Button (Login/Sign In)
+
 ```
 Height: 44-48px (mobile-friendly minimum)
 Width: 100% (full field width)
@@ -280,6 +310,7 @@ Letter Spacing: Normal
 ```
 
 #### Button States
+
 ```
 Default:
   - Background: Brand primary color
@@ -308,6 +339,7 @@ Disabled:
 ```
 
 #### Secondary Actions
+
 - **Style**: Outlined or ghost (text-only)
 - **Border**: 1-2px solid secondary color
 - **Background**: Transparent
@@ -316,6 +348,7 @@ Disabled:
 - **Sizing**: Same height as primary button for consistency
 
 #### Loading State
+
 ```
 Display: Button text becomes hidden
 Content: Animated spinner inside button
@@ -331,6 +364,7 @@ Interaction: Button disabled, not clickable
 ### 4.4 Button Layout
 
 **Form Button Hierarchy**
+
 ```
 Primary Button (Login): Full width, top position
 Secondary Links: Text links below or beside button
@@ -347,6 +381,7 @@ Examples:
 ### 5.1 Consistent Spacing System (8px Base Unit)
 
 **Mobile (320px-767px)**
+
 ```
 - Outer padding: 16px
 - Between sections: 20px
@@ -357,6 +392,7 @@ Examples:
 ```
 
 **Tablet (768px-1023px)**
+
 ```
 - Outer padding: 24px
 - Between sections: 24px
@@ -367,6 +403,7 @@ Examples:
 ```
 
 **Desktop (1024px+)**
+
 ```
 - Outer padding: 32px
 - Between sections: 32px
@@ -379,6 +416,7 @@ Examples:
 ### 5.2 Form Field Spacing
 
 **Vertical Spacing Between Elements**
+
 ```
 Logo to Title: 32px
 Title to Subtitle: 12px
@@ -394,10 +432,12 @@ Secondary Link to Footer: 24-32px
 ### 5.3 Touch Target Sizing (Accessibility)
 
 **Minimum Touch Target**: 44x44px (Apple), 48x48dp (Google Material)
+
 - Apply to: Buttons, input fields, links, checkboxes
 - Spacing between targets: Minimum 8px
 
 **Input Field Click Area**
+
 - Entire field height (44-48px) should be clickable
 - Labels should also be clickable to focus field
 - This improves mobile UX significantly
@@ -409,6 +449,7 @@ Secondary Link to Footer: 24-32px
 ### 6.1 Transition Timing
 
 **Standard Timing Values**
+
 ```
 Fast transitions (immediate feedback): 0.15-0.2s
 Medium transitions (form interactions): 0.3-0.4s
@@ -424,23 +465,27 @@ Easing Functions:
 ### 6.2 Input Field Interactions
 
 **Focus Transition**
+
 - Border color change: 0.2s
 - Shadow appearance: 0.2s
 - Background color (optional): 0.2s
 - Label animation (if floating): 0.3s cubic-bezier(0.4, 0, 0.2, 1)
 
 **Error State Animation**
+
 - Shake animation: 0.3s, 3-4 pixel horizontal movement
 - Color transition: 0.2s
 - Icon pulse: Optional, 0.4s fade in
 
 **Success Indicator Animation**
+
 - Icon appearance: 0.3s fade-in and scale (0 to 1)
 - Checkmark: SVG stroke animation (0.4s)
 
 ### 6.3 Button Interactions
 
 **Hover Effect**
+
 ```
 Color transition: 0.2s
 Shadow expansion: 0.2s
@@ -449,6 +494,7 @@ Background color: Lighten 8-12% or darken 8-12%
 ```
 
 **Click/Active State**
+
 ```
 Color deepening: Immediate or 0.1s
 Shadow reduction: 0.1s
@@ -456,6 +502,7 @@ Optional: Slight scale down (0.98 transform)
 ```
 
 **Loading Animation**
+
 ```
 Spinner rotation: 1-1.2s per full rotation
 Icon size: 16-20px inside button
@@ -465,6 +512,7 @@ Smooth, continuous rotation (linear easing)
 ### 6.4 Form Submission Flow
 
 **Validation Feedback**
+
 ```
 Real-time validation (after field blur):
 - Success: Green border/checkmark, 0.3s fade-in
@@ -474,6 +522,7 @@ Format: Each validation visible simultaneously with field
 ```
 
 **Loading State**
+
 ```
 Button disabled: Opacity 0.9, button text hidden
 Spinner displays: Center of button, 1s rotation
@@ -482,6 +531,7 @@ Accessibility: aria-busy="true" on button
 ```
 
 **Success State** (after login)
+
 ```
 Option 1: Subtle checkmark inside button, fade transition
 Option 2: Page transition with fade-out (0.3-0.4s)
@@ -489,6 +539,7 @@ Option 3: Success message toast below form, fade in 0.2s
 ```
 
 **Error State** (login failed)
+
 ```
 Error message appears: 0.2s fade-in below form
 Error field: Red border and shake (0.3s, 4px movement)
@@ -499,6 +550,7 @@ Color flash: Optional brief red flash on button (100-150ms)
 ### 6.5 Page Transitions
 
 **Page Load Animation**
+
 ```
 Fade-in: Form fades from 0.8 opacity to 1.0 over 0.3s
 Slide-up: Form slides from 20-40px below to proper position, 0.3s
@@ -508,6 +560,7 @@ Background: Fades in separately if using background image
 ```
 
 **Navigation Away** (on successful login)
+
 ```
 Fade-out: 0.3-0.4s
 Or slide-out: Slide right/left + fade, 0.4s
@@ -521,6 +574,7 @@ Redirect: Occurs during animation, new page loads behind
 ### 7.1 Error Message Design
 
 **Visual Treatment**
+
 ```
 Color: #FF4444 (red), #E74C3C, or brand error color
 Background: Optional semi-transparent red tint (#FFEBEE on light mode)
@@ -531,6 +585,7 @@ Line Height: 1.4-1.5
 ```
 
 **Message Placement**
+
 ```
 Position: Below input field, 4-8px gap
 Aligned: With the input field (not centered)
@@ -542,6 +597,7 @@ Alternative: Inside input (right side) for space-constrained layouts
 **Message Content & Examples**
 
 Good error messages:
+
 ```
 Email field:
 - "Please enter a valid email address"
@@ -560,6 +616,7 @@ Login attempt:
 ```
 
 Bad error messages:
+
 ```
 - "Error 404"
 - "Invalid input"
@@ -570,6 +627,7 @@ Bad error messages:
 ### 7.2 Error Animation
 
 **Shake Animation**
+
 ```
 Horizontal shake: 4-6px movement left/right
 Duration: 0.3s total
@@ -582,6 +640,7 @@ Keyframes:
 ```
 
 **Pulse Animation** (on error icon)
+
 ```
 Opacity: 0.6 to 1.0
 Scale: 0.9 to 1.0
@@ -590,6 +649,7 @@ Timing: ease-in-out
 ```
 
 **Highlight Animation**
+
 ```
 Background color: Error color at 0.15 opacity
 Duration: 0.3s fade-in
@@ -600,6 +660,7 @@ Fade out: 0.3s when error is fixed
 ### 7.3 Inline Validation
 
 **Real-time Validation** (after user leaves field)
+
 ```
 Email field:
 - Validates format on blur
@@ -613,6 +674,7 @@ Password field:
 ```
 
 **Progressive Validation**
+
 ```
 Timeline:
 1. User types in field (no validation)
@@ -631,6 +693,7 @@ Timeline:
 **Style Options**
 
 Option 1: Circular Spinner (Most Common)
+
 ```
 Shape: Circle with rotating border
 Size: 16-20px inside button, 24-32px standalone
@@ -642,6 +705,7 @@ SVG or CSS-based (avoid browser default spinner)
 ```
 
 Option 2: Line Spinner
+
 ```
 Shape: Horizontal line with animated fill
 Size: 24-40px width
@@ -652,6 +716,7 @@ Minimalist style for modern aesthetic
 ```
 
 Option 3: Dots/Pulse Spinner
+
 ```
 Shape: 3-4 dots
 Animation: Sequential fade or pulse
@@ -664,6 +729,7 @@ Casual, friendly feel
 ### 8.2 Loading State Messaging
 
 **Button States During Load**
+
 ```
 Text: Hidden (remove or fade out)
 Content: Spinner replaces text
@@ -676,6 +742,7 @@ Button can show both text and spinner (text on left, spinner on right)
 **Standalone Loading Messages**
 
 Optional during long operations (>3 seconds):
+
 ```
 Message: "Signing you in..." or "Verifying credentials..."
 Position: Below form or as toast notification
@@ -686,11 +753,13 @@ Animation: Spinner + text, 0.2s fade-in
 ### 8.3 Perceived Performance
 
 **Minimum Visible Duration**: 300-500ms
+
 - Even if operation completes quickly, show spinner briefly
 - Prevents flashing and ensures users see loading state
 - Improves perceived reliability
 
 **Progress Indication** (for slower operations >2 seconds)
+
 ```
 Type: Linear progress bar below form
 Height: 2-3px
@@ -706,6 +775,7 @@ Behavior: After reaching 90%, waits for actual completion
 ### 9.1 Breakpoints & Adaptations
 
 **Mobile (320px-479px)**
+
 ```
 - Full-width form with padding
 - Single column layout
@@ -716,6 +786,7 @@ Behavior: After reaching 90%, waits for actual completion
 ```
 
 **Small Mobile (480px-599px)**
+
 ```
 - Still single column
 - Can increase input field size slightly
@@ -723,6 +794,7 @@ Behavior: After reaching 90%, waits for actual completion
 ```
 
 **Tablet (768px-1023px)**
+
 ```
 - Centered form (max 480px width)
 - Can show background imagery or branding
@@ -731,6 +803,7 @@ Behavior: After reaching 90%, waits for actual completion
 ```
 
 **Desktop (1024px+)**
+
 ```
 - Centered form on wide canvas
 - Can use split-screen layouts
@@ -741,6 +814,7 @@ Behavior: After reaching 90%, waits for actual completion
 ### 9.2 Mobile-Specific Features
 
 **Keyboard Optimization**
+
 ```
 Email field: type="email" triggers email keyboard
 Password field: type="password" hides text
@@ -750,6 +824,7 @@ Benefits: Faster input, fewer errors, better UX
 ```
 
 **Touch Optimization**
+
 ```
 Input height: Minimum 44-48px
 Button height: 48-52px
@@ -761,6 +836,7 @@ Avoid: Hover-dependent elements (some mobile devices don't support)
 ```
 
 **Soft Keyboard Handling**
+
 ```
 Scrolling: Form scrolls above keyboard (not behind)
 Viewport: Does not zoom on input focus
@@ -771,6 +847,7 @@ Or: Use position: sticky for button at bottom above keyboard
 ### 9.3 Mobile Form Input Order
 
 **Recommended Field Order**
+
 ```
 1. Email/Username
 2. Password
@@ -782,6 +859,7 @@ Or: Use position: sticky for button at bottom above keyboard
 ```
 
 **Keyboard Navigation**
+
 ```
 Tab key: Should move through fields logically (Email → Password → Button)
 Enter key: Should submit form when in last field or on button
@@ -796,6 +874,7 @@ Always ensure focus visible outline (not removed)
 ### 10.1 WCAG 2.1 Compliance (AA Standard)
 
 **Color Contrast**
+
 ```
 Normal text: 4.5:1 ratio
 Large text (18pt+ or 14pt+ bold): 3:1 ratio
@@ -804,6 +883,7 @@ Test using: WebAIM Contrast Checker or browser DevTools
 ```
 
 **Keyboard Navigation**
+
 ```
 All interactive elements: Accessible via Tab key
 Logical tab order: Left to right, top to bottom
@@ -813,6 +893,7 @@ Enter/Space keys: Activate buttons
 ```
 
 **Screen Reader Support**
+
 ```
 Form labels: <label> elements associated with inputs via htmlFor
 Buttons: Use <button> elements, not <div> or <a>
@@ -827,6 +908,7 @@ Error messages: Associated with form fields via aria-describedby
 ### 10.2 Form Accessibility Features
 
 **Labels & Names**
+
 ```
 Every input must have associated <label>
 Label visible (not hidden)
@@ -835,6 +917,7 @@ Use htmlFor="inputId" to connect label to input
 ```
 
 **Required Fields Indication**
+
 ```
 Asterisk (*): Visual indicator
 aria-required="true": Programmatic indicator
@@ -843,6 +926,7 @@ Don't rely on color alone to indicate required fields
 ```
 
 **Password Requirements**
+
 ```
 Display requirements clearly above/below field
 Examples met: Show checkmarks for completed requirements
@@ -851,6 +935,7 @@ Make requirements easy to understand in plain language
 ```
 
 **Error Messages**
+
 ```
 Visible text describing error
 Associated with form field via aria-describedby
@@ -862,6 +947,7 @@ Don't hide errors (no tooltips requiring hover)
 ### 10.3 Motion & Animation Accessibility
 
 **Reduced Motion Support**
+
 ```
 CSS: @media (prefers-reduced-motion: reduce)
 Reduce animation duration to 0-50ms
@@ -877,6 +963,7 @@ Example:
 ```
 
 **Animation Considerations**
+
 ```
 Duration: Minimum 0.1s, maximum 3s
 Avoid: Flashing >3 times per second (seizure risk)
@@ -958,6 +1045,7 @@ Always provide alternative text cues for animations
 ### 12.1 Passwordless Authentication Display
 
 **Biometric Login**
+
 ```
 Option: "Sign in with Face ID" / "Sign in with Touch ID"
 Display: Prominent button above/below password fields
@@ -967,6 +1055,7 @@ Fallback: Password option always available
 ```
 
 **Magic Link / One-Time Codes**
+
 ```
 Flow: User enters email → receives link/code → signs in
 Display:
@@ -977,6 +1066,7 @@ Verification: Can be automatic or button-triggered
 ```
 
 **Social Sign-In**
+
 ```
 Buttons: 2-3 most relevant social platforms
 Display: Below password form or above
@@ -1025,6 +1115,7 @@ Spacing: 8-12px between buttons
 ## 14. IMPLEMENTATION CHECKLIST
 
 **Core Elements**
+
 - [ ] Centered card layout (400px) or split-screen layout
 - [ ] Dark mode as default with light mode option
 - [ ] Proper color contrast (4.5:1 minimum)
@@ -1033,6 +1124,7 @@ Spacing: 8-12px between buttons
 - [ ] Clear visual hierarchy (title > form > links)
 
 **Input Fields**
+
 - [ ] Labels above fields, 12-14px weight 500
 - [ ] 48px height, 6-8px rounded corners
 - [ ] Focused border color change to primary
@@ -1042,6 +1134,7 @@ Spacing: 8-12px between buttons
 - [ ] Success checkmarks on valid input
 
 **Buttons**
+
 - [ ] Primary button: Full width, brand color
 - [ ] 48px height minimum, 16px horizontal padding
 - [ ] Hover state: Color shift + shadow elevation
@@ -1050,6 +1143,7 @@ Spacing: 8-12px between buttons
 - [ ] Accessible focus outline (3px solid)
 
 **Interactions & Animations**
+
 - [ ] Field focus: 0.2s border color transition
 - [ ] Error state: Shake animation 0.3s
 - [ ] Button hover: 0.2s elevation change
@@ -1058,6 +1152,7 @@ Spacing: 8-12px between buttons
 - [ ] Reduced motion support: @media prefers-reduced-motion
 
 **Accessibility**
+
 - [ ] Form labels with htmlFor attributes
 - [ ] aria-required on required fields
 - [ ] aria-invalid on error states
@@ -1067,6 +1162,7 @@ Spacing: 8-12px between buttons
 - [ ] Color contrast verification (WebAIM)
 
 **Mobile Responsive**
+
 - [ ] Full width layout on mobile (16px padding)
 - [ ] Touch targets 44-48px minimum
 - [ ] Font size 14px minimum (no zoom)
@@ -1076,6 +1172,7 @@ Spacing: 8-12px between buttons
 - [ ] Tested on iPhone and Android
 
 **Security & Trust**
+
 - [ ] SSL/secure indicator visible
 - [ ] "Forgot Password?" prominent link
 - [ ] Password requirements clearly displayed
@@ -1088,6 +1185,7 @@ Spacing: 8-12px between buttons
 ## 15. EXAMPLE MINIMAL COMPONENTS
 
 ### Login Form Structure
+
 ```html
 <div class="login-container">
   <div class="login-card">
@@ -1102,7 +1200,6 @@ Spacing: 8-12px between buttons
 
     <!-- Form -->
     <form class="login-form" aria-label="Login form">
-
       <!-- Email Field -->
       <div class="form-group">
         <label for="email" class="label">Email</label>
@@ -1131,11 +1228,7 @@ Spacing: 8-12px between buttons
             aria-required="true"
             aria-describedby="password-error"
           />
-          <button
-            type="button"
-            class="password-toggle"
-            aria-label="Toggle password visibility"
-          >
+          <button type="button" class="password-toggle" aria-label="Toggle password visibility">
             <svg class="icon" viewBox="0 0 24 24"><!-- eye icon --></svg>
           </button>
         </div>
@@ -1153,7 +1246,6 @@ Spacing: 8-12px between buttons
         <span class="button-text">Sign In</span>
         <div class="spinner" aria-hidden="true"></div>
       </button>
-
     </form>
 
     <!-- Secondary Actions -->
@@ -1181,23 +1273,23 @@ Spacing: 8-12px between buttons
       <a href="/terms">Terms of Service</a> and
       <a href="/privacy">Privacy Policy</a>
     </p>
-
   </div>
 </div>
 ```
 
 ### Essential CSS Structure
+
 ```css
 /* Color Variables (Dark Mode) */
 :root {
-  --color-primary: #4A9EFF;
-  --color-primary-hover: #3A8FEE;
-  --color-error: #FF4444;
-  --color-success: #52C41A;
+  --color-primary: #4a9eff;
+  --color-primary-hover: #3a8fee;
+  --color-error: #ff4444;
+  --color-success: #52c41a;
   --color-bg: #121212;
-  --color-surface: #1E1E1E;
-  --color-text: #FFFFFF;
-  --color-text-secondary: #B0B0B0;
+  --color-surface: #1e1e1e;
+  --color-text: #ffffff;
+  --color-text-secondary: #b0b0b0;
   --color-border: #404040;
 
   --spacing-xs: 4px;
@@ -1263,7 +1355,7 @@ Spacing: 8-12px between buttons
   padding: 12px 16px;
   font-size: 14px;
   color: var(--color-text);
-  background-color: #2A2A2A;
+  background-color: #2a2a2a;
   border: 1px solid var(--color-border);
   border-radius: 6px;
   transition: all var(--transition-fast);
@@ -1311,7 +1403,7 @@ Spacing: 8-12px between buttons
   animation: fadeIn 0.2s ease-out;
 }
 
-.input[aria-invalid="true"] {
+.input[aria-invalid='true'] {
   border-color: var(--color-error);
   animation: shake 0.3s ease-in-out;
 }
@@ -1409,9 +1501,16 @@ Spacing: 8-12px between buttons
 }
 
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
 }
 
 @keyframes spin {
@@ -1446,16 +1545,19 @@ Spacing: 8-12px between buttons
 ## 16. REFERENCES & RESOURCES
 
 **Design Inspiration**
+
 - Dribbble: dribbble.com/search/login-page
 - Figma Community: figma.com/templates/login-page-design
 - Justinmind: justinmind.com/blog/inspiring-website-login-form-pages
 
 **Standards & Guidelines**
+
 - WCAG 2.1: w3.org/WAI/WCAG21/quickref
 - Material Design: material.io/design/platform-guidance/android-bars.html
 - Apple Human Interface Guidelines: developer.apple.com/design/human-interface-guidelines
 
 **Tools**
+
 - WebAIM Contrast Checker: webaim.org/resources/contrastchecker
 - Figma: figma.com
 - Framer: framer.com
@@ -1466,6 +1568,7 @@ Spacing: 8-12px between buttons
 ## 17. FINAL CHECKLIST
 
 ### Pre-Launch Validation
+
 - [ ] Tested on Chrome, Firefox, Safari, Edge
 - [ ] Responsive design on 320px, 768px, 1024px+ viewports
 - [ ] Dark mode and light mode both functional

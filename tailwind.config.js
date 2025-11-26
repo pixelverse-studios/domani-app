@@ -1,13 +1,9 @@
 /** @type {import('tailwindcss').Config} */
-const nativewind = require('nativewind/preset');
+const nativewind = require('nativewind/preset')
 
 module.exports = {
   presets: [nativewind],
-  content: [
-    './src/**/*.{js,jsx,ts,tsx}',
-    './app/**/*.{js,jsx,ts,tsx}',
-    './global.css'
-  ],
+  content: ['./src/**/*.{js,jsx,ts,tsx}', './app/**/*.{js,jsx,ts,tsx}', './global.css'],
   darkMode: 'class',
   theme: {
     extend: {
@@ -17,19 +13,19 @@ module.exports = {
         md: '16px',
         lg: '24px',
         xl: '32px',
-        '2xl': '48px'
+        '2xl': '48px',
       },
       borderRadius: {
         sm: '6px',
         md: '12px',
         lg: '16px',
-        xl: '24px'
+        xl: '24px',
       },
       fontFamily: {
         display: ['System', 'sans-serif'],
-        body: ['System', 'sans-serif']
-      }
-    }
+        body: ['System', 'sans-serif'],
+      },
+    },
   },
-  plugins: []
-};
+  plugins: [],
+}
