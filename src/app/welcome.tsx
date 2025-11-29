@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo } from 'react'
-import { Animated, Dimensions, Easing, StyleSheet, Text as RNText, View } from 'react-native'
+import {
+  Animated,
+  Dimensions,
+  Easing,
+  StyleSheet,
+  Text as RNText,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 import { Link } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -149,7 +157,7 @@ export default function WelcomeScreen() {
 
             {/* Secondary link */}
             <Link href="/login" asChild>
-              <View style={styles.secondaryLink}>
+              <TouchableOpacity style={styles.secondaryLink} activeOpacity={0.7}>
                 <Text
                   style={[
                     styles.secondaryLinkText,
@@ -163,7 +171,7 @@ export default function WelcomeScreen() {
                 >
                   Sign in
                 </Text>
-              </View>
+              </TouchableOpacity>
             </Link>
           </Animated.View>
 

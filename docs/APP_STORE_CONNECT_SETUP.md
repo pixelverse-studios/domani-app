@@ -61,6 +61,7 @@ You'll put both `domani_pro_monthly` and `domani_pro_yearly` into this same grou
 ## 4. Create the Two Subscription Products
 
 You're creating auto-renewable subscriptions within that group. Each product has:
+
 - A unique **Product ID** (used in your app and in RevenueCat)
 - **Duration** (1 month / 1 year)
 - **Pricing**
@@ -69,6 +70,7 @@ You're creating auto-renewable subscriptions within that group. Each product has
 ### 4.1 Shared Considerations for Both Products
 
 For both subscriptions:
+
 - **Type:** Auto-Renewable Subscription
 - **Group:** Domani Pro
 - **Level:** Give both the same Level (e.g., Level 1) since they unlock the same "Pro" entitlement
@@ -77,14 +79,17 @@ For both subscriptions:
 #### Pricing Tiers
 
 Apple gives you a list of price points/tiers. For subscriptions you select:
+
 - Base storefront (e.g., United States)
 - A price point, and Apple maps it to all other countries/regions
 
 Typical SaaS pricing pattern:
+
 - **Monthly:** baseline (e.g., $4.99 USD)
 - **Yearly:** ~8-10× monthly (e.g., $39.99 USD) to offer a discount vs 12× monthly
 
 To configure pricing:
+
 1. In the subscription detail screen, go to **Subscription Prices**
 2. Click **Add Subscription Price**
 3. Pick country/region and price; confirm
@@ -129,6 +134,7 @@ To configure pricing:
 ### 4.4 Optional: Trials and Intro Offers
 
 You can configure:
+
 - **Introductory offers** (e.g., first month at a discount)
 - **Free trials**
 
@@ -169,6 +175,7 @@ Apple's sandbox environment lets you test IAP with special Apple IDs.
 ## 6. App Store Connect Keys for RevenueCat
 
 For a modern RevenueCat + React Native setup (StoreKit 2), you need:
+
 - **In-App Purchase Key** – required for RevenueCat to process StoreKit 2 transactions
 - **App Store Connect API Key** – recommended to let RevenueCat import products and prices automatically
 
@@ -183,6 +190,7 @@ For a modern RevenueCat + React Native setup (StoreKit 2), you need:
 7. **Download the .p8 key file** - you can only download this once; store it securely
 
 Then in RevenueCat:
+
 1. In your project, open **Apps & providers → Apple App Store**
 2. Under **In-app purchase key configuration**, upload the .p8 file
 3. Enter the **Issuer ID** (found at the top of the In-App Purchase page in App Store Connect)
@@ -193,6 +201,7 @@ Then in RevenueCat:
 ### 6.2 Generate an App Store Connect API Key (For Product Import)
 
 In App Store Connect:
+
 1. Go to **Users and Access → Integrations**
 2. Under **App Store Connect API**, choose **Team Keys**
 3. Click **Generate API Key** (or "+")
@@ -201,11 +210,13 @@ In App Store Connect:
 6. Generate and **download the .p8 file** (can only be downloaded once)
 
 Note these values:
+
 - **Key ID** (displayed in the table)
 - **Issuer ID** (at the top of the page)
 - **Vendor Number** (from Payments and Financial Reports)
 
 In RevenueCat:
+
 1. Go to your project and select the Apple App Store config
 2. Open the **App Store Connect API** tab
 3. Upload the .p8 file, and enter:
@@ -225,6 +236,7 @@ In RevenueCat:
 Auto-renewable subscriptions must provide ongoing, dynamic value (new content, features, or services over time).
 
 For Domani, frame Pro as ongoing value:
+
 - Unlimited tasks (vs 3/day on free)
 - Cross-device sync and cloud backup
 - Advanced planning features
@@ -233,6 +245,7 @@ For Domani, frame Pro as ongoing value:
 ### 7.2 Required Information In-App for Auto-Renewing Subs
 
 Apple expects the subscription screen inside your app to clearly show, before purchase:
+
 - Title of the subscription (e.g., "Domani Pro – Monthly")
 - Length of subscription ("1 month", "1 year")
 - Price and period (e.g., "$4.99/month, billed monthly")
@@ -245,6 +258,7 @@ Apple expects the subscription screen inside your app to clearly show, before pu
 Apps with auto-renewable subscriptions **must** provide a "Restore Purchases" feature. Apple will reject apps that do not.
 
 In RevenueCat / React Native:
+
 - Implement a visible **Restore Purchases** button (e.g., on your paywall or settings screen)
 - Call `Purchases.restorePurchases()` when tapped
 - Use the returned customer info to re-enable your "premium" entitlement UI
@@ -256,6 +270,7 @@ In RevenueCat / React Native:
 Apple often pushes back on apps that are essentially a static paywall with minimal free functionality.
 
 For Domani:
+
 - Provide some usable free experience (3 tasks per day, basic features)
 - Make sure the app is useful even without subscription
 - Pro genuinely adds ongoing value
@@ -263,11 +278,13 @@ For Domani:
 ### 7.5 Pricing & Dark Patterns
 
 Common reasons for subscription rejection:
+
 - Trial text more prominent than the paid amount
 - Price is tiny or obscured relative to "FREE" messaging
 - "LIMITED TIME" or misleading countdown timers that aren't real
 
 Safe patterns:
+
 - Show price & period in large, unambiguous text (e.g., "$4.99 / month")
 - If you show a trial, ensure the paid plan info is at least as visible
 - Avoid manipulative UI that makes cancellation feel hidden
@@ -275,6 +292,7 @@ Safe patterns:
 ### 7.6 Technical Gotchas for Testing
 
 Common failure points:
+
 - Paid Apps agreement not active
 - Products not **Cleared for Sale** or not in Ready to Submit/Approved
 - Product IDs in your app / RevenueCat don't exactly match App Store Connect
@@ -285,6 +303,7 @@ Common failure points:
 ### 7.7 App Review Submission Tips
 
 When you submit Domani for review:
+
 1. In **App Review → Notes**, explain:
    - That you use auto-renewable subscriptions managed via RevenueCat
    - How to reach the subscription screen (e.g., "Open app → tap 'Upgrade to Pro' in Settings")

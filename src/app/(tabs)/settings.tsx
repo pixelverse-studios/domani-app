@@ -32,6 +32,7 @@ import { useAuth } from '~/hooks/useAuth'
 import { useTheme } from '~/hooks/useTheme'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
 import { useSubscription } from '~/hooks/useSubscription'
+import { useNotifications } from '~/hooks/useNotifications'
 import type { ThemeMode } from '~/stores/themeStore'
 import type { SubscriptionStatus } from '~/hooks/useSubscription'
 
@@ -124,6 +125,7 @@ export default function SettingsScreen() {
   const { profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const subscription = useSubscription()
+  const { scheduleEveningReminder, permissionStatus } = useNotifications()
 
   // Modal states
   const [showNameModal, setShowNameModal] = useState(false)
@@ -163,6 +165,12 @@ export default function SettingsScreen() {
   const handleUpdatePlanningTime = async (time: Date) => {
     const timeString = format(time, 'HH:mm:ss')
     await updateProfile.mutateAsync({ planning_reminder_time: timeString })
+
+    // Reschedule notification if permissions are granted
+    if (permissionStatus === 'granted') {
+      await scheduleEveningReminder(time.getHours(), time.getMinutes())
+    }
+
     setShowPlanningTimeModal(false)
   }
 

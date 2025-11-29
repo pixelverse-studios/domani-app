@@ -451,6 +451,7 @@ export type Database = {
           execution_reminder_time: string | null
           full_name: string | null
           id: string
+          notification_onboarding_completed: boolean
           planning_reminder_time: string | null
           revenuecat_user_id: string | null
           subscription_expires_at: string | null
@@ -468,6 +469,7 @@ export type Database = {
           execution_reminder_time?: string | null
           full_name?: string | null
           id: string
+          notification_onboarding_completed?: boolean
           planning_reminder_time?: string | null
           revenuecat_user_id?: string | null
           subscription_expires_at?: string | null
@@ -485,6 +487,7 @@ export type Database = {
           execution_reminder_time?: string | null
           full_name?: string | null
           id?: string
+          notification_onboarding_completed?: boolean
           planning_reminder_time?: string | null
           revenuecat_user_id?: string | null
           subscription_expires_at?: string | null

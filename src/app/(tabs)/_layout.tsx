@@ -1,12 +1,14 @@
 import React from 'react'
 import { Tabs } from 'expo-router'
 import { CheckCircle, Calendar, MessageCircle, BarChart3, Settings } from 'lucide-react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useTheme } from '~/hooks/useTheme'
 
-const TAB_BAR_HEIGHT = 60
+const TAB_BAR_CONTENT_HEIGHT = 56
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets()
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
 
@@ -25,13 +27,17 @@ export default function TabLayout() {
           backgroundColor,
           borderTopColor: borderColor,
           borderTopWidth: 1,
-          height: TAB_BAR_HEIGHT,
-          paddingBottom: 8,
+          height: TAB_BAR_CONTENT_HEIGHT + insets.bottom,
+          paddingBottom: insets.bottom,
           paddingTop: 8,
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '500',
+          marginBottom: 2,
+        },
+        tabBarIconStyle: {
+          marginTop: 4,
         },
       }}
     >

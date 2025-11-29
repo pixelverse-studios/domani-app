@@ -45,7 +45,7 @@ export function CardCarousel({ children }: CardCarouselProps) {
           <View
             key={index}
             className={`w-2 h-2 rounded-full ${
-              index === activeIndex ? 'bg-purple-500' : 'bg-slate-600'
+              index === activeIndex ? 'bg-purple-500' : 'bg-slate-300 dark:bg-slate-600'
             }`}
           />
         ))}

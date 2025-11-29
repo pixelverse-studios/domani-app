@@ -20,18 +20,19 @@ Complete guide for setting up in-app purchases with RevenueCat and App Store Con
 
 For each subscription product:
 
-| Field | Example Value |
-|-------|---------------|
-| Type | Auto-Renewable Subscription |
-| Reference Name | Domani Pro Monthly |
-| Product ID | `domani_pro_monthly` |
-| Subscription Group | Domani Pro |
+| Field              | Example Value               |
+| ------------------ | --------------------------- |
+| Type               | Auto-Renewable Subscription |
+| Reference Name     | Domani Pro Monthly          |
+| Product ID         | `domani_pro_monthly`        |
+| Subscription Group | Domani Pro                  |
 
 4. Add pricing (e.g., $4.99/month, $39.99/year)
 5. Add localized display name and description
 6. Submit for review (can be done with app submission)
 
 **Product IDs used in this app:**
+
 - `domani_pro_monthly` - Monthly subscription
 - `domani_pro_yearly` - Yearly subscription
 
@@ -107,14 +108,15 @@ Offerings are the products you display to users. This allows A/B testing differe
    - Identifier: `default` (this is the "current" offering fetched by the app)
 4. Add **Packages** to the offering:
 
-   | Package | Type | Product |
-   |---------|------|---------|
+   | Package | Type    | Product              |
+   | ------- | ------- | -------------------- |
    | Monthly | Monthly | `domani_pro_monthly` |
-   | Annual | Annual | `domani_pro_yearly` |
+   | Annual  | Annual  | `domani_pro_yearly`  |
 
 5. Make sure the offering is set as **Current** (star icon)
 
 **How it works in code:**
+
 ```typescript
 const offerings = await Purchases.getOfferings()
 const currentOffering = offerings.current // Gets the "default" offering
@@ -189,17 +191,18 @@ npx expo run:ios --device
 Sandbox subscriptions renew on an accelerated schedule:
 
 | Real Duration | Sandbox Duration |
-|---------------|------------------|
-| 1 week | 3 minutes |
-| 1 month | 5 minutes |
-| 2 months | 10 minutes |
-| 3 months | 15 minutes |
-| 6 months | 30 minutes |
-| 1 year | 1 hour |
+| ------------- | ---------------- |
+| 1 week        | 3 minutes        |
+| 1 month       | 5 minutes        |
+| 2 months      | 10 minutes       |
+| 3 months      | 15 minutes       |
+| 6 months      | 30 minutes       |
+| 1 year        | 1 hour           |
 
 Subscriptions auto-renew up to 6 times in sandbox, then cancel.
 
 **Test scenarios:**
+
 - New purchase
 - Restore purchases (Settings → App Store → sign into different sandbox account)
 - Subscription expiration (wait for sandbox renewal period)
@@ -210,6 +213,7 @@ Subscriptions auto-renew up to 6 times in sandbox, then cancel.
 ## 5. Code Reference
 
 Key files:
+
 - `src/lib/revenuecat.ts` - RevenueCat SDK wrapper
 - `src/hooks/useSubscription.ts` - React hook for subscription state
 
@@ -246,21 +250,25 @@ if (offering?.monthly) {
 ## 6. Troubleshooting
 
 ### "No offerings available"
+
 - Check RevenueCat dashboard: Is an offering set as Current?
 - Check products are attached to packages in the offering
 - Verify API key is correct in `.env`
 
 ### "Invalid product" error
+
 - Product ID in RevenueCat must exactly match App Store Connect
 - Product must be in "Ready to Submit" or "Approved" status
 - App Store Connect may take up to 24 hours to propagate new products
 
 ### Purchase completes but entitlement not active
+
 - Verify product is attached to the `premium` entitlement in RevenueCat
 - Check RevenueCat logs for webhook errors
 - Ensure App-Specific Shared Secret is correctly configured
 
 ### Sandbox sign-in not appearing
+
 - Make sure you're signed out of real Apple ID on device
 - Try Settings → App Store → Sandbox Account (iOS 14+)
 - Restart the app

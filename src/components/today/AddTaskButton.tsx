@@ -10,13 +10,14 @@ interface AddTaskButtonProps {
 }
 
 export function AddTaskButton({ onPress, disabled }: AddTaskButtonProps) {
+  // Button stays purple across themes - it's a primary action
   return (
     <View className="px-5 pb-4">
       <TouchableOpacity
         onPress={onPress}
         disabled={disabled}
         className={`flex-row items-center justify-center py-4 rounded-xl ${
-          disabled ? 'bg-purple-500/50' : 'bg-purple-500'
+          disabled ? 'bg-purple-500/50' : 'bg-purple-600 dark:bg-purple-500'
         }`}
         accessibilityLabel="Add new task"
         accessibilityRole="button"

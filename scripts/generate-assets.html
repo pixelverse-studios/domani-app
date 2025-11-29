@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Domani Asset Generator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+      background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 50%, #0c0f1a 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding: 60px 40px;
+    }
+    .header { text-align: center; margin-bottom: 60px; }
+    h1 { font-size: 48px; font-weight: 600; color: #a78bfa; margin-bottom: 16px; }
+    .subtitle { color: #9ca3af; font-size: 18px; max-width: 600px; margin: 0 auto; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 40px; max-width: 1400px; margin: 0 auto; }
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 32px;
+      backdrop-filter: blur(10px);
+    }
+    .card h3 { color: #c4b5fd; font-size: 20px; margin-bottom: 8px; }
+    .card .specs { color: #6b7280; font-size: 14px; margin-bottom: 24px; }
+    .preview {
+      background: #0a0a14;
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 24px;
+      min-height: 250px;
+    }
+    .preview.splash { min-height: 400px; }
+    button {
+      width: 100%;
+      background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+      color: white;
+      border: none;
+      padding: 16px 24px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(124, 58, 237, 0.3); }
+    button:active { transform: translateY(0); }
+    .all-btn {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      max-width: 400px;
+      margin: 60px auto 0;
+      display: block;
+    }
+    .instructions {
+      text-align: center;
+      margin-top: 60px;
+      padding: 32px;
+      background: rgba(245, 158, 11, 0.1);
+      border-radius: 16px;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .instructions h4 { color: #fbbf24; margin-bottom: 16px; }
+    .instructions p { color: #9ca3af; line-height: 1.6; }
+    .instructions code { background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 4px; color: #c4b5fd; }
+    canvas { display: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Domani Assets</h1>
+    <p class="subtitle">Generate PNG assets for the app icon and splash screen. Click each button to download, or use "Download All" at the bottom.</p>
+  </div>
+
+  <div class="grid">
+    <!-- App Icon -->
+    <div class="card">
+      <h3>App Icon</h3>
+      <div class="specs">1024 × 1024px · icon.png</div>
+      <div class="preview">
+        <svg id="icon-svg" width="200" height="200" viewBox="0 0 1024 1024">
+          <defs>
+            <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#7c3aed"/>
+              <stop offset="50%" stop-color="#6d28d9"/>
+              <stop offset="100%" stop-color="#5b21b6"/>
+            </linearGradient>
+            <linearGradient id="letterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="100%" stop-color="#e9d5ff"/>
+            </linearGradient>
+            <radialGradient id="sunGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#fcd34d"/>
+              <stop offset="70%" stop-color="#f59e0b"/>
+              <stop offset="100%" stop-color="#d97706"/>
+            </radialGradient>
+            <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#fcd34d" stop-opacity="0.5"/>
+              <stop offset="100%" stop-color="#fcd34d" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <rect x="0" y="0" width="1024" height="1024" rx="225" ry="225" fill="url(#bgGrad)"/>
+          <path d="M286 225 L286 799 L491 799 C676 799 799 676 799 512 C799 348 676 225 491 225 L286 225 Z M389 328 L471 328 C594 328 686 410 686 512 C686 614 594 696 471 696 L389 696 L389 328 Z" fill="url(#letterGrad)" fill-rule="evenodd"/>
+          <circle cx="737" cy="328" r="164" fill="url(#glowGrad)"/>
+          <circle cx="737" cy="328" r="102" fill="url(#sunGrad)"/>
+          <circle cx="706" cy="297" r="31" fill="#fef3c7" opacity="0.6"/>
+        </svg>
+      </div>
+      <button onclick="downloadAsset('icon')">Download icon.png</button>
+    </div>
+
+    <!-- Adaptive Icon -->
+    <div class="card">
+      <h3>Adaptive Icon (Android)</h3>
+      <div class="specs">1024 × 1024px · adaptive-icon.png</div>
+      <div class="preview" style="background: #7c3aed;">
+        <svg id="adaptive-svg" width="200" height="200" viewBox="0 0 1024 1024">
+          <defs>
+            <linearGradient id="letterGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="100%" stop-color="#e9d5ff"/>
+            </linearGradient>
+            <radialGradient id="sunGrad2" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#fcd34d"/>
+              <stop offset="70%" stop-color="#f59e0b"/>
+              <stop offset="100%" stop-color="#d97706"/>
+            </radialGradient>
+            <radialGradient id="glowGrad2" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#fcd34d" stop-opacity="0.5"/>
+              <stop offset="100%" stop-color="#fcd34d" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <path d="M320 280 L320 744 L500 744 C660 744 768 652 768 512 C768 372 660 280 500 280 L320 280 Z M410 360 L485 360 C590 360 670 425 670 512 C670 599 590 664 485 664 L410 664 L410 360 Z" fill="url(#letterGrad2)" fill-rule="evenodd"/>
+          <circle cx="700" cy="340" r="130" fill="url(#glowGrad2)"/>
+          <circle cx="700" cy="340" r="85" fill="url(#sunGrad2)"/>
+          <circle cx="675" cy="315" r="25" fill="#fef3c7" opacity="0.6"/>
+        </svg>
+      </div>
+      <button onclick="downloadAsset('adaptive')">Download adaptive-icon.png</button>
+    </div>
+
+    <!-- Splash Screen -->
+    <div class="card">
+      <h3>Splash Screen</h3>
+      <div class="specs">1284 × 2778px · splash.png</div>
+      <div class="preview splash">
+        <svg id="splash-svg" width="148" height="320" viewBox="0 0 1284 2778">
+          <defs>
+            <linearGradient id="splashBg" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#1e1b4b"/>
+              <stop offset="50%" stop-color="#0f172a"/>
+              <stop offset="100%" stop-color="#0c0f1a"/>
+            </linearGradient>
+            <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#c4b5fd"/>
+              <stop offset="50%" stop-color="#a78bfa"/>
+              <stop offset="100%" stop-color="#8b5cf6"/>
+            </linearGradient>
+            <radialGradient id="ambientGlow" cx="50%" cy="40%" r="40%">
+              <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.15"/>
+              <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="sunGrad3" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#fcd34d"/>
+              <stop offset="70%" stop-color="#f59e0b"/>
+              <stop offset="100%" stop-color="#d97706"/>
+            </radialGradient>
+          </defs>
+          <rect width="1284" height="2778" fill="url(#splashBg)"/>
+          <ellipse cx="642" cy="1200" rx="700" ry="700" fill="url(#ambientGlow)"/>
+          <!-- D Monogram -->
+          <g transform="translate(442, 1089)">
+            <path d="M0 0 L0 400 L143 400 C272 400 357 307 357 200 C357 93 272 0 143 0 L0 0 Z M72 72 L129 72 C214 72 271 128 271 200 C271 272 214 328 129 328 L72 328 L72 72 Z" fill="url(#textGrad)" fill-rule="evenodd"/>
+            <circle cx="315" cy="72" r="80" fill="url(#ambientGlow)"/>
+            <circle cx="315" cy="72" r="50" fill="url(#sunGrad3)"/>
+          </g>
+          <!-- domani wordmark -->
+          <text x="642" y="1620" text-anchor="middle" fill="#a78bfa" font-family="-apple-system, BlinkMacSystemFont, SF Pro Display, system-ui, sans-serif" font-size="100" font-weight="500" letter-spacing="4">domani</text>
+          <!-- Tagline -->
+          <text x="642" y="1720" text-anchor="middle" fill="#f59e0b" font-family="-apple-system, BlinkMacSystemFont, SF Pro Display, system-ui, sans-serif" font-size="32" font-weight="500" letter-spacing="6" opacity="0.85">PLAN TOMORROW TONIGHT</text>
+        </svg>
+      </div>
+      <button onclick="downloadAsset('splash')">Download splash.png</button>
+    </div>
+  </div>
+
+  <button class="all-btn" onclick="downloadAll()">Download All Assets</button>
+
+  <div class="instructions">
+    <h4>After Downloading</h4>
+    <p>Move the downloaded files to your <code>assets/</code> folder, replacing the existing files:<br><br>
+    <code>icon.png</code> · <code>adaptive-icon.png</code> · <code>splash.png</code><br><br>
+    Then run <code>npx expo prebuild --clean</code> to regenerate native projects with new assets.</p>
+  </div>
+
+  <!-- Hidden canvases for high-res rendering -->
+  <canvas id="icon-canvas" width="1024" height="1024"></canvas>
+  <canvas id="adaptive-canvas" width="1024" height="1024"></canvas>
+  <canvas id="splash-canvas" width="1284" height="2778"></canvas>
+
+  <script>
+    const configs = {
+      icon: { width: 1024, height: 1024, filename: 'icon.png' },
+      adaptive: { width: 1024, height: 1024, filename: 'adaptive-icon.png' },
+      splash: { width: 1284, height: 2778, filename: 'splash.png' }
+    };
+
+    async function downloadAsset(type) {
+      const config = configs[type];
+      const svg = document.getElementById(`${type}-svg`);
+      const canvas = document.getElementById(`${type}-canvas`);
+      const ctx = canvas.getContext('2d');
+
+      // Clone SVG and set full size
+      const clone = svg.cloneNode(true);
+      clone.setAttribute('width', config.width);
+      clone.setAttribute('height', config.height);
+
+      // For adaptive icon, we need transparent background
+      if (type === 'adaptive') {
+        ctx.clearRect(0, 0, config.width, config.height);
+      }
+
+      const svgData = new XMLSerializer().serializeToString(clone);
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          ctx.clearRect(0, 0, config.width, config.height);
+          ctx.drawImage(img, 0, 0, config.width, config.height);
+          URL.revokeObjectURL(url);
+
+          canvas.toBlob((blob) => {
+            const link = document.createElement('a');
+            link.download = config.filename;
+            link.href = URL.createObjectURL(blob);
+            link.click();
+            URL.revokeObjectURL(link.href);
+            resolve();
+          }, 'image/png');
+        };
+        img.src = url;
+      });
+    }
+
+    async function downloadAll() {
+      await downloadAsset('icon');
+      await new Promise(r => setTimeout(r, 500));
+      await downloadAsset('adaptive');
+      await new Promise(r => setTimeout(r, 500));
+      await downloadAsset('splash');
+    }
+  </script>
+</body>
+</html>
