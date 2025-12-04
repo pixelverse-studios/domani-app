@@ -22,8 +22,8 @@ import {
   TaskList,
   CompletedSection,
   AddTaskButton,
-  NewUserProgressCard,
-  NewUserEmptyState,
+  ProgressPlaceholderCard,
+  EmptyState,
 } from '~/components/today'
 import { useTodayPlan } from '~/hooks/usePlans'
 import { useTasks, useToggleTask } from '~/hooks/useTasks'
@@ -37,7 +37,7 @@ export default function TodayScreen() {
   const { activeTheme } = useTheme()
   const { data: plan, isLoading: planLoading, refetch: refetchPlan } = useTodayPlan()
   const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useTasks(plan?.id)
-  const { profile, isNewUser, isLoading: profileLoading } = useProfile()
+  const { profile, isLoading: profileLoading } = useProfile()
   const toggleTask = useToggleTask()
   const updateProfile = useUpdateProfile()
 
@@ -146,10 +146,10 @@ export default function TodayScreen() {
       >
         <TodayHeader onNotificationPress={handleNotificationPress} />
 
-        {/* Progress Card - Different for new users */}
+        {/* Progress Section - Show placeholder when no tasks, carousel when tasks exist */}
         <View className="mt-4">
-          {isNewUser && tasks.length === 0 ? (
-            <NewUserProgressCard />
+          {tasks.length === 0 ? (
+            <ProgressPlaceholderCard />
           ) : (
             <CardCarousel>
               <FocusCard task={mitTask} />
@@ -158,21 +158,10 @@ export default function TodayScreen() {
           )}
         </View>
 
-        {/* Task List */}
+        {/* Task List or Empty State */}
         <View className="mt-6">
           {tasks.length === 0 ? (
-            isNewUser ? (
-              <NewUserEmptyState />
-            ) : (
-              <View className="items-center justify-center py-12 mx-5">
-                <Text className="text-slate-500 dark:text-slate-400 text-center text-base">
-                  No tasks planned for today.
-                </Text>
-                <Text className="text-slate-400 dark:text-slate-500 text-center text-sm mt-2">
-                  Add a task to get started!
-                </Text>
-              </View>
-            )
+            <EmptyState />
           ) : (
             <>
               <TaskList tasks={tasks} onToggle={handleToggleTask} onTaskPress={handleTaskPress} />
@@ -185,17 +174,19 @@ export default function TodayScreen() {
           )}
         </View>
 
-        {/* Bottom spacing for Add Task button */}
-        <View className="h-20" />
+        {/* Bottom spacing for Add Task button (only when tasks exist) */}
+        {tasks.length > 0 && <View className="h-20" />}
       </ScrollView>
 
-      {/* Fixed Add Task Button */}
-      <View
-        className="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-950"
-        style={{ paddingBottom: insets.bottom > 0 ? 0 : 16 }}
-      >
-        <AddTaskButton onPress={handleAddTask} />
-      </View>
+      {/* Fixed Add Task Button - only show when user has tasks */}
+      {tasks.length > 0 && (
+        <View
+          className="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-950"
+          style={{ paddingBottom: insets.bottom > 0 ? 0 : 16 }}
+        >
+          <AddTaskButton onPress={handleAddTask} />
+        </View>
+      )}
 
       {/* Name Prompt Modal */}
       <Modal visible={showNameModal} transparent animationType="fade">

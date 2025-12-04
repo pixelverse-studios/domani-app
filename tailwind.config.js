@@ -7,6 +7,12 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
+      colors: {
+        // Override slate-950 to be a true off-black instead of bluish
+        slate: {
+          950: '#0D0D0F',
+        },
+      },
       spacing: {
         xs: '4px',
         sm: '8px',

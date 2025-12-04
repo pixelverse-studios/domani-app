@@ -1,16 +1,21 @@
 import React from 'react'
 import { View, TouchableOpacity } from 'react-native'
-import { Bell } from 'lucide-react-native'
+import { Bell, Sun, CloudMoon, Moon } from 'lucide-react-native'
 import { format } from 'date-fns'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
 
-function getGreeting(): string {
+type GreetingInfo = {
+  text: string
+  icon: 'sun' | 'cloudMoon' | 'moon'
+}
+
+function getGreeting(): GreetingInfo {
   const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 17) return 'Good afternoon'
-  return 'Good evening'
+  if (hour < 12) return { text: 'Good morning', icon: 'sun' }
+  if (hour < 17) return { text: 'Good afternoon', icon: 'cloudMoon' }
+  return { text: 'Good evening', icon: 'moon' }
 }
 
 function getOrdinalSuffix(day: number): string {
@@ -40,19 +45,51 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
   const month = format(today, 'MMMM')
   const day = today.getDate()
   const formattedDate = `${month} ${day}${getOrdinalSuffix(day)}`
+  const greeting = getGreeting()
 
-  // Icon color adapts to theme
+  // Icon colors adapt to theme
   const bellColor = isDark ? '#cbd5e1' : '#64748b' // slate-300 / slate-500
+  const greetingIconColor = isDark ? '#a78bfa' : '#7c3aed' // purple-400 / purple-600
+
+  // Render the appropriate greeting icon
+  const GreetingIcon = () => {
+    const iconProps = { size: 16, color: greetingIconColor }
+    switch (greeting.icon) {
+      case 'sun':
+        return <Sun {...iconProps} />
+      case 'cloudMoon':
+        return <CloudMoon {...iconProps} />
+      case 'moon':
+        return <Moon {...iconProps} />
+    }
+  }
+
+  // Text colors
+  const purpleColor = isDark ? '#a78bfa' : '#8b5cf6' // purple-400 / purple-500
+  const grayColor = isDark ? '#94a3b8' : '#64748b' // slate-400 / slate-500
 
   return (
     <View className="flex-row items-start justify-between px-5 pt-4 pb-2">
       <View>
-        <Text className="text-sm text-purple-600 dark:text-purple-400 font-medium mb-1">
-          {getGreeting()}
+        {/* Greeting with icon */}
+        <View className="flex-row items-center mb-2">
+          <GreetingIcon />
+          <Text className="font-medium ml-1.5" style={{ fontSize: 16, color: purpleColor }}>
+            {greeting.text}
+          </Text>
+        </View>
+        {/* Day of week - smaller, lighter */}
+        <Text className="mb-1" style={{ fontSize: 14, color: grayColor }}>
+          {dayOfWeek}
         </Text>
-        <Text className="text-sm text-slate-500 dark:text-slate-300 mb-1">{dayOfWeek}</Text>
-        <Text className="text-3xl font-bold text-slate-900 dark:text-white">{formattedDate}</Text>
-        <Text className="text-lg text-slate-500 dark:text-slate-300 mt-1">Today</Text>
+        {/* Date - very large and bold, the main focal point */}
+        <Text className="text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+          {formattedDate}
+        </Text>
+        {/* Today label - purple, not gray */}
+        <Text className="mt-2" style={{ fontSize: 18, color: purpleColor }}>
+          Today
+        </Text>
       </View>
       <TouchableOpacity
         onPress={onNotificationPress}

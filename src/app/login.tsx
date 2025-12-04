@@ -1,21 +1,31 @@
 import React, { useState } from 'react'
-import { Alert, StyleSheet, Text as RNText, View } from 'react-native'
-import { useRouter } from 'expo-router'
+import { Alert, StyleSheet, Text as RNText, TouchableOpacity, View } from 'react-native'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { LegalFooter, Text } from '~/components/ui'
 import { SocialButton } from '~/components/ui/SocialButton'
-import { GradientOrb } from '~/components/ui/GradientOrb'
 import { useAuth } from '~/hooks/useAuth'
 import { useTheme } from '~/hooks/useTheme'
+import { colors } from '~/theme'
 
 export default function LoginScreen() {
   const router = useRouter()
+  const { mode } = useLocalSearchParams<{ mode?: 'new' | 'returning' }>()
   const insets = useSafeAreaInsets()
   const { signInWithGoogle, signInWithApple } = useAuth()
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
+
+  // Determine if this is a new user or returning user
+  const isNewUser = mode === 'new'
+
+  // Theme-aware colors (matching welcome.tsx)
+  const themeColors = {
+    background: isDark ? colors.background.dark : colors.background.light,
+    glowOpacity: isDark ? 0.35 : 0.2,
+  }
 
   const [googleLoading, setGoogleLoading] = useState(false)
   const [appleLoading, setAppleLoading] = useState(false)
@@ -51,34 +61,18 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      {/* Background gradient */}
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+      {/* Background glow - top right purple gradient, matching welcome.tsx */}
       <LinearGradient
-        colors={isDark ? ['#0f172a', '#1e1b4b', '#0f172a'] : ['#faf5ff', '#f3e8ff', '#faf5ff']}
-        locations={[0, 0.5, 1]}
-        style={StyleSheet.absoluteFillObject}
-      />
-
-      {/* Subtle animated orb */}
-      <GradientOrb
-        size={300}
-        position="top-right"
-        colors={
-          isDark
-            ? ['#4c1d95', '#7c3aed', '#a855f7', '#c4b5fd']
-            : ['#ddd6fe', '#c4b5fd', '#a78bfa', '#8b5cf6']
-        }
-      />
-
-      {/* Content overlay gradient */}
-      <LinearGradient
-        colors={
-          isDark
-            ? ['rgba(15, 23, 42, 0.3)', 'rgba(15, 23, 42, 0.8)', 'rgba(15, 23, 42, 0.95)']
-            : ['rgba(250, 245, 255, 0.3)', 'rgba(250, 245, 255, 0.8)', 'rgba(250, 245, 255, 0.95)']
-        }
-        locations={[0, 0.3, 0.6]}
-        style={StyleSheet.absoluteFillObject}
+        colors={[
+          `rgba(${colors.brand.gradientStartRgb}, ${themeColors.glowOpacity})`,
+          `rgba(${colors.brand.gradientStartRgb}, ${themeColors.glowOpacity * 0.5})`,
+          `rgba(${colors.brand.gradientStartRgb}, ${themeColors.glowOpacity * 0.15})`,
+          'transparent',
+        ]}
+        style={styles.backgroundGlow}
+        start={{ x: 0.9, y: 0 }}
+        end={{ x: 0.1, y: 0.7 }}
       />
 
       {/* Main content */}
@@ -87,7 +81,7 @@ export default function LoginScreen() {
         <View style={styles.headerSection}>
           {/* Title - using RNText to avoid line-height clipping */}
           <RNText style={[styles.title, { color: isDark ? '#a855f7' : '#7c3aed' }]}>
-            Welcome Back
+            {isNewUser ? "Let's Get Started" : 'Welcome Back'}
           </RNText>
 
           <Text
@@ -96,7 +90,9 @@ export default function LoginScreen() {
               { color: isDark ? 'rgba(250, 245, 255, 0.6)' : 'rgba(30, 27, 75, 0.6)' },
             ]}
           >
-            Sign in to continue planning your tomorrow
+            {isNewUser
+              ? 'Create an account to start planning\nyour tomorrow'
+              : 'Sign in to continue planning\nyour tomorrow'}
           </Text>
         </View>
 
@@ -110,36 +106,24 @@ export default function LoginScreen() {
             <SocialButton provider="google" onPress={handleGoogleSignIn} loading={googleLoading} />
           </View>
 
-          {/* Divider with "or" */}
-          <View style={styles.dividerContainer}>
-            <View
-              style={[
-                styles.dividerLine,
-                {
-                  backgroundColor: isDark ? 'rgba(250, 245, 255, 0.15)' : 'rgba(30, 27, 75, 0.15)',
-                },
-              ]}
-            />
-            <Text
-              style={[
-                styles.dividerText,
-                { color: isDark ? 'rgba(250, 245, 255, 0.4)' : 'rgba(30, 27, 75, 0.4)' },
-              ]}
-            >
-              More options coming soon
-            </Text>
-            <View
-              style={[
-                styles.dividerLine,
-                {
-                  backgroundColor: isDark ? 'rgba(250, 245, 255, 0.15)' : 'rgba(30, 27, 75, 0.15)',
-                },
-              ]}
-            />
-          </View>
-
           {/* Footer */}
           <LegalFooter />
+
+          {/* Back button */}
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.backButtonText,
+                { color: isDark ? 'rgba(250, 245, 255, 0.5)' : 'rgba(30, 27, 75, 0.5)' },
+              ]}
+            >
+              ← Back
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -149,7 +133,13 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    overflow: 'hidden',
+  },
+  backgroundGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '65%',
   },
   content: {
     flex: 1,
@@ -161,9 +151,9 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
   title: {
-    fontSize: 36,
-    fontWeight: '600',
-    letterSpacing: 1,
+    fontSize: 42,
+    fontWeight: '700',
+    letterSpacing: 0.5,
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -182,18 +172,14 @@ const styles = StyleSheet.create({
     gap: 14,
     marginBottom: 28,
   },
-  dividerContainer: {
-    flexDirection: 'row',
+  backButton: {
+    marginTop: 24,
+    paddingVertical: 12,
     alignItems: 'center',
-    marginBottom: 24,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    fontSize: 13,
-    paddingHorizontal: 16,
+  backButtonText: {
+    fontSize: 15,
     fontWeight: '400',
+    letterSpacing: 0.3,
   },
 })

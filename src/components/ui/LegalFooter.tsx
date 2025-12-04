@@ -1,22 +1,26 @@
 import React from 'react'
 import { StyleSheet, Text as RNText, View } from 'react-native'
-
 import { useTheme } from '~/hooks/useTheme'
+import { colors } from '~/theme'
 
 export const LegalFooter = () => {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
 
-  const textColor = isDark ? 'rgba(250, 245, 255, 0.4)' : 'rgba(30, 27, 75, 0.4)'
-  const linkColor = isDark ? 'rgba(250, 245, 255, 0.5)' : 'rgba(30, 27, 75, 0.5)'
+  const themeColors = {
+    text: isDark ? colors.text.tertiary.dark : colors.text.tertiary.light,
+    link: isDark ? colors.text.secondary.dark : colors.text.secondary.light,
+  }
 
   return (
     <View style={styles.container}>
-      <RNText style={[styles.text, { color: textColor }]}>By continuing, you agree to our</RNText>
+      <RNText style={[styles.text, { color: themeColors.text }]}>
+        By continuing, you agree to our
+      </RNText>
       <View style={styles.linksRow}>
-        <RNText style={[styles.link, { color: linkColor }]}>Terms of Service</RNText>
-        <RNText style={[styles.text, { color: textColor }]}> and </RNText>
-        <RNText style={[styles.link, { color: linkColor }]}>Privacy Policy</RNText>
+        <RNText style={[styles.link, { color: themeColors.link }]}>Terms of Service</RNText>
+        <RNText style={[styles.text, { color: themeColors.text }]}> and </RNText>
+        <RNText style={[styles.link, { color: themeColors.link }]}>Privacy Policy</RNText>
       </View>
     </View>
   )

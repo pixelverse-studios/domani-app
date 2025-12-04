@@ -1,26 +1,23 @@
 import React, { useEffect, useMemo } from 'react'
-import {
-  Animated,
-  Dimensions,
-  Easing,
-  StyleSheet,
-  Text as RNText,
-  TouchableOpacity,
-  View,
-} from 'react-native'
+import { Animated, Easing, StyleSheet, TouchableOpacity, View } from 'react-native'
 import { Link } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Button, LegalFooter, Text } from '~/components/ui'
-import { GradientOrb } from '~/components/ui/GradientOrb'
+import { GradientText, LegalFooter, Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window')
+import { colors } from '~/theme'
 
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets()
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
+
+  // Theme-aware colors
+  const themeColors = {
+    background: isDark ? colors.background.dark : colors.background.light,
+    textSecondary: isDark ? colors.text.secondary.dark : colors.text.secondary.light,
+    glowOpacity: isDark ? 0.35 : 0.2,
+  }
 
   // Use useMemo to create stable animated values
   const titleAnim = useMemo(() => new Animated.Value(0), [])
@@ -73,67 +70,42 @@ export default function WelcomeScreen() {
   })
 
   return (
-    <View style={styles.container}>
-      {/* Background gradient base */}
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
+      {/* Background glow - top right purple gradient, extends left and down */}
       <LinearGradient
-        colors={isDark ? ['#0f172a', '#1e1b4b', '#0f172a'] : ['#faf5ff', '#f3e8ff', '#faf5ff']}
-        locations={[0, 0.5, 1]}
-        style={StyleSheet.absoluteFillObject}
-      />
-
-      {/* Animated gradient orb - positioned in corner away from text */}
-      <GradientOrb
-        size={SCREEN_HEIGHT * 0.45}
-        position="top-right"
-        colors={
-          isDark
-            ? ['#4c1d95', '#7c3aed', '#a855f7', '#c084fc']
-            : ['#c4b5fd', '#a78bfa', '#8b5cf6', '#7c3aed']
-        }
-      />
-
-      {/* Content overlay - ensures text readability */}
-      <LinearGradient
-        colors={
-          isDark
-            ? ['rgba(15, 23, 42, 0.3)', 'rgba(15, 23, 42, 0.85)', 'rgba(15, 23, 42, 0.98)']
-            : ['rgba(250, 245, 255, 0.3)', 'rgba(250, 245, 255, 0.85)', 'rgba(250, 245, 255, 0.98)']
-        }
-        locations={[0, 0.35, 0.55]}
-        style={StyleSheet.absoluteFillObject}
+        colors={[
+          `rgba(${colors.brand.gradientStartRgb}, ${themeColors.glowOpacity})`,
+          `rgba(${colors.brand.gradientStartRgb}, ${themeColors.glowOpacity * 0.5})`,
+          `rgba(${colors.brand.gradientStartRgb}, ${themeColors.glowOpacity * 0.15})`,
+          'transparent',
+        ]}
+        style={styles.backgroundGlow}
+        start={{ x: 0.9, y: 0 }}
+        end={{ x: 0.1, y: 0.7 }}
       />
 
       {/* Main content */}
-      <View style={[styles.content, { paddingTop: insets.top + 120 }]}>
-        {/* Brand section - no icon, just text */}
+      <View style={[styles.content, { paddingTop: insets.top }]}>
+        {/* Brand section - centered vertically */}
         <View style={styles.brandSection}>
-          {/* App name - using RNText directly to avoid line-height clipping from Text component */}
+          {/* App name with gradient text - pink to purple */}
           <Animated.View style={createAnimatedStyle(titleAnim)}>
-            <RNText style={[styles.appName, { color: isDark ? '#a855f7' : '#7c3aed' }]}>
+            <GradientText
+              colors={[colors.brand.gradientStart, colors.brand.gradientEnd]}
+              style={styles.appName}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
               Domani
-            </RNText>
+            </GradientText>
           </Animated.View>
 
           {/* Tagline */}
           <Animated.View style={[styles.taglineContainer, createAnimatedStyle(taglineAnim)]}>
-            <Text
-              style={[
-                styles.tagline,
-                {
-                  color: isDark ? 'rgba(250, 245, 255, 0.8)' : 'rgba(30, 27, 75, 0.8)',
-                },
-              ]}
-            >
+            <Text style={[styles.tagline, { color: themeColors.textSecondary }]}>
               Plan your tomorrow, tonight.
             </Text>
-            <Text
-              style={[
-                styles.taglineSecondary,
-                {
-                  color: isDark ? 'rgba(250, 245, 255, 0.5)' : 'rgba(30, 27, 75, 0.5)',
-                },
-              ]}
-            >
+            <Text style={[styles.taglineSecondary, { color: themeColors.textSecondary }]}>
               Execute with focus.
             </Text>
           </Animated.View>
@@ -142,35 +114,32 @@ export default function WelcomeScreen() {
         {/* CTA Section */}
         <View style={[styles.ctaSection, { paddingBottom: insets.bottom + 32 }]}>
           <Animated.View style={[styles.ctaContainer, createAnimatedStyle(ctaAnim)]}>
-            {/* Primary CTA */}
-            <Link href="/login" asChild>
-              <Button
-                variant="primary"
-                size="lg"
-                onPress={() => {}}
-                className="w-full"
-                style={styles.primaryButton}
-              >
-                <Text style={styles.primaryButtonText}>Start Planning</Text>
-              </Button>
+            {/* Primary CTA - Gradient button for new users */}
+            <Link href="/login?mode=new" asChild>
+              <TouchableOpacity activeOpacity={0.8} style={styles.primaryButtonContainer}>
+                <LinearGradient
+                  colors={[colors.brand.gradientStart, colors.brand.gradientEnd]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.primaryButton}
+                >
+                  <Text style={styles.primaryButtonText}>Start Planning</Text>
+                </LinearGradient>
+              </TouchableOpacity>
             </Link>
 
-            {/* Secondary link */}
-            <Link href="/login" asChild>
+            {/* Secondary link for returning users */}
+            <Link href="/login?mode=returning" asChild>
               <TouchableOpacity style={styles.secondaryLink} activeOpacity={0.7}>
-                <Text
-                  style={[
-                    styles.secondaryLinkText,
-                    { color: isDark ? 'rgba(250, 245, 255, 0.6)' : 'rgba(30, 27, 75, 0.6)' },
-                  ]}
-                >
+                <Text style={[styles.secondaryLinkText, { color: themeColors.textSecondary }]}>
                   Already have an account?{' '}
                 </Text>
-                <Text
-                  style={[styles.secondaryLinkHighlight, { color: isDark ? '#f59e0b' : '#d97706' }]}
+                <GradientText
+                  colors={[colors.brand.gradientStart, colors.brand.gradientEnd]}
+                  style={styles.secondaryLinkHighlight}
                 >
                   Sign in
-                </Text>
+                </GradientText>
               </TouchableOpacity>
             </Link>
           </Animated.View>
@@ -188,7 +157,13 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    overflow: 'hidden',
+  },
+  backgroundGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '65%',
   },
   content: {
     flex: 1,
@@ -196,30 +171,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   brandSection: {
+    flex: 1,
     alignItems: 'center',
-    marginTop: 40,
+    justifyContent: 'center',
   },
   appName: {
-    fontSize: 52,
-    fontWeight: '600',
+    fontSize: 56,
+    fontWeight: '700',
     letterSpacing: 1,
     textAlign: 'center',
   },
   taglineContainer: {
-    marginTop: 20,
+    marginTop: 24,
+    alignItems: 'center',
   },
   tagline: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '400',
     textAlign: 'center',
-    letterSpacing: 0.5,
-    marginBottom: 6,
+    letterSpacing: 0.3,
+    marginBottom: 4,
   },
   taglineSecondary: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '400',
     textAlign: 'center',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   ctaSection: {
     width: '100%',
@@ -228,21 +205,22 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 24,
   },
+  primaryButtonContainer: {
+    width: '100%',
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
   primaryButton: {
-    backgroundColor: '#f59e0b',
-    borderRadius: 16,
-    paddingVertical: 18,
-    shadowColor: '#f59e0b',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryButtonText: {
-    color: '#1f1f1f',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
+    color: '#FFFFFF',
   },
   secondaryLink: {
     flexDirection: 'row',
