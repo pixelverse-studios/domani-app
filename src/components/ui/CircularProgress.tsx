@@ -26,19 +26,20 @@ export function CircularProgress({
   const clampedProgress = Math.min(100, Math.max(0, progress))
   const strokeDashoffset = circumference - (clampedProgress / 100) * circumference
 
-  // Theme-aware colors for SVG (can't use Tailwind classes)
-  const backgroundStroke = isDark ? '#374151' : '#e2e8f0' // gray-700 / slate-200
+  // Theme-aware colors - darker, more subtle background ring
+  const backgroundStroke = isDark ? '#2D2D3A' : '#e2e8f0'
 
   return (
     <View style={{ width: size, height: size }} className="items-center justify-center">
       <Svg width={size} height={size}>
         <Defs>
-          <LinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <Stop offset="0%" stopColor="#a855f7" />
+          <LinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor="#c084fc" />
+            <Stop offset="50%" stopColor="#a855f7" />
             <Stop offset="100%" stopColor="#7c3aed" />
           </LinearGradient>
         </Defs>
-        {/* Background circle */}
+        {/* Background circle - subtle dark ring */}
         <Circle
           cx={size / 2}
           cy={size / 2}
@@ -46,9 +47,8 @@ export function CircularProgress({
           stroke={backgroundStroke}
           strokeWidth={strokeWidth}
           fill="none"
-          opacity={0.3}
         />
-        {/* Progress circle */}
+        {/* Progress circle with gradient */}
         <Circle
           cx={size / 2}
           cy={size / 2}
@@ -65,7 +65,7 @@ export function CircularProgress({
       </Svg>
       {showPercentage && (
         <View className="absolute items-center justify-center">
-          <Text className="text-2xl font-bold text-slate-900 dark:text-white">
+          <Text className="text-3xl font-bold text-slate-900 dark:text-white">
             {Math.round(clampedProgress)}%
           </Text>
         </View>

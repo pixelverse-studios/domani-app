@@ -11,9 +11,15 @@ interface CompletedSectionProps {
   tasks: TaskWithCategory[]
   onToggle: (taskId: string, completed: boolean) => void
   onTaskPress?: (task: TaskWithCategory) => void
+  onDeleteTask?: (task: TaskWithCategory) => void
 }
 
-export function CompletedSection({ tasks, onToggle, onTaskPress }: CompletedSectionProps) {
+export function CompletedSection({
+  tasks,
+  onToggle,
+  onTaskPress,
+  onDeleteTask,
+}: CompletedSectionProps) {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
 
@@ -56,7 +62,13 @@ export function CompletedSection({ tasks, onToggle, onTaskPress }: CompletedSect
       {isExpanded && (
         <View className="mt-3">
           {completedTasks.map((task) => (
-            <TaskItem key={task.id} task={task} onToggle={onToggle} onPress={onTaskPress} />
+            <TaskItem
+              key={task.id}
+              task={task}
+              onToggle={onToggle}
+              onPress={onTaskPress}
+              onDelete={onDeleteTask}
+            />
           ))}
         </View>
       )}

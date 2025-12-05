@@ -9,9 +9,10 @@ interface TaskListProps {
   tasks: TaskWithCategory[]
   onToggle: (taskId: string, completed: boolean) => void
   onTaskPress?: (task: TaskWithCategory) => void
+  onDeleteTask?: (task: TaskWithCategory) => void
 }
 
-export function TaskList({ tasks, onToggle, onTaskPress }: TaskListProps) {
+export function TaskList({ tasks, onToggle, onTaskPress, onDeleteTask }: TaskListProps) {
   const incompleteTasks = tasks.filter((task) => !task.completed_at)
 
   if (incompleteTasks.length === 0) {
@@ -25,7 +26,13 @@ export function TaskList({ tasks, onToggle, onTaskPress }: TaskListProps) {
   return (
     <View className="mt-2">
       {incompleteTasks.map((task) => (
-        <TaskItem key={task.id} task={task} onToggle={onToggle} onPress={onTaskPress} />
+        <TaskItem
+          key={task.id}
+          task={task}
+          onToggle={onToggle}
+          onPress={onTaskPress}
+          onDelete={onDeleteTask}
+        />
       ))}
     </View>
   )

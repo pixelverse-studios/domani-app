@@ -5,6 +5,8 @@ import { format } from 'date-fns'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
+import { useProfile } from '~/hooks/useProfile'
+import { colors } from '~/theme'
 
 type GreetingInfo = {
   text: string
@@ -39,6 +41,7 @@ interface TodayHeaderProps {
 export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
+  const { profile } = useProfile()
 
   const today = new Date()
   const dayOfWeek = format(today, 'EEEE')
@@ -47,13 +50,15 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
   const formattedDate = `${month} ${day}${getOrdinalSuffix(day)}`
   const greeting = getGreeting()
 
+  // Get first name from profile
+  const firstName = profile?.full_name?.split(' ')[0]
+
   // Icon colors adapt to theme
   const bellColor = isDark ? '#cbd5e1' : '#64748b' // slate-300 / slate-500
-  const greetingIconColor = isDark ? '#a78bfa' : '#7c3aed' // purple-400 / purple-600
 
   // Render the appropriate greeting icon
   const GreetingIcon = () => {
-    const iconProps = { size: 16, color: greetingIconColor }
+    const iconProps = { size: 16, color: colors.brand.pink }
     switch (greeting.icon) {
       case 'sun':
         return <Sun {...iconProps} />
@@ -65,7 +70,6 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
   }
 
   // Text colors
-  const purpleColor = isDark ? '#a78bfa' : '#8b5cf6' // purple-400 / purple-500
   const grayColor = isDark ? '#94a3b8' : '#64748b' // slate-400 / slate-500
 
   return (
@@ -74,8 +78,12 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
         {/* Greeting with icon */}
         <View className="flex-row items-center mb-2">
           <GreetingIcon />
-          <Text className="font-medium ml-1.5" style={{ fontSize: 16, color: purpleColor }}>
+          <Text
+            className="font-sans-medium ml-1.5"
+            style={{ fontSize: 16, color: colors.brand.pink }}
+          >
             {greeting.text}
+            {firstName ? `, ${firstName}` : ''}
           </Text>
         </View>
         {/* Day of week - smaller, lighter */}
@@ -83,11 +91,14 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
           {dayOfWeek}
         </Text>
         {/* Date - very large and bold, the main focal point */}
-        <Text className="text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+        <Text
+          className="font-sans-bold text-slate-900 dark:text-white"
+          style={{ fontSize: 36, lineHeight: 44 }}
+        >
           {formattedDate}
         </Text>
-        {/* Today label - purple, not gray */}
-        <Text className="mt-2" style={{ fontSize: 18, color: purpleColor }}>
+        {/* Today label - brand color */}
+        <Text className="font-sans-medium mt-2" style={{ fontSize: 18, color: colors.brand.pink }}>
           Today
         </Text>
       </View>

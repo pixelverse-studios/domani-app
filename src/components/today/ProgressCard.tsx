@@ -14,23 +14,25 @@ export function ProgressCard({ completed, total }: ProgressCardProps) {
   const remaining = total - completed
 
   return (
-    <View className="bg-slate-100/80 dark:bg-slate-800/50 rounded-2xl p-5 mx-5 border border-slate-200/50 dark:border-slate-700/50">
-      <View className="flex-row items-center gap-5">
-        <CircularProgress progress={percentage} size={90} strokeWidth={8} />
+    <View className="bg-slate-100 dark:bg-[#1A1A1F] rounded-2xl p-6 mx-5 border border-slate-200/50 dark:border-slate-800/80">
+      <View className="flex-row items-center gap-6">
+        <CircularProgress progress={percentage} size={100} strokeWidth={9} />
         <View className="flex-1">
-          <Text className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+          <Text className="text-xl font-medium text-slate-700 dark:text-slate-300 mb-4">
             Today&apos;s Progress
           </Text>
-          <View className="flex-row gap-6">
-            <View>
-              <Text className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+          <View className="flex-row gap-10">
+            <View className="items-center">
+              <Text className="text-4xl font-bold text-green-500 dark:text-green-400">
                 {completed}
               </Text>
-              <Text className="text-sm text-slate-500 dark:text-slate-400">Completed</Text>
+              <Text className="text-base text-slate-500 dark:text-slate-500">Completed</Text>
             </View>
-            <View>
-              <Text className="text-2xl font-bold text-slate-900 dark:text-white">{remaining}</Text>
-              <Text className="text-sm text-slate-500 dark:text-slate-400">Remaining</Text>
+            <View className="items-center">
+              <Text className="text-4xl font-bold text-orange-500 dark:text-orange-400">
+                {remaining}
+              </Text>
+              <Text className="text-base text-slate-500 dark:text-slate-500">Remaining</Text>
             </View>
           </View>
         </View>

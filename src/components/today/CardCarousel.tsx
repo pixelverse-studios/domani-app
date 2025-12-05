@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react'
 import { View, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
-const CARD_WIDTH = SCREEN_WIDTH - 40 // Account for padding
 
 interface CardCarouselProps {
   children: React.ReactNode[]
@@ -14,7 +13,7 @@ export function CardCarousel({ children }: CardCarouselProps) {
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const contentOffset = event.nativeEvent.contentOffset.x
-    const index = Math.round(contentOffset / CARD_WIDTH)
+    const index = Math.round(contentOffset / SCREEN_WIDTH)
     setActiveIndex(index)
   }
 
@@ -28,12 +27,9 @@ export function CardCarousel({ children }: CardCarouselProps) {
         onScroll={handleScroll}
         scrollEventThrottle={16}
         decelerationRate="fast"
-        snapToInterval={CARD_WIDTH}
-        snapToAlignment="center"
-        contentContainerStyle={{ paddingHorizontal: 0 }}
       >
         {React.Children.map(children, (child, index) => (
-          <View key={index} style={{ width: CARD_WIDTH }}>
+          <View key={index} style={{ width: SCREEN_WIDTH }}>
             {child}
           </View>
         ))}

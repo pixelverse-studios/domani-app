@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { X } from 'lucide-react-native'
 
@@ -26,7 +27,7 @@ import {
   EmptyState,
 } from '~/components/today'
 import { useTodayPlan } from '~/hooks/usePlans'
-import { useTasks, useToggleTask } from '~/hooks/useTasks'
+import { useTasks, useToggleTask, useDeleteTask } from '~/hooks/useTasks'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
 import type { TaskWithCategory } from '~/types'
 
@@ -34,11 +35,13 @@ const NAME_PROMPT_DISMISSED_KEY = 'domani_name_prompt_dismissed'
 
 export default function TodayScreen() {
   const insets = useSafeAreaInsets()
+  const router = useRouter()
   const { activeTheme } = useTheme()
   const { data: plan, isLoading: planLoading, refetch: refetchPlan } = useTodayPlan()
   const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useTasks(plan?.id)
   const { profile, isLoading: profileLoading } = useProfile()
   const toggleTask = useToggleTask()
+  const deleteTask = useDeleteTask()
   const updateProfile = useUpdateProfile()
 
   // Name prompt modal state
@@ -103,9 +106,12 @@ export default function TodayScreen() {
     console.log('Task pressed:', task.id)
   }
 
+  const handleDeleteTask = (task: TaskWithCategory) => {
+    deleteTask.mutate(task.id)
+  }
+
   const handleAddTask = () => {
-    // TODO: Open add task modal
-    console.log('Add task pressed')
+    router.push('/planning')
   }
 
   const handleNotificationPress = () => {
@@ -152,8 +158,8 @@ export default function TodayScreen() {
             <ProgressPlaceholderCard />
           ) : (
             <CardCarousel>
-              <FocusCard task={mitTask} />
               <ProgressCard completed={completedCount} total={totalCount} />
+              <FocusCard task={mitTask} />
             </CardCarousel>
           )}
         </View>
@@ -164,11 +170,17 @@ export default function TodayScreen() {
             <EmptyState />
           ) : (
             <>
-              <TaskList tasks={tasks} onToggle={handleToggleTask} onTaskPress={handleTaskPress} />
+              <TaskList
+                tasks={tasks}
+                onToggle={handleToggleTask}
+                onTaskPress={handleTaskPress}
+                onDeleteTask={handleDeleteTask}
+              />
               <CompletedSection
                 tasks={tasks}
                 onToggle={handleToggleTask}
                 onTaskPress={handleTaskPress}
+                onDeleteTask={handleDeleteTask}
               />
             </>
           )}
@@ -184,7 +196,7 @@ export default function TodayScreen() {
           className="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-950"
           style={{ paddingBottom: insets.bottom > 0 ? 0 : 16 }}
         >
-          <AddTaskButton onPress={handleAddTask} />
+          <AddTaskButton onPress={handleAddTask} label="Add More Tasks" />
         </View>
       )}
 
