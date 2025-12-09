@@ -7,6 +7,8 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  Switch,
+  Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -23,18 +25,30 @@ import {
   Check,
   Sparkles,
   RotateCcw,
+  Trash2,
+  AlertTriangle,
+  Info,
 } from 'lucide-react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { format } from 'date-fns'
 
 import { Text } from '~/components/ui'
+import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
+import { FavoriteCategoriesAccordion } from '~/components/settings'
 import { useAuth } from '~/hooks/useAuth'
 import { useTheme } from '~/hooks/useTheme'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
 import { useSubscription } from '~/hooks/useSubscription'
 import { useNotifications } from '~/hooks/useNotifications'
+import { useAccountDeletion } from '~/hooks/useAccountDeletion'
+import { useAppConfig } from '~/stores/appConfigStore'
+import { PHASE_DISPLAY } from '~/types'
 import type { ThemeMode } from '~/stores/themeStore'
 import type { SubscriptionStatus } from '~/hooks/useSubscription'
+
+// Get app version from app.json (Expo handles this)
+import Constants from 'expo-constants'
+const APP_VERSION = Constants.expoConfig?.version || '1.0.0'
 
 // Theme options
 const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: typeof Sun }[] = [
@@ -126,12 +140,19 @@ export default function SettingsScreen() {
   const updateProfile = useUpdateProfile()
   const subscription = useSubscription()
   const { scheduleEveningReminder, permissionStatus } = useNotifications()
+  const accountDeletion = useAccountDeletion()
+  const { phase, showBadge } = useAppConfig()
+  const phaseDisplay = PHASE_DISPLAY[phase]
 
   // Modal states
   const [showNameModal, setShowNameModal] = useState(false)
   const [showTimezoneModal, setShowTimezoneModal] = useState(false)
   const [showPlanningTimeModal, setShowPlanningTimeModal] = useState(false)
   const [showExecutionTimeModal, setShowExecutionTimeModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showFarewellOverlay, setShowFarewellOverlay] = useState(false)
+  const [showSmartCategoriesModal, setShowSmartCategoriesModal] = useState(false)
+  const [pendingSmartCategoriesValue, setPendingSmartCategoriesValue] = useState(false)
 
   // Form states
   const [editName, setEditName] = useState('')
@@ -149,6 +170,39 @@ export default function SettingsScreen() {
         },
       },
     ])
+  }
+
+  const handleDeleteAccount = async () => {
+    try {
+      await accountDeletion.scheduleDeletion.mutateAsync()
+      setShowDeleteModal(false)
+      setShowFarewellOverlay(true)
+    } catch {
+      Alert.alert('Error', 'Failed to schedule account deletion. Please try again.')
+    }
+  }
+
+  const handleFarewellDismiss = () => {
+    setShowFarewellOverlay(false)
+    router.replace('/welcome')
+  }
+
+  const handleCancelDeletion = async () => {
+    try {
+      await accountDeletion.cancelDeletion.mutateAsync()
+    } catch {
+      Alert.alert('Error', 'Failed to cancel deletion. Please try again.')
+    }
+  }
+
+  const handleSmartCategoriesToggle = (value: boolean) => {
+    setPendingSmartCategoriesValue(value)
+    setShowSmartCategoriesModal(true)
+  }
+
+  const confirmSmartCategoriesChange = async () => {
+    await updateProfile.mutateAsync({ auto_sort_categories: pendingSmartCategoriesValue })
+    setShowSmartCategoriesModal(false)
   }
 
   const handleUpdateName = async () => {
@@ -381,6 +435,56 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        {/* Planning Section */}
+        <SectionHeader title="Planning" />
+        <View className="mb-6">
+          {/* Smart Categories Toggle */}
+          <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3 mb-2 flex-row items-center justify-between">
+            <View className="flex-row items-center">
+              <Sparkles
+                size={18}
+                color={activeTheme === 'dark' ? '#a78bfa' : '#8b5cf6'}
+                fill={
+                  profile?.auto_sort_categories
+                    ? activeTheme === 'dark'
+                      ? '#a78bfa'
+                      : '#8b5cf6'
+                    : 'transparent'
+                }
+              />
+              <Text className="text-base font-sans-medium text-slate-900 dark:text-white ml-3">
+                Smart Categories
+              </Text>
+              <TouchableOpacity
+                className="ml-2"
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                onPress={() =>
+                  Alert.alert(
+                    'Smart Categories',
+                    'Favorite categories automatically adjust based on usage frequency. The app learns your habits and displays your most-used categories.',
+                    [{ text: 'Got it' }],
+                  )
+                }
+              >
+                <Info size={16} color={activeTheme === 'dark' ? '#64748b' : '#94a3b8'} />
+              </TouchableOpacity>
+            </View>
+            <Switch
+              value={profile?.auto_sort_categories ?? false}
+              onValueChange={handleSmartCategoriesToggle}
+              trackColor={{
+                false: activeTheme === 'dark' ? '#334155' : '#e2e8f0',
+                true: activeTheme === 'dark' ? '#a78bfa' : '#8b5cf6',
+              }}
+              thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
+              ios_backgroundColor={activeTheme === 'dark' ? '#334155' : '#e2e8f0'}
+            />
+          </View>
+
+          {/* Favorite Categories Accordion */}
+          <FavoriteCategoriesAccordion />
+        </View>
+
         {/* Preferences Section */}
         <SectionHeader title="Preferences" />
         <View className="mb-6">
@@ -444,14 +548,92 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* App Info Section */}
+        <SectionHeader title="App Info" />
+        <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 mb-6">
+          <View className="flex-row justify-between items-center mb-2">
+            <Text className="text-sm text-slate-500 dark:text-slate-400">Version</Text>
+            <Text className="text-sm text-slate-900 dark:text-white font-medium">
+              {APP_VERSION}
+            </Text>
+          </View>
+          {showBadge && phaseDisplay.label && (
+            <View className="flex-row justify-between items-center">
+              <Text className="text-sm text-slate-500 dark:text-slate-400">Status</Text>
+              <View className="bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
+                <Text className="text-xs font-semibold text-amber-700 dark:text-amber-300 uppercase">
+                  {phaseDisplay.label}
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
+
         {/* Sign Out */}
         <TouchableOpacity
           onPress={handleSignOut}
           activeOpacity={0.7}
-          className="bg-red-500/10 py-3.5 rounded-xl items-center mb-8"
+          className="bg-red-500/10 py-3.5 rounded-xl items-center mb-6"
         >
           <Text className="text-red-500 font-semibold">Sign Out</Text>
         </TouchableOpacity>
+
+        {/* Danger Zone Section */}
+        <SectionHeader title="Danger Zone" />
+        <View className="mb-8 border border-red-500/30 rounded-xl overflow-hidden">
+          {accountDeletion.isPendingDeletion ? (
+            // Pending deletion state
+            <View className="bg-red-500/5 dark:bg-red-500/10 p-4">
+              <View className="flex-row items-center mb-3">
+                <View className="w-10 h-10 rounded-full bg-red-500/20 items-center justify-center mr-3">
+                  <AlertTriangle size={20} color="#ef4444" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base font-medium text-red-500">
+                    Account Scheduled for Deletion
+                  </Text>
+                  <Text className="text-sm text-slate-500 dark:text-slate-400">
+                    {accountDeletion.daysRemaining} days remaining
+                  </Text>
+                </View>
+              </View>
+              <Text className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                Your account will be permanently deleted on{' '}
+                <Text className="font-medium text-slate-700 dark:text-slate-300">
+                  {accountDeletion.deletionDate}
+                </Text>
+                . Sign in anytime before then to reactivate.
+              </Text>
+              <TouchableOpacity
+                onPress={handleCancelDeletion}
+                disabled={accountDeletion.cancelDeletion.isPending}
+                activeOpacity={0.8}
+                className="bg-slate-200 dark:bg-slate-700 py-3 rounded-xl items-center"
+              >
+                {accountDeletion.cancelDeletion.isPending ? (
+                  <ActivityIndicator color="#64748b" />
+                ) : (
+                  <Text className="text-slate-700 dark:text-slate-200 font-semibold">
+                    Cancel Deletion
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            // Normal state - show delete option
+            <TouchableOpacity
+              onPress={() => setShowDeleteModal(true)}
+              activeOpacity={0.7}
+              className="flex-row items-center justify-between py-3.5 px-4 bg-red-500/5 dark:bg-red-500/10"
+            >
+              <View className="flex-row items-center">
+                <Trash2 size={20} color="#ef4444" />
+                <Text className="text-base text-red-500 ml-3">Delete Account</Text>
+              </View>
+              <ChevronRight size={18} color="#ef4444" />
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Bottom padding */}
         <View style={{ height: insets.bottom + 20 }} />
@@ -610,6 +792,131 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Delete Account Confirmation Modal */}
+      <Modal visible={showDeleteModal} transparent animationType="fade">
+        <View className="flex-1 bg-black/60 justify-center items-center px-6">
+          <View className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-[320px] items-center">
+            {/* Warning Icon */}
+            <View className="w-14 h-14 rounded-full bg-red-500/15 items-center justify-center mb-4">
+              <AlertTriangle size={28} color="#ef4444" />
+            </View>
+
+            {/* Title */}
+            <Text className="text-xl font-bold text-slate-900 dark:text-white text-center mb-2">
+              Delete Your Account?
+            </Text>
+
+            {/* Description */}
+            <Text className="text-sm text-slate-500 dark:text-slate-400 text-center mb-4">
+              Your account and all data will be permanently deleted after 30 days. You can sign in
+              anytime before then to reactivate your account.
+            </Text>
+
+            {/* What will be deleted */}
+            <View className="w-full bg-red-500/10 rounded-xl p-3 mb-5">
+              <Text className="text-xs font-medium text-red-500 mb-2">
+                This will permanently delete:
+              </Text>
+              <Text className="text-xs text-slate-600 dark:text-slate-400">
+                {'\u2022'} All your plans and tasks{'\n'}
+                {'\u2022'} Custom categories{'\n'}
+                {'\u2022'} Progress history{'\n'}
+                {'\u2022'} Account settings
+              </Text>
+            </View>
+
+            {/* Buttons */}
+            <View className="w-full gap-3">
+              <TouchableOpacity
+                onPress={handleDeleteAccount}
+                disabled={accountDeletion.scheduleDeletion.isPending}
+                activeOpacity={0.8}
+                className="w-full bg-red-500 py-4 rounded-xl items-center"
+              >
+                {accountDeletion.scheduleDeletion.isPending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="text-white font-semibold text-base">Delete Account</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setShowDeleteModal(false)}
+                disabled={accountDeletion.scheduleDeletion.isPending}
+                activeOpacity={0.8}
+                className="w-full bg-slate-200 dark:bg-slate-700 py-4 rounded-xl items-center"
+              >
+                <Text className="text-slate-700 dark:text-slate-200 font-semibold text-base">
+                  Keep Account
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Smart Categories Confirmation Modal */}
+      <Modal visible={showSmartCategoriesModal} transparent animationType="fade">
+        <View className="flex-1 bg-black/60 justify-center items-center px-6">
+          <View className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-[320px] items-center">
+            {/* Icon */}
+            <View className="w-14 h-14 rounded-full bg-purple-500/15 items-center justify-center mb-4">
+              <Sparkles size={28} color="#8b5cf6" />
+            </View>
+
+            {/* Title */}
+            <Text className="text-xl font-bold text-slate-900 dark:text-white text-center mb-2">
+              {pendingSmartCategoriesValue
+                ? 'Enable Smart Categories?'
+                : 'Disable Smart Categories?'}
+            </Text>
+
+            {/* Description */}
+            <Text className="text-sm text-slate-500 dark:text-slate-400 text-center mb-6">
+              {pendingSmartCategoriesValue
+                ? 'Your quick access categories will automatically adapt based on your usage patterns. This will override your current favorite categories.'
+                : 'Your categories will return to manual ordering. You can reorder them by going to Favorite Categories.'}
+            </Text>
+
+            {/* Buttons */}
+            <View className="w-full gap-3">
+              <TouchableOpacity
+                onPress={confirmSmartCategoriesChange}
+                disabled={updateProfile.isPending}
+                activeOpacity={0.8}
+                className="w-full bg-purple-500 py-4 rounded-xl items-center"
+              >
+                {updateProfile.isPending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="text-white font-semibold text-base">
+                    {pendingSmartCategoriesValue ? 'Enable' : 'Disable'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setShowSmartCategoriesModal(false)}
+                disabled={updateProfile.isPending}
+                activeOpacity={0.8}
+                className="w-full bg-slate-200 dark:bg-slate-700 py-4 rounded-xl items-center"
+              >
+                <Text className="text-slate-700 dark:text-slate-200 font-semibold text-base">
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Farewell overlay after scheduling deletion */}
+      <AccountConfirmationOverlay
+        visible={showFarewellOverlay}
+        type="deleted"
+        onDismiss={handleFarewellDismiss}
+      />
     </View>
   )
 }

@@ -43,21 +43,34 @@ export function useSubscription() {
 
   // Initialize RevenueCat when user changes
   useEffect(() => {
+    let isMounted = true
+
     async function init() {
       if (user?.id) {
         await initializeRevenueCat(user.id)
         await loginRevenueCat(user.id)
-        setIsInitialized(true)
+        if (isMounted) {
+          setIsInitialized(true)
+        }
       }
     }
     init()
 
     return () => {
-      if (user?.id) {
-        logoutRevenueCat()
-      }
+      isMounted = false
+      // Only logout when user actually changes (signs out), not on component unmount
+      // The cleanup runs when user?.id changes, so if it becomes undefined/null,
+      // that means user signed out
     }
   }, [user?.id])
+
+  // Handle logout when user signs out (user becomes null)
+  useEffect(() => {
+    if (!user && isInitialized) {
+      logoutRevenueCat()
+      setIsInitialized(false)
+    }
+  }, [user, isInitialized])
 
   // Query for RevenueCat customer info
   const {

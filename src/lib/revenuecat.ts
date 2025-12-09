@@ -55,12 +55,24 @@ export async function loginRevenueCat(userId: string) {
 
 /**
  * Log out user from RevenueCat (call on Supabase sign out)
+ * Silently ignores rate limit errors since they're common during rapid auth state changes
  */
 export async function logoutRevenueCat() {
   try {
     await Purchases.logOut()
     console.log('[RevenueCat] User logged out')
-  } catch (error) {
+  } catch (error: unknown) {
+    // Ignore rate limit errors (code 16, status 429) - these happen when
+    // another request is in flight, which is common during rapid auth changes
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code: number }).code === 16
+    ) {
+      console.log('[RevenueCat] Logout skipped - another request in progress')
+      return
+    }
     console.error('[RevenueCat] Logout error:', error)
   }
 }

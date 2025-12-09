@@ -1,14 +1,27 @@
+import React from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { supabase } from '~/lib/supabase'
-import type { UserCategory, SystemCategory } from '~/types'
+import type { UserCategory, SystemCategory, UserCategoryPreference } from '~/types'
 
-// Map of display names to database names for system categories
+// Map of form category IDs to database names for system categories
 const SYSTEM_CATEGORY_MAP: Record<string, string> = {
   work: 'Work',
-  wellness: 'Health', // Form uses "wellness", DB has "Health"
+  wellness: 'Wellness',
   personal: 'Personal',
-  education: 'Other', // Form uses "education", DB has "Other"
+  education: 'Education',
+}
+
+// Unified category type for UI components
+export interface UnifiedCategory {
+  id: string
+  name: string
+  icon: string
+  color: string
+  position: number
+  usageCount: number
+  isSystem: boolean
+  isFavorite: boolean
 }
 
 export function useSystemCategories() {
@@ -123,6 +136,184 @@ export function useDeleteUserCategory() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['userCategories'] })
+    },
+  })
+}
+
+// Fetch user preferences for system categories (positions, usage counts)
+export function useUserCategoryPreferences() {
+  return useQuery({
+    queryKey: ['userCategoryPreferences'],
+    queryFn: async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return []
+
+      const { data, error } = await supabase
+        .from('user_category_preferences')
+        .select('*')
+        .eq('user_id', user.id)
+
+      if (error) throw error
+
+      return data as UserCategoryPreference[]
+    },
+  })
+}
+
+// Get all categories unified with user preferences, sorted appropriately
+export function useSortedCategories(autoSort: boolean = false) {
+  const { data: systemCategories = [] } = useSystemCategories()
+  const { data: userCategories = [] } = useUserCategories()
+  const { data: preferences = [] } = useUserCategoryPreferences()
+
+  // Memoize the unified and sorted categories to prevent infinite re-renders
+  const unified = React.useMemo(() => {
+    // Build a map of system category preferences by system_category_id
+    const prefMap = new Map<string, UserCategoryPreference>()
+    preferences.forEach((pref) => {
+      prefMap.set(pref.system_category_id, pref)
+    })
+
+    // Convert to unified format
+    const result: UnifiedCategory[] = [
+      // System categories with user preferences overlay
+      ...systemCategories.map((cat) => {
+        const pref = prefMap.get(cat.id)
+        return {
+          id: cat.id,
+          name: cat.name,
+          icon: cat.icon,
+          color: cat.color,
+          position: pref?.position ?? cat.position,
+          usageCount: pref?.usage_count ?? 0,
+          isSystem: true,
+          // System categories are favorites by default if no preference exists
+          isFavorite: pref?.is_favorite ?? true,
+        }
+      }),
+      // User categories
+      ...userCategories.map((cat) => ({
+        id: cat.id,
+        name: cat.name,
+        icon: cat.icon,
+        color: cat.color,
+        position: cat.position + 100, // Offset user categories after system
+        usageCount: cat.usage_count ?? 0,
+        isSystem: false,
+        isFavorite: cat.is_favorite ?? false,
+      })),
+    ]
+
+    // Sort by usage count if auto-sort enabled, otherwise by position
+    if (autoSort) {
+      result.sort((a, b) => b.usageCount - a.usageCount || a.position - b.position)
+    } else {
+      result.sort((a, b) => a.position - b.position)
+    }
+
+    return result
+  }, [systemCategories, userCategories, preferences, autoSort])
+
+  return unified
+}
+
+// Get only favorite categories
+export function useFavoriteCategories(autoSort: boolean = false) {
+  const allCategories = useSortedCategories(autoSort)
+
+  return React.useMemo(() => {
+    return allCategories.filter((cat) => cat.isFavorite)
+  }, [allCategories])
+}
+
+// Update favorite categories
+export function useUpdateFavoriteCategories() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (categoryIds: string[]) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      if (categoryIds.length > 4) {
+        throw new Error('Maximum 4 favorite categories allowed')
+      }
+
+      const { error } = await supabase.rpc('update_favorite_categories', {
+        p_user_id: user.id,
+        p_favorite_category_ids: categoryIds,
+      })
+
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userCategories'] })
+      queryClient.invalidateQueries({ queryKey: ['userCategoryPreferences'] })
+    },
+  })
+}
+
+// Update category positions after drag-and-drop reorder
+export function useUpdateCategoryPositions() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (categories: { id: string; position: number; isSystem: boolean }[]) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      // Call the database function to batch update positions
+      const { error } = await supabase.rpc('update_category_positions', {
+        p_user_id: user.id,
+        p_category_positions: categories,
+      })
+
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userCategories'] })
+      queryClient.invalidateQueries({ queryKey: ['userCategoryPreferences'] })
+    },
+  })
+}
+
+// Increment usage count when a task is created with a category
+export function useIncrementCategoryUsage() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      systemCategoryId,
+      userCategoryId,
+    }: {
+      systemCategoryId?: string | null
+      userCategoryId?: string | null
+    }) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      // Only call if there's a category to update
+      if (!systemCategoryId && !userCategoryId) return
+
+      const { error } = await supabase.rpc('increment_category_usage', {
+        p_user_id: user.id,
+        p_system_category_id: systemCategoryId ?? undefined,
+        p_user_category_id: userCategoryId ?? undefined,
+      })
+
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userCategories'] })
+      queryClient.invalidateQueries({ queryKey: ['userCategoryPreferences'] })
     },
   })
 }

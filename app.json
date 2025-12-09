@@ -35,6 +35,8 @@
     "plugins": [
       "expo-router",
       "expo-apple-authentication",
+      "expo-font",
+      "expo-web-browser",
       [
         "expo-notifications",
         {
@@ -44,7 +46,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "00000000-0000-0000-0000-000000000000"
+        "projectId": "5341e2b9-b8e9-4faf-8caf-f4d3847fd92e"
       }
     }
   }

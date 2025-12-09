@@ -18,12 +18,30 @@ import { LinearGradient } from 'expo-linear-gradient'
 
 import { Text, ConfirmationModal } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
+import { useProfile } from '~/hooks/useProfile'
 import {
   useUserCategories,
   useCreateUserCategory,
   useDeleteUserCategory,
+  useSortedCategories,
+  useFavoriteCategories,
 } from '~/hooks/useCategories'
 import { colors } from '~/theme'
+
+// Map system category names to form IDs and vice versa
+const SYSTEM_NAME_TO_FORM_ID: Record<string, string> = {
+  Work: 'work',
+  Wellness: 'wellness',
+  Personal: 'personal',
+  Education: 'education',
+}
+
+const FORM_ID_TO_DISPLAY: Record<string, string> = {
+  work: 'Work',
+  wellness: 'Wellness',
+  personal: 'Personal',
+  education: 'Education',
+}
 
 type Category = 'work' | 'wellness' | 'personal' | 'education' | string
 type Priority = 'high' | 'medium' | 'low'
@@ -62,7 +80,10 @@ export function AddTaskForm({
 }: AddTaskFormProps) {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
+  const { profile } = useProfile()
   const { data: userCategories = [] } = useUserCategories()
+  const sortedCategories = useSortedCategories(profile?.auto_sort_categories ?? false)
+  const favoriteCategories = useFavoriteCategories(profile?.auto_sort_categories ?? false)
   const createCategory = useCreateUserCategory()
   const deleteCategory = useDeleteUserCategory()
 
@@ -109,39 +130,57 @@ export function AddTaskForm({
     }
   }
 
-  // System categories (always shown as quick-select buttons)
-  const systemCategories: CategoryOption[] = [
-    { id: 'work', label: 'Work', icon: <Briefcase size={18} color={iconColor} />, isSystem: true },
-    {
-      id: 'wellness',
-      label: 'Wellness',
-      icon: <Heart size={18} color={iconColor} />,
-      isSystem: true,
-    },
-    {
-      id: 'personal',
-      label: 'Personal',
-      icon: <User size={18} color={iconColor} />,
-      isSystem: true,
-    },
-    {
-      id: 'education',
-      label: 'Education',
-      icon: <BookOpen size={18} color={iconColor} />,
-      isSystem: true,
-    },
-  ]
+  // Get the user's favorite categories for quick-select buttons (max 4)
+  const quickSelectCategories: CategoryOption[] = useMemo(() => {
+    return favoriteCategories.slice(0, 4).map((cat) => {
+      if (cat.isSystem) {
+        // Convert database names to form IDs for backward compatibility
+        const formId = SYSTEM_NAME_TO_FORM_ID[cat.name] || cat.name.toLowerCase()
+        const displayLabel = FORM_ID_TO_DISPLAY[formId] || cat.name
+        return {
+          id: formId,
+          label: displayLabel,
+          icon: getCategoryIcon(formId, false),
+          isSystem: true,
+        }
+      } else {
+        // Custom user category
+        return {
+          id: cat.id,
+          label: cat.name,
+          icon: <Tag size={18} color={iconColor} />,
+          isSystem: false,
+        }
+      }
+    })
+  }, [favoriteCategories, iconColor])
 
-  // All categories (system + custom user categories)
+  // All categories (system + custom user categories) - respects sort order
   const allCategories: CategoryOption[] = useMemo(() => {
-    const customCategories: CategoryOption[] = userCategories.map((cat) => ({
-      id: cat.id,
-      label: cat.name,
-      icon: <Tag size={18} color={iconColor} />,
-      isSystem: false,
-    }))
-    return [...systemCategories, ...customCategories]
-  }, [userCategories, iconColor])
+    const systemOptions: CategoryOption[] = sortedCategories
+      .filter((cat) => cat.isSystem)
+      .map((cat) => {
+        const formId = SYSTEM_NAME_TO_FORM_ID[cat.name] || cat.name.toLowerCase()
+        const displayLabel = FORM_ID_TO_DISPLAY[formId] || cat.name
+        return {
+          id: formId,
+          label: displayLabel,
+          icon: getCategoryIcon(formId, false),
+          isSystem: true,
+        }
+      })
+
+    const customOptions: CategoryOption[] = sortedCategories
+      .filter((cat) => !cat.isSystem)
+      .map((cat) => ({
+        id: cat.id,
+        label: cat.name,
+        icon: <Tag size={18} color={iconColor} />,
+        isSystem: false,
+      }))
+
+    return [...systemOptions, ...customOptions]
+  }, [sortedCategories, iconColor])
 
   // Filter categories based on search
   const filteredCategories = useMemo(() => {
@@ -456,7 +495,7 @@ export function AddTaskForm({
         {/* Category Grid - 2x2 (shown when not actively searching) */}
         {showCategoryButtons && (
           <View className="flex-row flex-wrap mt-3" style={{ gap: 10 }}>
-            {systemCategories.map((category) => (
+            {quickSelectCategories.map((category) => (
               <TouchableOpacity
                 key={category.id}
                 onPress={() => handleSelectCategory(category)}

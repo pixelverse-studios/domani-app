@@ -98,6 +98,24 @@ export type Database = {
         }
         Relationships: []
       }
+      app_config: {
+        Row: {
+          key: string
+          updated_at: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string | null
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       campaign_recipients: {
         Row: {
           bounce_reason: string | null
@@ -445,8 +463,11 @@ export type Database = {
       }
       profiles: {
         Row: {
+          auto_sort_categories: boolean | null
           avatar_url: string | null
           created_at: string
+          deleted_at: string | null
+          deletion_scheduled_for: string | null
           email: string
           execution_reminder_time: string | null
           full_name: string | null
@@ -463,8 +484,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_sort_categories?: boolean | null
           avatar_url?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deletion_scheduled_for?: string | null
           email: string
           execution_reminder_time?: string | null
           full_name?: string | null
@@ -481,8 +505,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_sort_categories?: boolean | null
           avatar_url?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deletion_scheduled_for?: string | null
           email?: string
           execution_reminder_time?: string | null
           full_name?: string | null
@@ -654,9 +681,11 @@ export type Database = {
           created_at: string
           icon: string
           id: string
+          is_favorite: boolean | null
           name: string
           position: number
           updated_at: string
+          usage_count: number | null
           user_id: string
         }
         Insert: {
@@ -664,9 +693,11 @@ export type Database = {
           created_at?: string
           icon: string
           id?: string
+          is_favorite?: boolean | null
           name: string
           position?: number
           updated_at?: string
+          usage_count?: number | null
           user_id: string
         }
         Update: {
@@ -674,14 +705,64 @@ export type Database = {
           created_at?: string
           icon?: string
           id?: string
+          is_favorite?: boolean | null
           name?: string
           position?: number
           updated_at?: string
+          usage_count?: number | null
           user_id?: string
         }
         Relationships: [
           {
             foreignKeyName: 'user_categories_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      user_category_preferences: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_favorite: boolean | null
+          position: number | null
+          system_category_id: string
+          updated_at: string | null
+          usage_count: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_favorite?: boolean | null
+          position?: number | null
+          system_category_id: string
+          updated_at?: string | null
+          usage_count?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_favorite?: boolean | null
+          position?: number | null
+          system_category_id?: string
+          updated_at?: string | null
+          usage_count?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'user_category_preferences_system_category_id_fkey'
+            columns: ['system_category_id']
+            isOneToOne: false
+            referencedRelation: 'system_categories'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'user_category_preferences_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
             referencedRelation: 'profiles'
@@ -738,13 +819,21 @@ export type Database = {
         Args: { p_plan_id: string; p_user_id: string }
         Returns: boolean
       }
+      cancel_account_deletion: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       cleanup_expired_sessions: { Args: never; Returns: undefined }
+      delete_expired_accounts: { Args: never; Returns: undefined }
+      get_favorite_category_ids: { Args: { p_user_id: string }; Returns: Json }
       get_or_create_plan: { Args: { p_date: string }; Returns: string }
       get_remaining_task_slots: {
         Args: { p_plan_id: string; p_user_id: string }
         Returns: number
       }
+      get_task_count_for_plan: { Args: { p_plan_id: string }; Returns: number }
       get_user_role_level: { Args: { p_user_id: string }; Returns: number }
+      get_user_tier: { Args: { p_user_id: string }; Returns: string }
       has_permission: {
         Args: {
           p_action: Database['public']['Enums']['admin_action']
@@ -754,6 +843,14 @@ export type Database = {
         Returns: boolean
       }
       has_premium_access: { Args: { p_user_id: string }; Returns: boolean }
+      increment_category_usage: {
+        Args: {
+          p_system_category_id?: string
+          p_user_category_id?: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       is_email_subscribed: { Args: { p_email: string }; Returns: boolean }
       log_audit_event: {
         Args: {
@@ -768,6 +865,10 @@ export type Database = {
         }
         Returns: string
       }
+      schedule_account_deletion: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       sync_auth_user_to_profile: {
         Args: { p_user_id: string }
         Returns: boolean
@@ -776,10 +877,19 @@ export type Database = {
         Args: { p_campaign_id: string }
         Returns: undefined
       }
+      update_category_positions: {
+        Args: { p_category_positions: Json; p_user_id: string }
+        Returns: undefined
+      }
+      update_favorite_categories: {
+        Args: { p_favorite_category_ids: Json; p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       admin_action: 'create' | 'read' | 'update' | 'delete' | 'export' | 'import' | 'execute'
       admin_role: 'super_admin' | 'admin' | 'editor' | 'viewer'
+      app_phase: 'closed_beta' | 'open_beta' | 'production'
       audit_action:
         | 'create'
         | 'update'
@@ -925,6 +1035,7 @@ export const Constants = {
     Enums: {
       admin_action: ['create', 'read', 'update', 'delete', 'export', 'import', 'execute'],
       admin_role: ['super_admin', 'admin', 'editor', 'viewer'],
+      app_phase: ['closed_beta', 'open_beta', 'production'],
       audit_action: [
         'create',
         'update',

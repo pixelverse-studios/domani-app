@@ -1,0 +1,1 @@
+export { FavoriteCategoriesAccordion } from './FavoriteCategoriesAccordion'
