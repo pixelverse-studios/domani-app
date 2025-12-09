@@ -17,12 +17,23 @@ import { View, ActivityIndicator } from 'react-native'
 import { ThemeProvider } from '~/providers/ThemeProvider'
 import { AuthProvider } from '~/providers/AuthProvider'
 import { useNotificationObserver } from '~/hooks/useNotifications'
+import { useAuth } from '~/hooks/useAuth'
+import { useAppConfigStore } from '~/stores/appConfigStore'
+import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
 
 const queryClient = new QueryClient()
 
 function RootLayoutContent() {
   // Initialize notification observer for deep linking
   useNotificationObserver()
+
+  // Fetch app config on mount
+  const fetchConfig = useAppConfigStore((state) => state.fetchConfig)
+  React.useEffect(() => {
+    fetchConfig()
+  }, [fetchConfig])
+
+  const { accountReactivated, clearAccountReactivated } = useAuth()
 
   return (
     <>
@@ -33,6 +44,13 @@ function RootLayoutContent() {
         <Stack.Screen name="notification-setup" />
         <Stack.Screen name="auth/callback" options={{ presentation: 'modal' }} />
       </Stack>
+
+      {/* Account reactivation celebration overlay */}
+      <AccountConfirmationOverlay
+        visible={accountReactivated}
+        type="reactivated"
+        onDismiss={clearAccountReactivated}
+      />
     </>
   )
 }

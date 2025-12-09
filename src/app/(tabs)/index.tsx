@@ -17,8 +17,8 @@ import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
 import {
   TodayHeader,
-  FocusCard,
   ProgressCard,
+  DayTypeCard,
   CardCarousel,
   TaskList,
   CompletedSection,
@@ -84,11 +84,6 @@ export default function TodayScreen() {
 
   const isLoading = planLoading || tasksLoading || profileLoading
   const [refreshing, setRefreshing] = React.useState(false)
-
-  // Derive MIT (Most Important Task)
-  const mitTask = useMemo(() => {
-    return tasks.find((task: TaskWithCategory) => task.is_mit && !task.completed_at) || null
-  }, [tasks])
 
   // Calculate progress
   const completedCount = useMemo(() => {
@@ -159,7 +154,7 @@ export default function TodayScreen() {
           ) : (
             <CardCarousel>
               <ProgressCard completed={completedCount} total={totalCount} />
-              <FocusCard task={mitTask} />
+              <DayTypeCard tasks={tasks} />
             </CardCarousel>
           )}
         </View>

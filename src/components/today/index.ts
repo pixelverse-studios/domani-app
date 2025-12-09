@@ -1,5 +1,6 @@
 export { TodayHeader } from './TodayHeader'
 export { FocusCard } from './FocusCard'
+export { DayTypeCard } from './DayTypeCard'
 export { ProgressCard } from './ProgressCard'
 export { CardCarousel } from './CardCarousel'
 export { TaskItem } from './TaskItem'

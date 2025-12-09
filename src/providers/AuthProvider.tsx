@@ -1,21 +1,129 @@
 import React, { createContext, useEffect, useState } from 'react'
-import { Alert, Platform } from 'react-native'
+import { Alert, Platform, NativeModules } from 'react-native'
 import { Session, User } from '@supabase/supabase-js'
 import * as WebBrowser from 'expo-web-browser'
 import * as AuthSession from 'expo-auth-session'
 import * as AppleAuthentication from 'expo-apple-authentication'
 
-import { supabase } from '~/lib/supabase'
+import { supabase, sendAccountEmail } from '~/lib/supabase'
 
 // Configure web browser for OAuth
 WebBrowser.maybeCompleteAuthSession()
 
-// Get device timezone
+// Get device timezone using multiple fallback methods
 const getDeviceTimezone = (): string => {
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone
-  } catch {
+    // Method 1: Try React Native's native settings module (iOS)
+    if (Platform.OS === 'ios') {
+      const iosTimezone = NativeModules.SettingsManager?.settings?.AppleLocale
+      // This doesn't give timezone directly, so skip to next method
+    }
+
+    // Method 2: Use Intl API - works in Hermes engine
+    const intlTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (intlTimezone && intlTimezone !== 'UTC') {
+      console.log('[AuthProvider] Got timezone from Intl API:', intlTimezone)
+      return intlTimezone
+    }
+
+    // Method 3: Calculate offset and map to common timezone
+    const offset = new Date().getTimezoneOffset()
+    const offsetHours = -offset / 60
+    console.log('[AuthProvider] Timezone offset hours:', offsetHours)
+
+    // Map common US offsets to IANA timezones
+    const offsetMap: Record<number, string> = {
+      [-8]: 'America/Los_Angeles', // PST/PDT
+      [-7]: 'America/Denver', // MST/MDT
+      [-6]: 'America/Chicago', // CST/CDT
+      [-5]: 'America/New_York', // EST/EDT
+      [-4]: 'America/New_York', // EDT (Atlantic)
+      [0]: 'Europe/London', // GMT
+      [1]: 'Europe/Paris', // CET
+    }
+
+    if (offsetMap[offsetHours]) {
+      console.log('[AuthProvider] Mapped offset to timezone:', offsetMap[offsetHours])
+      return offsetMap[offsetHours]
+    }
+
+    console.log('[AuthProvider] Could not determine timezone, using UTC')
     return 'UTC'
+  } catch (error) {
+    console.warn('[AuthProvider] Failed to get device timezone:', error)
+    return 'UTC'
+  }
+}
+
+// Check if account is pending deletion and prompt for reactivation
+const checkPendingDeletion = async (
+  userId: string,
+  userEmail: string,
+  userName: string | undefined,
+  signOutFn: () => Promise<void>,
+  onReactivated: () => void,
+): Promise<boolean> => {
+  try {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('deleted_at, deletion_scheduled_for, full_name')
+      .eq('id', userId)
+      .single()
+
+    if (error || !profile?.deleted_at) {
+      return false // No pending deletion
+    }
+
+    // Account is pending deletion - show reactivation prompt
+    const deletionDate = new Date(profile.deletion_scheduled_for!).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+
+    return new Promise((resolve) => {
+      Alert.alert(
+        'Account Scheduled for Deletion',
+        `Your account is scheduled to be deleted on ${deletionDate}. Would you like to reactivate it?`,
+        [
+          {
+            text: 'Reactivate',
+            onPress: async () => {
+              // Cancel the deletion
+              const { error: cancelError } = await supabase.rpc('cancel_account_deletion', {
+                p_user_id: userId,
+              })
+              if (cancelError) {
+                console.error('[AuthProvider] Failed to cancel deletion:', cancelError)
+              } else {
+                // Signal that account was reactivated for celebration
+                onReactivated()
+
+                // Send reactivation email (don't block on failure)
+                sendAccountEmail({
+                  type: 'account_reactivation',
+                  email: userEmail,
+                  name: profile.full_name || userName || undefined,
+                })
+              }
+              resolve(false) // Continue with login
+            },
+          },
+          {
+            text: 'Keep Deletion',
+            style: 'destructive',
+            onPress: async () => {
+              await signOutFn()
+              resolve(true) // Block login
+            },
+          },
+        ],
+        { cancelable: false },
+      )
+    })
+  } catch (error) {
+    console.error('[AuthProvider] Failed to check pending deletion:', error)
+    return false
   }
 }
 
@@ -56,9 +164,10 @@ const ensureProfileExists = async (userId: string, email: string, fullName?: str
         console.warn('[AuthProvider] Profile query error:', error.code, error.message)
       }
     } else if (profile) {
-      console.log('[AuthProvider] Profile found:', profile.id)
+      console.log('[AuthProvider] Profile found:', profile.id, 'timezone:', profile.timezone)
       // Profile exists - check if timezone needs to be set
-      if (!profile.timezone) {
+      // Treat null, undefined, or 'UTC' as "not set" since UTC is the old default
+      if (!profile.timezone || profile.timezone === 'UTC') {
         const deviceTimezone = getDeviceTimezone()
         console.log('[AuthProvider] Setting device timezone:', deviceTimezone)
         const { error: updateError } = await supabase
@@ -67,6 +176,8 @@ const ensureProfileExists = async (userId: string, email: string, fullName?: str
           .eq('id', userId)
         if (updateError) {
           console.warn('[AuthProvider] Failed to set timezone:', updateError.message)
+        } else {
+          console.log('[AuthProvider] Timezone updated successfully')
         }
       }
     }
@@ -82,6 +193,8 @@ interface AuthContextValue {
   signInWithGoogle: () => Promise<void>
   signInWithApple: () => Promise<void>
   signOut: () => Promise<void>
+  accountReactivated: boolean
+  clearAccountReactivated: () => void
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -90,6 +203,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [accountReactivated, setAccountReactivated] = useState(false)
 
   // Configure OAuth redirect for mobile app
   // Uses the native scheme defined in app.json: domani://
@@ -149,6 +263,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         // Ensure profile exists and set timezone (run in background)
         const fullName = session.user.user_metadata?.full_name || session.user.user_metadata?.name
+
+        // Check for pending deletion on sign-in
+        if (event === 'SIGNED_IN') {
+          checkPendingDeletion(
+            session.user.id,
+            session.user.email!,
+            fullName,
+            async () => {
+              const { error } = await supabase.auth.signOut()
+              if (!error) {
+                setSession(null)
+                setUser(null)
+              }
+            },
+            () => setAccountReactivated(true),
+          )
+        }
         ensureProfileExists(session.user.id, session.user.email!, fullName)
       }
     })
@@ -322,6 +453,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }
 
+  const clearAccountReactivated = () => setAccountReactivated(false)
+
   const value = {
     session,
     user,
@@ -329,6 +462,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signInWithGoogle,
     signInWithApple,
     signOut,
+    accountReactivated,
+    clearAccountReactivated,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

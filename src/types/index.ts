@@ -17,12 +17,14 @@ export type Plan = Tables<'plans'>
 export type Task = Tables<'tasks'>
 export type SystemCategory = Tables<'system_categories'>
 export type UserCategory = Tables<'user_categories'>
+export type UserCategoryPreference = Tables<'user_category_preferences'>
 
 // Insert types
 export type ProfileInsert = TablesInsert<'profiles'>
 export type PlanInsert = TablesInsert<'plans'>
 export type TaskInsert = TablesInsert<'tasks'>
 export type UserCategoryInsert = TablesInsert<'user_categories'>
+export type UserCategoryPreferenceInsert = TablesInsert<'user_category_preferences'>
 
 // Update types
 export type ProfileUpdate = TablesUpdate<'profiles'>
@@ -42,3 +44,10 @@ export interface TaskWithCategory extends Task {
   system_category?: SystemCategory | null
   user_category?: UserCategory | null
 }
+
+// Day type inference types (re-exported from utility for convenience)
+export type { DayTheme, DayType } from '~/utils/dayTypeInference'
+
+// App configuration types
+export type { AppPhase, PhaseConfig, FeatureFlags, AppConfig } from './appConfig'
+export { PHASE_DISPLAY } from './appConfig'

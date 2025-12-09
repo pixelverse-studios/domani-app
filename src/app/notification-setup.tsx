@@ -1,22 +1,12 @@
-import React, { useState, useMemo, useEffect } from 'react'
-import {
-  Animated,
-  Easing,
-  Platform,
-  StyleSheet,
-  Text as RNText,
-  TouchableOpacity,
-  View,
-} from 'react-native'
+import React, { useState, useMemo } from 'react'
+import { Platform, StyleSheet, View, ScrollView } from 'react-native'
 import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { Bell, Moon } from 'lucide-react-native'
 import { format } from 'date-fns'
 
 import { Button, Text } from '~/components/ui'
-import { GradientOrb } from '~/components/ui/GradientOrb'
 import { useTheme } from '~/hooks/useTheme'
 import { NotificationService } from '~/lib/notifications'
 import { useNotificationStore } from '~/stores/notificationStore'
@@ -25,74 +15,35 @@ import { useUpdateProfile } from '~/hooks/useProfile'
 export default function NotificationSetupScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const updateProfile = useUpdateProfile()
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
-  const updateProfile = useUpdateProfile()
 
   const { setEveningReminderId, setPermissionStatus } = useNotificationStore()
 
-  // Default to 8:00 PM
-  const defaultTime = useMemo(() => {
+  // Default Plan Reminder: 9:00 PM
+  const defaultPlanTime = useMemo(() => {
     const date = new Date()
-    date.setHours(20, 0, 0, 0)
+    date.setHours(21, 0, 0, 0)
     return date
   }, [])
 
-  const [selectedTime, setSelectedTime] = useState(defaultTime)
+  // Default Execute Reminder: 8:00 AM
+  const defaultExecuteTime = useMemo(() => {
+    const date = new Date()
+    date.setHours(8, 0, 0, 0)
+    return date
+  }, [])
+
+  const [planTime, setPlanTime] = useState(defaultPlanTime)
+  const [executeTime, setExecuteTime] = useState(defaultExecuteTime)
   const [loading, setLoading] = useState(false)
-  const [showPicker, setShowPicker] = useState(Platform.OS === 'ios')
 
-  // Animation values
-  const iconAnim = useMemo(() => new Animated.Value(0), [])
-  const titleAnim = useMemo(() => new Animated.Value(0), [])
-  const contentAnim = useMemo(() => new Animated.Value(0), [])
-  const ctaAnim = useMemo(() => new Animated.Value(0), [])
+  // Android picker visibility state
+  const [showPlanPicker, setShowPlanPicker] = useState(Platform.OS === 'ios')
+  const [showExecutePicker, setShowExecutePicker] = useState(Platform.OS === 'ios')
 
-  useEffect(() => {
-    const staggerDelay = 120
-    const duration = 700
-
-    Animated.stagger(staggerDelay, [
-      Animated.timing(iconAnim, {
-        toValue: 1,
-        duration,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(titleAnim, {
-        toValue: 1,
-        duration,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(contentAnim, {
-        toValue: 1,
-        duration,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(ctaAnim, {
-        toValue: 1,
-        duration: 600,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start()
-  }, [iconAnim, titleAnim, contentAnim, ctaAnim])
-
-  const createAnimatedStyle = (anim: Animated.Value) => ({
-    opacity: anim,
-    transform: [
-      {
-        translateY: anim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [25, 0],
-        }),
-      },
-    ],
-  })
-
-  const handleEnableReminder = async () => {
+  const handleContinue = async () => {
     setLoading(true)
     try {
       // Initialize notification system
@@ -103,16 +54,26 @@ export default function NotificationSetupScreen() {
       setPermissionStatus(granted ? 'granted' : 'denied')
 
       if (granted) {
-        // Schedule the notification
-        const hour = selectedTime.getHours()
-        const minute = selectedTime.getMinutes()
-        const identifier = await NotificationService.scheduleEveningReminder(hour, minute)
-        setEveningReminderId(identifier)
+        // Cancel any existing reminders first
+        await NotificationService.cancelAllReminders()
 
-        // Save the time and mark onboarding complete in profile
-        const timeString = format(selectedTime, 'HH:mm:ss')
+        // Schedule the evening planning reminder
+        const planHour = planTime.getHours()
+        const planMinute = planTime.getMinutes()
+        const eveningId = await NotificationService.scheduleEveningReminder(planHour, planMinute)
+        setEveningReminderId(eveningId)
+
+        // Schedule the morning execution reminder
+        const executeHour = executeTime.getHours()
+        const executeMinute = executeTime.getMinutes()
+        await NotificationService.scheduleMorningReminder(executeHour, executeMinute)
+
+        // Save both times and mark onboarding complete
+        const planTimeString = format(planTime, 'HH:mm:ss')
+        const executeTimeString = format(executeTime, 'HH:mm:ss')
         await updateProfile.mutateAsync({
-          planning_reminder_time: timeString,
+          planning_reminder_time: planTimeString,
+          execution_reminder_time: executeTimeString,
           notification_onboarding_completed: true,
         })
       } else {
@@ -135,183 +96,147 @@ export default function NotificationSetupScreen() {
     }
   }
 
-  const handleSkip = async () => {
-    setLoading(true)
-    try {
-      await updateProfile.mutateAsync({ notification_onboarding_completed: true })
-    } catch {
-      // Ignore error, just navigate away
-    }
-    router.replace('/(tabs)')
-    setLoading(false)
-  }
-
-  const handleTimeChange = (_: unknown, date?: Date) => {
+  const handlePlanTimeChange = (_: unknown, date?: Date) => {
     if (Platform.OS === 'android') {
-      setShowPicker(false)
+      setShowPlanPicker(false)
     }
     if (date) {
-      setSelectedTime(date)
+      setPlanTime(date)
     }
   }
 
-  const formattedTime = format(selectedTime, 'h:mm a')
+  const handleExecuteTimeChange = (_: unknown, date?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowExecutePicker(false)
+    }
+    if (date) {
+      setExecuteTime(date)
+    }
+  }
+
+  // Theme-aware colors
+  const colors = {
+    background: isDark ? '#0c0c1a' : '#f8f7fc',
+    gradientColors: isDark
+      ? (['#0c0c1a', '#12122a', '#0c0c1a'] as const)
+      : (['#f8f7fc', '#f3f0ff', '#f8f7fc'] as const),
+    title: isDark ? '#ffffff' : '#1e1b4b',
+    subtitle: isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(30, 27, 75, 0.5)',
+    sectionTitle: isDark ? '#ffffff' : '#1e1b4b',
+    sectionDescription: isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(30, 27, 75, 0.5)',
+    pickerBackground: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(124, 58, 237, 0.05)',
+    pickerText: isDark ? '#ffffff' : '#1e1b4b',
+    androidTimeText: isDark ? '#a78bfa' : '#7c3aed',
+    androidButtonBg: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(124, 58, 237, 0.1)',
+  }
 
   return (
-    <View style={styles.container}>
-      {/* Background gradient */}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Gradient background */}
       <LinearGradient
-        colors={isDark ? ['#0f172a', '#1e1b4b', '#0f172a'] : ['#faf5ff', '#f3e8ff', '#faf5ff']}
+        colors={colors.gradientColors}
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFillObject}
       />
 
-      {/* Gradient orb */}
-      <GradientOrb
-        size={320}
-        position="top-right"
-        colors={
-          isDark
-            ? ['#4c1d95', '#7c3aed', '#a855f7', '#c4b5fd']
-            : ['#ddd6fe', '#c4b5fd', '#a78bfa', '#8b5cf6']
-        }
-      />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 20 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.title }]}>Set Your Reminders</Text>
+          <Text style={[styles.subtitle, { color: colors.subtitle }]}>
+            When to plan and execute
+          </Text>
+        </View>
 
-      {/* Content overlay */}
-      <LinearGradient
-        colors={
-          isDark
-            ? ['rgba(15, 23, 42, 0.3)', 'rgba(15, 23, 42, 0.8)', 'rgba(15, 23, 42, 0.95)']
-            : ['rgba(250, 245, 255, 0.3)', 'rgba(250, 245, 255, 0.8)', 'rgba(250, 245, 255, 0.95)']
-        }
-        locations={[0, 0.35, 0.6]}
-        style={StyleSheet.absoluteFillObject}
-      />
+        {/* Plan Reminder Section */}
+        <View style={styles.reminderSection}>
+          <Text style={[styles.sectionTitle, { color: colors.sectionTitle }]}>Plan Reminder</Text>
+          <Text style={[styles.sectionDescription, { color: colors.sectionDescription }]}>
+            When would you like Domani to remind you to plan for tomorrow?
+          </Text>
 
-      {/* Main content */}
-      <View style={[styles.content, { paddingTop: insets.top + 80 }]}>
-        {/* Icon and title section */}
-        <View style={styles.headerSection}>
-          {/* Animated icon */}
-          <Animated.View style={[styles.iconContainer, createAnimatedStyle(iconAnim)]}>
-            <View
-              style={[
-                styles.iconCircle,
-                {
-                  backgroundColor: isDark ? 'rgba(168, 85, 247, 0.15)' : 'rgba(124, 58, 237, 0.1)',
-                },
-              ]}
+          {Platform.OS === 'android' && !showPlanPicker ? (
+            <Button
+              variant="ghost"
+              onPress={() => setShowPlanPicker(true)}
+              style={[styles.androidTimeButton, { backgroundColor: colors.androidButtonBg }]}
             >
-              <Moon
-                size={48}
-                color={isDark ? '#c084fc' : '#7c3aed'}
-                strokeWidth={1.5}
-                fill={isDark ? 'rgba(192, 132, 252, 0.2)' : 'rgba(124, 58, 237, 0.15)'}
+              <Text style={[styles.androidTimeText, { color: colors.androidTimeText }]}>
+                {format(planTime, 'h:mm a')}
+              </Text>
+            </Button>
+          ) : (
+            <View style={[styles.pickerContainer, { backgroundColor: colors.pickerBackground }]}>
+              <DateTimePicker
+                value={planTime}
+                mode="time"
+                display="spinner"
+                onChange={handlePlanTimeChange}
+                textColor={colors.pickerText}
+                themeVariant={isDark ? 'dark' : 'light'}
+                style={styles.picker}
               />
             </View>
-          </Animated.View>
-
-          {/* Title */}
-          <Animated.View style={createAnimatedStyle(titleAnim)}>
-            <RNText style={[styles.title, { color: isDark ? '#a855f7' : '#7c3aed' }]}>
-              Build Your{'\n'}Planning Habit
-            </RNText>
-          </Animated.View>
-
-          {/* Description */}
-          <Animated.View style={[styles.descriptionContainer, createAnimatedStyle(contentAnim)]}>
-            <Text
-              style={[
-                styles.description,
-                { color: isDark ? 'rgba(250, 245, 255, 0.7)' : 'rgba(30, 27, 75, 0.7)' },
-              ]}
-            >
-              Get a gentle reminder each evening to plan tomorrow&apos;s top 3 tasks. Wake up
-              knowing exactly what to focus on.
-            </Text>
-
-            {/* Time selector */}
-            <View style={styles.timeSection}>
-              <View style={styles.timeLabelRow}>
-                <Bell size={18} color={isDark ? '#c084fc' : '#7c3aed'} strokeWidth={1.5} />
-                <Text
-                  style={[
-                    styles.timeLabel,
-                    { color: isDark ? 'rgba(250, 245, 255, 0.5)' : 'rgba(30, 27, 75, 0.5)' },
-                  ]}
-                >
-                  Daily reminder at
-                </Text>
-              </View>
-
-              {Platform.OS === 'android' && !showPicker && (
-                <TouchableOpacity
-                  style={[
-                    styles.timeButton,
-                    {
-                      backgroundColor: isDark
-                        ? 'rgba(168, 85, 247, 0.15)'
-                        : 'rgba(124, 58, 237, 0.1)',
-                    },
-                  ]}
-                  onPress={() => setShowPicker(true)}
-                >
-                  <Text style={[styles.timeButtonText, { color: isDark ? '#c084fc' : '#7c3aed' }]}>
-                    {formattedTime}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {(Platform.OS === 'ios' || showPicker) && (
-                <View style={styles.pickerWrapper}>
-                  <DateTimePicker
-                    value={selectedTime}
-                    mode="time"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={handleTimeChange}
-                    textColor={isDark ? '#ffffff' : '#1e1b4b'}
-                    themeVariant={isDark ? 'dark' : 'light'}
-                    style={styles.picker}
-                  />
-                </View>
-              )}
-            </View>
-          </Animated.View>
+          )}
         </View>
 
-        {/* CTA section */}
-        <View style={[styles.ctaSection, { paddingBottom: insets.bottom + 16 }]}>
-          <Animated.View style={[styles.ctaContainer, createAnimatedStyle(ctaAnim)]}>
-            {/* Primary CTA */}
+        {/* Execute Reminder Section */}
+        <View style={styles.reminderSection}>
+          <Text style={[styles.sectionTitle, { color: colors.sectionTitle }]}>
+            Execute Reminder
+          </Text>
+          <Text style={[styles.sectionDescription, { color: colors.sectionDescription }]}>
+            When would you like Domani to remind you to start your tasks?
+          </Text>
+
+          {Platform.OS === 'android' && !showExecutePicker ? (
             <Button
-              variant="primary"
-              size="lg"
-              onPress={handleEnableReminder}
-              loading={loading}
-              style={styles.primaryButton}
+              variant="ghost"
+              onPress={() => setShowExecutePicker(true)}
+              style={[styles.androidTimeButton, { backgroundColor: colors.androidButtonBg }]}
             >
-              <Text style={styles.primaryButtonText}>Enable Reminder</Text>
-            </Button>
-
-            {/* Skip link */}
-            <TouchableOpacity
-              style={styles.skipLink}
-              onPress={handleSkip}
-              activeOpacity={0.7}
-              disabled={loading}
-            >
-              <Text
-                style={[
-                  styles.skipText,
-                  { color: isDark ? 'rgba(250, 245, 255, 0.5)' : 'rgba(30, 27, 75, 0.5)' },
-                ]}
-              >
-                Not now
+              <Text style={[styles.androidTimeText, { color: colors.androidTimeText }]}>
+                {format(executeTime, 'h:mm a')}
               </Text>
-            </TouchableOpacity>
-          </Animated.View>
+            </Button>
+          ) : (
+            <View style={[styles.pickerContainer, { backgroundColor: colors.pickerBackground }]}>
+              <DateTimePicker
+                value={executeTime}
+                mode="time"
+                display="spinner"
+                onChange={handleExecuteTimeChange}
+                textColor={colors.pickerText}
+                themeVariant={isDark ? 'dark' : 'light'}
+                style={styles.picker}
+              />
+            </View>
+          )}
         </View>
-      </View>
+
+        {/* Spacer to push button down */}
+        <View style={styles.spacer} />
+
+        {/* Continue Button */}
+        <View style={styles.buttonContainer}>
+          <Button
+            variant="primary"
+            size="lg"
+            onPress={handleContinue}
+            loading={loading}
+            style={styles.continueButton}
+          >
+            <Text style={styles.continueButtonText}>Continue to Domani</Text>
+          </Button>
+        </View>
+      </ScrollView>
     </View>
   )
 }
@@ -319,109 +244,86 @@ export default function NotificationSetupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    overflow: 'hidden',
   },
-  content: {
+  scrollView: {
     flex: 1,
-    justifyContent: 'space-between',
-    paddingHorizontal: 32,
   },
-  headerSection: {
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+  },
+  header: {
     alignItems: 'center',
-  },
-  iconContainer: {
     marginBottom: 24,
   },
-  iconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   title: {
-    fontSize: 32,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    fontSize: 28,
+    fontWeight: '700',
+    lineHeight: 36,
     textAlign: 'center',
-    lineHeight: 40,
-    marginBottom: 16,
+    letterSpacing: 0.3,
+    marginBottom: 8,
   },
-  descriptionContainer: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  description: {
+  subtitle: {
     fontSize: 16,
-    fontWeight: '400',
     textAlign: 'center',
     letterSpacing: 0.2,
-    lineHeight: 24,
-    paddingHorizontal: 8,
-    marginBottom: 32,
   },
-  timeSection: {
-    alignItems: 'center',
-    width: '100%',
+  reminderSection: {
+    marginBottom: 20,
   },
-  timeLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    lineHeight: 20,
     marginBottom: 12,
   },
-  timeLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    letterSpacing: 0.3,
+  pickerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    height: 165,
+    overflow: 'hidden',
   },
-  timeButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+  picker: {
+    width: 280,
+    height: 180,
+  },
+  androidTimeButton: {
     borderRadius: 12,
-    marginBottom: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    alignItems: 'center',
   },
-  timeButtonText: {
+  androidTimeText: {
     fontSize: 24,
     fontWeight: '600',
   },
-  pickerWrapper: {
-    alignItems: 'center',
-    marginBottom: 16,
+  spacer: {
+    flex: 1,
+    minHeight: 8,
   },
-  picker: {
-    width: 200,
-    height: 120,
+  buttonContainer: {
+    paddingTop: 8,
   },
-  ctaSection: {
-    width: '100%',
-  },
-  ctaContainer: {
-    width: '100%',
-  },
-  primaryButton: {
+  continueButton: {
     backgroundColor: '#7c3aed',
     borderRadius: 16,
     paddingVertical: 18,
     shadowColor: '#7c3aed',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
     elevation: 8,
   },
-  primaryButtonText: {
+  continueButtonText: {
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  skipLink: {
-    alignItems: 'center',
-    marginTop: 16,
-    paddingVertical: 12,
-  },
-  skipText: {
-    fontSize: 15,
-    fontWeight: '500',
+    letterSpacing: 0.4,
   },
 })

@@ -1,0 +1,8 @@
+# Supabase Function Configuration
+# See: https://supabase.com/docs/guides/functions/function-configuration
+
+# Disable JWT verification for account email function
+# This function is called from the app with a valid session token,
+# but JWT verification can fail during edge cases like account deletion
+[functions.send-account-email]
+verify_jwt = false

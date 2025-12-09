@@ -48,6 +48,51 @@ When you identify something that should be done later (feature ideas, optimizati
 
 This ensures nothing falls through the cracks between development sessions.
 
+## Pre-Compact Session Recap
+
+**BEFORE any auto-compact or context limit warning occurs**, proactively create/update a session recap file at `.claude/session-recap.md` when you notice the conversation is getting long (roughly 60-70% through available context).
+
+### Recap File Format
+
+```markdown
+# Session Recap - [Date/Time]
+
+## Current Objective
+
+[What we're actively working on right now]
+
+## Completed Work (Sequential)
+
+1. [First thing done]
+2. [Second thing done]
+3. [Continue chronologically...]
+
+## Current State
+
+- **Last file touched:** [path]
+- **Last action taken:** [what you just did]
+- **Next immediate step:** [what was about to happen]
+
+## Open Issues / Blockers
+
+- [Any problems encountered that aren't resolved]
+
+## Key Decisions Made
+
+- [Important choices that affect future work]
+
+## Files Modified This Session
+
+- [list of files with brief note on what changed]
+```
+
+### Instructions
+
+- Update this file incrementally as work progresses, don't wait until the last moment
+- After a compact, **immediately read `.claude/session-recap.md`** to restore context
+- Keep entries concise but specific enough to resume without confusion
+- Delete or archive old recaps when starting genuinely new work
+
 ## Project Documentation
 
 - `development-plan.md` - Full project spec, architecture, and business logic
@@ -61,3 +106,27 @@ This ensures nothing falls through the cracks between development sessions.
 - **Free Tier**: 3 tasks per day (enforced at database level via RLS)
 - **MIT**: Each plan has exactly one Most Important Task
 - **Plan Locking**: Locked plans cannot be edited (prevents midnight anxiety)
+
+## Linear Ticket Creation
+
+When creating Linear tickets for this project:
+
+| Field    | Value             |
+| -------- | ----------------- |
+| Team     | Domani            |
+| Assignee | `me`              |
+| Project  | Domani App launch |
+| Priority | Medium (3)        |
+
+**Labels:** Always apply one from each sub-label group:
+
+- **Environment:** `Front End`, `Fullstack`, `Server`
+- **Scope:** `Ticket`, `Epic`
+- **Task:** `Feature`, `Bug`, `Improvement`, `Refactor`, `Maintenance`, `Research`
+
+**Description format:**
+
+- `## Summary` - what and why
+- `## Current State` / `## Target State` - when applicable
+- `## Implementation` - files to modify, code snippets
+- `## Acceptance Criteria` - checkbox list

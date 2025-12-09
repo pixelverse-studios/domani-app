@@ -99,9 +99,6 @@ export const NotificationService = {
    * @returns Notification identifier for cancellation
    */
   async scheduleEveningReminder(hour: number, minute: number): Promise<string> {
-    // Cancel any existing evening reminder first
-    await this.cancelAllReminders()
-
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Plan Tomorrow',
@@ -109,6 +106,32 @@ export const NotificationService = {
         sound: true,
         priority: Notifications.AndroidNotificationPriority.HIGH,
         data: { url: '/(tabs)/planning', type: 'evening_reminder' },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute,
+        channelId: Platform.OS === 'android' ? CHANNEL_ID : undefined,
+      },
+    })
+
+    return identifier
+  },
+
+  /**
+   * Schedule the morning execution reminder
+   * @param hour - Hour in 24-hour format (0-23)
+   * @param minute - Minute (0-59)
+   * @returns Notification identifier for cancellation
+   */
+  async scheduleMorningReminder(hour: number, minute: number): Promise<string> {
+    const identifier = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Time to Execute',
+        body: "Your planned tasks are waiting. Let's make today count!",
+        sound: true,
+        priority: Notifications.AndroidNotificationPriority.HIGH,
+        data: { url: '/(tabs)', type: 'morning_reminder' },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { supabase } from '~/lib/supabase'
+import { useIncrementCategoryUsage } from '~/hooks/useCategories'
 import type { TaskWithCategory, TaskPriority } from '~/types'
 
 export function useTasks(planId: string | undefined) {
@@ -90,6 +91,7 @@ interface CreateTaskInput {
 
 export function useCreateTask() {
   const queryClient = useQueryClient()
+  const incrementUsage = useIncrementCategoryUsage()
 
   return useMutation({
     mutationFn: async ({
@@ -142,6 +144,14 @@ export function useCreateTask() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tasks', data.plan_id] })
+
+      // Increment category usage count for smart sorting
+      if (data.system_category_id || data.user_category_id) {
+        incrementUsage.mutate({
+          systemCategoryId: data.system_category_id,
+          userCategoryId: data.user_category_id,
+        })
+      }
     },
   })
 }
