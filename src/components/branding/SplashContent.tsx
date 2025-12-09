@@ -1,14 +1,7 @@
 import React, { useEffect, useMemo } from 'react'
 import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
-import Svg, {
-  Defs,
-  LinearGradient as SvgGradient,
-  Stop,
-  Path,
-  Circle,
-  G,
-} from 'react-native-svg'
+import Svg, { Defs, LinearGradient as SvgGradient, Stop, Path, Circle, G } from 'react-native-svg'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 

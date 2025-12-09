@@ -518,7 +518,12 @@ export function AddTaskForm({
                 accessibilityRole="button"
                 accessibilityState={{ selected: selectedCategory === category.id }}
               >
-                {getCategoryIcon(category.id, selectedCategory === category.id, purpleColor, iconColor)}
+                {getCategoryIcon(
+                  category.id,
+                  selectedCategory === category.id,
+                  purpleColor,
+                  iconColor,
+                )}
                 <Text
                   className={`font-sans-medium ml-2 ${
                     selectedCategory === category.id

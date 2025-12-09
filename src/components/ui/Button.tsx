@@ -1,12 +1,5 @@
 import React, { forwardRef } from 'react'
-import {
-  ActivityIndicator,
-  StyleProp,
-  Text,
-  TouchableOpacity,
-  ViewStyle,
-  View,
-} from 'react-native'
+import { ActivityIndicator, StyleProp, Text, TouchableOpacity, ViewStyle, View } from 'react-native'
 import clsx from 'clsx'
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive'
