@@ -1,21 +1,16 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import Purchases, {
-  CustomerInfo,
-  PurchasesOffering,
-  PurchasesPackage,
-} from 'react-native-purchases'
+import Purchases, { CustomerInfo, PurchasesPackage } from 'react-native-purchases'
 import { addDays } from 'date-fns'
 
 import { supabase } from '~/lib/supabase'
 import { useAuth } from '~/hooks/useAuth'
-import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
+import { useProfile } from '~/hooks/useProfile'
 import {
   initializeRevenueCat,
   loginRevenueCat,
   logoutRevenueCat,
   getOfferings,
-  checkPremiumAccess,
   purchasePackage,
   restorePurchases,
   ENTITLEMENT_ID,
@@ -37,15 +32,24 @@ const TRIAL_DURATION_DAYS = 14
 export function useSubscription() {
   const { user } = useAuth()
   const { profile } = useProfile()
-  const updateProfile = useUpdateProfile()
   const queryClient = useQueryClient()
   const [isInitialized, setIsInitialized] = useState(false)
+  const previousUserId = useRef<string | undefined>(undefined)
 
   // Initialize RevenueCat when user changes
   useEffect(() => {
     let isMounted = true
 
     async function init() {
+      // Handle logout when user signs out (previous user existed, now gone)
+      if (previousUserId.current && !user?.id) {
+        logoutRevenueCat()
+        if (isMounted) {
+          setIsInitialized(false)
+        }
+      }
+
+      // Handle login when user signs in
       if (user?.id) {
         await initializeRevenueCat(user.id)
         await loginRevenueCat(user.id)
@@ -53,24 +57,16 @@ export function useSubscription() {
           setIsInitialized(true)
         }
       }
+
+      // Track the current user id for next comparison
+      previousUserId.current = user?.id
     }
     init()
 
     return () => {
       isMounted = false
-      // Only logout when user actually changes (signs out), not on component unmount
-      // The cleanup runs when user?.id changes, so if it becomes undefined/null,
-      // that means user signed out
     }
   }, [user?.id])
-
-  // Handle logout when user signs out (user becomes null)
-  useEffect(() => {
-    if (!user && isInitialized) {
-      logoutRevenueCat()
-      setIsInitialized(false)
-    }
-  }, [user, isInitialized])
 
   // Query for RevenueCat customer info
   const {

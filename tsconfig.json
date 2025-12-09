@@ -8,5 +8,6 @@
     },
     "types": ["nativewind/types"],
     "resolveJsonModule": true
-  }
+  },
+  "exclude": ["supabase/functions"]
 }

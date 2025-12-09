@@ -20,7 +20,6 @@ import { Text, ConfirmationModal } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
 import { useProfile } from '~/hooks/useProfile'
 import {
-  useUserCategories,
   useCreateUserCategory,
   useDeleteUserCategory,
   useSortedCategories,
@@ -41,6 +40,30 @@ const FORM_ID_TO_DISPLAY: Record<string, string> = {
   wellness: 'Wellness',
   personal: 'Personal',
   education: 'Education',
+}
+
+// Get icon for category - moved outside component to avoid memoization issues
+function getCategoryIcon(
+  categoryId: string,
+  isSelected: boolean,
+  purpleColor: string,
+  iconColor: string,
+) {
+  const color = isSelected ? purpleColor : iconColor
+  const fill = isSelected ? purpleColor : 'none'
+
+  switch (categoryId) {
+    case 'work':
+      return <Briefcase size={18} color={color} fill={fill} />
+    case 'wellness':
+      return <Heart size={18} color={color} fill={fill} />
+    case 'personal':
+      return <User size={18} color={color} fill={fill} />
+    case 'education':
+      return <BookOpen size={18} color={color} fill={fill} />
+    default:
+      return <Tag size={18} color={color} fill={fill} />
+  }
 }
 
 type Category = 'work' | 'wellness' | 'personal' | 'education' | string
@@ -81,7 +104,6 @@ export function AddTaskForm({
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
   const { profile } = useProfile()
-  const { data: userCategories = [] } = useUserCategories()
   const sortedCategories = useSortedCategories(profile?.auto_sort_categories ?? false)
   const favoriteCategories = useFavoriteCategories(profile?.auto_sort_categories ?? false)
   const createCategory = useCreateUserCategory()
@@ -111,25 +133,6 @@ export function AddTaskForm({
   const purpleColor = isDark ? '#a78bfa' : '#8b5cf6'
   const iconColor = isDark ? '#94a3b8' : '#64748b'
 
-  // Get icon for category - filled and purple when selected, outlined when not
-  const getCategoryIcon = (categoryId: string, isSelected: boolean) => {
-    const color = isSelected ? purpleColor : iconColor
-    const fill = isSelected ? purpleColor : 'none'
-
-    switch (categoryId) {
-      case 'work':
-        return <Briefcase size={18} color={color} fill={fill} />
-      case 'wellness':
-        return <Heart size={18} color={color} fill={fill} />
-      case 'personal':
-        return <User size={18} color={color} fill={fill} />
-      case 'education':
-        return <BookOpen size={18} color={color} fill={fill} />
-      default:
-        return <Tag size={18} color={color} fill={fill} />
-    }
-  }
-
   // Get the user's favorite categories for quick-select buttons (max 4)
   const quickSelectCategories: CategoryOption[] = useMemo(() => {
     return favoriteCategories.slice(0, 4).map((cat) => {
@@ -140,7 +143,7 @@ export function AddTaskForm({
         return {
           id: formId,
           label: displayLabel,
-          icon: getCategoryIcon(formId, false),
+          icon: getCategoryIcon(formId, false, purpleColor, iconColor),
           isSystem: true,
         }
       } else {
@@ -153,7 +156,7 @@ export function AddTaskForm({
         }
       }
     })
-  }, [favoriteCategories, iconColor])
+  }, [favoriteCategories, iconColor, purpleColor])
 
   // All categories (system + custom user categories) - respects sort order
   const allCategories: CategoryOption[] = useMemo(() => {
@@ -165,7 +168,7 @@ export function AddTaskForm({
         return {
           id: formId,
           label: displayLabel,
-          icon: getCategoryIcon(formId, false),
+          icon: getCategoryIcon(formId, false, purpleColor, iconColor),
           isSystem: true,
         }
       })
@@ -180,7 +183,7 @@ export function AddTaskForm({
       }))
 
     return [...systemOptions, ...customOptions]
-  }, [sortedCategories, iconColor])
+  }, [sortedCategories, iconColor, purpleColor])
 
   // Filter categories based on search
   const filteredCategories = useMemo(() => {
@@ -426,7 +429,7 @@ export function AddTaskForm({
                           borderColor: isSelected ? purpleColor : isDark ? '#334155' : '#e2e8f0',
                         }}
                       >
-                        {getCategoryIcon(category.id, isSelected)}
+                        {getCategoryIcon(category.id, isSelected, purpleColor, iconColor)}
                         <Text
                           className="font-sans-medium ml-2"
                           style={{
@@ -471,7 +474,7 @@ export function AddTaskForm({
                         style={{ color: purpleColor }}
                         numberOfLines={1}
                       >
-                        Create "{categorySearch.trim()}"
+                        Create &quot;{categorySearch.trim()}&quot;
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -515,7 +518,7 @@ export function AddTaskForm({
                 accessibilityRole="button"
                 accessibilityState={{ selected: selectedCategory === category.id }}
               >
-                {getCategoryIcon(category.id, selectedCategory === category.id)}
+                {getCategoryIcon(category.id, selectedCategory === category.id, purpleColor, iconColor)}
                 <Text
                   className={`font-sans-medium ml-2 ${
                     selectedCategory === category.id

@@ -77,7 +77,7 @@ export function ConfirmationModal({
             className="font-sans-semibold mt-1"
             style={{ textAlign: 'center', fontSize: 16, color: purpleColor }}
           >
-            "{itemName}"
+            &quot;{itemName}&quot;
           </Text>
 
           {/* Warning */}

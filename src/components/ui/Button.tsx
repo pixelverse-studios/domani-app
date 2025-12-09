@@ -1,5 +1,12 @@
 import React, { forwardRef } from 'react'
-import { ActivityIndicator, StyleProp, Text, TouchableOpacity, ViewStyle } from 'react-native'
+import {
+  ActivityIndicator,
+  StyleProp,
+  Text,
+  TouchableOpacity,
+  ViewStyle,
+  View,
+} from 'react-native'
 import clsx from 'clsx'
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive'
@@ -29,7 +36,7 @@ const sizeClasses: Record<ButtonSize, string> = {
   lg: 'px-6 py-4 text-lg',
 }
 
-export const Button = forwardRef<TouchableOpacity, ButtonProps>(
+export const Button = forwardRef<View, ButtonProps>(
   (
     {
       children,

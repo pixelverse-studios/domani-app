@@ -36,8 +36,6 @@ export function DomaniIcon({
   variant = 'monogram',
   showBackground = true,
 }: DomaniIconProps) {
-  const scale = size / 100
-
   if (variant === 'monogram') {
     return (
       <Svg width={size} height={size} viewBox="0 0 100 100">

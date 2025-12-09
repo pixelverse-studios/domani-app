@@ -3,9 +3,11 @@ import { View, TouchableOpacity } from 'react-native'
 import { Bell, Sun, CloudMoon, Moon } from 'lucide-react-native'
 import { format } from 'date-fns'
 
-import { Text } from '~/components/ui'
+import { Text, Badge } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
 import { useProfile } from '~/hooks/useProfile'
+import { useAppConfig } from '~/stores/appConfigStore'
+import { PHASE_DISPLAY } from '~/types'
 import { colors } from '~/theme'
 
 type GreetingInfo = {
@@ -42,6 +44,10 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
   const { profile } = useProfile()
+  const { phase, showBadge } = useAppConfig()
+
+  // Get badge display info for current phase
+  const phaseDisplay = PHASE_DISPLAY[phase]
 
   const today = new Date()
   const dayOfWeek = format(today, 'EEEE')
@@ -56,9 +62,9 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
   // Icon colors adapt to theme
   const bellColor = isDark ? '#cbd5e1' : '#64748b' // slate-300 / slate-500
 
-  // Render the appropriate greeting icon
-  const GreetingIcon = () => {
-    const iconProps = { size: 16, color: colors.brand.pink }
+  // Get the appropriate greeting icon element
+  const iconProps = { size: 16, color: colors.brand.pink }
+  const greetingIcon = (() => {
     switch (greeting.icon) {
       case 'sun':
         return <Sun {...iconProps} />
@@ -67,7 +73,7 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
       case 'moon':
         return <Moon {...iconProps} />
     }
-  }
+  })()
 
   // Text colors
   const grayColor = isDark ? '#94a3b8' : '#64748b' // slate-400 / slate-500
@@ -75,9 +81,9 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
   return (
     <View className="flex-row items-start justify-between px-5 pt-4 pb-2">
       <View>
-        {/* Greeting with icon */}
+        {/* Greeting with icon and beta badge */}
         <View className="flex-row items-center mb-2">
-          <GreetingIcon />
+          {greetingIcon}
           <Text
             className="font-sans-medium ml-1.5"
             style={{ fontSize: 16, color: colors.brand.pink }}
@@ -85,6 +91,11 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
             {greeting.text}
             {firstName ? `, ${firstName}` : ''}
           </Text>
+          {showBadge && phaseDisplay.label && (
+            <Badge variant={phaseDisplay.variant} className="ml-2 py-0.5 px-2">
+              {phaseDisplay.label}
+            </Badge>
+          )}
         </View>
         {/* Day of week - smaller, lighter */}
         <Text className="mb-1" style={{ fontSize: 14, color: grayColor }}>

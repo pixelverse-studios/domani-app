@@ -8,10 +8,9 @@ import Svg, {
   Path,
   Circle,
   G,
-  Rect,
 } from 'react-native-svg'
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window')
+const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
 interface SplashContentProps {
   showTagline?: boolean
@@ -92,7 +91,8 @@ export function SplashContent({ showTagline = true }: SplashContentProps) {
     ],
   }
 
-  const sunOpacity = sunAnim.interpolate({
+  // Reserved for future sun pulse animation enhancement
+  const _sunOpacity = sunAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0.9, 1],
   })

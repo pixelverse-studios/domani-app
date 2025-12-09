@@ -68,7 +68,6 @@ export function FavoriteCategoriesAccordion() {
 
   const [isExpanded, setIsExpanded] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [hasChanges, setHasChanges] = useState(false)
 
   // Animation values
   const rotation = useSharedValue(0)
@@ -115,12 +114,10 @@ export function FavoriteCategoriesAccordion() {
       }
       return newSet
     })
-    setHasChanges(true)
   }, [])
 
   const handleSave = useCallback(async () => {
     await updateFavorites.mutateAsync(Array.from(selectedIds))
-    setHasChanges(false)
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setIsExpanded(false)
     rotation.value = withTiming(0, { duration: 200, easing: Easing.ease })

@@ -4,13 +4,15 @@ import { LinearGradient } from 'expo-linear-gradient'
 
 interface GradientOrbProps {
   size?: number
-  colors?: string[]
+  colors?: readonly [string, string, ...string[]]
   position?: 'center' | 'top-right' | 'bottom-left'
 }
 
+const defaultColors = ['#7c3aed', '#a855f7', '#f59e0b', '#fbbf24'] as const
+
 export const GradientOrb = ({
   size = 400,
-  colors = ['#7c3aed', '#a855f7', '#f59e0b', '#fbbf24'],
+  colors = defaultColors,
   position = 'center',
 }: GradientOrbProps) => {
   // Use useMemo to create stable animated values
