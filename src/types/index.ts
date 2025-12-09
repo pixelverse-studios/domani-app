@@ -18,6 +18,7 @@ export type Task = Tables<'tasks'>
 export type SystemCategory = Tables<'system_categories'>
 export type UserCategory = Tables<'user_categories'>
 export type UserCategoryPreference = Tables<'user_category_preferences'>
+export type SupportRequest = Tables<'support_requests'>
 
 // Insert types
 export type ProfileInsert = TablesInsert<'profiles'>
@@ -25,6 +26,7 @@ export type PlanInsert = TablesInsert<'plans'>
 export type TaskInsert = TablesInsert<'tasks'>
 export type UserCategoryInsert = TablesInsert<'user_categories'>
 export type UserCategoryPreferenceInsert = TablesInsert<'user_category_preferences'>
+export type SupportRequestInsert = TablesInsert<'support_requests'>
 
 // Update types
 export type ProfileUpdate = TablesUpdate<'profiles'>

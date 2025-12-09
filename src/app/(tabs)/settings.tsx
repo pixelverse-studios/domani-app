@@ -320,7 +320,7 @@ export default function SettingsScreen() {
         <SectionHeader title="Subscription" />
         <View className="mb-6">
           {/* Beta Tester Card - shown during closed_beta or open_beta phases */}
-          {(phase === 'closed_beta' || phase === 'open_beta') ? (
+          {phase === 'closed_beta' || phase === 'open_beta' ? (
             <View className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 mb-2 border border-amber-200 dark:border-amber-700/50">
               <View className="flex-row items-center justify-between mb-3">
                 <View className="flex-row items-center">
@@ -600,7 +600,7 @@ export default function SettingsScreen() {
         <SectionHeader title="Support" />
         <View className="mb-6">
           <TouchableOpacity
-            onPress={() => console.log('Contact for Support pressed')}
+            onPress={() => router.push('/contact-support')}
             activeOpacity={0.7}
             className="flex-row items-center justify-center py-3.5 rounded-xl border border-purple-500 bg-purple-500/10"
           >
