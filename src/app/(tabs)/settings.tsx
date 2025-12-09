@@ -28,6 +28,8 @@ import {
   Trash2,
   AlertTriangle,
   Info,
+  HelpCircle,
+  LogOut,
 } from 'lucide-react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { format } from 'date-fns'
@@ -42,7 +44,6 @@ import { useSubscription } from '~/hooks/useSubscription'
 import { useNotifications } from '~/hooks/useNotifications'
 import { useAccountDeletion } from '~/hooks/useAccountDeletion'
 import { useAppConfig } from '~/stores/appConfigStore'
-import { PHASE_DISPLAY } from '~/types'
 import type { ThemeMode } from '~/stores/themeStore'
 import type { SubscriptionStatus } from '~/hooks/useSubscription'
 
@@ -141,8 +142,7 @@ export default function SettingsScreen() {
   const subscription = useSubscription()
   const { scheduleEveningReminder, permissionStatus } = useNotifications()
   const accountDeletion = useAccountDeletion()
-  const { phase, showBadge } = useAppConfig()
-  const phaseDisplay = PHASE_DISPLAY[phase]
+  const { phase } = useAppConfig()
 
   // Modal states
   const [showNameModal, setShowNameModal] = useState(false)
@@ -159,10 +159,10 @@ export default function SettingsScreen() {
   const [selectedTime, setSelectedTime] = useState(new Date())
 
   const handleSignOut = async () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+    Alert.alert('Log Out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Sign Out',
+        text: 'Log Out',
         style: 'destructive',
         onPress: async () => {
           await signOut()
@@ -337,7 +337,7 @@ export default function SettingsScreen() {
               </View>
 
               <Text className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-                You're part of our exclusive beta program with full Pro access while we build
+                You&apos;re part of our exclusive beta program with full Pro access while we build
                 Domani together.
               </Text>
 
@@ -596,34 +596,27 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* App Info Section */}
-        <SectionHeader title="App Info" />
-        <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 mb-6">
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-sm text-slate-500 dark:text-slate-400">Version</Text>
-            <Text className="text-sm text-slate-900 dark:text-white font-medium">
-              {APP_VERSION}
-            </Text>
-          </View>
-          {showBadge && phaseDisplay.label && (
-            <View className="flex-row justify-between items-center">
-              <Text className="text-sm text-slate-500 dark:text-slate-400">Status</Text>
-              <View className="bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
-                <Text className="text-xs font-semibold text-amber-700 dark:text-amber-300 uppercase">
-                  {phaseDisplay.label}
-                </Text>
-              </View>
-            </View>
-          )}
+        {/* Support Section */}
+        <SectionHeader title="Support" />
+        <View className="mb-6">
+          <TouchableOpacity
+            onPress={() => console.log('Contact for Support pressed')}
+            activeOpacity={0.7}
+            className="flex-row items-center justify-center py-3.5 rounded-xl border border-purple-500 bg-purple-500/10"
+          >
+            <HelpCircle size={18} color="#a855f7" />
+            <Text className="text-purple-500 font-semibold ml-2">Contact for Support</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Sign Out */}
+        {/* Log Out */}
         <TouchableOpacity
           onPress={handleSignOut}
           activeOpacity={0.7}
-          className="bg-red-500/10 py-3.5 rounded-xl items-center mb-6"
+          className="flex-row items-center justify-center py-3.5 rounded-xl border border-red-500/50 bg-red-500/10 mb-6"
         >
-          <Text className="text-red-500 font-semibold">Sign Out</Text>
+          <LogOut size={18} color="#ef4444" />
+          <Text className="text-red-500 font-semibold ml-2">Log Out</Text>
         </TouchableOpacity>
 
         {/* Danger Zone Section */}
@@ -682,6 +675,11 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* App Version */}
+        <Text className="text-center text-sm text-slate-400 dark:text-slate-500 mb-4">
+          Domani v{APP_VERSION}
+        </Text>
 
         {/* Bottom padding */}
         <View style={{ height: insets.bottom + 20 }} />
