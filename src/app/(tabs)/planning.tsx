@@ -122,6 +122,15 @@ export default function PlanningScreen() {
     }
   }
 
+  // Find the existing HIGH priority task (excluding self if editing)
+  const existingHighPriorityTask = useMemo(() => {
+    const highTask = tasks.find(
+      (t) => t.priority === 'high' && (!editingTask || t.id !== editingTask.id),
+    )
+    if (!highTask) return null
+    return { id: highTask.id, title: highTask.title }
+  }, [tasks, editingTask])
+
   // Get initial form values when editing
   const getEditingFormValues = useCallback(() => {
     if (!editingTask) return undefined
@@ -171,6 +180,8 @@ export default function PlanningScreen() {
             onSubmit={handleSubmitTask}
             initialValues={getEditingFormValues()}
             isEditing={!!editingTask}
+            existingHighPriorityTask={existingHighPriorityTask}
+            editingTaskId={editingTask?.id}
           />
         ) : (
           <AddTaskPlaceholder onPress={handleOpenForm} />

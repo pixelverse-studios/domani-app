@@ -86,7 +86,8 @@ interface CreateTaskInput {
   userCategoryId?: string
   priority?: TaskPriority
   estimatedDurationMinutes?: number
-  isMit?: boolean
+  // Note: is_mit is now automatically controlled by priority via DB trigger
+  // HIGH priority = is_mit: true, MEDIUM/LOW = is_mit: false
 }
 
 export function useCreateTask() {
@@ -102,7 +103,6 @@ export function useCreateTask() {
       userCategoryId,
       priority = 'medium',
       estimatedDurationMinutes,
-      isMit = false,
     }: CreateTaskInput) => {
       // Get current user for user_id
       const {
@@ -110,6 +110,9 @@ export function useCreateTask() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
+      // Note: is_mit is automatically set by DB trigger based on priority
+      // HIGH priority tasks are automatically marked as MIT
+      // If another HIGH task exists, it will be demoted to MEDIUM by the trigger
       const { data, error } = await supabase
         .from('tasks')
         .insert({
@@ -119,7 +122,6 @@ export function useCreateTask() {
           description,
           system_category_id: systemCategoryId,
           user_category_id: userCategoryId,
-          is_mit: isMit,
           priority,
           estimated_duration_minutes: estimatedDurationMinutes,
         })
@@ -172,10 +174,14 @@ export function useUpdateTask() {
         user_category_id: string | null
         priority: TaskPriority
         estimated_duration_minutes: number
-        is_mit: boolean
         position: number
+        // Note: is_mit is automatically controlled by priority via DB trigger
+        // Setting priority to 'high' will auto-set is_mit=true and demote other HIGH tasks
       }>
     }) => {
+      // Note: When priority is updated to 'high', DB trigger will:
+      // 1. Set is_mit = true on this task
+      // 2. Demote any other HIGH priority tasks to MEDIUM
       const { data, error } = await supabase
         .from('tasks')
         .update(updates)

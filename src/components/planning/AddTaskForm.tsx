@@ -13,6 +13,7 @@ import {
   ChevronUp,
   Star,
   Check,
+  Crown,
 } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 
@@ -93,6 +94,10 @@ interface AddTaskFormProps {
   }) => Promise<void> | void
   initialValues?: InitialFormValues
   isEditing?: boolean
+  /** Existing HIGH priority task in this plan (for MIT warning) */
+  existingHighPriorityTask?: { id: string; title: string } | null
+  /** ID of the task being edited (to exclude self from HIGH check) */
+  editingTaskId?: string
 }
 
 export function AddTaskForm({
@@ -100,6 +105,8 @@ export function AddTaskForm({
   onSubmit,
   initialValues,
   isEditing = false,
+  existingHighPriorityTask,
+  editingTaskId,
 }: AddTaskFormProps) {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
@@ -132,6 +139,15 @@ export function AddTaskForm({
 
   const purpleColor = isDark ? '#a78bfa' : '#8b5cf6'
   const iconColor = isDark ? '#94a3b8' : '#64748b'
+  const amberColor = '#f59e0b'
+
+  // MIT message logic: determine which message to show when HIGH is selected
+  // If editing the current HIGH task, no warning needed (it's already MIT)
+  const isEditingCurrentHighTask = editingTaskId && existingHighPriorityTask?.id === editingTaskId
+  const showMitReplaceWarning =
+    selectedPriority === 'high' && existingHighPriorityTask && !isEditingCurrentHighTask
+  const showMitFirstTimeMessage =
+    selectedPriority === 'high' && !existingHighPriorityTask && !isEditingCurrentHighTask
 
   // Get the user's favorite categories for quick-select buttons (max 4)
   const quickSelectCategories: CategoryOption[] = useMemo(() => {
@@ -571,11 +587,17 @@ export function AddTaskForm({
                 text: '#22c55e',
               },
             }
+            const textColor = isSelected
+              ? priorityColors[priority].text
+              : isDark
+                ? '#94a3b8'
+                : '#64748b'
+
             return (
               <TouchableOpacity
                 key={priority}
                 onPress={() => setSelectedPriority(priority)}
-                className="flex-1 py-3 items-center justify-center"
+                className="flex-1 py-3 items-center justify-center flex-row"
                 style={[
                   isSelected && {
                     backgroundColor: priorityColors[priority].bg,
@@ -588,15 +610,10 @@ export function AddTaskForm({
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
               >
+                {priority === 'high' && <Crown size={16} color={textColor} className="mr-1.5" />}
                 <Text
                   className="font-sans-medium"
-                  style={{
-                    color: isSelected
-                      ? priorityColors[priority].text
-                      : isDark
-                        ? '#94a3b8'
-                        : '#64748b',
-                  }}
+                  style={{ color: textColor, marginLeft: priority === 'high' ? 4 : 0 }}
                 >
                   {priority.charAt(0).toUpperCase() + priority.slice(1)}
                 </Text>
@@ -604,6 +621,46 @@ export function AddTaskForm({
             )
           })}
         </View>
+
+        {/* MIT Message - Replace Warning */}
+        {showMitReplaceWarning && existingHighPriorityTask && (
+          <View
+            className="rounded-xl p-3 mt-3"
+            style={{
+              backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.08)',
+              borderWidth: 1,
+              borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.25)',
+            }}
+          >
+            <View className="flex-row items-center">
+              <AlertTriangle size={16} color={amberColor} />
+              <Text className="flex-1 ml-2" style={{ color: amberColor }}>
+                <Text className="font-sans">This will replace </Text>
+                <Text className="font-sans-bold">{existingHighPriorityTask.title}</Text>
+                <Text className="font-sans"> as your highest priority</Text>
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* MIT Message - First Time HIGH */}
+        {showMitFirstTimeMessage && (
+          <View
+            className="rounded-xl p-3 mt-3"
+            style={{
+              backgroundColor: isDark ? 'rgba(139, 92, 246, 0.1)' : 'rgba(139, 92, 246, 0.08)',
+              borderWidth: 1,
+              borderColor: isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.25)',
+            }}
+          >
+            <View className="flex-row items-center">
+              <Crown size={16} color={purpleColor} />
+              <Text className="font-sans ml-2" style={{ color: purpleColor }}>
+                This will be your highest priority task
+              </Text>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Action Buttons - above overlay */}
