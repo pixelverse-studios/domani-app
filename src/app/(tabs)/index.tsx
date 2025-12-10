@@ -18,7 +18,7 @@ import { useTheme } from '~/hooks/useTheme'
 import {
   TodayHeader,
   ProgressCard,
-  DayTypeCard,
+  FocusCard,
   CardCarousel,
   TaskList,
   CompletedSection,
@@ -26,6 +26,7 @@ import {
   ProgressPlaceholderCard,
   EmptyState,
 } from '~/components/today'
+import { inferDayType } from '~/utils/dayTypeInference'
 import { useTodayPlan } from '~/hooks/usePlans'
 import { useTasks, useToggleTask, useDeleteTask } from '~/hooks/useTasks'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
@@ -92,6 +93,17 @@ export default function TodayScreen() {
 
   const totalCount = tasks.length
 
+  // Extract MIT task (high priority, not completed)
+  const mitTask = useMemo(() => {
+    return tasks.find((task) => task.priority === 'high' && !task.completed_at) ?? null
+  }, [tasks])
+
+  // Calculate day theme from tasks excluding MIT
+  const dayTheme = useMemo(() => {
+    const nonMitTasks = tasks.filter((task) => task.priority !== 'high')
+    return inferDayType(nonMitTasks)
+  }, [tasks])
+
   const handleToggleTask = (taskId: string, completed: boolean) => {
     toggleTask.mutate({ taskId, completed })
   }
@@ -154,7 +166,12 @@ export default function TodayScreen() {
           ) : (
             <CardCarousel>
               <ProgressCard completed={completedCount} total={totalCount} />
-              <DayTypeCard tasks={tasks} />
+              <FocusCard
+                mitTask={mitTask}
+                dayTheme={dayTheme}
+                totalTasks={totalCount}
+                completedTasks={completedCount}
+              />
             </CardCarousel>
           )}
         </View>
