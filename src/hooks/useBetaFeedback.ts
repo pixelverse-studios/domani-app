@@ -4,31 +4,31 @@ import { supabase } from '~/lib/supabase'
 import { sendDiscordNotification } from '~/lib/discord'
 import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
-import type { SupportRequest } from '~/types'
+import type { BetaFeedback } from '~/types'
 
-export type SupportCategory = 'technical_issue' | 'account_help' | 'billing_question' | 'other'
+export type FeedbackCategory = 'bug_report' | 'feature_idea' | 'what_i_love' | 'general'
 
-interface CreateSupportRequestInput {
-  category: SupportCategory
-  description: string
+interface CreateBetaFeedbackInput {
+  category: FeedbackCategory
+  message: string
 }
 
-export function useCreateSupportRequest() {
+export function useCreateBetaFeedback() {
   const { user } = useAuth()
   const { profile } = useProfile()
 
   return useMutation({
-    mutationFn: async (input: CreateSupportRequestInput): Promise<SupportRequest> => {
+    mutationFn: async (input: CreateBetaFeedbackInput): Promise<BetaFeedback> => {
       if (!user?.id) throw new Error('Not authenticated')
       if (!profile?.email) throw new Error('No email found')
 
       const { data, error } = await supabase
-        .from('support_requests')
+        .from('beta_feedback')
         .insert({
           user_id: user.id,
           email: profile.email,
           category: input.category,
-          description: input.description,
+          message: input.message,
         })
         .select()
         .single()
@@ -37,13 +37,13 @@ export function useCreateSupportRequest() {
 
       // Send Discord notification (fire and forget)
       sendDiscordNotification({
-        type: 'support_request',
+        type: 'beta_feedback',
         email: profile.email,
         category: input.category,
-        description: input.description,
+        message: input.message,
       })
 
-      return data as SupportRequest
+      return data as BetaFeedback
     },
   })
 }
