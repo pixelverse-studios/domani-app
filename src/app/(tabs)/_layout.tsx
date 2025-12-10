@@ -1,9 +1,11 @@
 import React from 'react'
-import { Tabs } from 'expo-router'
+import { View, ActivityIndicator } from 'react-native'
+import { Tabs, Redirect } from 'expo-router'
 import { CheckCircle, Calendar, MessageCircle, BarChart3, Settings } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useTheme } from '~/hooks/useTheme'
+import { useAuth } from '~/hooks/useAuth'
 import { useAppConfig } from '~/stores/appConfigStore'
 
 const TAB_BAR_CONTENT_HEIGHT = 56
@@ -13,6 +15,21 @@ export default function TabLayout() {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
   const { isFeatureEnabled } = useAppConfig()
+  const { user, loading } = useAuth()
+
+  // Show loading while checking auth
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white dark:bg-slate-950">
+        <ActivityIndicator size="large" color="#a855f7" />
+      </View>
+    )
+  }
+
+  // Redirect to welcome if not authenticated
+  if (!user) {
+    return <Redirect href="/welcome" />
+  }
 
   const activeColor = '#a855f7' // purple-500
   const inactiveColor = isDark ? '#6b7280' : '#9ca3af' // gray-500/400

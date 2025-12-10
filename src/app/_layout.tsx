@@ -33,15 +33,28 @@ function RootLayoutContent() {
     fetchConfig()
   }, [fetchConfig])
 
-  const { accountReactivated, clearAccountReactivated } = useAuth()
+  const { accountReactivated, clearAccountReactivated, loading } = useAuth()
+
+  // Wait for auth to initialize before rendering routes
+  // This prevents the race condition where (tabs) renders before auth check completes
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white dark:bg-slate-950">
+        <ActivityIndicator size="large" color="#a855f7" />
+      </View>
+    )
+  }
 
   return (
     <>
       <StatusBar style="auto" />
       <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="welcome" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="login" />
         <Stack.Screen name="notification-setup" />
+        <Stack.Screen name="contact-support" />
         <Stack.Screen name="auth/callback" options={{ presentation: 'modal' }} />
       </Stack>
 

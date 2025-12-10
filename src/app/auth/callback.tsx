@@ -23,6 +23,7 @@ export default function AuthCallbackScreen() {
         hasRefreshToken: !!refresh_token,
       })
 
+      // If we have tokens, set the session
       if (access_token && refresh_token) {
         const { error } = await supabase.auth.setSession({
           access_token: access_token as string,
@@ -32,10 +33,21 @@ export default function AuthCallbackScreen() {
         if (error) throw error
 
         console.log('[AuthCallback] Session set successfully')
-        // Navigate to home screen
         router.replace('/')
       } else {
-        throw new Error('No tokens received from OAuth')
+        // No tokens in params - check if we already have a session
+        // (OAuth may have been handled by AuthProvider already)
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
+        if (session) {
+          console.log('[AuthCallback] Session already exists, redirecting to home')
+          router.replace('/')
+        } else {
+          console.log('[AuthCallback] No session found, redirecting to login')
+          router.replace('/login')
+        }
       }
     } catch (error) {
       console.error('[AuthCallback] Error:', error)

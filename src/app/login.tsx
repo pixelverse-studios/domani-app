@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Alert, StyleSheet, Text as RNText, TouchableOpacity, View } from 'react-native'
+import { Alert, Platform, StyleSheet, Text as RNText, TouchableOpacity, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -99,8 +99,10 @@ export default function LoginScreen() {
         {/* Sign in buttons section */}
         <View style={[styles.buttonsSection, { paddingBottom: insets.bottom + 32 }]}>
           <View style={styles.buttonsContainer}>
-            {/* Sign in with Apple - first per iOS guidelines */}
-            <SocialButton provider="apple" onPress={handleAppleSignIn} loading={appleLoading} />
+            {/* Sign in with Apple - first per iOS guidelines, only shown on iOS */}
+            {Platform.OS === 'ios' && (
+              <SocialButton provider="apple" onPress={handleAppleSignIn} loading={appleLoading} />
+            )}
 
             {/* Sign in with Google */}
             <SocialButton provider="google" onPress={handleGoogleSignIn} loading={googleLoading} />

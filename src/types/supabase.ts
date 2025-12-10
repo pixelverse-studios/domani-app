@@ -118,31 +118,55 @@ export type Database = {
       }
       beta_feedback: {
         Row: {
+          app_build: string | null
+          app_version: string | null
           category: string
           created_at: string | null
+          device_brand: string | null
+          device_model: string | null
           email: string
           id: string
           message: string
+          os_version: string | null
+          platform: string | null
+          screen_height: number | null
+          screen_width: number | null
           status: string
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          app_build?: string | null
+          app_version?: string | null
           category: string
           created_at?: string | null
+          device_brand?: string | null
+          device_model?: string | null
           email: string
           id?: string
           message: string
+          os_version?: string | null
+          platform?: string | null
+          screen_height?: number | null
+          screen_width?: number | null
           status?: string
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          app_build?: string | null
+          app_version?: string | null
           category?: string
           created_at?: string | null
+          device_brand?: string | null
+          device_model?: string | null
           email?: string
           id?: string
           message?: string
+          os_version?: string | null
+          platform?: string | null
+          screen_height?: number | null
+          screen_width?: number | null
           status?: string
           updated_at?: string | null
           user_id?: string
@@ -570,31 +594,55 @@ export type Database = {
       }
       support_requests: {
         Row: {
+          app_build: string | null
+          app_version: string | null
           category: string
           created_at: string | null
           description: string
+          device_brand: string | null
+          device_model: string | null
           email: string
           id: string
+          os_version: string | null
+          platform: string | null
+          screen_height: number | null
+          screen_width: number | null
           status: string
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          app_build?: string | null
+          app_version?: string | null
           category: string
           created_at?: string | null
           description: string
+          device_brand?: string | null
+          device_model?: string | null
           email: string
           id?: string
+          os_version?: string | null
+          platform?: string | null
+          screen_height?: number | null
+          screen_width?: number | null
           status?: string
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          app_build?: string | null
+          app_version?: string | null
           category?: string
           created_at?: string | null
           description?: string
+          device_brand?: string | null
+          device_model?: string | null
           email?: string
           id?: string
+          os_version?: string | null
+          platform?: string | null
+          screen_height?: number | null
+          screen_width?: number | null
           status?: string
           updated_at?: string | null
           user_id?: string

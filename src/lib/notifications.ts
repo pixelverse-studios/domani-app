@@ -1,28 +1,51 @@
-import * as Notifications from 'expo-notifications'
 import { Platform } from 'react-native'
 import { addDays, format } from 'date-fns'
+import Constants from 'expo-constants'
 
 import { supabase } from './supabase'
 
+// Check if notifications are supported (not in Expo Go on Android SDK 53+)
+const isExpoGo = Constants.appOwnership === 'expo'
+const isNotificationsSupported = !(isExpoGo && Platform.OS === 'android')
+
+// Conditionally import and configure notifications
+let Notifications: typeof import('expo-notifications') | null = null
+
+if (isNotificationsSupported) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  Notifications = require('expo-notifications')
+
+  // Configure how notifications appear when app is foregrounded
+  if (Notifications) {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    })
+  }
+}
+
 const CHANNEL_ID = 'planning-reminders'
 
-// Configure how notifications appear when app is foregrounded
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-})
-
 export const NotificationService = {
+  /**
+   * Check if notifications are supported on this platform/environment
+   */
+  isSupported(): boolean {
+    return isNotificationsSupported
+  },
+
   /**
    * Initialize notification system - call once on app startup
    * Creates Android notification channel
    */
   async initialize(): Promise<void> {
+    if (!Notifications) return
+
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
         name: 'Planning Reminders',
@@ -38,6 +61,8 @@ export const NotificationService = {
    * Check if notification permissions are currently granted
    */
   async hasPermissions(): Promise<boolean> {
+    if (!Notifications) return false
+
     const settings = await Notifications.getPermissionsAsync()
     return (
       settings.granted || settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
@@ -49,6 +74,8 @@ export const NotificationService = {
    * Returns true if granted, false if denied
    */
   async requestPermissions(): Promise<boolean> {
+    if (!Notifications) return false
+
     const { status: existingStatus } = await Notifications.getPermissionsAsync()
 
     if (existingStatus === 'granted') {
@@ -99,6 +126,8 @@ export const NotificationService = {
    * @returns Notification identifier for cancellation
    */
   async scheduleEveningReminder(hour: number, minute: number): Promise<string> {
+    if (!Notifications) return ''
+
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Plan Tomorrow',
@@ -125,6 +154,8 @@ export const NotificationService = {
    * @returns Notification identifier for cancellation
    */
   async scheduleMorningReminder(hour: number, minute: number): Promise<string> {
+    if (!Notifications) return ''
+
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Time to Execute',
@@ -148,6 +179,7 @@ export const NotificationService = {
    * Cancel a specific scheduled notification
    */
   async cancelNotification(identifier: string): Promise<void> {
+    if (!Notifications) return
     await Notifications.cancelScheduledNotificationAsync(identifier)
   },
 
@@ -155,13 +187,15 @@ export const NotificationService = {
    * Cancel all scheduled notifications
    */
   async cancelAllReminders(): Promise<void> {
+    if (!Notifications) return
     await Notifications.cancelAllScheduledNotificationsAsync()
   },
 
   /**
    * Get all currently scheduled notifications (for debugging)
    */
-  async getScheduledNotifications(): Promise<Notifications.NotificationRequest[]> {
+  async getScheduledNotifications(): Promise<unknown[]> {
+    if (!Notifications) return []
     return await Notifications.getAllScheduledNotificationsAsync()
   },
 
@@ -169,6 +203,8 @@ export const NotificationService = {
    * Get the next trigger date for a specific time (for debugging/display)
    */
   async getNextTriggerDate(hour: number, minute: number): Promise<Date | null> {
+    if (!Notifications) return null
+
     const trigger = {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
       hour,

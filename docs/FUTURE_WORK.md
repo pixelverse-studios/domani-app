@@ -7,6 +7,21 @@
 
 ## High Priority
 
+### RevenueCat Android Setup
+
+**Context**: RevenueCat is not configured for Android, causing subscription features to fail silently. Currently the app gracefully handles this, but subscriptions won't work on Android until configured.
+**Scope**:
+
+- Create Android app in RevenueCat dashboard
+- Configure Google Play Store connection in RevenueCat
+- Add products/offerings matching iOS configuration
+- Add `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` to environment variables
+- Test subscription flow on Android device/emulator
+  **Files to modify**: `.env`, `.env.local`
+  **Reference**: [RevenueCat Android Setup Guide](https://www.revenuecat.com/docs/getting-started/installation/android)
+
+---
+
 ### Add Task Modal
 
 **Context**: The Today screen has an "Add Task" button but no modal to create tasks yet.
@@ -180,4 +195,4 @@
 
 ---
 
-_Last updated: 2025-11-24_
+_Last updated: 2025-12-10_

@@ -92,6 +92,84 @@ function SectionHeader({ title }: { title: string }) {
   )
 }
 
+// Skeleton components for loading states
+function SkeletonBox({ className }: { className?: string }) {
+  return <View className={`bg-slate-200 dark:bg-slate-700 rounded animate-pulse ${className}`} />
+}
+
+function ProfileSkeleton() {
+  return (
+    <View className="mb-6">
+      <View className="py-3.5 px-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl mb-2">
+        <View className="flex-row items-center">
+          <SkeletonBox className="w-5 h-5 rounded mr-3" />
+          <SkeletonBox className="w-24 h-4 rounded" />
+          <View className="flex-1" />
+          <SkeletonBox className="w-20 h-4 rounded" />
+        </View>
+      </View>
+      <View className="py-3.5 px-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+        <View className="flex-row items-center">
+          <SkeletonBox className="w-5 h-5 rounded mr-3" />
+          <SkeletonBox className="w-20 h-4 rounded" />
+          <View className="flex-1" />
+          <SkeletonBox className="w-32 h-4 rounded" />
+        </View>
+      </View>
+    </View>
+  )
+}
+
+function SubscriptionSkeleton() {
+  return (
+    <View className="mb-6">
+      <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4">
+        <View className="flex-row items-center justify-between mb-3">
+          <View className="flex-row items-center">
+            <SkeletonBox className="w-5 h-5 rounded mr-2" />
+            <SkeletonBox className="w-24 h-4 rounded" />
+          </View>
+          <SkeletonBox className="w-16 h-6 rounded-full" />
+        </View>
+        <SkeletonBox className="w-48 h-4 rounded mb-3" />
+        <SkeletonBox className="w-full h-12 rounded-xl" />
+      </View>
+    </View>
+  )
+}
+
+function PreferencesSkeleton() {
+  return (
+    <View className="mb-6">
+      {[1, 2, 3].map((i) => (
+        <View key={i} className="py-3.5 px-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl mb-2">
+          <View className="flex-row items-center">
+            <SkeletonBox className="w-5 h-5 rounded mr-3" />
+            <SkeletonBox className="w-28 h-4 rounded" />
+            <View className="flex-1" />
+            <SkeletonBox className="w-24 h-4 rounded" />
+          </View>
+        </View>
+      ))}
+    </View>
+  )
+}
+
+function PlanningSkeleton() {
+  return (
+    <View className="mb-6">
+      <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3 mb-2 flex-row items-center justify-between">
+        <View className="flex-row items-center">
+          <SkeletonBox className="w-5 h-5 rounded mr-3" />
+          <SkeletonBox className="w-32 h-4 rounded" />
+        </View>
+        <SkeletonBox className="w-12 h-7 rounded-full" />
+      </View>
+      <SkeletonBox className="w-full h-14 rounded-xl" />
+    </View>
+  )
+}
+
 // Settings Row component
 function SettingsRow({
   label,
@@ -283,18 +361,14 @@ export default function SettingsScreen() {
     return tz ? tz.label : value
   }
 
+  // Only need subscription data when not in beta
+  const isBeta = phase === 'closed_beta' || phase === 'open_beta'
   const statusConfig = STATUS_CONFIG[subscription.status]
 
-  if (isLoading || subscription.isLoading) {
-    return (
-      <View
-        className="flex-1 bg-white dark:bg-slate-950 items-center justify-center"
-        style={{ paddingTop: insets.top }}
-      >
-        <ActivityIndicator size="large" color="#a855f7" />
-      </View>
-    )
-  }
+  // Determine loading states for individual sections
+  const isProfileLoading = isLoading
+  // Skip subscription loading in beta - we don't need RevenueCat data
+  const isSubscriptionLoading = !isBeta && subscription.isLoading
 
   return (
     <View className="flex-1 bg-white dark:bg-slate-950" style={{ paddingTop: insets.top }}>
@@ -306,21 +380,28 @@ export default function SettingsScreen() {
 
         {/* Profile Section */}
         <SectionHeader title="Profile" />
-        <View className="mb-6">
-          <SettingsRow
-            label="Name"
-            value={profile?.full_name || 'Not set'}
-            onPress={openNameModal}
-            icon={User}
-          />
-          <SettingsRow label="Email" value={profile?.email} icon={User} showChevron={false} />
-        </View>
+        {isProfileLoading ? (
+          <ProfileSkeleton />
+        ) : (
+          <View className="mb-6">
+            <SettingsRow
+              label="Name"
+              value={profile?.full_name || 'Not set'}
+              onPress={openNameModal}
+              icon={User}
+            />
+            <SettingsRow label="Email" value={profile?.email} icon={User} showChevron={false} />
+          </View>
+        )}
 
         {/* Subscription Section */}
         <SectionHeader title="Subscription" />
-        <View className="mb-6">
-          {/* Beta Tester Card - shown during closed_beta or open_beta phases */}
-          {phase === 'closed_beta' || phase === 'open_beta' ? (
+        {isSubscriptionLoading ? (
+          <SubscriptionSkeleton />
+        ) : (
+          <View className="mb-6">
+            {/* Beta Tester Card - shown during closed_beta or open_beta phases */}
+            {isBeta ? (
             <View className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 mb-2 border border-amber-200 dark:border-amber-700/50">
               <View className="flex-row items-center justify-between mb-3">
                 <View className="flex-row items-center">
@@ -481,80 +562,89 @@ export default function SettingsScreen() {
               )}
             </>
           )}
-        </View>
+          </View>
+        )}
 
         {/* Planning Section */}
         <SectionHeader title="Planning" />
-        <View className="mb-6">
-          {/* Smart Categories Toggle */}
-          <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3 mb-2 flex-row items-center justify-between">
-            <View className="flex-row items-center">
-              <Sparkles
-                size={18}
-                color={activeTheme === 'dark' ? '#a78bfa' : '#8b5cf6'}
-                fill={
-                  profile?.auto_sort_categories
-                    ? activeTheme === 'dark'
-                      ? '#a78bfa'
-                      : '#8b5cf6'
-                    : 'transparent'
-                }
+        {isProfileLoading ? (
+          <PlanningSkeleton />
+        ) : (
+          <View className="mb-6">
+            {/* Smart Categories Toggle */}
+            <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3 mb-2 flex-row items-center justify-between">
+              <View className="flex-row items-center">
+                <Sparkles
+                  size={18}
+                  color={activeTheme === 'dark' ? '#a78bfa' : '#8b5cf6'}
+                  fill={
+                    profile?.auto_sort_categories
+                      ? activeTheme === 'dark'
+                        ? '#a78bfa'
+                        : '#8b5cf6'
+                      : 'transparent'
+                  }
+                />
+                <Text className="text-base font-sans-medium text-slate-900 dark:text-white ml-3">
+                  Smart Categories
+                </Text>
+                <TouchableOpacity
+                  className="ml-2"
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  onPress={() =>
+                    Alert.alert(
+                      'Smart Categories',
+                      'Favorite categories automatically adjust based on usage frequency. The app learns your habits and displays your most-used categories.',
+                      [{ text: 'Got it' }],
+                    )
+                  }
+                >
+                  <Info size={16} color={activeTheme === 'dark' ? '#64748b' : '#94a3b8'} />
+                </TouchableOpacity>
+              </View>
+              <Switch
+                value={profile?.auto_sort_categories ?? false}
+                onValueChange={handleSmartCategoriesToggle}
+                trackColor={{
+                  false: activeTheme === 'dark' ? '#334155' : '#e2e8f0',
+                  true: activeTheme === 'dark' ? '#a78bfa' : '#8b5cf6',
+                }}
+                thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
+                ios_backgroundColor={activeTheme === 'dark' ? '#334155' : '#e2e8f0'}
               />
-              <Text className="text-base font-sans-medium text-slate-900 dark:text-white ml-3">
-                Smart Categories
-              </Text>
-              <TouchableOpacity
-                className="ml-2"
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                onPress={() =>
-                  Alert.alert(
-                    'Smart Categories',
-                    'Favorite categories automatically adjust based on usage frequency. The app learns your habits and displays your most-used categories.',
-                    [{ text: 'Got it' }],
-                  )
-                }
-              >
-                <Info size={16} color={activeTheme === 'dark' ? '#64748b' : '#94a3b8'} />
-              </TouchableOpacity>
             </View>
-            <Switch
-              value={profile?.auto_sort_categories ?? false}
-              onValueChange={handleSmartCategoriesToggle}
-              trackColor={{
-                false: activeTheme === 'dark' ? '#334155' : '#e2e8f0',
-                true: activeTheme === 'dark' ? '#a78bfa' : '#8b5cf6',
-              }}
-              thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
-              ios_backgroundColor={activeTheme === 'dark' ? '#334155' : '#e2e8f0'}
-            />
-          </View>
 
-          {/* Favorite Categories Accordion */}
-          <FavoriteCategoriesAccordion />
-        </View>
+            {/* Favorite Categories Accordion */}
+            <FavoriteCategoriesAccordion />
+          </View>
+        )}
 
         {/* Preferences Section */}
         <SectionHeader title="Preferences" />
-        <View className="mb-6">
-          <SettingsRow
-            label="Timezone"
-            value={getTimezoneLabel(profile?.timezone || null)}
-            onPress={() => setShowTimezoneModal(true)}
-            icon={Globe}
-          />
-          <SettingsRow
-            label="Evening Reminder"
-            value={formatTimeDisplay(profile?.planning_reminder_time || null)}
-            onPress={openPlanningTimeModal}
-            icon={Clock}
-          />
-          <SettingsRow
-            label="Morning Reminder"
-            value={formatTimeDisplay(profile?.execution_reminder_time || null)}
-            onPress={openExecutionTimeModal}
-            icon={Clock}
-          />
-        </View>
+        {isProfileLoading ? (
+          <PreferencesSkeleton />
+        ) : (
+          <View className="mb-6">
+            <SettingsRow
+              label="Timezone"
+              value={getTimezoneLabel(profile?.timezone || null)}
+              onPress={() => setShowTimezoneModal(true)}
+              icon={Globe}
+            />
+            <SettingsRow
+              label="Evening Reminder"
+              value={formatTimeDisplay(profile?.planning_reminder_time || null)}
+              onPress={openPlanningTimeModal}
+              icon={Clock}
+            />
+            <SettingsRow
+              label="Morning Reminder"
+              value={formatTimeDisplay(profile?.execution_reminder_time || null)}
+              onPress={openExecutionTimeModal}
+              icon={Clock}
+            />
+          </View>
+        )}
 
         {/* Appearance Section */}
         <SectionHeader title="Appearance" />

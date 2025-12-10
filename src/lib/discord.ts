@@ -3,15 +3,16 @@
  * Sends notifications to Discord when users submit support requests or feedback
  */
 
-const DISCORD_WEBHOOK_URL = process.env.EXPO_PUBLIC_DISCORD_WEBHOOK_URL
+import type { DeviceMetadata } from '~/utils/deviceInfo'
 
-type NotificationType = 'support_request' | 'beta_feedback'
+const DISCORD_WEBHOOK_URL = process.env.EXPO_PUBLIC_DISCORD_WEBHOOK_URL
 
 interface SupportRequestPayload {
   type: 'support_request'
   email: string
   category: string
   description: string
+  deviceMetadata?: DeviceMetadata
 }
 
 interface BetaFeedbackPayload {
@@ -19,6 +20,7 @@ interface BetaFeedbackPayload {
   email: string
   category: string
   message: string
+  deviceMetadata?: DeviceMetadata
 }
 
 type WebhookPayload = SupportRequestPayload | BetaFeedbackPayload
@@ -74,26 +76,56 @@ export async function sendDiscordNotification(payload: WebhookPayload): Promise<
   const categoryLabel = config.categoryLabels[payload.category] || payload.category
   const content = payload.type === 'support_request' ? payload.description : payload.message
 
+  // Build device info strings if available
+  const deviceInfo = payload.deviceMetadata
+  const deviceString = deviceInfo
+    ? `${deviceInfo.device_brand || 'Unknown'} ${deviceInfo.device_model || 'Device'}`
+    : null
+  const platformString = deviceInfo
+    ? `${deviceInfo.platform === 'ios' ? 'iOS' : 'Android'} ${deviceInfo.os_version}`
+    : null
+  const appString = deviceInfo?.app_version
+    ? `v${deviceInfo.app_version}${deviceInfo.app_build ? ` (${deviceInfo.app_build})` : ''}`
+    : null
+
+  const fields = [
+    {
+      name: '📧 Email',
+      value: payload.email,
+      inline: false,
+    },
+    {
+      name: '📁 Category',
+      value: categoryLabel,
+      inline: false,
+    },
+    {
+      name: `📝 ${config.contentField}`,
+      value: content.length > 1024 ? content.substring(0, 1021) + '...' : content,
+      inline: false,
+    },
+  ]
+
+  // Add device metadata fields if available
+  if (deviceString && platformString) {
+    fields.push({
+      name: '📱 Device',
+      value: `${deviceString}\n${platformString}`,
+      inline: true,
+    })
+  }
+  if (appString) {
+    fields.push({
+      name: '📦 App',
+      value: appString,
+      inline: true,
+    })
+  }
+
   const embed = {
     title: `${config.emoji} ${config.title}`,
     color: COLORS[payload.type],
-    fields: [
-      {
-        name: '📧 Email',
-        value: payload.email,
-        inline: false,
-      },
-      {
-        name: '📁 Category',
-        value: categoryLabel,
-        inline: false,
-      },
-      {
-        name: `📝 ${config.contentField}`,
-        value: content.length > 1024 ? content.substring(0, 1021) + '...' : content,
-        inline: false,
-      },
-    ],
+    fields,
     timestamp: new Date().toISOString(),
     footer: {
       text: payload.type === 'support_request' ? 'Domani Support' : 'Domani Beta Feedback',

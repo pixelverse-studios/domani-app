@@ -51,8 +51,15 @@ export function useSubscription() {
 
       // Handle login when user signs in
       if (user?.id) {
-        await initializeRevenueCat(user.id)
-        await loginRevenueCat(user.id)
+        try {
+          await initializeRevenueCat(user.id)
+          await loginRevenueCat(user.id)
+        } catch (error) {
+          // RevenueCat failed to initialize - continue without it
+          // This can happen if Android API key is not configured
+          console.warn('[useSubscription] RevenueCat initialization failed:', error)
+        }
+        // Always mark as initialized so Settings doesn't hang
         if (isMounted) {
           setIsInitialized(true)
         }
@@ -77,10 +84,17 @@ export function useSubscription() {
     queryKey: ['customerInfo', user?.id],
     queryFn: async () => {
       if (!isInitialized) return null
-      const info = await Purchases.getCustomerInfo()
-      return info
+      try {
+        const info = await Purchases.getCustomerInfo()
+        return info
+      } catch (error) {
+        // RevenueCat might not be configured - return null gracefully
+        console.warn('[useSubscription] Failed to get customer info:', error)
+        return null
+      }
     },
     enabled: isInitialized && !!user?.id,
+    retry: false, // Don't retry if RevenueCat is not configured
   })
 
   // Query for offerings (available products)
@@ -88,6 +102,7 @@ export function useSubscription() {
     queryKey: ['offerings'],
     queryFn: getOfferings,
     enabled: isInitialized,
+    retry: false, // Don't retry if RevenueCat is not configured
   })
 
   // Compute subscription state
