@@ -60,6 +60,9 @@ export function AddTaskForm({
   const [submitState, setSubmitState] = useState<SubmitState>('idle')
   const isFormDisabled = submitState !== 'idle'
 
+  // Focus state for title input
+  const [isTitleFocused, setIsTitleFocused] = useState(false)
+
   const purpleColor = isDark ? '#a78bfa' : '#8b5cf6'
   const iconColor = isDark ? '#94a3b8' : '#64748b'
 
@@ -158,12 +161,15 @@ export function AddTaskForm({
         placeholder="What do you want to accomplish?"
         placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
         editable={!isFormDisabled}
+        onFocus={() => setIsTitleFocused(true)}
+        onBlur={() => setIsTitleFocused(false)}
         className="font-sans"
         style={[
           styles.input,
           {
             backgroundColor: isDark ? '#0f172a' : '#ffffff',
-            borderColor: purpleColor,
+            borderColor: isTitleFocused ? purpleColor : isDark ? '#334155' : '#e2e8f0',
+            borderWidth: isTitleFocused ? 2 : 1,
             color: isDark ? '#f8fafc' : '#0f172a',
           },
         ]}
@@ -257,7 +263,6 @@ export function AddTaskForm({
 
 const styles = StyleSheet.create({
   input: {
-    borderWidth: 2,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
