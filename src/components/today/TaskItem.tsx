@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, TouchableOpacity } from 'react-native'
-import { Circle, CheckCircle, Trash2, Star } from 'lucide-react-native'
+import { Circle, CheckCircle, Trash2, Star, Briefcase, Heart, User, BookOpen } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
@@ -16,6 +16,32 @@ const PRIORITY_LABELS: Record<TaskPriority, string> = {
   high: 'High',
   medium: 'Medium',
   low: 'Low',
+}
+
+// Get icon for category based on name/icon field
+function getCategoryIcon(category: { name: string; icon?: string } | null, color: string) {
+  if (!category) return <Star size={14} color={color} />
+
+  const iconName = category.icon?.toLowerCase() || category.name.toLowerCase()
+
+  switch (iconName) {
+    case 'briefcase':
+    case 'work':
+      return <Briefcase size={14} color={color} />
+    case 'heart':
+    case 'health':
+    case 'wellness':
+      return <Heart size={14} color={color} />
+    case 'user':
+    case 'personal':
+      return <User size={14} color={color} />
+    case 'book-open':
+    case 'education':
+      return <BookOpen size={14} color={color} />
+    default:
+      // User-created categories use star icon
+      return <Star size={14} color={color} />
+  }
 }
 
 interface TaskItemProps {
@@ -108,7 +134,7 @@ export function TaskItem({ task, onToggle, onPress, onDelete }: TaskItemProps) {
         {/* Bottom row: Category badge */}
         <View className="flex-row ml-9">
           <View className="flex-row items-center px-3 py-1.5 rounded-lg bg-slate-200/80 dark:bg-slate-700/50 border border-slate-300/50 dark:border-slate-600/50">
-            <Star size={14} color={categoryIconColor} />
+            {getCategoryIcon(category ?? null, categoryIconColor)}
             <Text className="text-sm text-slate-600 dark:text-slate-400 ml-1.5">
               {categoryName}
             </Text>
