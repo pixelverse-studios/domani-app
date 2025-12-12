@@ -3,6 +3,9 @@ import { format, addDays } from 'date-fns'
 
 import { supabase } from '~/lib/supabase'
 
+// 5 minutes - plans change with user action but don't need real-time updates
+const PLAN_STALE_TIME = 1000 * 60 * 5
+
 export function usePlanForDate(date: Date) {
   const dateStr = format(date, 'yyyy-MM-dd')
 
@@ -37,6 +40,7 @@ export function usePlanForDate(date: Date) {
 
       return newPlan
     },
+    staleTime: PLAN_STALE_TIME,
   })
 }
 
@@ -79,6 +83,7 @@ export function useTodayPlan() {
 
       return newPlan
     },
+    staleTime: PLAN_STALE_TIME,
   })
 }
 
@@ -94,6 +99,7 @@ export function usePlan(planId: string | undefined) {
       return data
     },
     enabled: !!planId,
+    staleTime: PLAN_STALE_TIME,
   })
 }
 

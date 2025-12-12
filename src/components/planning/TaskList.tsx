@@ -1,9 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { View } from 'react-native'
+import { FlashList } from '@shopify/flash-list'
 
 import { Text, ConfirmationModal } from '~/components/ui'
 import { TaskCard } from './TaskCard'
 import type { TaskWithCategory } from '~/types'
+
 
 interface TaskListProps {
   tasks: TaskWithCategory[]
@@ -15,12 +17,12 @@ export function TaskList({ tasks, onEditTask, onDeleteTask }: TaskListProps) {
   const [taskToDelete, setTaskToDelete] = useState<TaskWithCategory | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const handleDeletePress = (taskId: string) => {
+  const handleDeletePress = useCallback((taskId: string) => {
     const task = tasks.find((t) => t.id === taskId)
     if (task) {
       setTaskToDelete(task)
     }
-  }
+  }, [tasks])
 
   const handleConfirmDelete = async () => {
     if (!taskToDelete || !onDeleteTask) return
@@ -40,6 +42,15 @@ export function TaskList({ tasks, onEditTask, onDeleteTask }: TaskListProps) {
     setTaskToDelete(null)
   }
 
+  const renderItem = useCallback(
+    ({ item }: { item: TaskWithCategory }) => (
+      <TaskCard task={item} onEdit={onEditTask} onDelete={handleDeletePress} />
+    ),
+    [onEditTask, handleDeletePress],
+  )
+
+  const keyExtractor = useCallback((item: TaskWithCategory) => item.id, [])
+
   return (
     <View className="mx-5 mt-6">
       {/* Header */}
@@ -48,9 +59,12 @@ export function TaskList({ tasks, onEditTask, onDeleteTask }: TaskListProps) {
       </Text>
 
       {/* Task Cards */}
-      {tasks.map((task) => (
-        <TaskCard key={task.id} task={task} onEdit={onEditTask} onDelete={handleDeletePress} />
-      ))}
+      <FlashList
+        data={tasks}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        scrollEnabled={false}
+      />
 
       {/* Delete Confirmation Modal */}
       <ConfirmationModal

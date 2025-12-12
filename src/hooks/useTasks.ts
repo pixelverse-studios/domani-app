@@ -4,6 +4,9 @@ import { supabase } from '~/lib/supabase'
 import { useIncrementCategoryUsage } from '~/hooks/useCategories'
 import type { TaskWithCategory, TaskPriority } from '~/types'
 
+// 5 minutes - tasks change with user action but don't need real-time updates
+const TASKS_STALE_TIME = 1000 * 60 * 5
+
 export function useTasks(planId: string | undefined) {
   return useQuery({
     queryKey: ['tasks', planId],
@@ -27,6 +30,7 @@ export function useTasks(planId: string | undefined) {
       return data as TaskWithCategory[]
     },
     enabled: !!planId,
+    staleTime: TASKS_STALE_TIME,
   })
 }
 

@@ -283,7 +283,7 @@ Before submitting to TestFlight External Beta:
 - [ ] **What to Test** - Copy from section above
 - [ ] **Feedback Email** - `phil@pixelversestudios.io`
 - [ ] **Marketing URL** - `https://www.domani-app.com`
-- [ ] **Privacy Policy URL** - `https://www.domani-app.com/terms`
+- [ ] **Privacy Policy URL** - `https://www.domani-app.com/privacy`
 - [ ] **Beta App Review Contact Info** - Your contact details
 
 ### Test Account for Review

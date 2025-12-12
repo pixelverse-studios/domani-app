@@ -7,6 +7,7 @@ import {
   Modal,
   TextInput,
   TouchableOpacity,
+  Alert,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
@@ -71,8 +72,12 @@ export default function TodayScreen() {
   const handleSaveName = async () => {
     if (!nameInput.trim()) return
 
-    await updateProfile.mutateAsync({ full_name: nameInput.trim() })
-    setShowNameModal(false)
+    try {
+      await updateProfile.mutateAsync({ full_name: nameInput.trim() })
+      setShowNameModal(false)
+    } catch (error) {
+      Alert.alert('Failed to save name', 'Please try again.')
+    }
   }
 
   const handleDismissNameModal = async () => {
@@ -104,8 +109,12 @@ export default function TodayScreen() {
     return inferDayType(nonMitTasks)
   }, [tasks])
 
-  const handleToggleTask = (taskId: string, completed: boolean) => {
-    toggleTask.mutate({ taskId, completed })
+  const handleToggleTask = async (taskId: string, completed: boolean) => {
+    try {
+      await toggleTask.mutateAsync({ taskId, completed })
+    } catch (error) {
+      Alert.alert('Failed to update task', 'Please try again.')
+    }
   }
 
   const handleTaskPress = (task: TaskWithCategory) => {
@@ -113,8 +122,12 @@ export default function TodayScreen() {
     console.log('Task pressed:', task.id)
   }
 
-  const handleDeleteTask = (task: TaskWithCategory) => {
-    deleteTask.mutate(task.id)
+  const handleDeleteTask = async (task: TaskWithCategory) => {
+    try {
+      await deleteTask.mutateAsync(task.id)
+    } catch (error) {
+      Alert.alert('Failed to delete task', 'Please try again.')
+    }
   }
 
   const handleAddTask = () => {

@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -80,6 +81,7 @@ export default function ContactSupportScreen() {
     } catch (error) {
       setSubmitState('idle')
       console.error('Failed to submit support request:', error)
+      Alert.alert('Failed to submit request', 'Please try again.')
     }
   }
 

@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MessageCircle, Bug, Lightbulb, Heart, Rocket, Send } from 'lucide-react-native'
@@ -72,6 +73,7 @@ export default function FeedbackScreen() {
     } catch (error) {
       setSubmitState('idle')
       console.error('Failed to submit feedback:', error)
+      Alert.alert('Failed to send feedback', 'Please try again.')
     }
   }
 

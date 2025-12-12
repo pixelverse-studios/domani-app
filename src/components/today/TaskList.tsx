@@ -1,9 +1,11 @@
-import React from 'react'
+import React, { useMemo, useCallback } from 'react'
 import { View } from 'react-native'
+import { FlashList } from '@shopify/flash-list'
 
 import { TaskItem } from './TaskItem'
 import { Text } from '~/components/ui'
 import type { TaskWithCategory } from '~/types'
+
 
 interface TaskListProps {
   tasks: TaskWithCategory[]
@@ -13,7 +15,24 @@ interface TaskListProps {
 }
 
 export function TaskList({ tasks, onToggle, onTaskPress, onDeleteTask }: TaskListProps) {
-  const incompleteTasks = tasks.filter((task) => !task.completed_at)
+  const incompleteTasks = useMemo(
+    () => tasks.filter((task) => !task.completed_at),
+    [tasks],
+  )
+
+  const renderItem = useCallback(
+    ({ item }: { item: TaskWithCategory }) => (
+      <TaskItem
+        task={item}
+        onToggle={onToggle}
+        onPress={onTaskPress}
+        onDelete={onDeleteTask}
+      />
+    ),
+    [onToggle, onTaskPress, onDeleteTask],
+  )
+
+  const keyExtractor = useCallback((item: TaskWithCategory) => item.id, [])
 
   if (incompleteTasks.length === 0) {
     return (
@@ -25,15 +44,12 @@ export function TaskList({ tasks, onToggle, onTaskPress, onDeleteTask }: TaskLis
 
   return (
     <View className="mt-2">
-      {incompleteTasks.map((task) => (
-        <TaskItem
-          key={task.id}
-          task={task}
-          onToggle={onToggle}
-          onPress={onTaskPress}
-          onDelete={onDeleteTask}
-        />
-      ))}
+      <FlashList
+        data={incompleteTasks}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        scrollEnabled={false}
+      />
     </View>
   )
 }

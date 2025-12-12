@@ -219,7 +219,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Profile creation is handled by onAuthStateChange which has proper auth context
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('[AuthProvider] Initial session:', session ? 'Found' : 'None')
-      console.log('[AuthProvider] User:', session?.user?.email)
       // State will be set by onAuthStateChange callback
     })
 
@@ -229,7 +228,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('[AuthProvider] Auth state changed:', event)
       console.log('[AuthProvider] Session:', session ? 'Found' : 'None')
-      console.log('[AuthProvider] User:', session?.user?.email)
 
       // Update state immediately - don't block on profile creation
       setSession(session)
@@ -289,7 +287,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signInWithGoogle = async () => {
     try {
-      console.log('[AuthProvider] Redirect URL:', redirectTo)
+      console.log('[AuthProvider] Starting Google Sign In...')
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -312,7 +310,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.log('[AuthProvider] Browser result type:', result.type)
 
         if (result.type === 'success') {
-          console.log('[AuthProvider] OAuth redirect URL:', result.url)
+          // Note: Don't log result.url as it contains OAuth tokens
 
           // Extract the URL from the redirect
           const url = result.url
@@ -357,7 +355,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               throw sessionError
             }
 
-            console.log('[AuthProvider] Session set successfully!', sessionData.user?.email)
+            console.log('[AuthProvider] Session set successfully!')
             // Profile creation is handled by onAuthStateChange callback
           } else {
             console.error('[AuthProvider] No tokens in redirect URL')
@@ -387,7 +385,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         ],
       })
 
-      console.log('[AuthProvider] Apple credential received:', JSON.stringify(credential, null, 2))
+      // Note: Don't log credential object as it contains identity tokens
 
       if (!credential.identityToken) {
         throw new Error('No identity token received from Apple')
@@ -404,8 +402,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw error
       }
 
-      console.log('[AuthProvider] Apple sign in successful!', data.user?.email)
-      console.log('[AuthProvider] Supabase user data:', JSON.stringify(data.user, null, 2))
+      console.log('[AuthProvider] Apple sign in successful!')
+      // Note: Don't log full user data as it may contain sensitive information
 
       // Capture name from Apple if provided (only available on first sign-in)
       if (credential.fullName?.givenName || credential.fullName?.familyName) {

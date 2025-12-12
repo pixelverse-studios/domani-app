@@ -20,6 +20,7 @@ import { useNotificationObserver } from '~/hooks/useNotifications'
 import { useAuth } from '~/hooks/useAuth'
 import { useAppConfigStore } from '~/stores/appConfigStore'
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
+import { ErrorBoundary } from '~/components/ErrorBoundary'
 
 const queryClient = new QueryClient()
 
@@ -86,13 +87,15 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <ThemeProvider>
-          <QueryClientProvider client={queryClient}>
-            <RootLayoutContent />
-          </QueryClientProvider>
-        </ThemeProvider>
-      </AuthProvider>
+      <ErrorBoundary>
+        <AuthProvider>
+          <ThemeProvider>
+            <QueryClientProvider client={queryClient}>
+              <RootLayoutContent />
+            </QueryClientProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </ErrorBoundary>
     </SafeAreaProvider>
   )
 }

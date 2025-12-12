@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react'
-import { ScrollView } from 'react-native'
+import { ScrollView, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useRouter } from 'expo-router'
 import { addDays } from 'date-fns'
 
 import {
@@ -43,6 +44,7 @@ interface TaskFormData {
 }
 
 export default function PlanningScreen() {
+  const router = useRouter()
   const [selectedTarget, setSelectedTarget] = useState<PlanningTarget>('today')
   const [isFormVisible, setIsFormVisible] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskWithCategory | null>(null)
@@ -94,31 +96,49 @@ export default function PlanningScreen() {
     const isSystemCategory = Object.keys(FORM_TO_DB_CATEGORY).includes(task.category)
     const systemCategoryId = isSystemCategory ? getSystemCategoryId(task.category) : undefined
 
-    if (editingTask) {
-      // Update existing task
-      await updateTask.mutateAsync({
-        taskId: editingTask.id,
-        updates: {
+    try {
+      if (editingTask) {
+        // Update existing task
+        await updateTask.mutateAsync({
+          taskId: editingTask.id,
+          updates: {
+            title: task.title,
+            priority: task.priority,
+            system_category_id: systemCategoryId || null,
+            user_category_id: !isSystemCategory ? task.category : null,
+          },
+        })
+      } else {
+        // Create new task
+        if (!plan?.id) {
+          console.error('No plan available')
+          return
+        }
+
+        await createTask.mutateAsync({
+          planId: plan.id,
           title: task.title,
           priority: task.priority,
-          system_category_id: systemCategoryId || null,
-          user_category_id: !isSystemCategory ? task.category : null,
-        },
-      })
-    } else {
-      // Create new task
-      if (!plan?.id) {
-        console.error('No plan available')
-        return
+          systemCategoryId: systemCategoryId,
+          userCategoryId: !isSystemCategory ? task.category : undefined,
+        })
       }
-
-      await createTask.mutateAsync({
-        planId: plan.id,
-        title: task.title,
-        priority: task.priority,
-        systemCategoryId: systemCategoryId,
-        userCategoryId: !isSystemCategory ? task.category : undefined,
-      })
+    } catch (error) {
+      if (!editingTask && error instanceof Error && error.message === 'FREE_TIER_LIMIT') {
+        Alert.alert(
+          'Daily Task Limit Reached',
+          'Free accounts can create up to 3 tasks per day. Upgrade to unlock unlimited tasks.',
+          [
+            { text: 'Maybe Later', style: 'cancel' },
+            { text: 'Upgrade', onPress: () => router.push('/subscription') },
+          ],
+        )
+      } else {
+        Alert.alert(
+          editingTask ? 'Failed to update task' : 'Failed to create task',
+          'Please try again.',
+        )
+      }
     }
   }
 
@@ -158,7 +178,11 @@ export default function PlanningScreen() {
   }, [editingTask])
 
   const handleDeleteTask = async (taskId: string) => {
-    await deleteTask.mutateAsync(taskId)
+    try {
+      await deleteTask.mutateAsync(taskId)
+    } catch (error) {
+      Alert.alert('Failed to delete task', 'Please try again.')
+    }
   }
 
   return (

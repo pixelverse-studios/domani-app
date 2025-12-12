@@ -1,11 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { View, TouchableOpacity } from 'react-native'
 import { CheckCircle, ChevronUp, ChevronDown } from 'lucide-react-native'
+import { FlashList } from '@shopify/flash-list'
 
 import { TaskItem } from './TaskItem'
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
 import type { TaskWithCategory } from '~/types'
+
 
 interface CompletedSectionProps {
   tasks: TaskWithCategory[]
@@ -24,11 +26,28 @@ export function CompletedSection({
   const isDark = activeTheme === 'dark'
 
   const [isExpanded, setIsExpanded] = useState(false)
-  const completedTasks = tasks.filter((task) => task.completed_at)
+  const completedTasks = useMemo(
+    () => tasks.filter((task) => task.completed_at),
+    [tasks],
+  )
 
   // Theme-aware icon colors
   const checkColor = '#a855f7' // purple-500 - consistent
   const chevronColor = isDark ? '#9ca3af' : '#6b7280' // gray-400 / gray-500
+
+  const renderItem = useCallback(
+    ({ item }: { item: TaskWithCategory }) => (
+      <TaskItem
+        task={item}
+        onToggle={onToggle}
+        onPress={onTaskPress}
+        onDelete={onDeleteTask}
+      />
+    ),
+    [onToggle, onTaskPress, onDeleteTask],
+  )
+
+  const keyExtractor = useCallback((item: TaskWithCategory) => item.id, [])
 
   if (completedTasks.length === 0) {
     return null
@@ -61,15 +80,12 @@ export function CompletedSection({
       {/* Expanded content */}
       {isExpanded && (
         <View className="mt-3">
-          {completedTasks.map((task) => (
-            <TaskItem
-              key={task.id}
-              task={task}
-              onToggle={onToggle}
-              onPress={onTaskPress}
-              onDelete={onDeleteTask}
-            />
-          ))}
+          <FlashList
+            data={completedTasks}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            scrollEnabled={false}
+          />
         </View>
       )}
     </View>

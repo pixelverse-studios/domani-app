@@ -12,6 +12,9 @@ const SYSTEM_CATEGORY_MAP: Record<string, string> = {
   education: 'Education',
 }
 
+// 30 minutes - user categories rarely change
+const USER_CATEGORIES_STALE_TIME = 1000 * 60 * 30
+
 // Unified category type for UI components
 export interface UnifiedCategory {
   id: string
@@ -74,6 +77,7 @@ export function useUserCategories() {
 
       return data as UserCategory[]
     },
+    staleTime: USER_CATEGORIES_STALE_TIME,
   })
 }
 
@@ -159,6 +163,7 @@ export function useUserCategoryPreferences() {
 
       return data as UserCategoryPreference[]
     },
+    staleTime: USER_CATEGORIES_STALE_TIME,
   })
 }
 
