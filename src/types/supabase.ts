@@ -57,7 +57,15 @@ export type Database = {
           user_agent?: string | null
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'admin_audit_log_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'admin_users_overview'
+            referencedColumns: ['id']
+          },
+        ]
       }
       admin_sessions: {
         Row: {
@@ -178,6 +186,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'beta_feedback_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'user_overview'
+            referencedColumns: ['user_id']
           },
         ]
       }
@@ -358,6 +373,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: 'email_campaigns_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'admin_users_overview'
+            referencedColumns: ['id']
+          },
+          {
             foreignKeyName: 'email_campaigns_template_id_fkey'
             columns: ['template_id']
             isOneToOne: false
@@ -427,7 +449,15 @@ export type Database = {
           updated_at?: string | null
           variables?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'email_templates_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'admin_users_overview'
+            referencedColumns: ['id']
+          },
+        ]
       }
       email_unsubscribes: {
         Row: {
@@ -524,6 +554,13 @@ export type Database = {
             referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'plans_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'user_overview'
+            referencedColumns: ['user_id']
+          },
         ]
       }
       profiles: {
@@ -590,7 +627,15 @@ export type Database = {
           trial_started_at?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'profiles_id_fkey'
+            columns: ['id']
+            isOneToOne: true
+            referencedRelation: 'admin_users_overview'
+            referencedColumns: ['id']
+          },
+        ]
       }
       support_requests: {
         Row: {
@@ -654,6 +699,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'support_requests_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'user_overview'
+            referencedColumns: ['user_id']
           },
         ]
       }
@@ -731,6 +783,7 @@ export type Database = {
           estimated_duration_minutes: number | null
           id: string
           is_mit: boolean
+          notes: string | null
           plan_id: string
           position: number
           priority: Database['public']['Enums']['task_priority'] | null
@@ -748,6 +801,7 @@ export type Database = {
           estimated_duration_minutes?: number | null
           id?: string
           is_mit?: boolean
+          notes?: string | null
           plan_id: string
           position?: number
           priority?: Database['public']['Enums']['task_priority'] | null
@@ -765,6 +819,7 @@ export type Database = {
           estimated_duration_minutes?: number | null
           id?: string
           is_mit?: boolean
+          notes?: string | null
           plan_id?: string
           position?: number
           priority?: Database['public']['Enums']['task_priority'] | null
@@ -802,6 +857,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'tasks_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'user_overview'
+            referencedColumns: ['user_id']
           },
         ]
       }
@@ -849,6 +911,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'user_categories_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'user_overview'
+            referencedColumns: ['user_id']
           },
         ]
       }
@@ -898,6 +967,13 @@ export type Database = {
             referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'user_category_preferences_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'user_overview'
+            referencedColumns: ['user_id']
+          },
         ]
       }
       waitlist: {
@@ -941,7 +1017,54 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_users_overview: {
+        Row: {
+          created_at: string | null
+          custom_categories: number | null
+          email: string | null
+          feedback_count: number | null
+          full_name: string | null
+          id: string | null
+          last_sign_in_at: string | null
+          plans_count: number | null
+          support_count: number | null
+          tasks_count: number | null
+          tier: Database['public']['Enums']['tier'] | null
+        }
+        Relationships: []
+      }
+      user_overview: {
+        Row: {
+          completed_plans: number | null
+          completed_tasks: number | null
+          custom_categories_count: number | null
+          custom_category_names: string[] | null
+          email: string | null
+          execution_reminder_time: string | null
+          full_name: string | null
+          mit_tasks: number | null
+          planning_reminder_time: string | null
+          system_categories_used: number | null
+          system_category_names: string[] | null
+          task_names: string[] | null
+          tier: Database['public']['Enums']['tier'] | null
+          time_blocks_count: number | null
+          timezone: string | null
+          total_plans: number | null
+          total_tasks: number | null
+          user_created_at: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'profiles_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
+            referencedRelation: 'admin_users_overview'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Functions: {
       can_add_task: { Args: { p_plan_id: string }; Returns: boolean }
@@ -955,6 +1078,7 @@ export type Database = {
       }
       cleanup_expired_sessions: { Args: never; Returns: undefined }
       delete_expired_accounts: { Args: never; Returns: undefined }
+      delete_user_by_email: { Args: { target_email: string }; Returns: string }
       get_favorite_category_ids: { Args: { p_user_id: string }; Returns: Json }
       get_or_create_plan: { Args: { p_date: string }; Returns: string }
       get_remaining_task_slots: {
@@ -981,6 +1105,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      is_beta_phase: { Args: never; Returns: boolean }
       is_email_subscribed: { Args: { p_email: string }; Returns: boolean }
       log_audit_event: {
         Args: {

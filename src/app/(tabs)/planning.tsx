@@ -45,13 +45,16 @@ interface TaskFormData {
   title: string
   category: string
   priority: Priority
+  notes?: string | null
 }
 
 export default function PlanningScreen() {
   const router = useRouter()
-  const { defaultPlanningFor } = useLocalSearchParams<{ defaultPlanningFor?: 'today' | 'tomorrow' }>()
+  const { defaultPlanningFor } = useLocalSearchParams<{
+    defaultPlanningFor?: 'today' | 'tomorrow'
+  }>()
   const [selectedTarget, setSelectedTarget] = useState<PlanningTarget>(
-    defaultPlanningFor === 'today' ? 'today' : 'tomorrow'
+    defaultPlanningFor === 'today' ? 'today' : 'tomorrow',
   )
   const [isFormVisible, setIsFormVisible] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskWithCategory | null>(null)
@@ -140,6 +143,7 @@ export default function PlanningScreen() {
             priority: task.priority,
             system_category_id: systemCategoryId || null,
             user_category_id: !isSystemCategory ? task.category : null,
+            notes: task.notes ?? null,
           },
         })
       } else {
@@ -155,6 +159,7 @@ export default function PlanningScreen() {
           priority: task.priority,
           systemCategoryId: systemCategoryId,
           userCategoryId: !isSystemCategory ? task.category : undefined,
+          notes: task.notes,
         })
       }
     } catch (error) {
@@ -208,6 +213,7 @@ export default function PlanningScreen() {
       categoryId,
       categoryLabel,
       priority: editingTask.priority as Priority,
+      notes: editingTask.notes,
     }
   }, [editingTask])
 

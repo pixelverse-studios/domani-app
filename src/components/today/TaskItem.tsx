@@ -1,6 +1,15 @@
 import React from 'react'
 import { View, TouchableOpacity } from 'react-native'
-import { Circle, CheckCircle, Trash2, Star, Briefcase, Heart, User, BookOpen } from 'lucide-react-native'
+import {
+  Circle,
+  CheckCircle,
+  Trash2,
+  Star,
+  Briefcase,
+  Heart,
+  User,
+  BookOpen,
+} from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'

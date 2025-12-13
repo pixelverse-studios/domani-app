@@ -1,7 +1,28 @@
-import React, { useState } from 'react'
-import { View, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
-import { X, Check } from 'lucide-react-native'
+import React, { useState, useCallback } from 'react'
+import {
+  View,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+} from 'react-native'
+import { X, Check, ChevronRight, FileText } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  interpolate,
+  Easing,
+} from 'react-native-reanimated'
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true)
+}
 
 import { Text } from '~/components/ui'
 import { CategorySelector } from './CategorySelector'
@@ -17,6 +38,7 @@ interface InitialFormValues {
   categoryId?: string
   categoryLabel?: string
   priority?: Priority | null
+  notes?: string | null
 }
 
 interface AddTaskFormProps {
@@ -25,6 +47,7 @@ interface AddTaskFormProps {
     title: string
     category: Category
     priority: Priority
+    notes?: string | null
   }) => Promise<void> | void
   initialValues?: InitialFormValues
   isEditing?: boolean
@@ -55,6 +78,24 @@ export function AddTaskForm({
   const [selectedPriority, setSelectedPriority] = useState<Priority | null>(
     initialValues?.priority ?? null,
   )
+  const [notes, setNotes] = useState(initialValues?.notes ?? '')
+  const [isNotesExpanded, setIsNotesExpanded] = useState(!!initialValues?.notes)
+
+  // Animation for chevron rotation
+  const notesChevronRotation = useSharedValue(initialValues?.notes ? 1 : 0)
+
+  const handleToggleNotes = useCallback(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    setIsNotesExpanded((prev) => !prev)
+    notesChevronRotation.value = withTiming(isNotesExpanded ? 0 : 1, {
+      duration: 200,
+      easing: Easing.ease,
+    })
+  }, [isNotesExpanded, notesChevronRotation])
+
+  const notesChevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${interpolate(notesChevronRotation.value, [0, 1], [0, 90])}deg` }],
+  }))
 
   // Submit state
   const [submitState, setSubmitState] = useState<SubmitState>('idle')
@@ -73,6 +114,9 @@ export function AddTaskForm({
     setSelectedCategory(null)
     setSelectedCategoryLabel(null)
     setSelectedPriority(null)
+    setNotes('')
+    setIsNotesExpanded(false)
+    notesChevronRotation.value = 0
     setSubmitState('idle')
   }
 
@@ -96,6 +140,7 @@ export function AddTaskForm({
         title: title.trim(),
         category: selectedCategory,
         priority: selectedPriority,
+        notes: notes.trim() || null,
       })
 
       // Show success state
@@ -193,6 +238,48 @@ export function AddTaskForm({
         disabled={isFormDisabled}
       />
 
+      {/* Notes Section - Collapsible */}
+      <View className="mt-4">
+        <TouchableOpacity
+          onPress={handleToggleNotes}
+          disabled={isFormDisabled}
+          activeOpacity={0.7}
+          className="flex-row items-center justify-between py-2"
+        >
+          <View className="flex-row items-center" style={{ gap: 8 }}>
+            <FileText size={18} color={iconColor} />
+            <Text className="text-sm font-sans-medium text-slate-500 dark:text-slate-400">
+              Add Notes (Optional)
+            </Text>
+          </View>
+          <Animated.View style={notesChevronStyle}>
+            <ChevronRight size={18} color={iconColor} />
+          </Animated.View>
+        </TouchableOpacity>
+
+        {isNotesExpanded && (
+          <TextInput
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Add shopping list, details, or any notes..."
+            placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            editable={!isFormDisabled}
+            className="font-sans"
+            style={[
+              styles.notesInput,
+              {
+                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                borderColor: isDark ? '#334155' : '#e2e8f0',
+                color: isDark ? '#f8fafc' : '#0f172a',
+              },
+            ]}
+          />
+        )}
+      </View>
+
       {/* Action Buttons - above overlay */}
       <View className="mt-6" style={{ zIndex: 2 }}>
         {submitState === 'idle' && (
@@ -267,6 +354,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
+  },
+  notesInput: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    minHeight: 100,
   },
   addButtonGradient: {
     paddingVertical: 16,

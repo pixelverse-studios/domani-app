@@ -8,7 +8,6 @@ import { Text, ConfirmationModal } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
 import type { TaskWithCategory } from '~/types'
 
-
 interface CompletedSectionProps {
   tasks: TaskWithCategory[]
   onToggle: (taskId: string, completed: boolean) => void
@@ -29,10 +28,7 @@ export function CompletedSection({
   const [taskToDelete, setTaskToDelete] = useState<TaskWithCategory | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const completedTasks = useMemo(
-    () => tasks.filter((task) => task.completed_at),
-    [tasks],
-  )
+  const completedTasks = useMemo(() => tasks.filter((task) => task.completed_at), [tasks])
 
   // Theme-aware icon colors
   const checkColor = '#a855f7' // purple-500 - consistent

@@ -6,7 +6,6 @@ import { Text, ConfirmationModal } from '~/components/ui'
 import { TaskCard } from './TaskCard'
 import type { TaskWithCategory } from '~/types'
 
-
 interface TaskListProps {
   tasks: TaskWithCategory[]
   onEditTask?: (taskId: string) => void
@@ -30,12 +29,15 @@ export function TaskList({
     ? `Planned Tasks (${tasks.length}/${taskLimit})`
     : `Planned Tasks (${tasks.length})`
 
-  const handleDeletePress = useCallback((taskId: string) => {
-    const task = tasks.find((t) => t.id === taskId)
-    if (task) {
-      setTaskToDelete(task)
-    }
-  }, [tasks])
+  const handleDeletePress = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((t) => t.id === taskId)
+      if (task) {
+        setTaskToDelete(task)
+      }
+    },
+    [tasks],
+  )
 
   const handleConfirmDelete = async () => {
     if (!taskToDelete || !onDeleteTask) return

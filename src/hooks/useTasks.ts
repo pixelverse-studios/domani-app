@@ -90,6 +90,7 @@ interface CreateTaskInput {
   userCategoryId?: string
   priority?: TaskPriority
   estimatedDurationMinutes?: number
+  notes?: string | null
   // Note: is_mit is now automatically controlled by priority via DB trigger
   // HIGH priority = is_mit: true, MEDIUM/LOW = is_mit: false
 }
@@ -107,6 +108,7 @@ export function useCreateTask() {
       userCategoryId,
       priority = 'medium',
       estimatedDurationMinutes,
+      notes,
     }: CreateTaskInput) => {
       // Get current user for user_id
       const {
@@ -128,6 +130,7 @@ export function useCreateTask() {
           user_category_id: userCategoryId,
           priority,
           estimated_duration_minutes: estimatedDurationMinutes,
+          notes,
         })
         .select(
           `
@@ -179,6 +182,7 @@ export function useUpdateTask() {
         priority: TaskPriority
         estimated_duration_minutes: number
         position: number
+        notes: string | null
         // Note: is_mit is automatically controlled by priority via DB trigger
         // Setting priority to 'high' will auto-set is_mit=true and demote other HIGH tasks
       }>

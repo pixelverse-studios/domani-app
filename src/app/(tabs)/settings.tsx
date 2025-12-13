@@ -402,166 +402,166 @@ export default function SettingsScreen() {
           <View className="mb-6">
             {/* Beta Tester Card - shown during closed_beta or open_beta phases */}
             {isBeta ? (
-            <View className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 mb-2 border border-amber-200 dark:border-amber-700/50">
-              <View className="flex-row items-center justify-between mb-3">
-                <View className="flex-row items-center">
-                  <Sparkles size={20} color="#f59e0b" />
-                  <Text className="text-base font-medium text-slate-900 dark:text-white ml-2">
-                    Beta Tester
-                  </Text>
-                </View>
-                <View className="bg-amber-100 dark:bg-amber-900/30 px-3 py-1 rounded-full">
-                  <Text className="text-amber-700 dark:text-amber-300 text-sm font-semibold">
-                    Beta
-                  </Text>
-                </View>
-              </View>
-
-              <Text className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-                You&apos;re part of our exclusive beta program with full Pro access while we build
-                Domani together.
-              </Text>
-
-              <View className="gap-2">
-                <View className="flex-row items-center">
-                  <View className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-2" />
-                  <Text className="text-sm text-slate-700 dark:text-slate-300">
-                    Unlimited tasks per day
-                  </Text>
-                </View>
-                <View className="flex-row items-center">
-                  <View className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-2" />
-                  <Text className="text-sm text-slate-700 dark:text-slate-300">
-                    Priority support
-                  </Text>
-                </View>
-                <View className="flex-row items-center">
-                  <View className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-2" />
-                  <Text className="text-sm text-slate-700 dark:text-slate-300">
-                    Early access to new features
-                  </Text>
-                </View>
-              </View>
-            </View>
-          ) : (
-            /* Production Subscription UI */
-            <>
-              <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 mb-2">
+              <View className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 mb-2 border border-amber-200 dark:border-amber-700/50">
                 <View className="flex-row items-center justify-between mb-3">
                   <View className="flex-row items-center">
-                    <Crown size={20} color={statusConfig.color} />
+                    <Sparkles size={20} color="#f59e0b" />
                     <Text className="text-base font-medium text-slate-900 dark:text-white ml-2">
-                      Current Plan
+                      Beta Tester
                     </Text>
                   </View>
-                  <View className={`px-3 py-1 rounded-full ${statusConfig.bgColor}`}>
-                    <Text style={{ color: statusConfig.color }} className="text-sm font-semibold">
-                      {statusConfig.label}
+                  <View className="bg-amber-100 dark:bg-amber-900/30 px-3 py-1 rounded-full">
+                    <Text className="text-amber-700 dark:text-amber-300 text-sm font-semibold">
+                      Beta
                     </Text>
                   </View>
                 </View>
 
-                {/* Free tier - show trial option */}
-                {subscription.status === 'free' && (
-                  <>
-                    <Text className="text-sm text-slate-500 dark:text-slate-400 mb-3">
-                      3 tasks per day • Basic features
+                <Text className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                  You&apos;re part of our exclusive beta program with full Pro access while we build
+                  Domani together.
+                </Text>
+
+                <View className="gap-2">
+                  <View className="flex-row items-center">
+                    <View className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-2" />
+                    <Text className="text-sm text-slate-700 dark:text-slate-300">
+                      Unlimited tasks per day
                     </Text>
-                    {subscription.canStartTrial ? (
-                      <TouchableOpacity
-                        onPress={() => subscription.startTrial()}
-                        disabled={subscription.isStartingTrial}
-                        activeOpacity={0.8}
-                        className="bg-green-500 py-3 rounded-xl items-center flex-row justify-center mb-2"
-                      >
-                        {subscription.isStartingTrial ? (
-                          <ActivityIndicator color="#fff" />
-                        ) : (
-                          <>
-                            <Sparkles size={18} color="#fff" />
-                            <Text className="text-white font-semibold ml-2">
-                              Start 14-Day Free Trial
-                            </Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    ) : (
+                  </View>
+                  <View className="flex-row items-center">
+                    <View className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-2" />
+                    <Text className="text-sm text-slate-700 dark:text-slate-300">
+                      Priority support
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center">
+                    <View className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-2" />
+                    <Text className="text-sm text-slate-700 dark:text-slate-300">
+                      Early access to new features
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ) : (
+              /* Production Subscription UI */
+              <>
+                <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 mb-2">
+                  <View className="flex-row items-center justify-between mb-3">
+                    <View className="flex-row items-center">
+                      <Crown size={20} color={statusConfig.color} />
+                      <Text className="text-base font-medium text-slate-900 dark:text-white ml-2">
+                        Current Plan
+                      </Text>
+                    </View>
+                    <View className={`px-3 py-1 rounded-full ${statusConfig.bgColor}`}>
+                      <Text style={{ color: statusConfig.color }} className="text-sm font-semibold">
+                        {statusConfig.label}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Free tier - show trial option */}
+                  {subscription.status === 'free' && (
+                    <>
+                      <Text className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+                        3 tasks per day • Basic features
+                      </Text>
+                      {subscription.canStartTrial ? (
+                        <TouchableOpacity
+                          onPress={() => subscription.startTrial()}
+                          disabled={subscription.isStartingTrial}
+                          activeOpacity={0.8}
+                          className="bg-green-500 py-3 rounded-xl items-center flex-row justify-center mb-2"
+                        >
+                          {subscription.isStartingTrial ? (
+                            <ActivityIndicator color="#fff" />
+                          ) : (
+                            <>
+                              <Sparkles size={18} color="#fff" />
+                              <Text className="text-white font-semibold ml-2">
+                                Start 14-Day Free Trial
+                              </Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          activeOpacity={0.8}
+                          className="bg-purple-500 py-3 rounded-xl items-center"
+                        >
+                          <Text className="text-white font-semibold">Upgrade to Pro</Text>
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  )}
+
+                  {/* Trialing - show days remaining */}
+                  {subscription.status === 'trialing' && (
+                    <>
+                      <View className="flex-row items-center mb-3">
+                        <Sparkles size={16} color="#22c55e" />
+                        <Text className="text-sm text-green-500 font-medium ml-2">
+                          {subscription.trialDaysRemaining} days remaining in trial
+                        </Text>
+                      </View>
+                      <Text className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+                        Unlimited tasks • All features unlocked
+                      </Text>
                       <TouchableOpacity
                         activeOpacity={0.8}
                         className="bg-purple-500 py-3 rounded-xl items-center"
                       >
-                        <Text className="text-white font-semibold">Upgrade to Pro</Text>
+                        <Text className="text-white font-semibold">Subscribe Now</Text>
                       </TouchableOpacity>
-                    )}
-                  </>
-                )}
-
-                {/* Trialing - show days remaining */}
-                {subscription.status === 'trialing' && (
-                  <>
-                    <View className="flex-row items-center mb-3">
-                      <Sparkles size={16} color="#22c55e" />
-                      <Text className="text-sm text-green-500 font-medium ml-2">
-                        {subscription.trialDaysRemaining} days remaining in trial
-                      </Text>
-                    </View>
-                    <Text className="text-sm text-slate-500 dark:text-slate-400 mb-3">
-                      Unlimited tasks • All features unlocked
-                    </Text>
-                    <TouchableOpacity
-                      activeOpacity={0.8}
-                      className="bg-purple-500 py-3 rounded-xl items-center"
-                    >
-                      <Text className="text-white font-semibold">Subscribe Now</Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-
-                {/* Premium - show renewal date */}
-                {subscription.status === 'premium' && (
-                  <>
-                    <Text className="text-sm text-slate-500 dark:text-slate-400 mb-2">
-                      Unlimited tasks • All features unlocked
-                    </Text>
-                    {subscription.expirationDate && (
-                      <Text className="text-sm text-slate-500 dark:text-slate-400">
-                        {subscription.willRenew ? 'Renews' : 'Expires'}{' '}
-                        {format(subscription.expirationDate, 'MMM d, yyyy')}
-                      </Text>
-                    )}
-                  </>
-                )}
-
-                {/* Lifetime */}
-                {subscription.status === 'lifetime' && (
-                  <Text className="text-sm text-slate-500 dark:text-slate-400">
-                    Unlimited tasks • All features unlocked forever
-                  </Text>
-                )}
-              </View>
-
-              {/* Restore purchases - only show for free/trial users in production */}
-              {(subscription.status === 'free' || subscription.status === 'trialing') && (
-                <TouchableOpacity
-                  onPress={() => subscription.restore()}
-                  disabled={subscription.isRestoring}
-                  activeOpacity={0.7}
-                  className="flex-row items-center justify-center py-2"
-                >
-                  {subscription.isRestoring ? (
-                    <ActivityIndicator size="small" color="#94a3b8" />
-                  ) : (
-                    <>
-                      <RotateCcw size={14} color="#94a3b8" />
-                      <Text className="text-sm text-slate-500 dark:text-slate-400 ml-1.5">
-                        Restore Purchases
-                      </Text>
                     </>
                   )}
-                </TouchableOpacity>
-              )}
-            </>
-          )}
+
+                  {/* Premium - show renewal date */}
+                  {subscription.status === 'premium' && (
+                    <>
+                      <Text className="text-sm text-slate-500 dark:text-slate-400 mb-2">
+                        Unlimited tasks • All features unlocked
+                      </Text>
+                      {subscription.expirationDate && (
+                        <Text className="text-sm text-slate-500 dark:text-slate-400">
+                          {subscription.willRenew ? 'Renews' : 'Expires'}{' '}
+                          {format(subscription.expirationDate, 'MMM d, yyyy')}
+                        </Text>
+                      )}
+                    </>
+                  )}
+
+                  {/* Lifetime */}
+                  {subscription.status === 'lifetime' && (
+                    <Text className="text-sm text-slate-500 dark:text-slate-400">
+                      Unlimited tasks • All features unlocked forever
+                    </Text>
+                  )}
+                </View>
+
+                {/* Restore purchases - only show for free/trial users in production */}
+                {(subscription.status === 'free' || subscription.status === 'trialing') && (
+                  <TouchableOpacity
+                    onPress={() => subscription.restore()}
+                    disabled={subscription.isRestoring}
+                    activeOpacity={0.7}
+                    className="flex-row items-center justify-center py-2"
+                  >
+                    {subscription.isRestoring ? (
+                      <ActivityIndicator size="small" color="#94a3b8" />
+                    ) : (
+                      <>
+                        <RotateCcw size={14} color="#94a3b8" />
+                        <Text className="text-sm text-slate-500 dark:text-slate-400 ml-1.5">
+                          Restore Purchases
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
           </View>
         )}
 
@@ -703,7 +703,7 @@ export default function SettingsScreen() {
         <TouchableOpacity
           onPress={handleSignOut}
           activeOpacity={0.7}
-          className="flex-row items-center justify-center py-3.5 rounded-xl border border-slate-600/50 bg-[#374151]/50 mb-6"
+          className="flex-row items-center justify-center py-3.5 rounded-xl border border-slate-600/50 bg-[#374151]/30 dark:bg-[#374151]/50 mb-6"
         >
           <LogOut size={18} color={activeTheme === 'dark' ? '#9ca3af' : '#475569'} />
           <Text className="text-slate-600 dark:text-slate-400 font-semibold ml-2">Log Out</Text>

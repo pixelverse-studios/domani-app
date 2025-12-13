@@ -1,6 +1,15 @@
 import React from 'react'
 import { View, TouchableOpacity, StyleSheet } from 'react-native'
-import { Pencil, Trash2, Heart, Briefcase, User, BookOpen, Star } from 'lucide-react-native'
+import {
+  Pencil,
+  Trash2,
+  Heart,
+  Briefcase,
+  User,
+  BookOpen,
+  Star,
+  StickyNote,
+} from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
@@ -105,6 +114,16 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
             >
               {categoryName}
             </Text>
+
+            {/* Notes Indicator */}
+            {task.notes && (
+              <View style={styles.notesIndicator}>
+                <StickyNote size={12} color={iconColor} />
+                <Text className="font-sans text-xs text-slate-400 dark:text-slate-500 ml-1">
+                  Notes
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -169,6 +188,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 6,
+    flexWrap: 'wrap',
+  },
+  notesIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 12,
   },
   rightSection: {
     flexDirection: 'row',

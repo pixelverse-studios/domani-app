@@ -178,6 +178,7 @@ Thank you for being part of the Domani beta!
 **Email:** `phil@pixelversestudios.io`
 
 Configure in App Store Connect:
+
 1. Go to your app in App Store Connect
 2. Select "TestFlight" tab
 3. Under "Test Information", find "Beta App Review Information"
@@ -186,12 +187,14 @@ Configure in App Store Connect:
 ### In-App Feedback
 
 The app has a built-in Feedback tab that allows users to submit:
+
 - Bug reports
 - Feature requests
 - Love notes (positive feedback)
 - General feedback
 
 Feedback submissions automatically include:
+
 - Device model
 - iOS version
 - App version
@@ -207,25 +210,26 @@ Feedback submissions automatically include:
 
 Use this account for Apple App Review submission and internal testing:
 
-| Field | Value |
-|-------|-------|
-| Provider | Apple Sign-In |
-| Email | `testuser@domaniapp.com` |
+| Field    | Value                             |
+| -------- | --------------------------------- |
+| Provider | Apple Sign-In                     |
+| Email    | `testuser@domaniapp.com`          |
 | Password | N/A (Apple Sign-In uses Apple ID) |
-| Notes | Standard free tier user |
+| Notes    | Standard free tier user           |
 
 ### Alternative: Google Sign-In Test Account
 
-| Field | Value |
-|-------|-------|
-| Provider | Google |
-| Email | `tester.domani@gmail.com` |
-| Password | `DomaniB3ta2025!` |
-| Notes | For testing Google OAuth flow |
+| Field    | Value                         |
+| -------- | ----------------------------- |
+| Provider | Google                        |
+| Email    | `tester.domani@gmail.com`     |
+| Password | `DomaniB3ta2025!`             |
+| Notes    | For testing Google OAuth flow |
 
 ### Sandbox Testing Notes
 
 For testing in-app purchases (when enabled):
+
 1. Use Apple Sandbox tester accounts created in App Store Connect
 2. See `docs/APP_STORE_CONNECT_SETUP.md` for sandbox tester setup
 3. Sign out of personal Apple ID before testing purchases
@@ -315,9 +319,9 @@ Before submitting to TestFlight External Beta:
 
 ## Version History
 
-| Version | Date | Notes |
-|---------|------|-------|
-| 1.0.0 | December 2025 | Initial beta release - Core planning & execution features |
+| Version | Date          | Notes                                                     |
+| ------- | ------------- | --------------------------------------------------------- |
+| 1.0.0   | December 2025 | Initial beta release - Core planning & execution features |
 
 ---
 

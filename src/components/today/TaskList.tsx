@@ -6,7 +6,6 @@ import { TaskItem } from './TaskItem'
 import { Text, ConfirmationModal } from '~/components/ui'
 import type { TaskWithCategory } from '~/types'
 
-
 interface TaskListProps {
   tasks: TaskWithCategory[]
   onToggle: (taskId: string, completed: boolean) => void
@@ -18,10 +17,7 @@ export function TaskList({ tasks, onToggle, onTaskPress, onDeleteTask }: TaskLis
   const [taskToDelete, setTaskToDelete] = useState<TaskWithCategory | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const incompleteTasks = useMemo(
-    () => tasks.filter((task) => !task.completed_at),
-    [tasks],
-  )
+  const incompleteTasks = useMemo(() => tasks.filter((task) => !task.completed_at), [tasks])
 
   const handleDeletePress = useCallback((task: TaskWithCategory) => {
     setTaskToDelete(task)

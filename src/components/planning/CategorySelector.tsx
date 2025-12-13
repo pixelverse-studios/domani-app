@@ -385,11 +385,7 @@ export function CategorySelector({
                 {
                   backgroundColor: isDark ? '#0f172a' : '#ffffff',
                   borderColor:
-                    selectedCategory === category.id
-                      ? purpleColor
-                      : isDark
-                        ? '#334155'
-                        : '#e2e8f0',
+                    selectedCategory === category.id ? purpleColor : isDark ? '#334155' : '#e2e8f0',
                   borderWidth: selectedCategory === category.id ? 2 : 1,
                 },
               ]}
