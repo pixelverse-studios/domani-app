@@ -1,5 +1,5 @@
-import React from 'react'
-import { View, TouchableOpacity, StyleSheet } from 'react-native'
+import React, { useState } from 'react'
+import { View, TouchableOpacity, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native'
 import {
   Pencil,
   Trash2,
@@ -8,12 +8,19 @@ import {
   User,
   BookOpen,
   Star,
-  StickyNote,
+  FileText,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
 import type { TaskWithCategory } from '~/types'
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true)
+}
 
 interface TaskCardProps {
   task: TaskWithCategory
@@ -66,6 +73,7 @@ function getCategoryIcon(category: { name: string; icon?: string } | null, color
 export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
+  const [isNotesExpanded, setIsNotesExpanded] = useState(false)
 
   const priority = task.priority || 'medium'
   const priorityConfig = PRIORITY_COLORS[priority]
@@ -74,6 +82,13 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
   const category = task.user_category || task.system_category
   const categoryName = category?.name || 'Uncategorized'
   const isUserCategory = !!task.user_category
+
+  const hasNotes = !!task.notes?.trim()
+
+  const handleToggleNotes = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+    setIsNotesExpanded((prev) => !prev)
+  }
 
   const iconColor = isDark ? '#94a3b8' : '#64748b'
   const cardBg = isDark ? '#1e293b' : '#ffffff'
@@ -114,20 +129,10 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
             >
               {categoryName}
             </Text>
-
-            {/* Notes Indicator */}
-            {task.notes && (
-              <View style={styles.notesIndicator}>
-                <StickyNote size={12} color={iconColor} />
-                <Text className="font-sans text-xs text-slate-400 dark:text-slate-500 ml-1">
-                  Notes
-                </Text>
-              </View>
-            )}
           </View>
         </View>
 
-        {/* Right Side: Priority Badge + Actions */}
+        {/* Right Side: Priority Badge + Notes Toggle + Actions */}
         <View style={styles.rightSection}>
           {/* Priority Badge */}
           <View style={[styles.priorityBadge, { backgroundColor: priorityConfig.badge.bg }]}>
@@ -138,6 +143,23 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
               {priority}
             </Text>
           </View>
+
+          {/* Notes Toggle Button - only show if task has notes */}
+          {hasNotes && (
+            <TouchableOpacity
+              onPress={handleToggleNotes}
+              style={[styles.notesToggle, { backgroundColor: isDark ? '#334155' : '#f1f5f9' }]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel={isNotesExpanded ? 'Hide notes' : 'Show notes'}
+            >
+              <FileText size={14} color={iconColor} />
+              {isNotesExpanded ? (
+                <ChevronUp size={14} color={iconColor} />
+              ) : (
+                <ChevronDown size={14} color={iconColor} />
+              )}
+            </TouchableOpacity>
+          )}
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
@@ -163,6 +185,28 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
           </View>
         </View>
       </View>
+
+      {/* Expandable Notes Section */}
+      {hasNotes && isNotesExpanded && (
+        <View style={styles.notesSection}>
+          <View style={styles.notesHeader}>
+            <FileText size={14} color={iconColor} />
+            <Text className="font-sans-medium text-sm text-slate-500 dark:text-slate-400 ml-1.5">
+              Notes
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.notesContent,
+              { backgroundColor: isDark ? '#0f172a' : '#f1f5f9' },
+            ]}
+          >
+            <Text className="font-sans text-sm text-slate-700 dark:text-slate-300">
+              {task.notes}
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   )
 }
@@ -190,11 +234,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
     flexWrap: 'wrap',
   },
-  notesIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 12,
-  },
   rightSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -215,5 +254,28 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  notesToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 2,
+  },
+  notesSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(148, 163, 184, 0.2)',
+  },
+  notesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  notesContent: {
+    borderRadius: 8,
+    padding: 12,
   },
 })
