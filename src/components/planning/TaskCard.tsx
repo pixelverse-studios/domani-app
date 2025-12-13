@@ -123,8 +123,9 @@ export function TaskCard({
         },
       ]}
     >
-      {/* Top Row: Checkbox (optional) + Task Title (LEFT) + Priority Badge (RIGHT) */}
-      <View style={styles.topRow}>
+      {/* Main Layout: Checkbox (floating left) + Content Block (aligned) */}
+      <View style={styles.cardLayout}>
+        {/* Checkbox - floating on left */}
         {showCheckbox && (
           <TouchableOpacity
             onPress={handleToggleComplete}
@@ -140,114 +141,120 @@ export function TaskCard({
           </TouchableOpacity>
         )}
 
-        <View style={styles.titleContainer}>
-          <Text
-            className={`font-sans-semibold text-base ${
-              isCompleted
-                ? 'text-slate-400 dark:text-slate-500 line-through'
-                : 'text-slate-900 dark:text-white'
-            }`}
-            numberOfLines={2}
-          >
-            {task.title}
-          </Text>
-        </View>
-
-        <View style={[styles.priorityBadge, { backgroundColor: priorityConfig.badge.bg }]}>
-          <Text
-            className="font-sans-medium text-xs capitalize"
-            style={{ color: priorityConfig.badge.text }}
-          >
-            {priority}
-          </Text>
-        </View>
-      </View>
-
-      {/* Horizontal Divider */}
-      <View style={[styles.divider, { backgroundColor: dividerColor }]} />
-
-      {/* Bottom Row: Category (LEFT) + Action Buttons (RIGHT) */}
-      <View style={styles.bottomRow}>
-        {/* Category Icon + Name */}
-        <View style={styles.categoryContainer}>
-          {getCategoryIcon(
-            category ? { name: categoryName, icon: category.icon || undefined } : null,
-            isUserCategory ? '#a78bfa' : iconColor,
-          )}
-          <Text
-            className="font-sans text-sm text-slate-500 dark:text-slate-400 ml-1.5"
-            numberOfLines={1}
-          >
-            {categoryName}
-          </Text>
-        </View>
-
-        {/* Action Buttons: Notes Toggle + Edit + Delete */}
-        <View style={styles.actionsRow}>
-          {/* Notes Toggle Button - only show if task has notes */}
-          {hasNotes && (
-            <TouchableOpacity
-              onPress={handleToggleNotes}
-              style={[styles.notesToggle, { backgroundColor: isDark ? '#334155' : '#f1f5f9' }]}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel={isNotesExpanded ? 'Hide notes' : 'Show notes'}
-            >
-              <FileText size={14} color={iconColor} />
-              {isNotesExpanded ? (
-                <ChevronUp size={14} color={iconColor} />
-              ) : (
-                <ChevronDown size={14} color={iconColor} />
-              )}
-            </TouchableOpacity>
-          )}
-
-          {/* Edit Button */}
-          <TouchableOpacity
-            onPress={() => onEdit?.(task.id)}
-            style={[styles.actionButton, { backgroundColor: isDark ? '#334155' : '#f1f5f9' }]}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="Edit task"
-          >
-            <Pencil size={16} color="#a78bfa" />
-          </TouchableOpacity>
-
-          {/* Delete Button */}
-          <TouchableOpacity
-            onPress={() => onDelete?.(task.id)}
-            style={[styles.actionButton, { backgroundColor: isDark ? '#334155' : '#f1f5f9' }]}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="Delete task"
-          >
-            <Trash2 size={16} color="#ef4444" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Expandable Notes Section */}
-      {hasNotes && isNotesExpanded && (
-        <View style={styles.notesSection}>
-          <View style={[styles.divider, { backgroundColor: dividerColor }]} />
-
-          <View style={styles.notesContainer}>
-            <View style={styles.notesHeader}>
-              <FileText size={14} color={iconColor} />
-              <Text className="font-sans-medium text-sm text-slate-500 dark:text-slate-400 ml-1.5">
-                Notes
+        {/* Content Block - all content aligned */}
+        <View style={styles.contentBlock}>
+          {/* Top Row: Task Title + Priority Badge */}
+          <View style={styles.topRow}>
+            <View style={styles.titleContainer}>
+              <Text
+                className={`font-sans-semibold text-base ${
+                  isCompleted
+                    ? 'text-slate-400 dark:text-slate-500 line-through'
+                    : 'text-slate-900 dark:text-white'
+                }`}
+                numberOfLines={2}
+              >
+                {task.title}
               </Text>
             </View>
-            <View
-              style={[
-                styles.notesContent,
-                { backgroundColor: isDark ? '#0f172a' : '#f1f5f9' },
-              ]}
-            >
-              <Text className="font-sans text-sm text-slate-700 dark:text-slate-300">
-                {task.notes}
+
+            <View style={[styles.priorityBadge, { backgroundColor: priorityConfig.badge.bg }]}>
+              <Text
+                className="font-sans-medium text-xs capitalize"
+                style={{ color: priorityConfig.badge.text }}
+              >
+                {priority}
               </Text>
             </View>
           </View>
+
+          {/* Horizontal Divider */}
+          <View style={[styles.divider, { backgroundColor: dividerColor }]} />
+
+          {/* Bottom Row: Category (LEFT) + Action Buttons (RIGHT) */}
+          <View style={styles.bottomRow}>
+            {/* Category Icon + Name */}
+            <View style={styles.categoryContainer}>
+              {getCategoryIcon(
+                category ? { name: categoryName, icon: category.icon || undefined } : null,
+                isUserCategory ? '#a78bfa' : iconColor,
+              )}
+              <Text
+                className="font-sans text-sm text-slate-500 dark:text-slate-400 ml-1.5"
+                numberOfLines={1}
+              >
+                {categoryName}
+              </Text>
+            </View>
+
+            {/* Action Buttons: Notes Toggle + Edit + Delete */}
+            <View style={styles.actionsRow}>
+              {/* Notes Toggle Button - only show if task has notes */}
+              {hasNotes && (
+                <TouchableOpacity
+                  onPress={handleToggleNotes}
+                  style={[styles.notesToggle, { backgroundColor: isDark ? '#334155' : '#f1f5f9' }]}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel={isNotesExpanded ? 'Hide notes' : 'Show notes'}
+                >
+                  <FileText size={14} color={iconColor} />
+                  {isNotesExpanded ? (
+                    <ChevronUp size={14} color={iconColor} />
+                  ) : (
+                    <ChevronDown size={14} color={iconColor} />
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {/* Edit Button */}
+              <TouchableOpacity
+                onPress={() => onEdit?.(task.id)}
+                style={[styles.actionButton, { backgroundColor: isDark ? '#334155' : '#f1f5f9' }]}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Edit task"
+              >
+                <Pencil size={16} color="#a78bfa" />
+              </TouchableOpacity>
+
+              {/* Delete Button */}
+              <TouchableOpacity
+                onPress={() => onDelete?.(task.id)}
+                style={[styles.actionButton, { backgroundColor: isDark ? '#334155' : '#f1f5f9' }]}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Delete task"
+              >
+                <Trash2 size={16} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Expandable Notes Section */}
+          {hasNotes && isNotesExpanded && (
+            <View style={styles.notesSection}>
+              <View style={[styles.divider, { backgroundColor: dividerColor }]} />
+
+              <View style={styles.notesContainer}>
+                <View style={styles.notesHeader}>
+                  <FileText size={14} color={iconColor} />
+                  <Text className="font-sans-medium text-sm text-slate-500 dark:text-slate-400 ml-1.5">
+                    Notes
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.notesContent,
+                    { backgroundColor: isDark ? '#0f172a' : '#f1f5f9' },
+                  ]}
+                >
+                  <Text className="font-sans text-sm text-slate-700 dark:text-slate-300">
+                    {task.notes}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
         </View>
-      )}
+      </View>
     </View>
   )
 }
@@ -260,14 +267,22 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
+  cardLayout: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  checkbox: {
+    marginRight: 12,
+    marginTop: 2,
+  },
+  contentBlock: {
+    flex: 1,
+  },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     gap: 12,
-  },
-  checkbox: {
-    marginRight: 4,
   },
   titleContainer: {
     flex: 1,
