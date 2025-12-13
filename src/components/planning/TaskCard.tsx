@@ -11,6 +11,8 @@ import {
   FileText,
   ChevronDown,
   ChevronUp,
+  Circle,
+  CheckCircle,
 } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
@@ -26,6 +28,8 @@ interface TaskCardProps {
   task: TaskWithCategory
   onEdit?: (taskId: string) => void
   onDelete?: (taskId: string) => void
+  onToggleComplete?: (taskId: string, completed: boolean) => void
+  showCheckbox?: boolean
 }
 
 const PRIORITY_COLORS = {
@@ -70,11 +74,18 @@ function getCategoryIcon(category: { name: string; icon?: string } | null, color
   }
 }
 
-export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
+export function TaskCard({
+  task,
+  onEdit,
+  onDelete,
+  onToggleComplete,
+  showCheckbox = false,
+}: TaskCardProps) {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
   const [isNotesExpanded, setIsNotesExpanded] = useState(false)
 
+  const isCompleted = !!task.completed_at
   const priority = task.priority || 'medium'
   const priorityConfig = PRIORITY_COLORS[priority]
 
@@ -94,6 +105,12 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
   const cardBg = isDark ? '#1e293b' : '#ffffff'
   const borderColor = isDark ? '#334155' : '#e2e8f0'
   const dividerColor = isDark ? 'rgba(148, 163, 184, 0.2)' : 'rgba(148, 163, 184, 0.2)'
+  const checkboxColor = '#a855f7' // purple-500
+  const uncheckedColor = isDark ? '#6b7280' : '#9ca3af'
+
+  const handleToggleComplete = () => {
+    onToggleComplete?.(task.id, !isCompleted)
+  }
 
   return (
     <View
@@ -106,11 +123,30 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
         },
       ]}
     >
-      {/* Top Row: Task Title (LEFT) + Priority Badge (RIGHT) */}
+      {/* Top Row: Checkbox (optional) + Task Title (LEFT) + Priority Badge (RIGHT) */}
       <View style={styles.topRow}>
+        {showCheckbox && (
+          <TouchableOpacity
+            onPress={handleToggleComplete}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.checkbox}
+            accessibilityLabel={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
+          >
+            {isCompleted ? (
+              <CheckCircle size={24} color={checkboxColor} />
+            ) : (
+              <Circle size={24} color={uncheckedColor} />
+            )}
+          </TouchableOpacity>
+        )}
+
         <View style={styles.titleContainer}>
           <Text
-            className="font-sans-semibold text-base text-slate-900 dark:text-white"
+            className={`font-sans-semibold text-base ${
+              isCompleted
+                ? 'text-slate-400 dark:text-slate-500 line-through'
+                : 'text-slate-900 dark:text-white'
+            }`}
             numberOfLines={2}
           >
             {task.title}
@@ -229,6 +265,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     gap: 12,
+  },
+  checkbox: {
+    marginRight: 4,
   },
   titleContainer: {
     flex: 1,

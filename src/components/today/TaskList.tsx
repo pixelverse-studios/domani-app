@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react'
 import { View } from 'react-native'
 import { FlashList } from '@shopify/flash-list'
 
-import { TaskItem } from './TaskItem'
+import { TaskCard } from '~/components/planning/TaskCard'
 import { Text, ConfirmationModal } from '~/components/ui'
 import type { TaskWithCategory } from '~/types'
 
@@ -41,16 +41,30 @@ export function TaskList({ tasks, onToggle, onTaskPress, onDeleteTask }: TaskLis
     setTaskToDelete(null)
   }
 
+  const handleEdit = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((t) => t.id === taskId)
+      if (task) onTaskPress?.(task)
+    },
+    [tasks, onTaskPress],
+  )
+
   const renderItem = useCallback(
     ({ item }: { item: TaskWithCategory }) => (
-      <TaskItem
-        task={item}
-        onToggle={onToggle}
-        onPress={onTaskPress}
-        onDelete={handleDeletePress}
-      />
+      <View style={{ marginHorizontal: 20 }}>
+        <TaskCard
+          task={item}
+          showCheckbox
+          onToggleComplete={onToggle}
+          onEdit={handleEdit}
+          onDelete={(taskId) => {
+            const task = tasks.find((t) => t.id === taskId)
+            if (task) handleDeletePress(task)
+          }}
+        />
+      </View>
     ),
-    [onToggle, onTaskPress, handleDeletePress],
+    [onToggle, handleEdit, tasks, handleDeletePress],
   )
 
   const keyExtractor = useCallback((item: TaskWithCategory) => item.id, [])

@@ -3,7 +3,7 @@ import { View, TouchableOpacity } from 'react-native'
 import { CheckCircle, ChevronUp, ChevronDown } from 'lucide-react-native'
 import { FlashList } from '@shopify/flash-list'
 
-import { TaskItem } from './TaskItem'
+import { TaskCard } from '~/components/planning/TaskCard'
 import { Text, ConfirmationModal } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
 import type { TaskWithCategory } from '~/types'
@@ -56,16 +56,30 @@ export function CompletedSection({
     setTaskToDelete(null)
   }
 
+  const handleEdit = useCallback(
+    (taskId: string) => {
+      const task = completedTasks.find((t) => t.id === taskId)
+      if (task) onTaskPress?.(task)
+    },
+    [completedTasks, onTaskPress],
+  )
+
   const renderItem = useCallback(
     ({ item }: { item: TaskWithCategory }) => (
-      <TaskItem
-        task={item}
-        onToggle={onToggle}
-        onPress={onTaskPress}
-        onDelete={handleDeletePress}
-      />
+      <View style={{ marginHorizontal: 20 }}>
+        <TaskCard
+          task={item}
+          showCheckbox
+          onToggleComplete={onToggle}
+          onEdit={handleEdit}
+          onDelete={(taskId) => {
+            const task = completedTasks.find((t) => t.id === taskId)
+            if (task) handleDeletePress(task)
+          }}
+        />
+      </View>
     ),
-    [onToggle, onTaskPress, handleDeletePress],
+    [onToggle, handleEdit, completedTasks, handleDeletePress],
   )
 
   const keyExtractor = useCallback((item: TaskWithCategory) => item.id, [])
