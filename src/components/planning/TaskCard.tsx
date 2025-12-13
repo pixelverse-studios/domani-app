@@ -93,6 +93,7 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
   const iconColor = isDark ? '#94a3b8' : '#64748b'
   const cardBg = isDark ? '#1e293b' : '#ffffff'
   const borderColor = isDark ? '#334155' : '#e2e8f0'
+  const dividerColor = isDark ? 'rgba(148, 163, 184, 0.2)' : 'rgba(148, 163, 184, 0.2)'
 
   return (
     <View
@@ -105,45 +106,48 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
         },
       ]}
     >
-      {/* Main Content Row */}
-      <View style={styles.contentRow}>
-        {/* Task Info */}
-        <View style={styles.taskInfo}>
-          {/* Title */}
+      {/* Top Row: Task Title (LEFT) + Priority Badge (RIGHT) */}
+      <View style={styles.topRow}>
+        <View style={styles.titleContainer}>
           <Text
             className="font-sans-semibold text-base text-slate-900 dark:text-white"
             numberOfLines={2}
           >
             {task.title}
           </Text>
-
-          {/* Category Badge */}
-          <View style={styles.categoryRow}>
-            {getCategoryIcon(
-              category ? { name: categoryName, icon: category.icon || undefined } : null,
-              isUserCategory ? '#a78bfa' : iconColor,
-            )}
-            <Text
-              className="font-sans text-sm text-slate-500 dark:text-slate-400 ml-1.5"
-              numberOfLines={1}
-            >
-              {categoryName}
-            </Text>
-          </View>
         </View>
 
-        {/* Right Side: Priority Badge + Notes Toggle + Actions */}
-        <View style={styles.rightSection}>
-          {/* Priority Badge */}
-          <View style={[styles.priorityBadge, { backgroundColor: priorityConfig.badge.bg }]}>
-            <Text
-              className="font-sans-medium text-xs capitalize"
-              style={{ color: priorityConfig.badge.text }}
-            >
-              {priority}
-            </Text>
-          </View>
+        <View style={[styles.priorityBadge, { backgroundColor: priorityConfig.badge.bg }]}>
+          <Text
+            className="font-sans-medium text-xs capitalize"
+            style={{ color: priorityConfig.badge.text }}
+          >
+            {priority}
+          </Text>
+        </View>
+      </View>
 
+      {/* Horizontal Divider */}
+      <View style={[styles.divider, { backgroundColor: dividerColor }]} />
+
+      {/* Bottom Row: Category (LEFT) + Action Buttons (RIGHT) */}
+      <View style={styles.bottomRow}>
+        {/* Category Icon + Name */}
+        <View style={styles.categoryContainer}>
+          {getCategoryIcon(
+            category ? { name: categoryName, icon: category.icon || undefined } : null,
+            isUserCategory ? '#a78bfa' : iconColor,
+          )}
+          <Text
+            className="font-sans text-sm text-slate-500 dark:text-slate-400 ml-1.5"
+            numberOfLines={1}
+          >
+            {categoryName}
+          </Text>
+        </View>
+
+        {/* Action Buttons: Notes Toggle + Edit + Delete */}
+        <View style={styles.actionsRow}>
           {/* Notes Toggle Button - only show if task has notes */}
           {hasNotes && (
             <TouchableOpacity
@@ -161,49 +165,50 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
             </TouchableOpacity>
           )}
 
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            {/* Edit Button */}
-            <TouchableOpacity
-              onPress={() => onEdit?.(task.id)}
-              style={[styles.actionButton, { backgroundColor: isDark ? '#334155' : '#f1f5f9' }]}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Edit task"
-            >
-              <Pencil size={16} color="#a78bfa" />
-            </TouchableOpacity>
+          {/* Edit Button */}
+          <TouchableOpacity
+            onPress={() => onEdit?.(task.id)}
+            style={[styles.actionButton, { backgroundColor: isDark ? '#334155' : '#f1f5f9' }]}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Edit task"
+          >
+            <Pencil size={16} color="#a78bfa" />
+          </TouchableOpacity>
 
-            {/* Delete Button */}
-            <TouchableOpacity
-              onPress={() => onDelete?.(task.id)}
-              style={[styles.actionButton, { backgroundColor: isDark ? '#334155' : '#f1f5f9' }]}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Delete task"
-            >
-              <Trash2 size={16} color="#ef4444" />
-            </TouchableOpacity>
-          </View>
+          {/* Delete Button */}
+          <TouchableOpacity
+            onPress={() => onDelete?.(task.id)}
+            style={[styles.actionButton, { backgroundColor: isDark ? '#334155' : '#f1f5f9' }]}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Delete task"
+          >
+            <Trash2 size={16} color="#ef4444" />
+          </TouchableOpacity>
         </View>
       </View>
 
       {/* Expandable Notes Section */}
       {hasNotes && isNotesExpanded && (
         <View style={styles.notesSection}>
-          <View style={styles.notesHeader}>
-            <FileText size={14} color={iconColor} />
-            <Text className="font-sans-medium text-sm text-slate-500 dark:text-slate-400 ml-1.5">
-              Notes
-            </Text>
-          </View>
-          <View
-            style={[
-              styles.notesContent,
-              { backgroundColor: isDark ? '#0f172a' : '#f1f5f9' },
-            ]}
-          >
-            <Text className="font-sans text-sm text-slate-700 dark:text-slate-300">
-              {task.notes}
-            </Text>
+          <View style={[styles.divider, { backgroundColor: dividerColor }]} />
+
+          <View style={styles.notesContainer}>
+            <View style={styles.notesHeader}>
+              <FileText size={14} color={iconColor} />
+              <Text className="font-sans-medium text-sm text-slate-500 dark:text-slate-400 ml-1.5">
+                Notes
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.notesContent,
+                { backgroundColor: isDark ? '#0f172a' : '#f1f5f9' },
+              ]}
+            >
+              <Text className="font-sans text-sm text-slate-700 dark:text-slate-300">
+                {task.notes}
+              </Text>
+            </View>
           </View>
         </View>
       )}
@@ -219,41 +224,39 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
-  contentRow: {
+  topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: 12,
   },
-  taskInfo: {
+  titleContainer: {
     flex: 1,
-    marginRight: 12,
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-    flexWrap: 'wrap',
-  },
-  rightSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
   priorityBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
   },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 8,
+  divider: {
+    height: 1,
+    marginVertical: 12,
   },
-  actionButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+  bottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
+  },
+  categoryContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   notesToggle: {
     flexDirection: 'row',
@@ -263,11 +266,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: 2,
   },
+  actionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   notesSection: {
+    marginTop: 0,
+  },
+  notesContainer: {
     marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(148, 163, 184, 0.2)',
   },
   notesHeader: {
     flexDirection: 'row',
