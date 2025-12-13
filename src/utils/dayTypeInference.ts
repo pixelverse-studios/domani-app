@@ -104,9 +104,9 @@ const THEME_KEYWORDS: Record<DayTheme, string[]> = {
 // System category name to theme mapping
 const SYSTEM_CATEGORY_MAP: Record<string, DayTheme> = {
   Work: 'work',
-  Health: 'wellness',
+  Wellness: 'wellness',
   Personal: 'personal',
-  Other: 'learning', // "Other" in DB maps to education/learning theme
+  Education: 'learning',
 }
 
 // Day type definitions with personality

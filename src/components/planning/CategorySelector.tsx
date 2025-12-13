@@ -24,7 +24,7 @@ import {
   useFavoriteCategories,
 } from '~/hooks/useCategories'
 
-// Map system category names to form IDs and vice versa
+// Map system category names (from database) to form IDs
 const SYSTEM_NAME_TO_FORM_ID: Record<string, string> = {
   Work: 'work',
   Wellness: 'wellness',

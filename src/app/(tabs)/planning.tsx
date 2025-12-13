@@ -28,17 +28,17 @@ type Priority = 'high' | 'medium' | 'low'
 // Map form category IDs to database category names
 const FORM_TO_DB_CATEGORY: Record<string, string> = {
   work: 'Work',
-  wellness: 'Health',
+  wellness: 'Wellness',
   personal: 'Personal',
-  education: 'Other',
+  education: 'Education',
 }
 
 // Map database category names back to form IDs
 const DB_TO_FORM_CATEGORY: Record<string, string> = {
   Work: 'work',
-  Health: 'wellness',
+  Wellness: 'wellness',
   Personal: 'personal',
-  Other: 'education',
+  Education: 'education',
 }
 
 interface TaskFormData {
