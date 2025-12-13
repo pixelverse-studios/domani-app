@@ -6,6 +6,7 @@ import { addDays } from 'date-fns'
 import { supabase } from '~/lib/supabase'
 import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
+import { useAppConfig } from '~/stores/appConfigStore'
 import {
   initializeRevenueCat,
   loginRevenueCat,
@@ -35,12 +36,24 @@ export function useSubscription() {
   const queryClient = useQueryClient()
   const [isInitialized, setIsInitialized] = useState(false)
   const previousUserId = useRef<string | undefined>(undefined)
+  const { phase } = useAppConfig()
 
-  // Initialize RevenueCat when user changes
+  // Check if we're in beta (skip RevenueCat entirely during beta)
+  const isBeta = phase === 'closed_beta' || phase === 'open_beta'
+
+  // Initialize RevenueCat when user changes (skip during beta)
   useEffect(() => {
     let isMounted = true
 
     async function init() {
+      // During beta, skip RevenueCat entirely
+      if (isBeta) {
+        if (isMounted) {
+          setIsInitialized(true)
+        }
+        return
+      }
+
       // Handle logout when user signs out (previous user existed, now gone)
       if (previousUserId.current && !user?.id) {
         logoutRevenueCat()
@@ -73,9 +86,9 @@ export function useSubscription() {
     return () => {
       isMounted = false
     }
-  }, [user?.id])
+  }, [user?.id, isBeta])
 
-  // Query for RevenueCat customer info
+  // Query for RevenueCat customer info (disabled during beta)
   const {
     data: customerInfo,
     isLoading: isLoadingCustomerInfo,
@@ -83,7 +96,7 @@ export function useSubscription() {
   } = useQuery({
     queryKey: ['customerInfo', user?.id],
     queryFn: async () => {
-      if (!isInitialized) return null
+      if (!isInitialized || isBeta) return null
       try {
         const info = await Purchases.getCustomerInfo()
         return info
@@ -93,15 +106,15 @@ export function useSubscription() {
         return null
       }
     },
-    enabled: isInitialized && !!user?.id,
+    enabled: isInitialized && !!user?.id && !isBeta,
     retry: false, // Don't retry if RevenueCat is not configured
   })
 
-  // Query for offerings (available products)
+  // Query for offerings (available products) - disabled during beta
   const { data: offerings, isLoading: isLoadingOfferings } = useQuery({
     queryKey: ['offerings'],
     queryFn: getOfferings,
-    enabled: isInitialized,
+    enabled: isInitialized && !isBeta,
     retry: false, // Don't retry if RevenueCat is not configured
   })
 
