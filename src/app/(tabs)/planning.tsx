@@ -16,7 +16,11 @@ import {
 import { usePlanForDate } from '~/hooks/usePlans'
 import { useCreateTask, useTasks, useDeleteTask, useUpdateTask } from '~/hooks/useTasks'
 import { useSystemCategories } from '~/hooks/useCategories'
+import { useSubscription } from '~/hooks/useSubscription'
+import { useAppConfig } from '~/stores/appConfigStore'
 import type { TaskWithCategory } from '~/types'
+
+const FREE_TIER_TASK_LIMIT = 3
 
 type PlanningTarget = 'today' | 'tomorrow'
 type Priority = 'high' | 'medium' | 'low'
@@ -61,8 +65,30 @@ export default function PlanningScreen() {
   const createTask = useCreateTask()
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
+  const { status: subscriptionStatus } = useSubscription()
+  const { phase } = useAppConfig()
+
+  // Free tier limit logic (disabled during beta - all users get unlimited tasks)
+  const isBeta = phase === 'closed_beta' || phase === 'open_beta'
+  const isFreeUser = subscriptionStatus === 'free'
+  const atTaskLimit = tasks.length >= FREE_TIER_TASK_LIMIT
+  // During beta, never show limit UI or enforce limits
+  const showLimitUI = !isBeta && isFreeUser
+  const enforceLimits = !isBeta && isFreeUser
 
   const handleOpenForm = () => {
+    // Pre-flight check: prevent free users at limit from opening form (only post-beta)
+    if (enforceLimits && atTaskLimit) {
+      Alert.alert(
+        'Daily Task Limit Reached',
+        'Free accounts can create up to 3 tasks per day. Upgrade to unlock unlimited tasks.',
+        [
+          { text: 'Maybe Later', style: 'cancel' },
+          { text: 'Upgrade', onPress: () => router.push('/subscription') },
+        ],
+      )
+      return
+    }
     setEditingTask(null)
     setIsFormVisible(true)
   }
@@ -208,12 +234,22 @@ export default function PlanningScreen() {
             editingTaskId={editingTask?.id}
           />
         ) : (
-          <AddTaskPlaceholder onPress={handleOpenForm} />
+          <AddTaskPlaceholder
+            onPress={handleOpenForm}
+            disabled={enforceLimits && atTaskLimit}
+            atLimit={atTaskLimit}
+          />
         )}
 
         {tasks.length > 0 ? (
           <>
-            <TaskList tasks={tasks} onEditTask={handleEditTask} onDeleteTask={handleDeleteTask} />
+            <TaskList
+              tasks={tasks}
+              onEditTask={handleEditTask}
+              onDeleteTask={handleDeleteTask}
+              showLimit={showLimitUI}
+              taskLimit={FREE_TIER_TASK_LIMIT}
+            />
             <PlanningTip />
           </>
         ) : (

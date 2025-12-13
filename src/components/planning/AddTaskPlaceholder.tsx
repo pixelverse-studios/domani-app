@@ -1,6 +1,6 @@
 import React from 'react'
-import { TouchableOpacity, StyleSheet } from 'react-native'
-import { Plus } from 'lucide-react-native'
+import { TouchableOpacity, StyleSheet, View } from 'react-native'
+import { Plus, Lock } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 
 import { Text } from '~/components/ui'
@@ -8,9 +8,28 @@ import { colors } from '~/theme'
 
 interface AddTaskPlaceholderProps {
   onPress?: () => void
+  disabled?: boolean
+  atLimit?: boolean
 }
 
-export function AddTaskPlaceholder({ onPress }: AddTaskPlaceholderProps) {
+export function AddTaskPlaceholder({ onPress, disabled, atLimit }: AddTaskPlaceholderProps) {
+  // Show disabled state when free user is at task limit
+  if (disabled && atLimit) {
+    return (
+      <View style={styles.buttonContainer} className="mx-5 mt-6">
+        <View style={styles.disabledContainer}>
+          <Lock size={18} color="#9ca3af" strokeWidth={2} />
+          <Text className="text-slate-400 font-sans-medium text-sm ml-2">
+            Task limit reached (3/3)
+          </Text>
+        </View>
+        <Text className="text-slate-500 text-xs text-center mt-2">
+          Upgrade to add unlimited tasks
+        </Text>
+      </View>
+    )
+  }
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -19,6 +38,7 @@ export function AddTaskPlaceholder({ onPress }: AddTaskPlaceholderProps) {
       className="mx-5 mt-6"
       accessibilityRole="button"
       accessibilityLabel="Add new task"
+      disabled={disabled}
     >
       <LinearGradient
         colors={[colors.brand.pink, colors.brand.pink, colors.brand.purple] as const}
@@ -45,5 +65,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 32,
+  },
+  disabledContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderStyle: 'dashed',
   },
 })
