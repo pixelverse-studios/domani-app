@@ -228,33 +228,34 @@ export function TaskCard({
             </View>
           </View>
 
-          {/* Expandable Notes Section */}
-          {hasNotes && isNotesExpanded && (
-            <View style={styles.notesSection}>
-              <View style={[styles.divider, { backgroundColor: dividerColor }]} />
-
-              <View style={styles.notesContainer}>
-                <View style={styles.notesHeader}>
-                  <FileText size={14} color={iconColor} />
-                  <Text className="font-sans-medium text-sm text-slate-500 dark:text-slate-400 ml-1.5">
-                    Notes
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.notesContent,
-                    { backgroundColor: isDark ? '#0f172a' : '#f1f5f9' },
-                  ]}
-                >
-                  <Text className="font-sans text-sm text-slate-700 dark:text-slate-300">
-                    {task.notes}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          )}
         </View>
       </View>
+
+      {/* Expandable Notes Section - full width */}
+      {hasNotes && isNotesExpanded && (
+        <View style={styles.notesSection}>
+          <View style={[styles.divider, { backgroundColor: dividerColor }]} />
+
+          <View style={styles.notesContainer}>
+            <View style={styles.notesHeader}>
+              <FileText size={14} color={iconColor} />
+              <Text className="font-sans-medium text-sm text-slate-500 dark:text-slate-400 ml-1.5">
+                Notes
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.notesContent,
+                { backgroundColor: isDark ? '#0f172a' : '#f1f5f9' },
+              ]}
+            >
+              <Text className="font-sans text-sm text-slate-700 dark:text-slate-300">
+                {task.notes}
+              </Text>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   )
 }
