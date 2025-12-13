@@ -94,6 +94,7 @@ export function CategorySelector({
   const deleteCategory = useDeleteUserCategory()
 
   const [categorySearch, setCategorySearch] = React.useState('')
+  const [isFocused, setIsFocused] = React.useState(false)
   const categorySearchRef = useRef<TextInput>(null)
 
   // Delete confirmation state
@@ -153,12 +154,16 @@ export function CategorySelector({
     return [...systemOptions, ...customOptions]
   }, [sortedCategories, iconColor, purpleColor])
 
-  // Filter categories based on search
+  // Filter categories based on search (show all when focused but empty)
   const filteredCategories = useMemo(() => {
+    // When focused but no search text, show all categories
+    if (isFocused && !categorySearch.trim()) return allCategories
+    // When not focused and no search text, return empty (show quick select instead)
     if (!categorySearch.trim()) return []
+    // Filter based on search text
     const search = categorySearch.toLowerCase()
     return allCategories.filter((cat) => cat.label.toLowerCase().includes(search))
-  }, [categorySearch, allCategories])
+  }, [categorySearch, allCategories, isFocused])
 
   // Check if exact match exists
   const exactMatchExists = useMemo(() => {
@@ -168,12 +173,14 @@ export function CategorySelector({
   }, [categorySearch, allCategories])
 
   const hasSearchText = categorySearch.trim().length > 0
-  const showDropdown = hasSearchText
-  const showCategoryButtons = !hasSearchText
+  // Show dropdown when focused (all categories) or when searching
+  const showDropdown = isFocused || hasSearchText
+  const showCategoryButtons = !isFocused && !hasSearchText
 
   const handleSelectCategory = (category: CategoryOption) => {
     onSelectCategory(category.id, category.label)
     setCategorySearch('')
+    setIsFocused(false)
     categorySearchRef.current?.blur()
   }
 
@@ -184,6 +191,7 @@ export function CategorySelector({
         const newCategory = await createCategory.mutateAsync({ name: newCategoryName })
         onSelectCategory(newCategory.id, newCategory.name)
         setCategorySearch('')
+        setIsFocused(false)
         categorySearchRef.current?.blur()
       } catch (error) {
         console.error('Failed to create category:', error)
@@ -248,8 +256,8 @@ export function CategorySelector({
           className="flex-row items-center rounded-xl"
           style={{
             backgroundColor: isDark ? '#0f172a' : '#ffffff',
-            borderWidth: hasSearchText ? 2 : 1,
-            borderColor: hasSearchText ? purpleColor : isDark ? '#334155' : '#e2e8f0',
+            borderWidth: isFocused || hasSearchText ? 2 : 1,
+            borderColor: isFocused || hasSearchText ? purpleColor : isDark ? '#334155' : '#e2e8f0',
           }}
         >
           <View className="pl-4">
@@ -259,6 +267,8 @@ export function CategorySelector({
             ref={categorySearchRef}
             value={categorySearch}
             onChangeText={setCategorySearch}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             placeholder="Search All Categories"
             placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
             editable={!disabled}
@@ -317,8 +327,8 @@ export function CategorySelector({
                 )
               })}
 
-              {/* Create New Category Option (if no exact match) */}
-              {!exactMatchExists && (
+              {/* Create New Category Option (if searching and no exact match) */}
+              {hasSearchText && !exactMatchExists && (
                 <View style={styles.categoryGridItem}>
                   <TouchableOpacity
                     onPress={handleCreateCategory}
@@ -346,7 +356,11 @@ export function CategorySelector({
 
             {/* Show Less Button */}
             <TouchableOpacity
-              onPress={() => setCategorySearch('')}
+              onPress={() => {
+                setCategorySearch('')
+                setIsFocused(false)
+                categorySearchRef.current?.blur()
+              }}
               className="flex-row items-center justify-center py-3 mt-2"
             >
               <ChevronUp size={16} color={iconColor} />
