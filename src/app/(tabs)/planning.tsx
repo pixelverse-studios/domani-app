@@ -50,8 +50,9 @@ interface TaskFormData {
 
 export default function PlanningScreen() {
   const router = useRouter()
-  const { defaultPlanningFor } = useLocalSearchParams<{
+  const { defaultPlanningFor, editTaskId } = useLocalSearchParams<{
     defaultPlanningFor?: 'today' | 'tomorrow'
+    editTaskId?: string
   }>()
   const [selectedTarget, setSelectedTarget] = useState<PlanningTarget>(
     defaultPlanningFor === 'today' ? 'today' : 'tomorrow',
@@ -78,6 +79,17 @@ export default function PlanningScreen() {
   const deleteTask = useDeleteTask()
   const { status: subscriptionStatus } = useSubscription()
   const { phase } = useAppConfig()
+
+  // Handle editTaskId param - open edit form when navigating from Today page
+  useEffect(() => {
+    if (editTaskId && tasks.length > 0) {
+      const task = tasks.find((t) => t.id === editTaskId)
+      if (task) {
+        setEditingTask(task)
+        setIsFormVisible(true)
+      }
+    }
+  }, [editTaskId, tasks])
 
   // Free tier limit logic (disabled during beta - all users get unlimited tasks)
   const isBeta = phase === 'closed_beta' || phase === 'open_beta'

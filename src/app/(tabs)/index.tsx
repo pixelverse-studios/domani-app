@@ -118,8 +118,8 @@ export default function TodayScreen() {
   }
 
   const handleTaskPress = (task: TaskWithCategory) => {
-    // TODO: Open task detail/edit modal
-    console.log('Task pressed:', task.id)
+    // Navigate to planning page with task to edit
+    router.push(`/planning?defaultPlanningFor=today&editTaskId=${task.id}`)
   }
 
   const handleDeleteTask = async (task: TaskWithCategory) => {
