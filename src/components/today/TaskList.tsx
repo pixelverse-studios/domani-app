@@ -1,9 +1,9 @@
-import React, { useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { View } from 'react-native'
 import { FlashList } from '@shopify/flash-list'
 
 import { TaskItem } from './TaskItem'
-import { Text } from '~/components/ui'
+import { Text, ConfirmationModal } from '~/components/ui'
 import type { TaskWithCategory } from '~/types'
 
 
@@ -15,10 +15,35 @@ interface TaskListProps {
 }
 
 export function TaskList({ tasks, onToggle, onTaskPress, onDeleteTask }: TaskListProps) {
+  const [taskToDelete, setTaskToDelete] = useState<TaskWithCategory | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   const incompleteTasks = useMemo(
     () => tasks.filter((task) => !task.completed_at),
     [tasks],
   )
+
+  const handleDeletePress = useCallback((task: TaskWithCategory) => {
+    setTaskToDelete(task)
+  }, [])
+
+  const handleConfirmDelete = async () => {
+    if (!taskToDelete || !onDeleteTask) return
+
+    setIsDeleting(true)
+    try {
+      await onDeleteTask(taskToDelete)
+      setTaskToDelete(null)
+    } catch (error) {
+      console.error('Failed to delete task:', error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleCancelDelete = () => {
+    setTaskToDelete(null)
+  }
 
   const renderItem = useCallback(
     ({ item }: { item: TaskWithCategory }) => (
@@ -26,10 +51,10 @@ export function TaskList({ tasks, onToggle, onTaskPress, onDeleteTask }: TaskLis
         task={item}
         onToggle={onToggle}
         onPress={onTaskPress}
-        onDelete={onDeleteTask}
+        onDelete={handleDeletePress}
       />
     ),
-    [onToggle, onTaskPress, onDeleteTask],
+    [onToggle, onTaskPress, handleDeletePress],
   )
 
   const keyExtractor = useCallback((item: TaskWithCategory) => item.id, [])
@@ -49,6 +74,18 @@ export function TaskList({ tasks, onToggle, onTaskPress, onDeleteTask }: TaskLis
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         scrollEnabled={false}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        visible={!!taskToDelete}
+        title="Delete Task?"
+        itemName={taskToDelete?.title ?? ''}
+        description="Are you sure you want to delete:"
+        confirmLabel="Delete Task"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        isLoading={isDeleting}
       />
     </View>
   )
