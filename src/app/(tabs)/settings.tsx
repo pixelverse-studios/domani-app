@@ -667,7 +667,7 @@ export default function SettingsScreen() {
                   className={`flex-1 items-center py-3 rounded-lg border ${
                     isSelected
                       ? 'bg-purple-500/10 border-purple-500'
-                      : 'bg-slate-100 dark:bg-slate-700 border-transparent'
+                      : 'bg-transparent border-transparent'
                   }`}
                 >
                   <Icon size={20} color={iconColor} />
@@ -703,10 +703,10 @@ export default function SettingsScreen() {
         <TouchableOpacity
           onPress={handleSignOut}
           activeOpacity={0.7}
-          className="flex-row items-center justify-center py-3.5 rounded-xl border border-red-500/50 bg-red-500/10 mb-6"
+          className="flex-row items-center justify-center py-3.5 rounded-xl border border-slate-600/50 bg-[#374151]/50 mb-6"
         >
-          <LogOut size={18} color="#ef4444" />
-          <Text className="text-red-500 font-semibold ml-2">Log Out</Text>
+          <LogOut size={18} color={activeTheme === 'dark' ? '#9ca3af' : '#475569'} />
+          <Text className="text-slate-600 dark:text-slate-400 font-semibold ml-2">Log Out</Text>
         </TouchableOpacity>
 
         {/* Danger Zone Section */}
