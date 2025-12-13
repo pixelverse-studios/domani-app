@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { ScrollView, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -55,6 +55,11 @@ export default function PlanningScreen() {
   )
   const [isFormVisible, setIsFormVisible] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskWithCategory | null>(null)
+
+  // Update target when navigation param changes (tab navigation preserves component state)
+  useEffect(() => {
+    setSelectedTarget(defaultPlanningFor === 'today' ? 'today' : 'tomorrow')
+  }, [defaultPlanningFor])
 
   // Get the target date based on selection
   const targetDate = useMemo(() => {
