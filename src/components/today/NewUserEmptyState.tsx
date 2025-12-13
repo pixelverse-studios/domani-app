@@ -12,7 +12,7 @@ export function EmptyState() {
   const iconColor = '#a855f7' // purple-500
 
   const handlePlanToday = () => {
-    router.push('/(tabs)/planning')
+    router.push('/(tabs)/planning?defaultPlanningFor=today')
   }
 
   return (

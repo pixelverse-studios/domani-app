@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import { ScrollView, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { addDays } from 'date-fns'
 
 import {
@@ -49,7 +49,10 @@ interface TaskFormData {
 
 export default function PlanningScreen() {
   const router = useRouter()
-  const [selectedTarget, setSelectedTarget] = useState<PlanningTarget>('today')
+  const { defaultPlanningFor } = useLocalSearchParams<{ defaultPlanningFor?: 'today' | 'tomorrow' }>()
+  const [selectedTarget, setSelectedTarget] = useState<PlanningTarget>(
+    defaultPlanningFor === 'today' ? 'today' : 'tomorrow'
+  )
   const [isFormVisible, setIsFormVisible] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskWithCategory | null>(null)
 

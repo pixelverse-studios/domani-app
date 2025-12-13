@@ -131,7 +131,7 @@ export default function TodayScreen() {
   }
 
   const handleAddTask = () => {
-    router.push('/planning')
+    router.push('/planning?defaultPlanningFor=today')
   }
 
   const handleNotificationPress = () => {

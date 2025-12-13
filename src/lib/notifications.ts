@@ -134,7 +134,7 @@ export const NotificationService = {
         body: 'Take a few minutes to set your top 3 tasks for tomorrow',
         sound: true,
         priority: Notifications.AndroidNotificationPriority.HIGH,
-        data: { url: '/(tabs)/planning', type: 'evening_reminder' },
+        data: { url: '/(tabs)/planning?defaultPlanningFor=tomorrow', type: 'evening_reminder' },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
