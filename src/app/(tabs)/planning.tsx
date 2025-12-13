@@ -12,6 +12,7 @@ import {
   PlanningEmptyState,
   TaskList,
   TasksRecap,
+  ReminderBanner,
 } from '~/components/planning'
 import { usePlanForDate } from '~/hooks/usePlans'
 import { useCreateTask, useTasks, useDeleteTask, useUpdateTask } from '~/hooks/useTasks'
@@ -245,6 +246,8 @@ export default function PlanningScreen() {
         contentContainerStyle={{ paddingBottom: 32 }}
       >
         <PlanningHeader selectedTarget={selectedTarget} onTargetChange={setSelectedTarget} />
+
+        {selectedTarget === 'tomorrow' && <ReminderBanner />}
 
         {tasks.length === 0 && <PlanningTip />}
 
