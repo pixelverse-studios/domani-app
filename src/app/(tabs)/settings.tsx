@@ -218,7 +218,7 @@ export default function SettingsScreen() {
   const { profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const subscription = useSubscription()
-  const { scheduleEveningReminder, permissionStatus } = useNotifications()
+  const { scheduleEveningReminder, scheduleMorningReminder, permissionStatus } = useNotifications()
   const accountDeletion = useAccountDeletion()
   const { phase } = useAppConfig()
 
@@ -309,6 +309,12 @@ export default function SettingsScreen() {
   const handleUpdateExecutionTime = async (time: Date) => {
     const timeString = format(time, 'HH:mm:ss')
     await updateProfile.mutateAsync({ execution_reminder_time: timeString })
+
+    // Reschedule notification if permissions are granted
+    if (permissionStatus === 'granted') {
+      await scheduleMorningReminder(time.getHours(), time.getMinutes())
+    }
+
     setShowExecutionTimeModal(false)
   }
 

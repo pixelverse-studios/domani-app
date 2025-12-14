@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import { View, TouchableOpacity } from 'react-native'
 import { CheckCircle, ChevronUp, ChevronDown } from 'lucide-react-native'
-import { FlashList } from '@shopify/flash-list'
 
 import { TaskCard } from '~/components/planning/TaskCard'
 import { Text, ConfirmationModal } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
+import { sortTasksByPriority } from '~/utils/sortTasks'
 import type { TaskWithCategory } from '~/types'
 
 interface CompletedSectionProps {
@@ -28,7 +28,10 @@ export function CompletedSection({
   const [taskToDelete, setTaskToDelete] = useState<TaskWithCategory | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const completedTasks = useMemo(() => tasks.filter((task) => task.completed_at), [tasks])
+  const completedTasks = useMemo(
+    () => sortTasksByPriority(tasks.filter((task) => task.completed_at)),
+    [tasks],
+  )
 
   // Theme-aware icon colors
   const checkColor = '#a855f7' // purple-500 - consistent
@@ -64,26 +67,6 @@ export function CompletedSection({
     [completedTasks, onTaskPress],
   )
 
-  const renderItem = useCallback(
-    ({ item }: { item: TaskWithCategory }) => (
-      <View style={{ marginHorizontal: 20 }}>
-        <TaskCard
-          task={item}
-          showCheckbox
-          onToggleComplete={onToggle}
-          onEdit={handleEdit}
-          onDelete={(taskId) => {
-            const task = completedTasks.find((t) => t.id === taskId)
-            if (task) handleDeletePress(task)
-          }}
-        />
-      </View>
-    ),
-    [onToggle, handleEdit, completedTasks, handleDeletePress],
-  )
-
-  const keyExtractor = useCallback((item: TaskWithCategory) => item.id, [])
-
   if (completedTasks.length === 0) {
     return null
   }
@@ -115,12 +98,20 @@ export function CompletedSection({
       {/* Expanded content */}
       {isExpanded && (
         <View className="mt-3">
-          <FlashList
-            data={completedTasks}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            scrollEnabled={false}
-          />
+          {completedTasks.map((task) => (
+            <View key={task.id} style={{ marginHorizontal: 20 }}>
+              <TaskCard
+                task={task}
+                showCheckbox
+                onToggleComplete={onToggle}
+                onEdit={handleEdit}
+                onDelete={(taskId) => {
+                  const foundTask = completedTasks.find((t) => t.id === taskId)
+                  if (foundTask) handleDeletePress(foundTask)
+                }}
+              />
+            </View>
+          ))}
         </View>
       )}
 

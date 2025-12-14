@@ -1,9 +1,9 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { View } from 'react-native'
-import { FlashList } from '@shopify/flash-list'
 
 import { Text, ConfirmationModal } from '~/components/ui'
 import { TaskCard } from './TaskCard'
+import { sortTasksByPriority } from '~/utils/sortTasks'
 import type { TaskWithCategory } from '~/types'
 
 interface TaskListProps {
@@ -23,6 +23,9 @@ export function TaskList({
 }: TaskListProps) {
   const [taskToDelete, setTaskToDelete] = useState<TaskWithCategory | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Sort tasks by priority (high → medium → low), then alphabetically
+  const sortedTasks = useMemo(() => sortTasksByPriority(tasks), [tasks])
 
   // Format header text based on whether to show limit
   const headerText = showLimit
@@ -57,15 +60,6 @@ export function TaskList({
     setTaskToDelete(null)
   }
 
-  const renderItem = useCallback(
-    ({ item }: { item: TaskWithCategory }) => (
-      <TaskCard task={item} onEdit={onEditTask} onDelete={handleDeletePress} />
-    ),
-    [onEditTask, handleDeletePress],
-  )
-
-  const keyExtractor = useCallback((item: TaskWithCategory) => item.id, [])
-
   return (
     <View className="mx-5 mt-6">
       {/* Header */}
@@ -74,12 +68,14 @@ export function TaskList({
       </Text>
 
       {/* Task Cards */}
-      <FlashList
-        data={tasks}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        scrollEnabled={false}
-      />
+      {sortedTasks.map((task) => (
+        <TaskCard
+          key={task.id}
+          task={task}
+          onEdit={onEditTask}
+          onDelete={handleDeletePress}
+        />
+      ))}
 
       {/* Delete Confirmation Modal */}
       <ConfirmationModal

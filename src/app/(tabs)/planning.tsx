@@ -247,8 +247,6 @@ export default function PlanningScreen() {
       >
         <PlanningHeader selectedTarget={selectedTarget} onTargetChange={setSelectedTarget} />
 
-        {selectedTarget === 'tomorrow' && <ReminderBanner />}
-
         {tasks.length === 0 && <PlanningTip />}
 
         {tasks.length > 0 && <TasksRecap tasks={tasks} />}
@@ -272,6 +270,7 @@ export default function PlanningScreen() {
 
         {tasks.length > 0 ? (
           <>
+            {selectedTarget === 'tomorrow' && <ReminderBanner />}
             <TaskList
               tasks={tasks}
               onEditTask={handleEditTask}

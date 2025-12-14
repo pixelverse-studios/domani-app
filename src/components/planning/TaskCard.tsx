@@ -227,7 +227,6 @@ export function TaskCard({
               </TouchableOpacity>
             </View>
           </View>
-
         </View>
       </View>
 

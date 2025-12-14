@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import { View } from 'react-native'
-import { FlashList } from '@shopify/flash-list'
 
 import { TaskCard } from '~/components/planning/TaskCard'
 import { Text, ConfirmationModal } from '~/components/ui'
+import { sortTasksByPriority } from '~/utils/sortTasks'
 import type { TaskWithCategory } from '~/types'
 
 interface TaskListProps {
@@ -17,7 +17,10 @@ export function TaskList({ tasks, onToggle, onTaskPress, onDeleteTask }: TaskLis
   const [taskToDelete, setTaskToDelete] = useState<TaskWithCategory | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const incompleteTasks = useMemo(() => tasks.filter((task) => !task.completed_at), [tasks])
+  const incompleteTasks = useMemo(
+    () => sortTasksByPriority(tasks.filter((task) => !task.completed_at)),
+    [tasks],
+  )
 
   const handleDeletePress = useCallback((task: TaskWithCategory) => {
     setTaskToDelete(task)
@@ -49,26 +52,6 @@ export function TaskList({ tasks, onToggle, onTaskPress, onDeleteTask }: TaskLis
     [tasks, onTaskPress],
   )
 
-  const renderItem = useCallback(
-    ({ item }: { item: TaskWithCategory }) => (
-      <View style={{ marginHorizontal: 20 }}>
-        <TaskCard
-          task={item}
-          showCheckbox
-          onToggleComplete={onToggle}
-          onEdit={handleEdit}
-          onDelete={(taskId) => {
-            const task = tasks.find((t) => t.id === taskId)
-            if (task) handleDeletePress(task)
-          }}
-        />
-      </View>
-    ),
-    [onToggle, handleEdit, tasks, handleDeletePress],
-  )
-
-  const keyExtractor = useCallback((item: TaskWithCategory) => item.id, [])
-
   if (incompleteTasks.length === 0) {
     return (
       <View className="items-center justify-center py-8 mx-5">
@@ -79,12 +62,20 @@ export function TaskList({ tasks, onToggle, onTaskPress, onDeleteTask }: TaskLis
 
   return (
     <View className="mt-2">
-      <FlashList
-        data={incompleteTasks}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        scrollEnabled={false}
-      />
+      {incompleteTasks.map((task) => (
+        <View key={task.id} style={{ marginHorizontal: 20 }}>
+          <TaskCard
+            task={task}
+            showCheckbox
+            onToggleComplete={onToggle}
+            onEdit={handleEdit}
+            onDelete={(taskId) => {
+              const foundTask = tasks.find((t) => t.id === taskId)
+              if (foundTask) handleDeletePress(foundTask)
+            }}
+          />
+        </View>
+      ))}
 
       {/* Delete Confirmation Modal */}
       <ConfirmationModal

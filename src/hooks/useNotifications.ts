@@ -98,6 +98,19 @@ export function useNotifications() {
     }
   }
 
+  const scheduleMorningReminder = async (hour: number, minute: number) => {
+    const identifier = await NotificationService.scheduleMorningReminder(hour, minute)
+    store.setMorningReminderId(identifier)
+    return identifier
+  }
+
+  const cancelMorningReminder = async () => {
+    if (store.morningReminderId) {
+      await NotificationService.cancelNotification(store.morningReminderId)
+      store.setMorningReminderId(null)
+    }
+  }
+
   const requestPermissions = async () => {
     const granted = await NotificationService.requestPermissions()
     store.setPermissionStatus(granted ? 'granted' : 'denied')
@@ -112,9 +125,12 @@ export function useNotifications() {
 
   return {
     eveningReminderId: store.eveningReminderId,
+    morningReminderId: store.morningReminderId,
     permissionStatus: store.permissionStatus,
     scheduleEveningReminder,
     cancelEveningReminder,
+    scheduleMorningReminder,
+    cancelMorningReminder,
     requestPermissions,
     checkPermissions,
   }
