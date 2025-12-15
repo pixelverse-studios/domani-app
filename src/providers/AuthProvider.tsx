@@ -127,6 +127,47 @@ const checkPendingDeletion = async (
   }
 }
 
+// Validate that the user actually exists in the database
+// Returns true if valid, false if orphaned session (user deleted)
+const validateUserExists = async (userId: string): Promise<boolean> => {
+  try {
+    // Try to fetch the profile - if it fails with 23503 on insert or user doesn't exist,
+    // we have an orphaned session
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (error) {
+      // If we get a permission error, the user likely doesn't exist in auth.users
+      // (RLS policies reference auth.uid() which would be invalid)
+      console.warn('[AuthProvider] Error checking user existence:', error.code, error.message)
+      return false
+    }
+
+    // If profile exists, user is valid
+    if (profile) {
+      return true
+    }
+
+    // Profile doesn't exist - try to verify the user exists in auth by attempting
+    // to get the current user from the server (not cache)
+    const { data: authData, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !authData.user) {
+      console.warn('[AuthProvider] User does not exist on server:', authError?.message)
+      return false
+    }
+
+    // User exists in auth but no profile yet - this is valid (profile will be created)
+    return true
+  } catch (error) {
+    console.error('[AuthProvider] Failed to validate user:', error)
+    return false
+  }
+}
+
 // Ensure user has a profile row and set timezone if not already set
 const ensureProfileExists = async (userId: string, email: string, fullName?: string | null) => {
   try {
@@ -225,9 +266,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('[AuthProvider] Auth state changed:', event)
       console.log('[AuthProvider] Session:', session ? 'Found' : 'None')
+
+      // For initial sessions (cached), validate that the user still exists
+      // This handles "orphaned sessions" where the user was deleted but the token is cached
+      if (event === 'INITIAL_SESSION' && session?.user) {
+        console.log('[AuthProvider] Validating cached session for user:', session.user.id)
+        const isValid = await validateUserExists(session.user.id)
+
+        if (!isValid) {
+          console.warn('[AuthProvider] Orphaned session detected - user no longer exists')
+          // Clear the invalid session
+          await supabase.auth.signOut()
+          setSession(null)
+          setUser(null)
+          setLoading(false)
+          return
+        }
+        console.log('[AuthProvider] Session validated successfully')
+      }
 
       // Update state immediately - don't block on profile creation
       setSession(session)

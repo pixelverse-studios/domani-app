@@ -86,6 +86,10 @@ export function useNotifications() {
   const store = useNotificationStore()
 
   const scheduleEveningReminder = async (hour: number, minute: number) => {
+    // Always cancel existing reminder before scheduling new one to prevent duplicates
+    if (store.eveningReminderId) {
+      await NotificationService.cancelNotification(store.eveningReminderId)
+    }
     const identifier = await NotificationService.scheduleEveningReminder(hour, minute)
     store.setEveningReminderId(identifier)
     return identifier
@@ -99,6 +103,10 @@ export function useNotifications() {
   }
 
   const scheduleMorningReminder = async (hour: number, minute: number) => {
+    // Always cancel existing reminder before scheduling new one to prevent duplicates
+    if (store.morningReminderId) {
+      await NotificationService.cancelNotification(store.morningReminderId)
+    }
     const identifier = await NotificationService.scheduleMorningReminder(hour, minute)
     store.setMorningReminderId(identifier)
     return identifier

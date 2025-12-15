@@ -33,6 +33,12 @@
           <string>com.baitedz.domani-app</string>
         </array>
       </dict>
+      <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>exp+domani-app</string>
+        </array>
+      </dict>
     </array>
     <key>CFBundleVersion</key>
     <string>1</string>
@@ -53,6 +59,10 @@
     </array>
     <key>RCTNewArchEnabled</key>
     <true/>
+    <key>UIBackgroundModes</key>
+    <array>
+      <string>remote-notification</string>
+    </array>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
     <key>UIRequiredDeviceCapabilities</key>
