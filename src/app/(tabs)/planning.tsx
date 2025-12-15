@@ -197,6 +197,8 @@ export default function PlanningScreen() {
           notes: task.notes,
         })
       }
+      // Close form after successful submission
+      handleCloseForm()
     } catch (error) {
       if (!editingTask && error instanceof Error && error.message === 'FREE_TIER_LIMIT') {
         Alert.alert(
