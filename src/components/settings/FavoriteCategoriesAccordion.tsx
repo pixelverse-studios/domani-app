@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   View,
   TouchableOpacity,
@@ -14,8 +14,13 @@ import Animated, {
   interpolate,
   Easing,
 } from 'react-native-reanimated'
-import { Heart, ChevronDown, Briefcase, User, BookOpen, Star, Tag } from 'lucide-react-native'
+import DraggableFlatList, {
+  ScaleDecorator,
+  RenderItemParams,
+} from 'react-native-draggable-flatlist'
+import { Heart, ChevronDown, Briefcase, User, BookOpen, Star, Tag, GripVertical } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import * as Haptics from 'expo-haptics'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
@@ -23,6 +28,7 @@ import { useProfile } from '~/hooks/useProfile'
 import {
   useSortedCategories,
   useUpdateFavoriteCategories,
+  useUpdateCategoryPositions,
   type UnifiedCategory,
 } from '~/hooks/useCategories'
 import { colors } from '~/theme'
@@ -65,9 +71,12 @@ export function FavoriteCategoriesAccordion() {
   const autoSort = profile?.auto_sort_categories ?? false
   const allCategories = useSortedCategories(false) // Always get manual sort for selection UI
   const updateFavorites = useUpdateFavoriteCategories()
+  const updatePositions = useUpdateCategoryPositions()
 
   const [isExpanded, setIsExpanded] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  // Track the ordered list of favorite categories (for drag-to-reorder)
+  const [orderedFavorites, setOrderedFavorites] = useState<UnifiedCategory[]>([])
 
   // Animation values
   const rotation = useSharedValue(0)
@@ -79,16 +88,34 @@ export function FavoriteCategoriesAccordion() {
     .sort()
     .join(',')
 
-  // Initialize selected IDs from categories
+  // Initialize selected IDs and ordered favorites from categories
   useEffect(() => {
-    const favoriteIds = new Set(allCategories.filter((cat) => cat.isFavorite).map((cat) => cat.id))
+    const favorites = allCategories.filter((cat) => cat.isFavorite)
+    const favoriteIds = new Set(favorites.map((cat) => cat.id))
     setSelectedIds(favoriteIds)
+    // Sort by position for initial order
+    setOrderedFavorites([...favorites].sort((a, b) => a.position - b.position))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [favoriteIdsKey])
 
   // Separate favorites from non-favorites based on current selection
-  const favoriteCategories = allCategories.filter((cat) => selectedIds.has(cat.id))
-  const otherCategories = allCategories.filter((cat) => !selectedIds.has(cat.id))
+  // Use orderedFavorites for favorites (maintains drag order)
+  const favoriteCategories = useMemo(() => {
+    // Filter orderedFavorites to only include currently selected items
+    const ordered = orderedFavorites.filter((cat) => selectedIds.has(cat.id))
+    // Add any newly selected categories that aren't in orderedFavorites yet (at the end)
+    const newlySelected = allCategories.filter(
+      (cat) => selectedIds.has(cat.id) && !orderedFavorites.some((f) => f.id === cat.id)
+    )
+    return [...ordered, ...newlySelected]
+  }, [orderedFavorites, selectedIds, allCategories])
+
+  // Sort other categories alphabetically by name
+  const otherCategories = useMemo(() => {
+    return allCategories
+      .filter((cat) => !selectedIds.has(cat.id))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [allCategories, selectedIds])
 
   const selectedCount = selectedIds.size
   const canSelectMore = selectedCount < MAX_FAVORITES
@@ -109,19 +136,43 @@ export function FavoriteCategoriesAccordion() {
       const newSet = new Set(prev)
       if (newSet.has(categoryId)) {
         newSet.delete(categoryId)
+        // Also remove from orderedFavorites
+        setOrderedFavorites((prevOrder) => prevOrder.filter((cat) => cat.id !== categoryId))
       } else if (newSet.size < MAX_FAVORITES) {
         newSet.add(categoryId)
+        // Add to orderedFavorites at the end
+        const category = allCategories.find((cat) => cat.id === categoryId)
+        if (category) {
+          setOrderedFavorites((prevOrder) => [...prevOrder, category])
+        }
       }
       return newSet
     })
-  }, [])
+  }, [allCategories])
 
   const handleSave = useCallback(async () => {
+    // Save favorite selections
     await updateFavorites.mutateAsync(Array.from(selectedIds))
+
+    // Save new positions for favorites based on their order
+    if (favoriteCategories.length > 0) {
+      const positionUpdates = favoriteCategories.map((cat, index) => ({
+        id: cat.id,
+        position: index, // Position 0, 1, 2, 3 for favorites
+        isSystem: cat.isSystem,
+      }))
+      await updatePositions.mutateAsync(positionUpdates)
+    }
+
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setIsExpanded(false)
     rotation.value = withTiming(0, { duration: 200, easing: Easing.ease })
-  }, [selectedIds, updateFavorites, rotation])
+  }, [selectedIds, favoriteCategories, updateFavorites, updatePositions, rotation])
+
+  // Handle drag end - update local order
+  const handleDragEnd = useCallback(({ data }: { data: UnifiedCategory[] }) => {
+    setOrderedFavorites(data)
+  }, [])
 
   const chevronStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${interpolate(rotation.value, [0, 1], [0, 180])}deg` }],
@@ -133,6 +184,7 @@ export function FavoriteCategoriesAccordion() {
   const textMuted = isDark ? '#64748b' : '#94a3b8'
   const dividerColor = isDark ? '#334155' : '#e2e8f0'
 
+  // Render a non-draggable category row (for "other" categories)
   const renderCategoryRow = (category: UnifiedCategory, isLast: boolean = false) => {
     const isSelected = selectedIds.has(category.id)
     const canSelect = isSelected || canSelectMore
@@ -180,6 +232,77 @@ export function FavoriteCategoriesAccordion() {
       </TouchableOpacity>
     )
   }
+
+  // Render a draggable favorite category row
+  const renderDraggableFavorite = useCallback(
+    ({ item, drag, isActive, getIndex }: RenderItemParams<UnifiedCategory>) => {
+      const index = getIndex()
+      const isLast = index === favoriteCategories.length - 1
+
+      return (
+        <ScaleDecorator activeScale={1.02}>
+          <TouchableOpacity
+            onLongPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {
+                // Haptics not available (e.g., in Expo Go)
+              })
+              drag()
+            }}
+            onPress={() => handleToggleCategory(item.id)}
+            delayLongPress={150}
+            activeOpacity={0.7}
+            style={[
+              styles.categoryRow,
+              !isLast && { borderBottomWidth: 1, borderBottomColor: dividerColor },
+              isActive && {
+                backgroundColor: isDark ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.15,
+                shadowRadius: 4,
+                elevation: 4,
+              },
+            ]}
+          >
+            {/* Drag Handle */}
+            <View style={styles.dragHandle}>
+              <GripVertical size={18} color={iconColor} />
+            </View>
+
+            {/* Category Icon & Name */}
+            <View style={styles.categoryInfo}>
+              <View style={[styles.categoryIconBg, { backgroundColor: `${item.color}15` }]}>
+                {getCategoryIcon(item, item.color, 16)}
+              </View>
+              <Text
+                className={`text-base ${isDark ? 'text-white' : 'text-slate-900'}`}
+                style={{ marginLeft: 12 }}
+              >
+                {item.name}
+              </Text>
+              {!item.isSystem && (
+                <View
+                  style={[styles.customBadge, { backgroundColor: isDark ? '#7c3aed20' : '#8b5cf620' }]}
+                >
+                  <Text style={{ color: selectedHeartColor, fontSize: 10, fontWeight: '500' }}>
+                    Custom
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Heart Selection Icon */}
+            <Heart
+              size={20}
+              color={selectedHeartColor}
+              fill={selectedHeartColor}
+            />
+          </TouchableOpacity>
+        </ScaleDecorator>
+      )
+    },
+    [favoriteCategories.length, handleToggleCategory, dividerColor, isDark, iconColor, selectedHeartColor]
+  )
 
   return (
     <View
@@ -237,12 +360,19 @@ export function FavoriteCategoriesAccordion() {
             </Text>
           </View>
 
-          {/* Favorite Categories (above the line) */}
+          {/* Favorite Categories (above the line) - Draggable */}
           {favoriteCategories.length > 0 && (
             <View style={styles.categoryList}>
-              {favoriteCategories.map((cat, index) =>
-                renderCategoryRow(cat, index === favoriteCategories.length - 1),
-              )}
+              <DraggableFlatList
+                data={favoriteCategories}
+                keyExtractor={(item) => item.id}
+                renderItem={renderDraggableFavorite}
+                onDragEnd={handleDragEnd}
+                scrollEnabled={false}
+              />
+              <Text style={{ color: textMuted, fontSize: 12, marginTop: 8, textAlign: 'center' }}>
+                Hold and drag to reorder
+              </Text>
             </View>
           )}
 
@@ -264,7 +394,7 @@ export function FavoriteCategoriesAccordion() {
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               onPress={handleSave}
-              disabled={updateFavorites.isPending}
+              disabled={updateFavorites.isPending || updatePositions.isPending}
               activeOpacity={0.8}
               style={styles.doneButtonWrapper}
             >
@@ -276,7 +406,7 @@ export function FavoriteCategoriesAccordion() {
                 style={styles.doneButton}
               >
                 <Text className="text-white font-sans-semibold text-base">
-                  {updateFavorites.isPending ? 'Saving...' : 'Done'}
+                  {updateFavorites.isPending || updatePositions.isPending ? 'Saving...' : 'Done'}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -325,6 +455,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     paddingHorizontal: 4,
+  },
+  dragHandle: {
+    paddingRight: 8,
+    paddingLeft: 4,
+    paddingVertical: 4,
   },
   categoryInfo: {
     flexDirection: 'row',

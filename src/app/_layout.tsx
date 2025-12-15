@@ -5,6 +5,7 @@ import { Stack } from 'expo-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import {
   useFonts,
   Inter_400Regular,
@@ -16,7 +17,9 @@ import { View, ActivityIndicator } from 'react-native'
 
 import { ThemeProvider } from '~/providers/ThemeProvider'
 import { AuthProvider } from '~/providers/AuthProvider'
+import { AnalyticsProvider } from '~/providers/AnalyticsProvider'
 import { useNotificationObserver } from '~/hooks/useNotifications'
+import { useAnalyticsIdentify } from '~/hooks/useAnalyticsIdentify'
 import { useAuth } from '~/hooks/useAuth'
 import { useAppConfigStore } from '~/stores/appConfigStore'
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
@@ -27,6 +30,9 @@ const queryClient = new QueryClient()
 function RootLayoutContent() {
   // Initialize notification observer for deep linking
   useNotificationObserver()
+
+  // Initialize analytics user identification
+  useAnalyticsIdentify()
 
   // Fetch app config on mount
   const fetchConfig = useAppConfigStore((state) => state.fetchConfig)
@@ -86,16 +92,20 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      <ErrorBoundary>
-        <AuthProvider>
-          <ThemeProvider>
-            <QueryClientProvider client={queryClient}>
-              <RootLayoutContent />
-            </QueryClientProvider>
-          </ThemeProvider>
-        </AuthProvider>
-      </ErrorBoundary>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ErrorBoundary>
+          <AnalyticsProvider>
+            <AuthProvider>
+              <ThemeProvider>
+                <QueryClientProvider client={queryClient}>
+                  <RootLayoutContent />
+                </QueryClientProvider>
+              </ThemeProvider>
+            </AuthProvider>
+          </AnalyticsProvider>
+        </ErrorBoundary>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   )
 }
