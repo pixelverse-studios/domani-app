@@ -7,5 +7,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   return {
     ...config,
     ...appJson.expo,
+    // iOS 16+ automatic light/dark mode icon switching
+    ios: {
+      ...appJson.expo.ios,
+      icon: {
+        light: './assets/icon-light.png',
+        dark: './assets/icon-dark.png',
+      },
+    },
   } as ExpoConfig
 }

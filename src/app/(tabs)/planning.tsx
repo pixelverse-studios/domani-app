@@ -51,9 +51,10 @@ interface TaskFormData {
 
 export default function PlanningScreen() {
   const router = useRouter()
-  const { defaultPlanningFor, editTaskId } = useLocalSearchParams<{
+  const { defaultPlanningFor, editTaskId, openForm } = useLocalSearchParams<{
     defaultPlanningFor?: 'today' | 'tomorrow'
     editTaskId?: string
+    openForm?: string
   }>()
   const [selectedTarget, setSelectedTarget] = useState<PlanningTarget>(
     defaultPlanningFor === 'today' ? 'today' : 'tomorrow',
@@ -99,6 +100,27 @@ export default function PlanningScreen() {
   // During beta, never show limit UI or enforce limits
   const showLimitUI = !isBeta && isFreeUser
   const enforceLimits = !isBeta && isFreeUser
+
+  // Handle openForm param - auto-open form when navigating from Today's "Add New Task"
+  useEffect(() => {
+    if (openForm === 'true' && !editTaskId) {
+      // Check task limit before opening
+      if (enforceLimits && atTaskLimit) {
+        Alert.alert(
+          'Daily Task Limit Reached',
+          'Free accounts can create up to 3 tasks per day. Upgrade to unlock unlimited tasks.',
+          [
+            { text: 'Maybe Later', style: 'cancel' },
+            { text: 'Upgrade', onPress: () => router.push('/subscription') },
+          ],
+        )
+      } else {
+        setIsFormVisible(true)
+      }
+      // Clear the param to prevent re-triggering on tab switch
+      router.setParams({ openForm: undefined })
+    }
+  }, [openForm, editTaskId, enforceLimits, atTaskLimit, router])
 
   const handleOpenForm = () => {
     // Pre-flight check: prevent free users at limit from opening form (only post-beta)
@@ -175,6 +197,8 @@ export default function PlanningScreen() {
           notes: task.notes,
         })
       }
+      // Close form after successful submission
+      handleCloseForm()
     } catch (error) {
       if (!editingTask && error instanceof Error && error.message === 'FREE_TIER_LIMIT') {
         Alert.alert(
