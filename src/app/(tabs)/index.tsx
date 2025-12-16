@@ -226,9 +226,9 @@ export default function TodayScreen() {
       )}
 
       {/* Name Prompt Modal */}
-      <Modal visible={showNameModal} transparent animationType="fade">
+      <Modal visible={showNameModal} transparent animationType="fade" onRequestClose={handleDismissNameModal}>
         <View className="flex-1 bg-black/50 justify-center px-6">
-          <View className="bg-white dark:bg-slate-800 rounded-2xl p-5">
+          <View className="bg-white dark:bg-slate-800 rounded-2xl p-5 max-h-[75%]">
             <View className="flex-row items-center justify-between mb-2">
               <Text className="text-lg font-semibold text-slate-900 dark:text-white">
                 What should we call you?
