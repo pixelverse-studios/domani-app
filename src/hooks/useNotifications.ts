@@ -85,37 +85,37 @@ export function useNotificationObserver() {
 export function useNotifications() {
   const store = useNotificationStore()
 
-  const scheduleEveningReminder = async (hour: number, minute: number) => {
+  const schedulePlanningReminder = async (hour: number, minute: number) => {
     // Always cancel existing reminder before scheduling new one to prevent duplicates
-    if (store.eveningReminderId) {
-      await NotificationService.cancelNotification(store.eveningReminderId)
+    if (store.planningReminderId) {
+      await NotificationService.cancelNotification(store.planningReminderId)
     }
-    const identifier = await NotificationService.scheduleEveningReminder(hour, minute)
-    store.setEveningReminderId(identifier)
+    const identifier = await NotificationService.schedulePlanningReminder(hour, minute)
+    store.setPlanningReminderId(identifier)
     return identifier
   }
 
-  const cancelEveningReminder = async () => {
-    if (store.eveningReminderId) {
-      await NotificationService.cancelNotification(store.eveningReminderId)
-      store.setEveningReminderId(null)
+  const cancelPlanningReminder = async () => {
+    if (store.planningReminderId) {
+      await NotificationService.cancelNotification(store.planningReminderId)
+      store.setPlanningReminderId(null)
     }
   }
 
-  const scheduleMorningReminder = async (hour: number, minute: number) => {
+  const scheduleExecutionReminder = async (hour: number, minute: number) => {
     // Always cancel existing reminder before scheduling new one to prevent duplicates
-    if (store.morningReminderId) {
-      await NotificationService.cancelNotification(store.morningReminderId)
+    if (store.executionReminderId) {
+      await NotificationService.cancelNotification(store.executionReminderId)
     }
-    const identifier = await NotificationService.scheduleMorningReminder(hour, minute)
-    store.setMorningReminderId(identifier)
+    const identifier = await NotificationService.scheduleExecutionReminder(hour, minute)
+    store.setExecutionReminderId(identifier)
     return identifier
   }
 
-  const cancelMorningReminder = async () => {
-    if (store.morningReminderId) {
-      await NotificationService.cancelNotification(store.morningReminderId)
-      store.setMorningReminderId(null)
+  const cancelExecutionReminder = async () => {
+    if (store.executionReminderId) {
+      await NotificationService.cancelNotification(store.executionReminderId)
+      store.setExecutionReminderId(null)
     }
   }
 
@@ -132,13 +132,13 @@ export function useNotifications() {
   }
 
   return {
-    eveningReminderId: store.eveningReminderId,
-    morningReminderId: store.morningReminderId,
+    planningReminderId: store.planningReminderId,
+    executionReminderId: store.executionReminderId,
     permissionStatus: store.permissionStatus,
-    scheduleEveningReminder,
-    cancelEveningReminder,
-    scheduleMorningReminder,
-    cancelMorningReminder,
+    schedulePlanningReminder,
+    cancelPlanningReminder,
+    scheduleExecutionReminder,
+    cancelExecutionReminder,
     requestPermissions,
     checkPermissions,
   }
