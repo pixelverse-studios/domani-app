@@ -69,12 +69,7 @@ export function TaskList({
 
       {/* Task Cards */}
       {sortedTasks.map((task) => (
-        <TaskCard
-          key={task.id}
-          task={task}
-          onEdit={onEditTask}
-          onDelete={handleDeletePress}
-        />
+        <TaskCard key={task.id} task={task} onEdit={onEditTask} onDelete={handleDeletePress} />
       ))}
 
       {/* Delete Confirmation Modal */}

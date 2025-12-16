@@ -41,10 +41,7 @@ export function ReminderBanner() {
       }}
     >
       <Bell size={18} color={purpleColor} />
-      <Text
-        className="font-sans ml-3 flex-1"
-        style={{ fontSize: 14, color: textColor }}
-      >
+      <Text className="font-sans ml-3 flex-1" style={{ fontSize: 14, color: textColor }}>
         Reminder set for tomorrow at{' '}
         <Text className="font-sans-medium" style={{ color: purpleColor }}>
           {displayTime}

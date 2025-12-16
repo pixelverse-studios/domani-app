@@ -163,15 +163,15 @@ function MinimalDayToggle({
 
   // Underline position (centered under text)
   const todayUnderlineLeft = (TODAY_TEXT_WIDTH - UNDERLINE_WIDTH) / 2
-  const tomorrowUnderlineLeft = TODAY_TEXT_WIDTH + ITEM_GAP + (TOMORROW_TEXT_WIDTH - UNDERLINE_WIDTH) / 2
+  const tomorrowUnderlineLeft =
+    TODAY_TEXT_WIDTH + ITEM_GAP + (TOMORROW_TEXT_WIDTH - UNDERLINE_WIDTH) / 2
 
   const underlinePosition = useSharedValue(
     selectedTarget === 'today' ? todayUnderlineLeft : tomorrowUnderlineLeft,
   )
 
   useEffect(() => {
-    const targetPosition =
-      selectedTarget === 'today' ? todayUnderlineLeft : tomorrowUnderlineLeft
+    const targetPosition = selectedTarget === 'today' ? todayUnderlineLeft : tomorrowUnderlineLeft
     underlinePosition.value = withSpring(targetPosition, UNDERLINE_SPRING)
   }, [selectedTarget, underlinePosition, todayUnderlineLeft, tomorrowUnderlineLeft])
 

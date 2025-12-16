@@ -1,5 +1,12 @@
 import React, { useState } from 'react'
-import { View, TouchableOpacity, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native'
+import {
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+} from 'react-native'
 import {
   Pencil,
   Trash2,
@@ -243,10 +250,7 @@ export function TaskCard({
               </Text>
             </View>
             <View
-              style={[
-                styles.notesContent,
-                { backgroundColor: isDark ? '#0f172a' : '#f1f5f9' },
-              ]}
+              style={[styles.notesContent, { backgroundColor: isDark ? '#0f172a' : '#f1f5f9' }]}
             >
               <Text className="font-sans text-sm text-slate-700 dark:text-slate-300">
                 {task.notes}

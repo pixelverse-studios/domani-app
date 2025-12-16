@@ -7,7 +7,10 @@ const POSTHOG_HOST = 'https://us.i.posthog.com'
 // Event types for type-safe tracking
 export type AnalyticsEvent =
   // Plan events
-  | { name: 'plan_created'; properties: { task_count: number; has_mit: boolean; plan_date: string } }
+  | {
+      name: 'plan_created'
+      properties: { task_count: number; has_mit: boolean; plan_date: string }
+    }
   | { name: 'plan_locked'; properties: { task_count: number; plan_date: string } }
   | { name: 'plan_unlocked'; properties: { plan_date: string } }
   // Task events
@@ -36,10 +39,7 @@ export type AnalyticsEvent =
   | { name: 'notifications_skipped'; properties?: Record<string, never> }
 
 interface AnalyticsContextValue {
-  track: <T extends AnalyticsEvent>(
-    eventName: T['name'],
-    properties?: T['properties'],
-  ) => void
+  track: <T extends AnalyticsEvent>(eventName: T['name'], properties?: T['properties']) => void
   identify: (userId: string, traits?: Record<string, string | number | boolean | null>) => void
   reset: () => void
   screen: (screenName: string) => void

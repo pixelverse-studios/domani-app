@@ -179,8 +179,8 @@ Deno.serve(async (req) => {
       // Build notification body with accurate count
       const body =
         count === 1
-          ? "Your 1 task is waiting. Let's make today count!"
-          : `Your ${count} tasks are waiting. Let's make today count!`
+          ? '1 task planned for today. Time to shine!'
+          : `${count} tasks planned for today. Time to shine!`
 
       console.log(
         `[send-execution-reminders] Sending notification to user ${user.id} with ${count} tasks`,

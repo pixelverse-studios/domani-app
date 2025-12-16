@@ -30,6 +30,7 @@ import {
   Info,
   HelpCircle,
   LogOut,
+  ClipboardClock,
 } from 'lucide-react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { format } from 'date-fns'
@@ -651,7 +652,7 @@ export default function SettingsScreen() {
               label="Planning Reminder"
               value={formatTimeDisplay(profile?.planning_reminder_time || null)}
               onPress={openPlanningTimeModal}
-              icon={Clock}
+              icon={ClipboardClock}
             />
             {/* Execution Reminder Toggle */}
             <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3 mb-2">

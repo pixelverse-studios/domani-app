@@ -131,7 +131,7 @@ export const NotificationService = {
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Plan Tomorrow',
-        body: 'Take a few minutes to set your top 3 tasks for tomorrow',
+        body: 'A few minutes now sets you up for success tomorrow.',
         sound: true,
         priority: Notifications.AndroidNotificationPriority.HIGH,
         data: { url: '/(tabs)/planning?defaultPlanningFor=tomorrow', type: 'planning_reminder' },
