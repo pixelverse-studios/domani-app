@@ -278,9 +278,7 @@ export function CategorySelector({
             className="flex-1 font-sans px-3"
             style={{
               fontSize: 15,
-              paddingTop: 12,
-              paddingBottom: 16,
-              minHeight: 48,
+              paddingVertical: 14,
               color: isDark ? '#f8fafc' : '#0f172a',
             }}
           />

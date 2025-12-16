@@ -15,7 +15,7 @@ export const Input = ({ className, style, ...rest }: InputProps) => {
         'focus:border-purple-600 dark:focus:border-purple-500',
         className,
       )}
-      style={[{ paddingTop: 12, paddingBottom: 16, minHeight: 48 }, style]}
+      style={[{ paddingTop: 14, paddingBottom: 14, lineHeight: undefined }, style]}
       {...rest}
     />
   )

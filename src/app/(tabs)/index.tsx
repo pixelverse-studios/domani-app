@@ -247,7 +247,7 @@ export default function TodayScreen() {
               placeholderTextColor="#94a3b8"
               autoFocus
               className="bg-slate-100 dark:bg-slate-700 rounded-xl px-4 text-slate-900 dark:text-white text-base mb-4"
-              style={{ paddingTop: 12, paddingBottom: 16, minHeight: 48 }}
+              style={{ paddingTop: 14, paddingBottom: 14, lineHeight: undefined }}
             />
             <TouchableOpacity
               onPress={handleSaveName}
