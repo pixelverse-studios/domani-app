@@ -206,12 +206,13 @@ export function AddTaskForm({
         </TouchableOpacity>
       </View>
 
-      {/* Day Toggle */}
+      {/* Day Toggle - Minimal Variant */}
       <View className="items-center mb-5">
         <DayToggle
           selectedTarget={selectedTarget}
           onTargetChange={onTargetChange}
           disabled={isFormDisabled}
+          variant="minimal"
         />
       </View>
 

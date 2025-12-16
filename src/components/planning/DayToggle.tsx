@@ -26,13 +26,49 @@ const WIDTH_SPRING = {
   mass: 1,
 }
 
+const UNDERLINE_SPRING = {
+  damping: 20,
+  stiffness: 200,
+  mass: 0.8,
+}
+
 interface DayToggleProps {
   selectedTarget: PlanningTarget
   onTargetChange: (target: PlanningTarget) => void
   disabled?: boolean
+  variant?: 'pill' | 'minimal'
 }
 
-export function DayToggle({ selectedTarget, onTargetChange, disabled = false }: DayToggleProps) {
+export function DayToggle({
+  selectedTarget,
+  onTargetChange,
+  disabled = false,
+  variant = 'pill',
+}: DayToggleProps) {
+  if (variant === 'minimal') {
+    return (
+      <MinimalDayToggle
+        selectedTarget={selectedTarget}
+        onTargetChange={onTargetChange}
+        disabled={disabled}
+      />
+    )
+  }
+
+  return (
+    <PillDayToggle
+      selectedTarget={selectedTarget}
+      onTargetChange={onTargetChange}
+      disabled={disabled}
+    />
+  )
+}
+
+function PillDayToggle({
+  selectedTarget,
+  onTargetChange,
+  disabled,
+}: Omit<DayToggleProps, 'variant'>) {
   const indicatorPosition = useSharedValue(selectedTarget === 'today' ? 0 : TODAY_WIDTH)
   const indicatorWidth = useSharedValue(selectedTarget === 'today' ? TODAY_WIDTH : TOMORROW_WIDTH)
   const scaleY = useSharedValue(1)
@@ -110,6 +146,97 @@ export function DayToggle({ selectedTarget, onTargetChange, disabled = false }: 
           Tomorrow
         </Animated.Text>
       </TouchableOpacity>
+    </View>
+  )
+}
+
+function MinimalDayToggle({
+  selectedTarget,
+  onTargetChange,
+  disabled,
+}: Omit<DayToggleProps, 'variant'>) {
+  const ITEM_GAP = 24
+  const TODAY_TEXT_WIDTH = 50
+  const TOMORROW_TEXT_WIDTH = 75
+  const UNDERLINE_WIDTH = 32
+  const UNDERLINE_HEIGHT = 2
+
+  // Underline position (centered under text)
+  const todayUnderlineLeft = (TODAY_TEXT_WIDTH - UNDERLINE_WIDTH) / 2
+  const tomorrowUnderlineLeft = TODAY_TEXT_WIDTH + ITEM_GAP + (TOMORROW_TEXT_WIDTH - UNDERLINE_WIDTH) / 2
+
+  const underlinePosition = useSharedValue(
+    selectedTarget === 'today' ? todayUnderlineLeft : tomorrowUnderlineLeft,
+  )
+
+  useEffect(() => {
+    const targetPosition =
+      selectedTarget === 'today' ? todayUnderlineLeft : tomorrowUnderlineLeft
+    underlinePosition.value = withSpring(targetPosition, UNDERLINE_SPRING)
+  }, [selectedTarget, underlinePosition, todayUnderlineLeft, tomorrowUnderlineLeft])
+
+  const animatedUnderlineStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: underlinePosition.value }],
+  }))
+
+  return (
+    <View style={{ opacity: disabled ? 0.5 : 1 }}>
+      <View className="flex-row" style={{ gap: ITEM_GAP }}>
+        <TouchableOpacity
+          onPress={() => onTargetChange('today')}
+          disabled={disabled}
+          className="items-center"
+          style={{ width: TODAY_TEXT_WIDTH }}
+          accessibilityRole="button"
+          accessibilityState={{ selected: selectedTarget === 'today' }}
+        >
+          <Animated.Text
+            className={`font-sans-medium ${
+              selectedTarget === 'today'
+                ? 'text-purple-500 dark:text-purple-400'
+                : 'text-slate-400 dark:text-slate-500'
+            }`}
+            style={{ fontSize: 16 }}
+          >
+            Today
+          </Animated.Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => onTargetChange('tomorrow')}
+          disabled={disabled}
+          className="items-center"
+          style={{ width: TOMORROW_TEXT_WIDTH }}
+          accessibilityRole="button"
+          accessibilityState={{ selected: selectedTarget === 'tomorrow' }}
+        >
+          <Animated.Text
+            className={`font-sans-medium ${
+              selectedTarget === 'tomorrow'
+                ? 'text-purple-500 dark:text-purple-400'
+                : 'text-slate-400 dark:text-slate-500'
+            }`}
+            style={{ fontSize: 16 }}
+          >
+            Tomorrow
+          </Animated.Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Animated underline indicator */}
+      <View className="relative" style={{ height: UNDERLINE_HEIGHT + 4, marginTop: 4 }}>
+        <Animated.View
+          className="absolute bg-purple-500 dark:bg-purple-400 rounded-full"
+          style={[
+            {
+              width: UNDERLINE_WIDTH,
+              height: UNDERLINE_HEIGHT,
+              top: 0,
+            },
+            animatedUnderlineStyle,
+          ]}
+        />
+      </View>
     </View>
   )
 }
