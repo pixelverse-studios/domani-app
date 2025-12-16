@@ -63,8 +63,11 @@ export default function PlanningScreen() {
   const [editingTask, setEditingTask] = useState<TaskWithCategory | null>(null)
 
   // Update target when navigation param changes (tab navigation preserves component state)
+  // This effect must run synchronously before the openForm effect to ensure correct target
   useEffect(() => {
-    setSelectedTarget(defaultPlanningFor === 'today' ? 'today' : 'tomorrow')
+    if (defaultPlanningFor) {
+      setSelectedTarget(defaultPlanningFor === 'today' ? 'today' : 'tomorrow')
+    }
   }, [defaultPlanningFor])
 
   // Get the target date based on selection
@@ -104,6 +107,12 @@ export default function PlanningScreen() {
   // Handle openForm param - auto-open form when navigating from Today's "Add New Task"
   useEffect(() => {
     if (openForm === 'true' && !editTaskId) {
+      // Ensure target is set correctly BEFORE opening the form
+      // This handles race conditions where the defaultPlanningFor effect hasn't run yet
+      if (defaultPlanningFor) {
+        setSelectedTarget(defaultPlanningFor === 'today' ? 'today' : 'tomorrow')
+      }
+
       // Check task limit before opening
       if (enforceLimits && atTaskLimit) {
         Alert.alert(
@@ -117,10 +126,11 @@ export default function PlanningScreen() {
       } else {
         setIsFormVisible(true)
       }
-      // Clear the param to prevent re-triggering on tab switch
+      // Clear only the openForm param to prevent re-triggering on tab switch
+      // Keep defaultPlanningFor so it can be used if needed
       router.setParams({ openForm: undefined })
     }
-  }, [openForm, editTaskId, enforceLimits, atTaskLimit, router])
+  }, [openForm, editTaskId, defaultPlanningFor, enforceLimits, atTaskLimit, router])
 
   const handleOpenForm = () => {
     // Pre-flight check: prevent free users at limit from opening form (only post-beta)
