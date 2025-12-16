@@ -218,7 +218,7 @@ export default function SettingsScreen() {
   const { profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const subscription = useSubscription()
-  const { scheduleEveningReminder, scheduleMorningReminder, permissionStatus } = useNotifications()
+  const { schedulePlanningReminder, scheduleExecutionReminder, permissionStatus } = useNotifications()
   const accountDeletion = useAccountDeletion()
   const { phase } = useAppConfig()
 
@@ -300,7 +300,7 @@ export default function SettingsScreen() {
 
     // Reschedule notification if permissions are granted
     if (permissionStatus === 'granted') {
-      await scheduleEveningReminder(time.getHours(), time.getMinutes())
+      await schedulePlanningReminder(time.getHours(), time.getMinutes())
     }
 
     setShowPlanningTimeModal(false)
@@ -312,7 +312,7 @@ export default function SettingsScreen() {
 
     // Reschedule notification if permissions are granted
     if (permissionStatus === 'granted') {
-      await scheduleMorningReminder(time.getHours(), time.getMinutes())
+      await scheduleExecutionReminder(time.getHours(), time.getMinutes())
     }
 
     setShowExecutionTimeModal(false)
@@ -638,13 +638,13 @@ export default function SettingsScreen() {
               icon={Globe}
             />
             <SettingsRow
-              label="Evening Reminder"
+              label="Planning Reminder"
               value={formatTimeDisplay(profile?.planning_reminder_time || null)}
               onPress={openPlanningTimeModal}
               icon={Clock}
             />
             <SettingsRow
-              label="Morning Reminder"
+              label="Execution Reminder"
               value={formatTimeDisplay(profile?.execution_reminder_time || null)}
               onPress={openExecutionTimeModal}
               icon={Clock}
@@ -862,7 +862,7 @@ export default function SettingsScreen() {
           <View className="bg-white dark:bg-slate-800 rounded-2xl p-5 max-h-[75%]">
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-lg font-semibold text-slate-900 dark:text-white">
-                Evening Reminder
+                Planning Reminder
               </Text>
               <TouchableOpacity onPress={() => setShowPlanningTimeModal(false)}>
                 <X size={24} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
@@ -902,7 +902,7 @@ export default function SettingsScreen() {
           <View className="bg-white dark:bg-slate-800 rounded-2xl p-5 max-h-[75%]">
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-lg font-semibold text-slate-900 dark:text-white">
-                Morning Reminder
+                Execution Reminder
               </Text>
               <TouchableOpacity onPress={() => setShowExecutionTimeModal(false)}>
                 <X size={24} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />

@@ -95,7 +95,7 @@ export const NotificationService = {
 
   /**
    * Check if tomorrow's plan is locked (already planned)
-   * If locked, we skip sending the evening reminder
+   * If locked, we skip sending the planning reminder
    */
   async isTomorrowPlanLocked(): Promise<boolean> {
     try {
@@ -120,12 +120,12 @@ export const NotificationService = {
   },
 
   /**
-   * Schedule the evening planning reminder
+   * Schedule the planning reminder
    * @param hour - Hour in 24-hour format (0-23)
    * @param minute - Minute (0-59)
    * @returns Notification identifier for cancellation
    */
-  async scheduleEveningReminder(hour: number, minute: number): Promise<string> {
+  async schedulePlanningReminder(hour: number, minute: number): Promise<string> {
     if (!Notifications) return ''
 
     const identifier = await Notifications.scheduleNotificationAsync({
@@ -134,7 +134,7 @@ export const NotificationService = {
         body: 'Take a few minutes to set your top 3 tasks for tomorrow',
         sound: true,
         priority: Notifications.AndroidNotificationPriority.HIGH,
-        data: { url: '/(tabs)/planning?defaultPlanningFor=tomorrow', type: 'evening_reminder' },
+        data: { url: '/(tabs)/planning?defaultPlanningFor=tomorrow', type: 'planning_reminder' },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -148,12 +148,12 @@ export const NotificationService = {
   },
 
   /**
-   * Schedule the morning execution reminder
+   * Schedule the execution reminder
    * @param hour - Hour in 24-hour format (0-23)
    * @param minute - Minute (0-59)
    * @returns Notification identifier for cancellation
    */
-  async scheduleMorningReminder(hour: number, minute: number): Promise<string> {
+  async scheduleExecutionReminder(hour: number, minute: number): Promise<string> {
     if (!Notifications) return ''
 
     const identifier = await Notifications.scheduleNotificationAsync({
@@ -162,7 +162,7 @@ export const NotificationService = {
         body: "Your planned tasks are waiting. Let's make today count!",
         sound: true,
         priority: Notifications.AndroidNotificationPriority.HIGH,
-        data: { url: '/(tabs)', type: 'morning_reminder' },
+        data: { url: '/(tabs)', type: 'execution_reminder' },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,

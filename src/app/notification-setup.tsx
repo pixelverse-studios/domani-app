@@ -19,7 +19,7 @@ export default function NotificationSetupScreen() {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
 
-  const { setEveningReminderId, setPermissionStatus } = useNotificationStore()
+  const { setPlanningReminderId, setPermissionStatus } = useNotificationStore()
 
   // Default Plan Reminder: 9:00 PM
   const defaultPlanTime = useMemo(() => {
@@ -57,16 +57,16 @@ export default function NotificationSetupScreen() {
         // Cancel any existing reminders first
         await NotificationService.cancelAllReminders()
 
-        // Schedule the evening planning reminder
+        // Schedule the planning reminder
         const planHour = planTime.getHours()
         const planMinute = planTime.getMinutes()
-        const eveningId = await NotificationService.scheduleEveningReminder(planHour, planMinute)
-        setEveningReminderId(eveningId)
+        const planningId = await NotificationService.schedulePlanningReminder(planHour, planMinute)
+        setPlanningReminderId(planningId)
 
-        // Schedule the morning execution reminder
+        // Schedule the execution reminder
         const executeHour = executeTime.getHours()
         const executeMinute = executeTime.getMinutes()
-        await NotificationService.scheduleMorningReminder(executeHour, executeMinute)
+        await NotificationService.scheduleExecutionReminder(executeHour, executeMinute)
 
         // Save both times and mark onboarding complete
         const planTimeString = format(planTime, 'HH:mm:ss')

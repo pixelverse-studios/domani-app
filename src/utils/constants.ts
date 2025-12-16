@@ -1,12 +1,12 @@
 export const PLANNING_PHILOSOPHY = {
   principle: 'Plan tomorrow tonight when calm, execute when it counts',
-  eveningBenefits: [
+  planningBenefits: [
     'Reflective mode (not reactive)',
     'Clear-headed decision making',
     'No morning stress or rush',
     'Better prioritization',
   ],
-  morningBenefits: [
+  executionBenefits: [
     'Wake up with clarity',
     'No decision fatigue',
     'Immediate execution mode',
