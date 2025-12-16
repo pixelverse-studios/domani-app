@@ -127,11 +127,14 @@ export function CategorySelector({
     })
   }, [favoriteCategories, iconColor, purpleColor])
 
-  // All categories (system + custom user categories) - respects sort order
+  // All categories - favorites first (in user-set order), then remaining alphabetically
   const allCategories: CategoryOption[] = useMemo(() => {
-    const systemOptions: CategoryOption[] = sortedCategories
-      .filter((cat) => cat.isSystem)
-      .map((cat) => {
+    // Get favorite IDs for filtering
+    const favoriteIds = new Set(favoriteCategories.map((c) => c.id))
+
+    // Helper to convert a category to CategoryOption
+    const toCategoryOption = (cat: (typeof sortedCategories)[0]): CategoryOption => {
+      if (cat.isSystem) {
         const formId = SYSTEM_NAME_TO_FORM_ID[cat.name] || cat.name.toLowerCase()
         const displayLabel = FORM_ID_TO_DISPLAY[formId] || cat.name
         return {
@@ -140,19 +143,27 @@ export function CategorySelector({
           icon: getCategoryIcon(formId, false, purpleColor, iconColor),
           isSystem: true,
         }
-      })
+      } else {
+        return {
+          id: cat.id,
+          label: cat.name,
+          icon: <Tag size={18} color={iconColor} />,
+          isSystem: false,
+        }
+      }
+    }
 
-    const customOptions: CategoryOption[] = sortedCategories
-      .filter((cat) => !cat.isSystem)
-      .map((cat) => ({
-        id: cat.id,
-        label: cat.name,
-        icon: <Tag size={18} color={iconColor} />,
-        isSystem: false,
-      }))
+    // Favorites first (already in correct order from useFavoriteCategories)
+    const favoriteOptions = favoriteCategories.map(toCategoryOption)
 
-    return [...systemOptions, ...customOptions]
-  }, [sortedCategories, iconColor, purpleColor])
+    // Remaining categories (non-favorites), sorted alphabetically
+    const remainingOptions = sortedCategories
+      .filter((cat) => !favoriteIds.has(cat.id))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(toCategoryOption)
+
+    return [...favoriteOptions, ...remainingOptions]
+  }, [sortedCategories, favoriteCategories, iconColor, purpleColor])
 
   // Filter categories based on search (show all when focused but empty)
   const filteredCategories = useMemo(() => {
