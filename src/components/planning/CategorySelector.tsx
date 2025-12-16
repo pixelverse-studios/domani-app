@@ -275,10 +275,11 @@ export function CategorySelector({
             placeholder="Search All Categories"
             placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
             editable={!disabled}
-            className="flex-1 font-sans py-3 px-3"
+            className="flex-1 font-sans py-4 px-3"
             style={{
               fontSize: 15,
-              lineHeight: 22,
+              textAlignVertical: 'center',
+              includeFontPadding: false,
               color: isDark ? '#f8fafc' : '#0f172a',
             }}
           />

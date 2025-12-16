@@ -246,8 +246,8 @@ export default function TodayScreen() {
               placeholder="Enter your name"
               placeholderTextColor="#94a3b8"
               autoFocus
-              className="bg-slate-100 dark:bg-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white text-base mb-4"
-              style={{ lineHeight: 24 }}
+              className="bg-slate-100 dark:bg-slate-700 rounded-xl px-4 py-4 text-slate-900 dark:text-white text-base mb-4"
+              style={{ textAlignVertical: 'center', includeFontPadding: false }}
             />
             <TouchableOpacity
               onPress={handleSaveName}
