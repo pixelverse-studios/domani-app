@@ -172,6 +172,7 @@ export function useUpdateTask() {
     mutationFn: async ({
       taskId,
       updates,
+      originalPlanId,
     }: {
       taskId: string
       updates: Partial<{
@@ -183,9 +184,12 @@ export function useUpdateTask() {
         estimated_duration_minutes: number
         position: number
         notes: string | null
+        plan_id: string // Support moving task to different plan (day change)
         // Note: is_mit is automatically controlled by priority via DB trigger
         // Setting priority to 'high' will auto-set is_mit=true and demote other HIGH tasks
       }>
+      /** Original plan ID for cache invalidation when task moves to different plan */
+      originalPlanId?: string
     }) => {
       // Note: When priority is updated to 'high', DB trigger will:
       // 1. Set is_mit = true on this task
@@ -198,10 +202,15 @@ export function useUpdateTask() {
         .single()
 
       if (error) throw error
-      return data
+      return { data, originalPlanId }
     },
-    onSuccess: (data) => {
+    onSuccess: ({ data, originalPlanId }) => {
+      // Invalidate the new plan's tasks
       queryClient.invalidateQueries({ queryKey: ['tasks', data.plan_id] })
+      // If task moved to different plan, also invalidate the original plan's tasks
+      if (originalPlanId && originalPlanId !== data.plan_id) {
+        queryClient.invalidateQueries({ queryKey: ['tasks', originalPlanId] })
+      }
     },
   })
 }

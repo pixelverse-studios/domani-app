@@ -47,6 +47,7 @@ interface TaskFormData {
   category: string
   priority: Priority
   notes?: string | null
+  plannedFor?: 'today' | 'tomorrow'
 }
 
 export default function PlanningScreen() {
@@ -75,8 +76,16 @@ export default function PlanningScreen() {
     return selectedTarget === 'today' ? new Date() : addDays(new Date(), 1)
   }, [selectedTarget])
 
-  // Get or create plan for the target date
-  const { data: plan } = usePlanForDate(targetDate)
+  // Get dates for today and tomorrow
+  const todayDate = useMemo(() => new Date(), [])
+  const tomorrowDate = useMemo(() => addDays(new Date(), 1), [])
+
+  // Get or create plans for both today and tomorrow (needed for moving tasks between days)
+  const { data: todayPlan } = usePlanForDate(todayDate)
+  const { data: tomorrowPlan } = usePlanForDate(tomorrowDate)
+
+  // The plan for the currently selected target
+  const plan = selectedTarget === 'today' ? todayPlan : tomorrowPlan
   const { data: tasks = [] } = useTasks(plan?.id)
   const { data: systemCategories = [] } = useSystemCategories()
   const createTask = useCreateTask()
@@ -180,26 +189,40 @@ export default function PlanningScreen() {
 
     try {
       if (editingTask) {
+        // Determine if task is moving to a different day
+        const originalPlanId = editingTask.plan_id
+        const targetPlanId = task.plannedFor === 'today' ? todayPlan?.id : tomorrowPlan?.id
+
+        // Build base updates
+        const updates: Parameters<typeof updateTask.mutateAsync>[0]['updates'] = {
+          title: task.title,
+          priority: task.priority,
+          system_category_id: systemCategoryId || null,
+          user_category_id: !isSystemCategory ? task.category : null,
+          notes: task.notes ?? null,
+        }
+
+        // If day changed, add plan_id to updates
+        if (targetPlanId && targetPlanId !== originalPlanId) {
+          updates.plan_id = targetPlanId
+        }
+
         // Update existing task
         await updateTask.mutateAsync({
           taskId: editingTask.id,
-          updates: {
-            title: task.title,
-            priority: task.priority,
-            system_category_id: systemCategoryId || null,
-            user_category_id: !isSystemCategory ? task.category : null,
-            notes: task.notes ?? null,
-          },
+          updates,
+          originalPlanId,
         })
       } else {
-        // Create new task
-        if (!plan?.id) {
-          console.error('No plan available')
+        // Create new task - use the plan for the selected target day
+        const targetPlanId = task.plannedFor === 'today' ? todayPlan?.id : tomorrowPlan?.id
+        if (!targetPlanId) {
+          console.error('No plan available for target day')
           return
         }
 
         await createTask.mutateAsync({
-          planId: plan.id,
+          planId: targetPlanId,
           title: task.title,
           priority: task.priority,
           systemCategoryId: systemCategoryId,
