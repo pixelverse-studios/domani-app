@@ -218,7 +218,7 @@ export default function SettingsScreen() {
   const { profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const subscription = useSubscription()
-  const { schedulePlanningReminder, scheduleExecutionReminder, permissionStatus } = useNotifications()
+  const { schedulePlanningReminder, permissionStatus } = useNotifications()
   const accountDeletion = useAccountDeletion()
   const { phase } = useAppConfig()
 
@@ -309,13 +309,22 @@ export default function SettingsScreen() {
   const handleUpdateExecutionTime = async (time: Date) => {
     const timeString = format(time, 'HH:mm:ss')
     await updateProfile.mutateAsync({ execution_reminder_time: timeString })
-
-    // Reschedule notification if permissions are granted
-    if (permissionStatus === 'granted') {
-      await scheduleExecutionReminder(time.getHours(), time.getMinutes())
-    }
-
+    // Note: Execution reminder is handled server-side via Edge Function
+    // No local notification scheduling needed
     setShowExecutionTimeModal(false)
+  }
+
+  const handleToggleExecutionReminder = async (enabled: boolean) => {
+    if (enabled) {
+      // Enable: set default time (8 AM)
+      const defaultTime = new Date()
+      defaultTime.setHours(8, 0, 0, 0)
+      const timeString = format(defaultTime, 'HH:mm:ss')
+      await updateProfile.mutateAsync({ execution_reminder_time: timeString })
+    } else {
+      // Disable: clear time
+      await updateProfile.mutateAsync({ execution_reminder_time: null })
+    }
   }
 
   const openNameModal = () => {
@@ -643,12 +652,34 @@ export default function SettingsScreen() {
               onPress={openPlanningTimeModal}
               icon={Clock}
             />
-            <SettingsRow
-              label="Execution Reminder"
-              value={formatTimeDisplay(profile?.execution_reminder_time || null)}
-              onPress={openExecutionTimeModal}
-              icon={Clock}
-            />
+            {/* Execution Reminder Toggle */}
+            <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3 mb-2 flex-row items-center justify-between">
+              <View className="flex-row items-center">
+                <Clock size={20} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
+                <Text className="text-base text-slate-900 dark:text-slate-100 ml-3">
+                  Execution Reminder
+                </Text>
+              </View>
+              <Switch
+                value={!!profile?.execution_reminder_time}
+                onValueChange={handleToggleExecutionReminder}
+                trackColor={{
+                  false: activeTheme === 'dark' ? '#334155' : '#e2e8f0',
+                  true: activeTheme === 'dark' ? '#a78bfa' : '#8b5cf6',
+                }}
+                thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
+                ios_backgroundColor={activeTheme === 'dark' ? '#334155' : '#e2e8f0'}
+              />
+            </View>
+            {/* Execution Time - only shown when enabled */}
+            {profile?.execution_reminder_time && (
+              <SettingsRow
+                label="Reminder Time"
+                value={formatTimeDisplay(profile.execution_reminder_time)}
+                onPress={openExecutionTimeModal}
+                icon={Clock}
+              />
+            )}
           </View>
         )}
 
@@ -782,7 +813,12 @@ export default function SettingsScreen() {
       </ScrollView>
 
       {/* Name Edit Modal */}
-      <Modal visible={showNameModal} transparent animationType="fade" onRequestClose={() => setShowNameModal(false)}>
+      <Modal
+        visible={showNameModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNameModal(false)}
+      >
         <View className="flex-1 bg-black/50 justify-center px-6">
           <View className="bg-white dark:bg-slate-800 rounded-2xl p-5 max-h-[75%]">
             <View className="flex-row items-center justify-between mb-4">
@@ -819,7 +855,12 @@ export default function SettingsScreen() {
       </Modal>
 
       {/* Timezone Modal */}
-      <Modal visible={showTimezoneModal} transparent animationType="slide" onRequestClose={() => setShowTimezoneModal(false)}>
+      <Modal
+        visible={showTimezoneModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTimezoneModal(false)}
+      >
         <View className="flex-1 bg-black/50 justify-end">
           <View className="bg-white dark:bg-slate-800 rounded-t-3xl max-h-[70%]">
             <View className="flex-row items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
@@ -857,7 +898,12 @@ export default function SettingsScreen() {
       </Modal>
 
       {/* Planning Time Picker Modal */}
-      <Modal visible={showPlanningTimeModal} transparent animationType="fade" onRequestClose={() => setShowPlanningTimeModal(false)}>
+      <Modal
+        visible={showPlanningTimeModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPlanningTimeModal(false)}
+      >
         <View className="flex-1 bg-black/50 justify-center px-6">
           <View className="bg-white dark:bg-slate-800 rounded-2xl p-5 max-h-[75%]">
             <View className="flex-row items-center justify-between mb-4">
@@ -897,7 +943,12 @@ export default function SettingsScreen() {
       </Modal>
 
       {/* Execution Time Picker Modal */}
-      <Modal visible={showExecutionTimeModal} transparent animationType="fade" onRequestClose={() => setShowExecutionTimeModal(false)}>
+      <Modal
+        visible={showExecutionTimeModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowExecutionTimeModal(false)}
+      >
         <View className="flex-1 bg-black/50 justify-center px-6">
           <View className="bg-white dark:bg-slate-800 rounded-2xl p-5 max-h-[75%]">
             <View className="flex-row items-center justify-between mb-4">
@@ -937,7 +988,12 @@ export default function SettingsScreen() {
       </Modal>
 
       {/* Delete Account Confirmation Modal */}
-      <Modal visible={showDeleteModal} transparent animationType="fade" onRequestClose={() => setShowDeleteModal(false)}>
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
         <View className="flex-1 bg-black/60 justify-center items-center px-6">
           <View className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-[320px] max-h-[75%] items-center">
             {/* Warning Icon */}
@@ -1000,7 +1056,12 @@ export default function SettingsScreen() {
       </Modal>
 
       {/* Smart Categories Confirmation Modal */}
-      <Modal visible={showSmartCategoriesModal} transparent animationType="fade" onRequestClose={() => setShowSmartCategoriesModal(false)}>
+      <Modal
+        visible={showSmartCategoriesModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSmartCategoriesModal(false)}
+      >
         <View className="flex-1 bg-black/60 justify-center items-center px-6">
           <View className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-[320px] max-h-[75%] items-center">
             {/* Icon */}

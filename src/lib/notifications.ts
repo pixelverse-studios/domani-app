@@ -147,33 +147,8 @@ export const NotificationService = {
     return identifier
   },
 
-  /**
-   * Schedule the execution reminder
-   * @param hour - Hour in 24-hour format (0-23)
-   * @param minute - Minute (0-59)
-   * @returns Notification identifier for cancellation
-   */
-  async scheduleExecutionReminder(hour: number, minute: number): Promise<string> {
-    if (!Notifications) return ''
-
-    const identifier = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Time to Execute',
-        body: "Your planned tasks are waiting. Let's make today count!",
-        sound: true,
-        priority: Notifications.AndroidNotificationPriority.HIGH,
-        data: { url: '/(tabs)', type: 'execution_reminder' },
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour,
-        minute,
-        channelId: Platform.OS === 'android' ? CHANNEL_ID : undefined,
-      },
-    })
-
-    return identifier
-  },
+  // Note: Execution reminders are now handled server-side via Edge Function
+  // The scheduleExecutionReminder method has been removed
 
   /**
    * Cancel a specific scheduled notification
@@ -222,6 +197,38 @@ export const NotificationService = {
     return {
       hour: parseInt(hours, 10),
       minute: parseInt(minutes, 10),
+    }
+  },
+
+  /**
+   * Get Expo Push Token for push notifications
+   * This token is used by the backend Edge Function to send push notifications
+   * @returns Push token string or null if unavailable
+   */
+  async getExpoPushToken(): Promise<string | null> {
+    if (!Notifications) return null
+
+    try {
+      // Get the project ID from expo config
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId
+
+      if (!projectId) {
+        console.warn('[Notifications] No EAS project ID found - push notifications unavailable')
+        return null
+      }
+
+      // Check if we have permission first
+      const hasPermission = await this.hasPermissions()
+      if (!hasPermission) {
+        console.warn('[Notifications] No permission for push notifications')
+        return null
+      }
+
+      const token = await Notifications.getExpoPushTokenAsync({ projectId })
+      return token.data
+    } catch (error) {
+      console.error('[Notifications] Failed to get push token:', error)
+      return null
     }
   },
 }
