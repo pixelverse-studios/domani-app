@@ -156,9 +156,9 @@ function MinimalDayToggle({
   disabled,
 }: Omit<DayToggleProps, 'variant'>) {
   const ITEM_GAP = 24
-  const TODAY_TEXT_WIDTH = 50
-  const TOMORROW_TEXT_WIDTH = 75
-  const UNDERLINE_WIDTH = 32
+  const TODAY_TEXT_WIDTH = 54
+  const TOMORROW_TEXT_WIDTH = 90
+  const UNDERLINE_WIDTH = 40
   const UNDERLINE_HEIGHT = 2
 
   // Underline position (centered under text)
