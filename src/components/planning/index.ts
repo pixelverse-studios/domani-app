@@ -1,4 +1,5 @@
 export { PlanningHeader } from './PlanningHeader'
+export { DayToggle, type PlanningTarget } from './DayToggle'
 export { PlanningTip } from './PlanningTip'
 export { AddTaskPlaceholder } from './AddTaskPlaceholder'
 export { AddTaskForm } from './AddTaskForm'
