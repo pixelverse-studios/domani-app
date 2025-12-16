@@ -49,6 +49,7 @@ interface AddTaskFormProps {
     category: Category
     priority: Priority
     notes?: string | null
+    plannedFor?: PlanningTarget
   }) => Promise<void> | void
   initialValues?: InitialFormValues
   isEditing?: boolean
@@ -148,6 +149,7 @@ export function AddTaskForm({
         category: selectedCategory,
         priority: selectedPriority,
         notes: notes.trim() || null,
+        plannedFor: selectedTarget,
       })
 
       // Show success state
