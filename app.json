@@ -26,6 +26,11 @@
         "foregroundImage": "./assets/icon-dark.png",
         "backgroundColor": "#0f172a"
       },
+      "splash": {
+        "image": "./assets/splash.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#0f172a"
+      },
       "package": "com.baitedz.domaniapp"
     },
     "web": {
