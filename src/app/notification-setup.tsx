@@ -64,7 +64,7 @@ export default function NotificationSetupScreen() {
         const planningId = await NotificationService.schedulePlanningReminder(planHour, planMinute)
         setPlanningReminderId(planningId)
 
-        // Note: Execution reminder is now handled by server-side Edge Function
+        // Note: Execution reminder is handled server-side via Edge Function
         // We only save the time preference here - the server will send push notifications
 
         // Save times and mark onboarding complete
@@ -226,9 +226,7 @@ export default function NotificationSetupScreen() {
                   </Text>
                 </Button>
               ) : (
-                <View
-                  style={[styles.pickerContainer, { backgroundColor: colors.pickerBackground }]}
-                >
+                <View style={[styles.pickerContainer, { backgroundColor: colors.pickerBackground }]}>
                   <DateTimePicker
                     value={executeTime}
                     mode="time"

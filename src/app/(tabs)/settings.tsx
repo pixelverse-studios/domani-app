@@ -317,6 +317,7 @@ export default function SettingsScreen() {
   const handleToggleExecutionReminder = async (enabled: boolean) => {
     if (enabled) {
       // Enable: set default time (8 AM)
+      // Note: Execution reminder is handled server-side via Edge Function
       const defaultTime = new Date()
       defaultTime.setHours(8, 0, 0, 0)
       const timeString = format(defaultTime, 'HH:mm:ss')
@@ -653,33 +654,44 @@ export default function SettingsScreen() {
               icon={Clock}
             />
             {/* Execution Reminder Toggle */}
-            <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3 mb-2 flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                <Clock size={20} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
-                <Text className="text-base text-slate-900 dark:text-slate-100 ml-3">
-                  Execution Reminder
-                </Text>
+            <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3 mb-2">
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center flex-1">
+                  <View className="mr-3">
+                    <Clock size={20} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
+                  </View>
+                  <Text className="text-base text-slate-900 dark:text-slate-100">
+                    Execution Reminder
+                  </Text>
+                </View>
+                <Switch
+                  value={!!profile?.execution_reminder_time}
+                  onValueChange={handleToggleExecutionReminder}
+                  trackColor={{
+                    false: activeTheme === 'dark' ? '#334155' : '#e2e8f0',
+                    true: activeTheme === 'dark' ? '#a78bfa' : '#8b5cf6',
+                  }}
+                  thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
+                  ios_backgroundColor={activeTheme === 'dark' ? '#334155' : '#e2e8f0'}
+                />
               </View>
-              <Switch
-                value={!!profile?.execution_reminder_time}
-                onValueChange={handleToggleExecutionReminder}
-                trackColor={{
-                  false: activeTheme === 'dark' ? '#334155' : '#e2e8f0',
-                  true: activeTheme === 'dark' ? '#a78bfa' : '#8b5cf6',
-                }}
-                thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
-                ios_backgroundColor={activeTheme === 'dark' ? '#334155' : '#e2e8f0'}
-              />
+              {/* Time selector - only shown when enabled */}
+              {profile?.execution_reminder_time && (
+                <TouchableOpacity
+                  onPress={openExecutionTimeModal}
+                  activeOpacity={0.7}
+                  className="flex-row items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-slate-700"
+                >
+                  <Text className="text-sm text-slate-500 dark:text-slate-400">Reminder time</Text>
+                  <View className="flex-row items-center">
+                    <Text className="text-sm text-slate-500 dark:text-slate-400 mr-2">
+                      {formatTimeDisplay(profile.execution_reminder_time)}
+                    </Text>
+                    <ChevronRight size={16} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
+                  </View>
+                </TouchableOpacity>
+              )}
             </View>
-            {/* Execution Time - only shown when enabled */}
-            {profile?.execution_reminder_time && (
-              <SettingsRow
-                label="Reminder Time"
-                value={formatTimeDisplay(profile.execution_reminder_time)}
-                onPress={openExecutionTimeModal}
-                icon={Clock}
-              />
-            )}
           </View>
         )}
 
