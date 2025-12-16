@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Platform, StyleSheet, View, ScrollView } from 'react-native'
+import { Platform, StyleSheet, View, ScrollView, Switch } from 'react-native'
 import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -20,6 +20,7 @@ export default function NotificationSetupScreen() {
   const isDark = activeTheme === 'dark'
 
   const { setPlanningReminderId, setPermissionStatus } = useNotificationStore()
+  const [executionReminderEnabled, setExecutionReminderEnabled] = useState(false)
 
   // Default Plan Reminder: 9:00 PM
   const defaultPlanTime = useMemo(() => {
@@ -54,23 +55,21 @@ export default function NotificationSetupScreen() {
       setPermissionStatus(granted ? 'granted' : 'denied')
 
       if (granted) {
-        // Cancel any existing reminders first
+        // Cancel any existing local reminders first
         await NotificationService.cancelAllReminders()
 
-        // Schedule the planning reminder
+        // Schedule the planning reminder (local notification)
         const planHour = planTime.getHours()
         const planMinute = planTime.getMinutes()
         const planningId = await NotificationService.schedulePlanningReminder(planHour, planMinute)
         setPlanningReminderId(planningId)
 
-        // Schedule the execution reminder
-        const executeHour = executeTime.getHours()
-        const executeMinute = executeTime.getMinutes()
-        await NotificationService.scheduleExecutionReminder(executeHour, executeMinute)
+        // Note: Execution reminder is now handled by server-side Edge Function
+        // We only save the time preference here - the server will send push notifications
 
-        // Save both times and mark onboarding complete
+        // Save times and mark onboarding complete
         const planTimeString = format(planTime, 'HH:mm:ss')
-        const executeTimeString = format(executeTime, 'HH:mm:ss')
+        const executeTimeString = executionReminderEnabled ? format(executeTime, 'HH:mm:ss') : null
         await updateProfile.mutateAsync({
           planning_reminder_time: planTimeString,
           execution_reminder_time: executeTimeString,
@@ -190,34 +189,58 @@ export default function NotificationSetupScreen() {
         {/* Execute Reminder Section */}
         <View style={styles.reminderSection}>
           <Text style={[styles.sectionTitle, { color: colors.sectionTitle }]}>
-            Execute Reminder
+            Execution Reminder
           </Text>
           <Text style={[styles.sectionDescription, { color: colors.sectionDescription }]}>
-            When would you like Domani to remind you to start your tasks?
+            Optional: Get a morning reminder to start your tasks
           </Text>
 
-          {Platform.OS === 'android' && !showExecutePicker ? (
-            <Button
-              variant="ghost"
-              onPress={() => setShowExecutePicker(true)}
-              style={[styles.androidTimeButton, { backgroundColor: colors.androidButtonBg }]}
-            >
-              <Text style={[styles.androidTimeText, { color: colors.androidTimeText }]}>
-                {format(executeTime, 'h:mm a')}
-              </Text>
-            </Button>
-          ) : (
-            <View style={[styles.pickerContainer, { backgroundColor: colors.pickerBackground }]}>
-              <DateTimePicker
-                value={executeTime}
-                mode="time"
-                display="spinner"
-                onChange={handleExecuteTimeChange}
-                textColor={colors.pickerText}
-                themeVariant={isDark ? 'dark' : 'light'}
-                style={styles.picker}
-              />
-            </View>
+          {/* Toggle to enable/disable */}
+          <View style={[styles.toggleRow, { backgroundColor: colors.pickerBackground }]}>
+            <Text style={[styles.toggleLabel, { color: colors.sectionTitle }]}>
+              Enable reminder
+            </Text>
+            <Switch
+              value={executionReminderEnabled}
+              onValueChange={setExecutionReminderEnabled}
+              trackColor={{
+                false: isDark ? '#334155' : '#e2e8f0',
+                true: isDark ? '#a78bfa' : '#8b5cf6',
+              }}
+              thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
+              ios_backgroundColor={isDark ? '#334155' : '#e2e8f0'}
+            />
+          </View>
+
+          {/* Time picker - only shown when enabled */}
+          {executionReminderEnabled && (
+            <>
+              {Platform.OS === 'android' && !showExecutePicker ? (
+                <Button
+                  variant="ghost"
+                  onPress={() => setShowExecutePicker(true)}
+                  style={[styles.androidTimeButton, { backgroundColor: colors.androidButtonBg }]}
+                >
+                  <Text style={[styles.androidTimeText, { color: colors.androidTimeText }]}>
+                    {format(executeTime, 'h:mm a')}
+                  </Text>
+                </Button>
+              ) : (
+                <View
+                  style={[styles.pickerContainer, { backgroundColor: colors.pickerBackground }]}
+                >
+                  <DateTimePicker
+                    value={executeTime}
+                    mode="time"
+                    display="spinner"
+                    onChange={handleExecuteTimeChange}
+                    textColor={colors.pickerText}
+                    themeVariant={isDark ? 'dark' : 'light'}
+                    style={styles.picker}
+                  />
+                </View>
+              )}
+            </>
           )}
         </View>
 
@@ -302,6 +325,18 @@ const styles = StyleSheet.create({
   androidTimeText: {
     fontSize: 24,
     fontWeight: '600',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  toggleLabel: {
+    fontSize: 16,
+    fontWeight: '500',
   },
   spacer: {
     flex: 1,

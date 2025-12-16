@@ -572,6 +572,7 @@ export type Database = {
           deletion_scheduled_for: string | null
           email: string
           execution_reminder_time: string | null
+          expo_push_token: string | null
           full_name: string | null
           id: string
           notification_onboarding_completed: boolean
@@ -593,6 +594,7 @@ export type Database = {
           deletion_scheduled_for?: string | null
           email: string
           execution_reminder_time?: string | null
+          expo_push_token?: string | null
           full_name?: string | null
           id: string
           notification_onboarding_completed?: boolean
@@ -614,6 +616,7 @@ export type Database = {
           deletion_scheduled_for?: string | null
           email?: string
           execution_reminder_time?: string | null
+          expo_push_token?: string | null
           full_name?: string | null
           id?: string
           notification_onboarding_completed?: boolean
@@ -1017,6 +1020,26 @@ export type Database = {
       }
     }
     Views: {
+      admin_user_tasks_today: {
+        Row: {
+          category: string | null
+          completed_at: string | null
+          email: string | null
+          estimated_duration_minutes: number | null
+          full_name: string | null
+          is_most_important: boolean | null
+          plan_status: Database['public']['Enums']['plan_status'] | null
+          planned_for: string | null
+          priority: Database['public']['Enums']['task_priority'] | null
+          task_created_at: string | null
+          task_description: string | null
+          task_notes: string | null
+          task_order: number | null
+          task_status: string | null
+          task_title: string | null
+        }
+        Relationships: []
+      }
       admin_users_overview: {
         Row: {
           created_at: string | null

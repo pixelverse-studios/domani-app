@@ -5,6 +5,7 @@ import Constants from 'expo-constants'
 
 import { NotificationService } from '~/lib/notifications'
 import { useNotificationStore } from '~/stores/notificationStore'
+import { supabase } from '~/lib/supabase'
 
 // Check if notifications are supported (not in Expo Go on Android SDK 53+)
 const isExpoGo = Constants.appOwnership === 'expo'
@@ -30,6 +31,36 @@ export function useNotificationObserver() {
 
     // Initialize notification system on mount
     NotificationService.initialize()
+
+    // Register push token for server-side notifications (execution reminders)
+    const registerPushToken = async () => {
+      try {
+        const token = await NotificationService.getExpoPushToken()
+        if (token) {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser()
+          if (user) {
+            // Only update if token is different to avoid unnecessary writes
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('expo_push_token')
+              .eq('id', user.id)
+              .single()
+
+            if (profile?.expo_push_token !== token) {
+              await supabase.from('profiles').update({ expo_push_token: token }).eq('id', user.id)
+              console.log('[Notifications] Push token registered')
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[Notifications] Failed to register push token:', error)
+      }
+    }
+
+    // Register token after a short delay to ensure auth is ready
+    const tokenTimeout = setTimeout(registerPushToken, 2000)
 
     // Handle notifications received while app is foregrounded
     notificationListener.current = Notifications.addNotificationReceivedListener(
@@ -73,6 +104,7 @@ export function useNotificationObserver() {
     )
 
     return () => {
+      clearTimeout(tokenTimeout)
       notificationListener.current?.remove()
       responseListener.current?.remove()
     }
@@ -102,22 +134,8 @@ export function useNotifications() {
     }
   }
 
-  const scheduleExecutionReminder = async (hour: number, minute: number) => {
-    // Always cancel existing reminder before scheduling new one to prevent duplicates
-    if (store.executionReminderId) {
-      await NotificationService.cancelNotification(store.executionReminderId)
-    }
-    const identifier = await NotificationService.scheduleExecutionReminder(hour, minute)
-    store.setExecutionReminderId(identifier)
-    return identifier
-  }
-
-  const cancelExecutionReminder = async () => {
-    if (store.executionReminderId) {
-      await NotificationService.cancelNotification(store.executionReminderId)
-      store.setExecutionReminderId(null)
-    }
-  }
+  // Note: Execution reminders are now handled server-side via Edge Function
+  // No local scheduling methods needed
 
   const requestPermissions = async () => {
     const granted = await NotificationService.requestPermissions()
@@ -133,12 +151,9 @@ export function useNotifications() {
 
   return {
     planningReminderId: store.planningReminderId,
-    executionReminderId: store.executionReminderId,
     permissionStatus: store.permissionStatus,
     schedulePlanningReminder,
     cancelPlanningReminder,
-    scheduleExecutionReminder,
-    cancelExecutionReminder,
     requestPermissions,
     checkPermissions,
   }
