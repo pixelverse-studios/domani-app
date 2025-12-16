@@ -283,6 +283,8 @@ export default function PlanningScreen() {
             isEditing={!!editingTask}
             existingHighPriorityTask={existingHighPriorityTask}
             editingTaskId={editingTask?.id}
+            selectedTarget={selectedTarget}
+            onTargetChange={setSelectedTarget}
           />
         ) : (
           <AddTaskPlaceholder

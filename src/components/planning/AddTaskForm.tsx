@@ -27,6 +27,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 import { Text } from '~/components/ui'
 import { CategorySelector } from './CategorySelector'
 import { PrioritySelector, type Priority } from './PrioritySelector'
+import { DayToggle, type PlanningTarget } from './DayToggle'
 import { useTheme } from '~/hooks/useTheme'
 import { colors } from '~/theme'
 
@@ -55,6 +56,10 @@ interface AddTaskFormProps {
   existingHighPriorityTask?: { id: string; title: string } | null
   /** ID of the task being edited (to exclude self from HIGH check) */
   editingTaskId?: string
+  /** Currently selected planning target (today/tomorrow) */
+  selectedTarget: PlanningTarget
+  /** Callback when target day changes */
+  onTargetChange: (target: PlanningTarget) => void
 }
 
 export function AddTaskForm({
@@ -64,6 +69,8 @@ export function AddTaskForm({
   isEditing = false,
   existingHighPriorityTask,
   editingTaskId,
+  selectedTarget,
+  onTargetChange,
 }: AddTaskFormProps) {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
@@ -185,7 +192,7 @@ export function AddTaskForm({
       )}
 
       {/* Header */}
-      <View className="flex-row items-center justify-between mb-5">
+      <View className="flex-row items-center justify-between mb-4">
         <Text className="text-xl font-sans-bold text-slate-900 dark:text-white">
           {isEditing ? 'Edit Task' : 'New Task'}
         </Text>
@@ -197,6 +204,16 @@ export function AddTaskForm({
         >
           <X size={24} color={iconColor} />
         </TouchableOpacity>
+      </View>
+
+      {/* Day Toggle - Minimal Variant */}
+      <View className="items-center mb-5">
+        <DayToggle
+          selectedTarget={selectedTarget}
+          onTargetChange={onTargetChange}
+          disabled={isFormDisabled}
+          variant="minimal"
+        />
       </View>
 
       {/* Task Title Input */}
