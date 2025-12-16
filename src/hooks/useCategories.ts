@@ -204,7 +204,9 @@ export function useSortedCategories(autoSort: boolean = false) {
         name: cat.name,
         icon: cat.icon,
         color: cat.color,
-        position: cat.position + 100, // Offset user categories after system
+        // Only offset non-favorite custom categories to keep them after system categories
+        // Favorite custom categories keep their raw position to respect user's drag-and-drop ordering
+        position: cat.is_favorite ? cat.position : cat.position + 100,
         usageCount: cat.usage_count ?? 0,
         isSystem: false,
         isFavorite: cat.is_favorite ?? false,
