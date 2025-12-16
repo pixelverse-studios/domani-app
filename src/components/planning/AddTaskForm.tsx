@@ -354,6 +354,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
+    lineHeight: 24,
   },
   notesInput: {
     borderRadius: 12,
@@ -361,6 +362,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
+    lineHeight: 22,
     minHeight: 100,
   },
   addButtonGradient: {

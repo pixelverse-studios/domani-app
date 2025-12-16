@@ -6,7 +6,7 @@ interface InputProps extends TextInputProps {
   className?: string
 }
 
-export const Input = ({ className, ...rest }: InputProps) => {
+export const Input = ({ className, style, ...rest }: InputProps) => {
   return (
     <TextInput
       placeholderTextColor="rgba(100,116,139,0.8)"
@@ -15,6 +15,7 @@ export const Input = ({ className, ...rest }: InputProps) => {
         'focus:border-purple-600 dark:focus:border-purple-500',
         className,
       )}
+      style={[{ lineHeight: 24 }, style]}
       {...rest}
     />
   )

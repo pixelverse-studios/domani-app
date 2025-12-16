@@ -70,7 +70,7 @@ export function FormTextArea({
             numberOfLines={6}
             textAlignVertical="top"
             className="bg-slate-100 dark:bg-slate-800 rounded-xl px-4 py-3 text-base text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 min-h-[140px]"
-            style={{ color: textColor }}
+            style={{ color: textColor, lineHeight: 24 }}
           />
           {/* Character Counter */}
           <View className="flex-row justify-between mt-2">
