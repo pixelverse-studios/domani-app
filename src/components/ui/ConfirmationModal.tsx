@@ -76,6 +76,8 @@ export function ConfirmationModal({
           <Text
             className="font-sans-semibold mt-1"
             style={{ textAlign: 'center', fontSize: 16, color: purpleColor }}
+            numberOfLines={3}
+            ellipsizeMode="tail"
           >
             &quot;{itemName}&quot;
           </Text>
@@ -139,6 +141,7 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     maxWidth: 320,
+    maxHeight: '75%',
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',

@@ -226,9 +226,9 @@ export default function TodayScreen() {
       )}
 
       {/* Name Prompt Modal */}
-      <Modal visible={showNameModal} transparent animationType="fade">
+      <Modal visible={showNameModal} transparent animationType="fade" onRequestClose={handleDismissNameModal}>
         <View className="flex-1 bg-black/50 justify-center px-6">
-          <View className="bg-white dark:bg-slate-800 rounded-2xl p-5">
+          <View className="bg-white dark:bg-slate-800 rounded-2xl p-5 max-h-[75%]">
             <View className="flex-row items-center justify-between mb-2">
               <Text className="text-lg font-semibold text-slate-900 dark:text-white">
                 What should we call you?
@@ -246,7 +246,8 @@ export default function TodayScreen() {
               placeholder="Enter your name"
               placeholderTextColor="#94a3b8"
               autoFocus
-              className="bg-slate-100 dark:bg-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white text-base mb-4"
+              className="bg-slate-100 dark:bg-slate-700 rounded-xl px-4 text-slate-900 dark:text-white text-base mb-4"
+              style={{ paddingTop: 14, paddingBottom: 14, lineHeight: undefined }}
             />
             <TouchableOpacity
               onPress={handleSaveName}

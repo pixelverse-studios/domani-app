@@ -359,8 +359,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontSize: 15,
+    textAlignVertical: 'top',
     minHeight: 100,
   },
   addButtonGradient: {

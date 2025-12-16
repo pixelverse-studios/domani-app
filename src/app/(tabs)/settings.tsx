@@ -782,9 +782,9 @@ export default function SettingsScreen() {
       </ScrollView>
 
       {/* Name Edit Modal */}
-      <Modal visible={showNameModal} transparent animationType="fade">
+      <Modal visible={showNameModal} transparent animationType="fade" onRequestClose={() => setShowNameModal(false)}>
         <View className="flex-1 bg-black/50 justify-center px-6">
-          <View className="bg-white dark:bg-slate-800 rounded-2xl p-5">
+          <View className="bg-white dark:bg-slate-800 rounded-2xl p-5 max-h-[75%]">
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-lg font-semibold text-slate-900 dark:text-white">
                 Edit Name
@@ -799,7 +799,8 @@ export default function SettingsScreen() {
               placeholder="Enter your name"
               placeholderTextColor="#94a3b8"
               autoFocus
-              className="bg-slate-100 dark:bg-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white text-base mb-4"
+              className="bg-slate-100 dark:bg-slate-700 rounded-xl px-4 text-slate-900 dark:text-white text-base mb-4"
+              style={{ paddingTop: 14, paddingBottom: 14, lineHeight: undefined }}
             />
             <TouchableOpacity
               onPress={handleUpdateName}
@@ -818,7 +819,7 @@ export default function SettingsScreen() {
       </Modal>
 
       {/* Timezone Modal */}
-      <Modal visible={showTimezoneModal} transparent animationType="slide">
+      <Modal visible={showTimezoneModal} transparent animationType="slide" onRequestClose={() => setShowTimezoneModal(false)}>
         <View className="flex-1 bg-black/50 justify-end">
           <View className="bg-white dark:bg-slate-800 rounded-t-3xl max-h-[70%]">
             <View className="flex-row items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
@@ -856,9 +857,9 @@ export default function SettingsScreen() {
       </Modal>
 
       {/* Planning Time Picker Modal */}
-      <Modal visible={showPlanningTimeModal} transparent animationType="fade">
+      <Modal visible={showPlanningTimeModal} transparent animationType="fade" onRequestClose={() => setShowPlanningTimeModal(false)}>
         <View className="flex-1 bg-black/50 justify-center px-6">
-          <View className="bg-white dark:bg-slate-800 rounded-2xl p-5">
+          <View className="bg-white dark:bg-slate-800 rounded-2xl p-5 max-h-[75%]">
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-lg font-semibold text-slate-900 dark:text-white">
                 Evening Reminder
@@ -896,9 +897,9 @@ export default function SettingsScreen() {
       </Modal>
 
       {/* Execution Time Picker Modal */}
-      <Modal visible={showExecutionTimeModal} transparent animationType="fade">
+      <Modal visible={showExecutionTimeModal} transparent animationType="fade" onRequestClose={() => setShowExecutionTimeModal(false)}>
         <View className="flex-1 bg-black/50 justify-center px-6">
-          <View className="bg-white dark:bg-slate-800 rounded-2xl p-5">
+          <View className="bg-white dark:bg-slate-800 rounded-2xl p-5 max-h-[75%]">
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-lg font-semibold text-slate-900 dark:text-white">
                 Morning Reminder
@@ -936,9 +937,9 @@ export default function SettingsScreen() {
       </Modal>
 
       {/* Delete Account Confirmation Modal */}
-      <Modal visible={showDeleteModal} transparent animationType="fade">
+      <Modal visible={showDeleteModal} transparent animationType="fade" onRequestClose={() => setShowDeleteModal(false)}>
         <View className="flex-1 bg-black/60 justify-center items-center px-6">
-          <View className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-[320px] items-center">
+          <View className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-[320px] max-h-[75%] items-center">
             {/* Warning Icon */}
             <View className="w-14 h-14 rounded-full bg-red-500/15 items-center justify-center mb-4">
               <AlertTriangle size={28} color="#ef4444" />
@@ -999,9 +1000,9 @@ export default function SettingsScreen() {
       </Modal>
 
       {/* Smart Categories Confirmation Modal */}
-      <Modal visible={showSmartCategoriesModal} transparent animationType="fade">
+      <Modal visible={showSmartCategoriesModal} transparent animationType="fade" onRequestClose={() => setShowSmartCategoriesModal(false)}>
         <View className="flex-1 bg-black/60 justify-center items-center px-6">
-          <View className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-[320px] items-center">
+          <View className="bg-white dark:bg-slate-800 rounded-2xl p-6 w-full max-w-[320px] max-h-[75%] items-center">
             {/* Icon */}
             <View className="w-14 h-14 rounded-full bg-purple-500/15 items-center justify-center mb-4">
               <Sparkles size={28} color="#8b5cf6" />
