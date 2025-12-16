@@ -268,7 +268,10 @@ export function CategorySelector({
             value={categorySearch}
             onChangeText={setCategorySearch}
             onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
+            onBlur={() => {
+              // Delay to allow onPress to fire first (fixes blur/press race condition)
+              setTimeout(() => setIsFocused(false), 150)
+            }}
             placeholder="Search All Categories"
             placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
             editable={!disabled}
