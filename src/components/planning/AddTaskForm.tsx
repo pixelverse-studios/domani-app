@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import {
   View,
   TextInput,
@@ -40,6 +40,7 @@ interface InitialFormValues {
   categoryLabel?: string
   priority?: Priority | null
   notes?: string | null
+  plannedFor?: PlanningTarget
 }
 
 interface AddTaskFormProps {
@@ -91,6 +92,27 @@ export function AddTaskForm({
 
   // Animation for chevron rotation
   const notesChevronRotation = useSharedValue(initialValues?.notes ? 1 : 0)
+
+  // Sync form state when initialValues changes (e.g., editing a different task)
+  // This is critical because useState initializers only run once on mount
+  useEffect(() => {
+    if (initialValues) {
+      setTitle(initialValues.title ?? '')
+      setSelectedCategory(initialValues.categoryId ?? null)
+      setSelectedCategoryLabel(initialValues.categoryLabel ?? null)
+      setSelectedPriority(initialValues.priority ?? null)
+      setNotes(initialValues.notes ?? '')
+      setIsNotesExpanded(!!initialValues.notes)
+      notesChevronRotation.value = initialValues.notes ? 1 : 0
+    }
+  }, [initialValues, notesChevronRotation])
+
+  // Sync the day toggle when editing - ensure the form shows the task's actual day
+  useEffect(() => {
+    if (isEditing && initialValues?.plannedFor) {
+      onTargetChange(initialValues.plannedFor)
+    }
+  }, [isEditing, initialValues?.plannedFor, onTargetChange])
 
   const handleToggleNotes = useCallback(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
