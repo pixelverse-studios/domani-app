@@ -96,6 +96,8 @@ export function CategorySelector({
   const [categorySearch, setCategorySearch] = React.useState('')
   const [isFocused, setIsFocused] = React.useState(false)
   const categorySearchRef = useRef<TextInput>(null)
+  // Track pending selection to prevent blur race condition in production builds
+  const pendingSelectionRef = useRef(false)
 
   // Delete confirmation state
   const [categoryToDelete, setCategoryToDelete] = React.useState<CategoryOption | null>(null)
@@ -189,6 +191,8 @@ export function CategorySelector({
   const showCategoryButtons = !isFocused && !hasSearchText
 
   const handleSelectCategory = (category: CategoryOption) => {
+    // Mark selection as pending to prevent blur race condition
+    pendingSelectionRef.current = true
     onSelectCategory(category.id, category.label)
     setCategorySearch('')
     setIsFocused(false)
@@ -198,6 +202,8 @@ export function CategorySelector({
   const handleCreateCategory = async () => {
     const newCategoryName = categorySearch.trim()
     if (newCategoryName) {
+      // Mark selection as pending to prevent blur race condition
+      pendingSelectionRef.current = true
       try {
         const newCategory = await createCategory.mutateAsync({ name: newCategoryName })
         onSelectCategory(newCategory.id, newCategory.name)
@@ -206,11 +212,15 @@ export function CategorySelector({
         categorySearchRef.current?.blur()
       } catch (error) {
         console.error('Failed to create category:', error)
+        // Reset pending flag on error so blur can work normally
+        pendingSelectionRef.current = false
       }
     }
   }
 
   const handleDeletePress = (category: CategoryOption) => {
+    // Mark selection as pending to prevent blur race condition
+    pendingSelectionRef.current = true
     setCategoryToDelete(category)
     setShowDeleteModal(true)
   }
@@ -280,7 +290,12 @@ export function CategorySelector({
             onChangeText={setCategorySearch}
             onFocus={() => setIsFocused(true)}
             onBlur={() => {
-              // Delay to allow onPress to fire first (fixes blur/press race condition)
+              // Skip blur if a selection is pending (fixes blur/press race condition in production)
+              if (pendingSelectionRef.current) {
+                pendingSelectionRef.current = false
+                return
+              }
+              // Fallback delay for other blur scenarios (e.g., tapping outside)
               setTimeout(() => setIsFocused(false), 150)
             }}
             placeholder="Search All Categories"
