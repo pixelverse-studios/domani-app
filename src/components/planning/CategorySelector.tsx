@@ -498,20 +498,16 @@ export function CategorySelector({
                 const isSelected = selectedCategory === category.id
                 return (
                   <View key={category.id} style={styles.categoryGridItem}>
-                    {/* Wrapper View captures touch before blur fires */}
+                    {/* Wrapper View handles selection in onTouchStart - fires before blur */}
                     <View
                       onTouchStart={() => {
+                        if (disabled) return
                         debugLog('DROPDOWN_ITEM_TOUCH_START', { categoryId: category.id, categoryLabel: category.label })
-                        // Mark pending IMMEDIATELY on raw touch to beat the blur race
-                        pendingSelectionRef.current = true
-                        debugLog('PENDING_REF_SET_ON_TOUCH', { value: true })
+                        // Do selection IMMEDIATELY in onTouchStart - don't wait for onPressIn
+                        handleSelectCategory(category)
                       }}
                     >
                       <TouchableOpacity
-                        onPressIn={() => {
-                          debugLog('DROPDOWN_ITEM_PRESS_IN', { categoryId: category.id, categoryLabel: category.label })
-                          handleSelectCategory(category)
-                        }}
                         disabled={disabled}
                         className="flex-row items-center py-3 px-4 rounded-xl"
                         style={{
@@ -536,16 +532,13 @@ export function CategorySelector({
                     {!category.isSystem && (
                       <View
                         onTouchStart={() => {
-                          debugLog('DELETE_BUTTON_TOUCH_START', { categoryId: category.id })
-                          pendingSelectionRef.current = true
+                          if (disabled) return
+                          debugLog('DELETE_BUTTON_TOUCH_START', { categoryId: category.id, categoryLabel: category.label })
+                          handleDeletePress(category)
                         }}
                         className="absolute -top-1 -right-1"
                       >
                         <TouchableOpacity
-                          onPressIn={() => {
-                            debugLog('DELETE_BUTTON_PRESS_IN', { categoryId: category.id, categoryLabel: category.label })
-                            handleDeletePress(category)
-                          }}
                           disabled={disabled}
                           className="w-5 h-5 rounded-full items-center justify-center"
                           style={{ backgroundColor: isDark ? '#ef4444' : '#dc2626' }}
@@ -564,15 +557,12 @@ export function CategorySelector({
                 <View style={styles.categoryGridItem}>
                   <View
                     onTouchStart={() => {
+                      if (disabled) return
                       debugLog('CREATE_BUTTON_TOUCH_START', { newCategoryName: categorySearch.trim() })
-                      pendingSelectionRef.current = true
+                      handleCreateCategory()
                     }}
                   >
                     <TouchableOpacity
-                      onPressIn={() => {
-                        debugLog('CREATE_BUTTON_PRESS_IN', { newCategoryName: categorySearch.trim() })
-                        handleCreateCategory()
-                      }}
                       disabled={disabled}
                       className="flex-row items-center py-3 px-4 rounded-xl"
                       style={{

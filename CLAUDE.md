@@ -122,9 +122,9 @@ This ensures nothing falls through the cracks between development sessions.
 3. **Commit the version bump** before building
 
 **Current versions (update after each build):**
-- Android versionCode: 6
-- Android versionName: 1.0.5
-- app.json version: 1.0.5
+- Android versionCode: 7
+- Android versionName: 1.0.6
+- app.json version: 1.0.6
 - iOS uses EAS auto-increment
 
 ## Linear Ticket Creation
