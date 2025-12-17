@@ -278,14 +278,19 @@ export default function PlanningScreen() {
       categoryLabel = editingTask.user_category.name
     }
 
+    // Determine which day the task is planned for based on its plan_id
+    const plannedFor: PlanningTarget =
+      editingTask.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
+
     return {
       title: editingTask.title,
       categoryId,
       categoryLabel,
       priority: editingTask.priority as Priority,
       notes: editingTask.notes,
+      plannedFor,
     }
-  }, [editingTask])
+  }, [editingTask, todayPlan?.id])
 
   const handleDeleteTask = async (taskId: string) => {
     try {
