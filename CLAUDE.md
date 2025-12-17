@@ -107,6 +107,25 @@ This ensures nothing falls through the cracks between development sessions.
 - **MIT**: Each plan has exactly one Most Important Task
 - **Plan Locking**: Locked plans cannot be edited (prevents midnight anxiety)
 
+## Build Preparation
+
+**IMPORTANT:** When the user mentions "preparing for a build", "ready for build", or similar, always:
+
+1. **Increment version numbers** before building:
+   - **Android:** Update `versionCode` (integer, must increment) and `versionName` in `android/app/build.gradle`
+   - **iOS:** Update via `app.json` or Xcode (EAS handles this automatically with `autoIncrement`)
+
+2. **Version file locations:**
+   - `android/app/build.gradle` - lines ~95-96 (`versionCode` and `versionName`)
+   - `app.json` - `expo.version` (display version)
+
+3. **Commit the version bump** before building
+
+**Current versions (update after each build):**
+- Android versionCode: 3
+- Android versionName: 1.0.2
+- iOS uses EAS auto-increment
+
 ## Linear Ticket Creation
 
 When creating Linear tickets for this project:
