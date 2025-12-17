@@ -1,5 +1,21 @@
-import React, { useMemo, useRef } from 'react'
-import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native'
+import React, { useMemo, useRef, useEffect } from 'react'
+import { View, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native'
+
+// =============================================================================
+// DEBUG LOGGING - Remove after diagnosing production bug
+// =============================================================================
+const DEBUG_CATEGORY_SELECTOR = true
+let eventSequence = 0
+const debugLog = (event: string, data?: Record<string, unknown>) => {
+  if (!DEBUG_CATEGORY_SELECTOR) return
+  const seq = ++eventSequence
+  const timestamp = Date.now()
+  console.log(
+    `[CAT-DEBUG #${seq}] ${timestamp} | ${event}`,
+    data ? JSON.stringify(data) : ''
+  )
+}
+// =============================================================================
 import {
   Tag,
   Briefcase,
@@ -190,28 +206,42 @@ export function CategorySelector({
   const showDropdown = isFocused || hasSearchText
   const showCategoryButtons = !isFocused && !hasSearchText
 
+  // DEBUG: Log state changes
+  useEffect(() => {
+    debugLog('STATE_CHANGE', { isFocused, hasSearchText, showDropdown, showCategoryButtons })
+  }, [isFocused, hasSearchText, showDropdown, showCategoryButtons])
+
   const handleSelectCategory = (category: CategoryOption) => {
+    debugLog('HANDLE_SELECT_START', { categoryId: category.id, categoryLabel: category.label })
     // Mark selection as pending to prevent blur race condition
     pendingSelectionRef.current = true
+    debugLog('PENDING_REF_SET', { value: true })
     onSelectCategory(category.id, category.label)
+    debugLog('ON_SELECT_CALLBACK_DONE')
     setCategorySearch('')
     setIsFocused(false)
+    debugLog('SET_IS_FOCUSED_CALLED', { value: false })
     categorySearchRef.current?.blur()
+    debugLog('BLUR_CALLED')
   }
 
   const handleCreateCategory = async () => {
     const newCategoryName = categorySearch.trim()
+    debugLog('HANDLE_CREATE_START', { newCategoryName })
     if (newCategoryName) {
       // Mark selection as pending to prevent blur race condition
       pendingSelectionRef.current = true
+      debugLog('PENDING_REF_SET', { value: true })
       try {
         const newCategory = await createCategory.mutateAsync({ name: newCategoryName })
+        debugLog('CREATE_MUTATION_SUCCESS', { newCategoryId: newCategory.id })
         onSelectCategory(newCategory.id, newCategory.name)
         setCategorySearch('')
         setIsFocused(false)
         categorySearchRef.current?.blur()
       } catch (error) {
         console.error('Failed to create category:', error)
+        debugLog('CREATE_MUTATION_ERROR', { error: String(error) })
         // Reset pending flag on error so blur can work normally
         pendingSelectionRef.current = false
       }
@@ -219,10 +249,13 @@ export function CategorySelector({
   }
 
   const handleDeletePress = (category: CategoryOption) => {
+    debugLog('HANDLE_DELETE_START', { categoryId: category.id, categoryLabel: category.label })
     // Mark selection as pending to prevent blur race condition
     pendingSelectionRef.current = true
+    debugLog('PENDING_REF_SET', { value: true })
     setCategoryToDelete(category)
     setShowDeleteModal(true)
+    debugLog('DELETE_MODAL_SHOWN')
   }
 
   const handleConfirmDelete = async () => {
@@ -288,15 +321,24 @@ export function CategorySelector({
             ref={categorySearchRef}
             value={categorySearch}
             onChangeText={setCategorySearch}
-            onFocus={() => setIsFocused(true)}
+            onFocus={() => {
+              debugLog('TEXT_INPUT_FOCUS')
+              setIsFocused(true)
+            }}
             onBlur={() => {
+              debugLog('TEXT_INPUT_BLUR_START', { pendingRef: pendingSelectionRef.current })
               // Skip blur if a selection is pending (fixes blur/press race condition in production)
               if (pendingSelectionRef.current) {
+                debugLog('BLUR_SKIPPED_DUE_TO_PENDING_REF')
                 pendingSelectionRef.current = false
                 return
               }
               // Fallback delay for other blur scenarios (e.g., tapping outside)
-              setTimeout(() => setIsFocused(false), 150)
+              debugLog('BLUR_STARTING_TIMEOUT', { delayMs: 150 })
+              setTimeout(() => {
+                debugLog('BLUR_TIMEOUT_FIRED')
+                setIsFocused(false)
+              }, 150)
             }}
             placeholder="Search All Categories"
             placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
@@ -321,7 +363,10 @@ export function CategorySelector({
                 return (
                   <View key={category.id} style={styles.categoryGridItem}>
                     <TouchableOpacity
-                      onPressIn={() => handleSelectCategory(category)}
+                      onPressIn={() => {
+                        debugLog('DROPDOWN_ITEM_PRESS_IN', { categoryId: category.id, categoryLabel: category.label })
+                        handleSelectCategory(category)
+                      }}
                       disabled={disabled}
                       className="flex-row items-center py-3 px-4 rounded-xl"
                       style={{
@@ -344,7 +389,10 @@ export function CategorySelector({
                     {/* Delete button for user categories */}
                     {!category.isSystem && (
                       <TouchableOpacity
-                        onPressIn={() => handleDeletePress(category)}
+                        onPressIn={() => {
+                          debugLog('DELETE_BUTTON_PRESS_IN', { categoryId: category.id, categoryLabel: category.label })
+                          handleDeletePress(category)
+                        }}
                         disabled={disabled}
                         className="absolute -top-1 -right-1 w-5 h-5 rounded-full items-center justify-center"
                         style={{ backgroundColor: isDark ? '#ef4444' : '#dc2626' }}
@@ -361,7 +409,10 @@ export function CategorySelector({
               {hasSearchText && !exactMatchExists && (
                 <View style={styles.categoryGridItem}>
                   <TouchableOpacity
-                    onPressIn={handleCreateCategory}
+                    onPressIn={() => {
+                      debugLog('CREATE_BUTTON_PRESS_IN', { newCategoryName: categorySearch.trim() })
+                      handleCreateCategory()
+                    }}
                     disabled={disabled}
                     className="flex-row items-center py-3 px-4 rounded-xl"
                     style={{
