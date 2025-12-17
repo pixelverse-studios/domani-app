@@ -62,6 +62,44 @@ export function useNotificationObserver() {
     // Register token after a short delay to ensure auth is ready
     const tokenTimeout = setTimeout(registerPushToken, 2000)
 
+    // Reschedule planning reminder on app launch to ensure notification text is current
+    const reschedulePlanningReminder = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (!user) return
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('planning_reminder_time')
+          .eq('id', user.id)
+          .single()
+
+        if (!profile?.planning_reminder_time) return
+
+        // Parse the time and reschedule
+        const { hour, minute } = NotificationService.parseTimeString(profile.planning_reminder_time)
+        const store = useNotificationStore.getState()
+
+        // Cancel existing if present
+        if (store.planningReminderId) {
+          await NotificationService.cancelNotification(store.planningReminderId)
+        }
+
+        // Schedule fresh notification with current text
+        const newId = await NotificationService.schedulePlanningReminder(hour, minute)
+        store.setPlanningReminderId(newId)
+
+        console.log('[Notifications] Rescheduled planning reminder with fresh content')
+      } catch (error) {
+        console.error('[Notifications] Failed to reschedule planning reminder:', error)
+      }
+    }
+
+    // Reschedule after auth is ready
+    const rescheduleTimeout = setTimeout(reschedulePlanningReminder, 2500)
+
     // Handle notifications received while app is foregrounded
     notificationListener.current = Notifications.addNotificationReceivedListener(
       (notification: { request: { content: { title: string } } }) => {
@@ -105,6 +143,7 @@ export function useNotificationObserver() {
 
     return () => {
       clearTimeout(tokenTimeout)
+      clearTimeout(rescheduleTimeout)
       notificationListener.current?.remove()
       responseListener.current?.remove()
     }
