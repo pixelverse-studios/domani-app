@@ -306,7 +306,7 @@ export function CategorySelector({
                 return (
                   <View key={category.id} style={styles.categoryGridItem}>
                     <TouchableOpacity
-                      onPress={() => handleSelectCategory(category)}
+                      onPressIn={() => handleSelectCategory(category)}
                       disabled={disabled}
                       className="flex-row items-center py-3 px-4 rounded-xl"
                       style={{
@@ -329,7 +329,7 @@ export function CategorySelector({
                     {/* Delete button for user categories */}
                     {!category.isSystem && (
                       <TouchableOpacity
-                        onPress={() => handleDeletePress(category)}
+                        onPressIn={() => handleDeletePress(category)}
                         disabled={disabled}
                         className="absolute -top-1 -right-1 w-5 h-5 rounded-full items-center justify-center"
                         style={{ backgroundColor: isDark ? '#ef4444' : '#dc2626' }}
@@ -346,7 +346,7 @@ export function CategorySelector({
               {hasSearchText && !exactMatchExists && (
                 <View style={styles.categoryGridItem}>
                   <TouchableOpacity
-                    onPress={handleCreateCategory}
+                    onPressIn={handleCreateCategory}
                     disabled={disabled}
                     className="flex-row items-center py-3 px-4 rounded-xl"
                     style={{
