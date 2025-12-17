@@ -1,154 +1,5 @@
-import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react'
-import {
-  View,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Platform,
-  ScrollView,
-  Dimensions,
-} from 'react-native'
-
-// =============================================================================
-// DEBUG OVERLAY - On-screen debugging for production builds
-// console.log doesn't work in iOS release builds, so we show events on screen
-// =============================================================================
-const DEBUG_CATEGORY_SELECTOR = true
-const MAX_DEBUG_EVENTS = 15
-
-interface DebugEvent {
-  seq: number
-  time: string
-  event: string
-  data?: string
-}
-
-let eventSequence = 0
-let debugEventListeners: ((event: DebugEvent) => void)[] = []
-
-const debugLog = (event: string, data?: Record<string, unknown>) => {
-  if (!DEBUG_CATEGORY_SELECTOR) return
-  const seq = ++eventSequence
-  const now = new Date()
-  const time = `${now.getMinutes()}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`
-  const debugEvent: DebugEvent = {
-    seq,
-    time,
-    event,
-    data: data ? JSON.stringify(data) : undefined,
-  }
-  // Still log to console (works in dev, stripped in prod)
-  console.log(`[CAT-DEBUG #${seq}] ${time} | ${event}`, data ? JSON.stringify(data) : '')
-  // Notify all listeners (for on-screen overlay)
-  debugEventListeners.forEach((listener) => listener(debugEvent))
-}
-
-// Hook to subscribe to debug events
-const useDebugEvents = () => {
-  const [events, setEvents] = useState<DebugEvent[]>([])
-  const [isVisible, setIsVisible] = useState(false)
-
-  useEffect(() => {
-    const listener = (event: DebugEvent) => {
-      setEvents((prev) => {
-        const newEvents = [...prev, event]
-        // Keep only last MAX_DEBUG_EVENTS
-        return newEvents.slice(-MAX_DEBUG_EVENTS)
-      })
-    }
-    debugEventListeners.push(listener)
-    return () => {
-      debugEventListeners = debugEventListeners.filter((l) => l !== listener)
-    }
-  }, [])
-
-  const clearEvents = useCallback(() => setEvents([]), [])
-  const toggleVisibility = useCallback(() => setIsVisible((v) => !v), [])
-
-  return { events, isVisible, clearEvents, toggleVisibility }
-}
-
-// Text-based debug overlay for production visibility
-function DebugOverlayWithText({
-  events,
-  isVisible,
-  onClear,
-  onToggle,
-}: {
-  events: DebugEvent[]
-  isVisible: boolean
-  onClear: () => void
-  onToggle: () => void
-}) {
-  const scrollRef = useRef<ScrollView>(null)
-  const { Text: RNText } = require('react-native')
-
-  useEffect(() => {
-    if (isVisible && scrollRef.current) {
-      scrollRef.current.scrollToEnd({ animated: true })
-    }
-  }, [events, isVisible])
-
-  if (!DEBUG_CATEGORY_SELECTOR) return null
-
-  const screenHeight = Dimensions.get('window').height
-
-  return (
-    <>
-      {/* Toggle button - always visible */}
-      <TouchableOpacity
-        onPress={onToggle}
-        style={[
-          styles.debugToggle,
-          { backgroundColor: isVisible ? '#ef4444' : '#22c55e' },
-        ]}
-      >
-        <RNText style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>
-          {isVisible ? 'X' : 'DBG'}
-        </RNText>
-      </TouchableOpacity>
-
-      {/* Debug panel */}
-      {isVisible && (
-        <View style={[styles.debugPanel, { maxHeight: screenHeight * 0.35 }]}>
-          <View style={styles.debugHeader}>
-            <RNText style={{ color: '#22c55e', fontSize: 11, fontWeight: 'bold' }}>
-              🔍 CAT-DEBUG ({events.length})
-            </RNText>
-            <TouchableOpacity onPress={onClear} style={styles.debugClearBtn}>
-              <RNText style={{ color: '#fff', fontSize: 10 }}>CLEAR</RNText>
-            </TouchableOpacity>
-          </View>
-          <ScrollView ref={scrollRef} style={styles.debugScroll}>
-            {events.length === 0 ? (
-              <RNText style={{ color: '#64748b', fontSize: 10, padding: 8 }}>
-                Tap in the category search to start logging...
-              </RNText>
-            ) : (
-              events.map((e) => (
-                <View key={e.seq} style={styles.debugEvent}>
-                  <RNText style={{ color: '#94a3b8', fontSize: 9 }}>
-                    <RNText style={{ color: '#fbbf24' }}>#{e.seq}</RNText>
-                    {' '}
-                    <RNText style={{ color: '#64748b' }}>{e.time}</RNText>
-                    {' '}
-                    <RNText style={{ color: '#22d3ee', fontWeight: 'bold' }}>{e.event}</RNText>
-                  </RNText>
-                  {e.data && (
-                    <RNText style={{ color: '#a78bfa', fontSize: 8, marginLeft: 8 }}>
-                      {e.data}
-                    </RNText>
-                  )}
-                </View>
-              ))
-            )}
-          </ScrollView>
-        </View>
-      )}
-    </>
-  )
-}
-// =============================================================================
+import React, { useMemo, useRef } from 'react'
+import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native'
 import {
   Tag,
   Briefcase,
@@ -252,9 +103,6 @@ export function CategorySelector({
   const [categoryToDelete, setCategoryToDelete] = React.useState<CategoryOption | null>(null)
   const [showDeleteModal, setShowDeleteModal] = React.useState(false)
 
-  // Debug overlay state (for production debugging)
-  const debugState = useDebugEvents()
-
   const purpleColor = isDark ? '#a78bfa' : '#8b5cf6'
   const iconColor = isDark ? '#94a3b8' : '#64748b'
 
@@ -342,42 +190,28 @@ export function CategorySelector({
   const showDropdown = isFocused || hasSearchText
   const showCategoryButtons = !isFocused && !hasSearchText
 
-  // DEBUG: Log state changes
-  useEffect(() => {
-    debugLog('STATE_CHANGE', { isFocused, hasSearchText, showDropdown, showCategoryButtons })
-  }, [isFocused, hasSearchText, showDropdown, showCategoryButtons])
-
   const handleSelectCategory = (category: CategoryOption) => {
-    debugLog('HANDLE_SELECT_START', { categoryId: category.id, categoryLabel: category.label })
     // Mark selection as pending to prevent blur race condition
     pendingSelectionRef.current = true
-    debugLog('PENDING_REF_SET', { value: true })
     onSelectCategory(category.id, category.label)
-    debugLog('ON_SELECT_CALLBACK_DONE')
     setCategorySearch('')
     setIsFocused(false)
-    debugLog('SET_IS_FOCUSED_CALLED', { value: false })
     categorySearchRef.current?.blur()
-    debugLog('BLUR_CALLED')
   }
 
   const handleCreateCategory = async () => {
     const newCategoryName = categorySearch.trim()
-    debugLog('HANDLE_CREATE_START', { newCategoryName })
     if (newCategoryName) {
       // Mark selection as pending to prevent blur race condition
       pendingSelectionRef.current = true
-      debugLog('PENDING_REF_SET', { value: true })
       try {
         const newCategory = await createCategory.mutateAsync({ name: newCategoryName })
-        debugLog('CREATE_MUTATION_SUCCESS', { newCategoryId: newCategory.id })
         onSelectCategory(newCategory.id, newCategory.name)
         setCategorySearch('')
         setIsFocused(false)
         categorySearchRef.current?.blur()
       } catch (error) {
         console.error('Failed to create category:', error)
-        debugLog('CREATE_MUTATION_ERROR', { error: String(error) })
         // Reset pending flag on error so blur can work normally
         pendingSelectionRef.current = false
       }
@@ -385,13 +219,10 @@ export function CategorySelector({
   }
 
   const handleDeletePress = (category: CategoryOption) => {
-    debugLog('HANDLE_DELETE_START', { categoryId: category.id, categoryLabel: category.label })
     // Mark selection as pending to prevent blur race condition
     pendingSelectionRef.current = true
-    debugLog('PENDING_REF_SET', { value: true })
     setCategoryToDelete(category)
     setShowDeleteModal(true)
-    debugLog('DELETE_MODAL_SHOWN')
   }
 
   const handleConfirmDelete = async () => {
@@ -457,22 +288,15 @@ export function CategorySelector({
             ref={categorySearchRef}
             value={categorySearch}
             onChangeText={setCategorySearch}
-            onFocus={() => {
-              debugLog('TEXT_INPUT_FOCUS')
-              setIsFocused(true)
-            }}
+            onFocus={() => setIsFocused(true)}
             onBlur={() => {
-              debugLog('TEXT_INPUT_BLUR_START', { pendingRef: pendingSelectionRef.current })
               // Skip blur if a selection is pending (fixes blur/press race condition in production)
               if (pendingSelectionRef.current) {
-                debugLog('BLUR_SKIPPED_DUE_TO_PENDING_REF')
                 pendingSelectionRef.current = false
                 return
               }
               // Fallback delay for other blur scenarios (e.g., tapping outside)
-              debugLog('BLUR_STARTING_TIMEOUT', { delayMs: 150 })
               setTimeout(() => {
-                debugLog('BLUR_TIMEOUT_FIRED')
                 setIsFocused(false)
               }, 150)
             }}
@@ -502,8 +326,6 @@ export function CategorySelector({
                     <View
                       onTouchStart={() => {
                         if (disabled) return
-                        debugLog('DROPDOWN_ITEM_TOUCH_START', { categoryId: category.id, categoryLabel: category.label })
-                        // Do selection IMMEDIATELY in onTouchStart - don't wait for onPressIn
                         handleSelectCategory(category)
                       }}
                     >
@@ -533,7 +355,6 @@ export function CategorySelector({
                       <View
                         onTouchStart={() => {
                           if (disabled) return
-                          debugLog('DELETE_BUTTON_TOUCH_START', { categoryId: category.id, categoryLabel: category.label })
                           handleDeletePress(category)
                         }}
                         className="absolute -top-1 -right-1"
@@ -558,7 +379,6 @@ export function CategorySelector({
                   <View
                     onTouchStart={() => {
                       if (disabled) return
-                      debugLog('CREATE_BUTTON_TOUCH_START', { newCategoryName: categorySearch.trim() })
                       handleCreateCategory()
                     }}
                   >
@@ -655,16 +475,6 @@ export function CategorySelector({
         onCancel={handleCancelDelete}
         isLoading={deleteCategory.isPending}
       />
-
-      {/* Debug Overlay - Shows events on screen for production debugging */}
-      {DEBUG_CATEGORY_SELECTOR && (
-        <DebugOverlayWithText
-          events={debugState.events}
-          isVisible={debugState.isVisible}
-          onClear={debugState.clearEvents}
-          onToggle={debugState.toggleVisibility}
-        />
-      )}
     </View>
   )
 }
@@ -681,98 +491,5 @@ const styles = StyleSheet.create({
   categoryGridItem: {
     width: '48%',
     position: 'relative',
-  },
-  // Debug overlay styles
-  debugToggle: {
-    position: 'absolute',
-    top: -40,
-    right: 0,
-    width: 36,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 5,
-  },
-  debugToggleText: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  debugPanel: {
-    position: 'absolute',
-    top: -200,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.95)',
-    borderRadius: 12,
-    padding: 8,
-    zIndex: 999,
-    borderWidth: 1,
-    borderColor: '#334155',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
-  },
-  debugHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#334155',
-    marginBottom: 6,
-  },
-  debugTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  debugClearBtn: {
-    backgroundColor: '#ef4444',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  debugScroll: {
-    maxHeight: 150,
-  },
-  debugEvent: {
-    paddingVertical: 2,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(51, 65, 85, 0.3)',
-  },
-  debugEventRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  debugEventText: {
-    fontSize: 9,
-    color: '#94a3b8',
-  },
-  debugSeq: {
-    fontSize: 9,
-    color: '#fbbf24',
-    marginRight: 4,
-  },
-  debugTime: {
-    fontSize: 9,
-    color: '#64748b',
-    marginRight: 4,
-  },
-  debugEventName: {
-    fontSize: 9,
-    color: '#22d3ee',
-    fontWeight: 'bold',
-  },
-  debugEventData: {
-    fontSize: 8,
-    color: '#a78bfa',
-    marginLeft: 8,
   },
 })
