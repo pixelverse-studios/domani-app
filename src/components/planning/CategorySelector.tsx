@@ -1,18 +1,151 @@
-import React, { useMemo, useRef, useEffect } from 'react'
-import { View, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native'
+import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react'
+import {
+  View,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+  ScrollView,
+  Dimensions,
+} from 'react-native'
 
 // =============================================================================
-// DEBUG LOGGING - Remove after diagnosing production bug
+// DEBUG OVERLAY - On-screen debugging for production builds
+// console.log doesn't work in iOS release builds, so we show events on screen
 // =============================================================================
 const DEBUG_CATEGORY_SELECTOR = true
+const MAX_DEBUG_EVENTS = 15
+
+interface DebugEvent {
+  seq: number
+  time: string
+  event: string
+  data?: string
+}
+
 let eventSequence = 0
+let debugEventListeners: ((event: DebugEvent) => void)[] = []
+
 const debugLog = (event: string, data?: Record<string, unknown>) => {
   if (!DEBUG_CATEGORY_SELECTOR) return
   const seq = ++eventSequence
-  const timestamp = Date.now()
-  console.log(
-    `[CAT-DEBUG #${seq}] ${timestamp} | ${event}`,
-    data ? JSON.stringify(data) : ''
+  const now = new Date()
+  const time = `${now.getMinutes()}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`
+  const debugEvent: DebugEvent = {
+    seq,
+    time,
+    event,
+    data: data ? JSON.stringify(data) : undefined,
+  }
+  // Still log to console (works in dev, stripped in prod)
+  console.log(`[CAT-DEBUG #${seq}] ${time} | ${event}`, data ? JSON.stringify(data) : '')
+  // Notify all listeners (for on-screen overlay)
+  debugEventListeners.forEach((listener) => listener(debugEvent))
+}
+
+// Hook to subscribe to debug events
+const useDebugEvents = () => {
+  const [events, setEvents] = useState<DebugEvent[]>([])
+  const [isVisible, setIsVisible] = useState(false)
+
+  useEffect(() => {
+    const listener = (event: DebugEvent) => {
+      setEvents((prev) => {
+        const newEvents = [...prev, event]
+        // Keep only last MAX_DEBUG_EVENTS
+        return newEvents.slice(-MAX_DEBUG_EVENTS)
+      })
+    }
+    debugEventListeners.push(listener)
+    return () => {
+      debugEventListeners = debugEventListeners.filter((l) => l !== listener)
+    }
+  }, [])
+
+  const clearEvents = useCallback(() => setEvents([]), [])
+  const toggleVisibility = useCallback(() => setIsVisible((v) => !v), [])
+
+  return { events, isVisible, clearEvents, toggleVisibility }
+}
+
+// Text-based debug overlay for production visibility
+function DebugOverlayWithText({
+  events,
+  isVisible,
+  onClear,
+  onToggle,
+}: {
+  events: DebugEvent[]
+  isVisible: boolean
+  onClear: () => void
+  onToggle: () => void
+}) {
+  const scrollRef = useRef<ScrollView>(null)
+  const { Text: RNText } = require('react-native')
+
+  useEffect(() => {
+    if (isVisible && scrollRef.current) {
+      scrollRef.current.scrollToEnd({ animated: true })
+    }
+  }, [events, isVisible])
+
+  if (!DEBUG_CATEGORY_SELECTOR) return null
+
+  const screenHeight = Dimensions.get('window').height
+
+  return (
+    <>
+      {/* Toggle button - always visible */}
+      <TouchableOpacity
+        onPress={onToggle}
+        style={[
+          styles.debugToggle,
+          { backgroundColor: isVisible ? '#ef4444' : '#22c55e' },
+        ]}
+      >
+        <RNText style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>
+          {isVisible ? 'X' : 'DBG'}
+        </RNText>
+      </TouchableOpacity>
+
+      {/* Debug panel */}
+      {isVisible && (
+        <View style={[styles.debugPanel, { maxHeight: screenHeight * 0.35 }]}>
+          <View style={styles.debugHeader}>
+            <RNText style={{ color: '#22c55e', fontSize: 11, fontWeight: 'bold' }}>
+              🔍 CAT-DEBUG ({events.length})
+            </RNText>
+            <TouchableOpacity onPress={onClear} style={styles.debugClearBtn}>
+              <RNText style={{ color: '#fff', fontSize: 10 }}>CLEAR</RNText>
+            </TouchableOpacity>
+          </View>
+          <ScrollView ref={scrollRef} style={styles.debugScroll}>
+            {events.length === 0 ? (
+              <RNText style={{ color: '#64748b', fontSize: 10, padding: 8 }}>
+                Tap in the category search to start logging...
+              </RNText>
+            ) : (
+              events.map((e) => (
+                <View key={e.seq} style={styles.debugEvent}>
+                  <RNText style={{ color: '#94a3b8', fontSize: 9 }}>
+                    <RNText style={{ color: '#fbbf24' }}>#{e.seq}</RNText>
+                    {' '}
+                    <RNText style={{ color: '#64748b' }}>{e.time}</RNText>
+                    {' '}
+                    <RNText style={{ color: '#22d3ee', fontWeight: 'bold' }}>{e.event}</RNText>
+                  </RNText>
+                  {e.data && (
+                    <RNText style={{ color: '#a78bfa', fontSize: 8, marginLeft: 8 }}>
+                      {e.data}
+                    </RNText>
+                  )}
+                </View>
+              ))
+            )}
+          </ScrollView>
+        </View>
+      )}
+    </>
   )
 }
 // =============================================================================
@@ -118,6 +251,9 @@ export function CategorySelector({
   // Delete confirmation state
   const [categoryToDelete, setCategoryToDelete] = React.useState<CategoryOption | null>(null)
   const [showDeleteModal, setShowDeleteModal] = React.useState(false)
+
+  // Debug overlay state (for production debugging)
+  const debugState = useDebugEvents()
 
   const purpleColor = isDark ? '#a78bfa' : '#8b5cf6'
   const iconColor = isDark ? '#94a3b8' : '#64748b'
@@ -362,44 +498,62 @@ export function CategorySelector({
                 const isSelected = selectedCategory === category.id
                 return (
                   <View key={category.id} style={styles.categoryGridItem}>
-                    <TouchableOpacity
-                      onPressIn={() => {
-                        debugLog('DROPDOWN_ITEM_PRESS_IN', { categoryId: category.id, categoryLabel: category.label })
-                        handleSelectCategory(category)
-                      }}
-                      disabled={disabled}
-                      className="flex-row items-center py-3 px-4 rounded-xl"
-                      style={{
-                        backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                        borderWidth: isSelected ? 2 : 1,
-                        borderColor: isSelected ? purpleColor : isDark ? '#334155' : '#e2e8f0',
+                    {/* Wrapper View captures touch before blur fires */}
+                    <View
+                      onTouchStart={() => {
+                        debugLog('DROPDOWN_ITEM_TOUCH_START', { categoryId: category.id, categoryLabel: category.label })
+                        // Mark pending IMMEDIATELY on raw touch to beat the blur race
+                        pendingSelectionRef.current = true
+                        debugLog('PENDING_REF_SET_ON_TOUCH', { value: true })
                       }}
                     >
-                      {getCategoryIcon(category.id, isSelected, purpleColor, iconColor)}
-                      <Text
-                        className="font-sans-medium ml-2"
-                        style={{
-                          color: isSelected ? purpleColor : isDark ? '#e2e8f0' : '#334155',
-                        }}
-                        numberOfLines={1}
-                      >
-                        {category.label}
-                      </Text>
-                    </TouchableOpacity>
-                    {/* Delete button for user categories */}
-                    {!category.isSystem && (
                       <TouchableOpacity
                         onPressIn={() => {
-                          debugLog('DELETE_BUTTON_PRESS_IN', { categoryId: category.id, categoryLabel: category.label })
-                          handleDeletePress(category)
+                          debugLog('DROPDOWN_ITEM_PRESS_IN', { categoryId: category.id, categoryLabel: category.label })
+                          handleSelectCategory(category)
                         }}
                         disabled={disabled}
-                        className="absolute -top-1 -right-1 w-5 h-5 rounded-full items-center justify-center"
-                        style={{ backgroundColor: isDark ? '#ef4444' : '#dc2626' }}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        className="flex-row items-center py-3 px-4 rounded-xl"
+                        style={{
+                          backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                          borderWidth: isSelected ? 2 : 1,
+                          borderColor: isSelected ? purpleColor : isDark ? '#334155' : '#e2e8f0',
+                        }}
                       >
-                        <X size={12} color="#ffffff" />
+                        {getCategoryIcon(category.id, isSelected, purpleColor, iconColor)}
+                        <Text
+                          className="font-sans-medium ml-2"
+                          style={{
+                            color: isSelected ? purpleColor : isDark ? '#e2e8f0' : '#334155',
+                          }}
+                          numberOfLines={1}
+                        >
+                          {category.label}
+                        </Text>
                       </TouchableOpacity>
+                    </View>
+                    {/* Delete button for user categories */}
+                    {!category.isSystem && (
+                      <View
+                        onTouchStart={() => {
+                          debugLog('DELETE_BUTTON_TOUCH_START', { categoryId: category.id })
+                          pendingSelectionRef.current = true
+                        }}
+                        className="absolute -top-1 -right-1"
+                      >
+                        <TouchableOpacity
+                          onPressIn={() => {
+                            debugLog('DELETE_BUTTON_PRESS_IN', { categoryId: category.id, categoryLabel: category.label })
+                            handleDeletePress(category)
+                          }}
+                          disabled={disabled}
+                          className="w-5 h-5 rounded-full items-center justify-center"
+                          style={{ backgroundColor: isDark ? '#ef4444' : '#dc2626' }}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <X size={12} color="#ffffff" />
+                        </TouchableOpacity>
+                      </View>
                     )}
                   </View>
                 )
@@ -408,29 +562,36 @@ export function CategorySelector({
               {/* Create New Category Option (if searching and no exact match) */}
               {hasSearchText && !exactMatchExists && (
                 <View style={styles.categoryGridItem}>
-                  <TouchableOpacity
-                    onPressIn={() => {
-                      debugLog('CREATE_BUTTON_PRESS_IN', { newCategoryName: categorySearch.trim() })
-                      handleCreateCategory()
-                    }}
-                    disabled={disabled}
-                    className="flex-row items-center py-3 px-4 rounded-xl"
-                    style={{
-                      backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                      borderWidth: 1,
-                      borderColor: purpleColor,
-                      borderStyle: 'dashed',
+                  <View
+                    onTouchStart={() => {
+                      debugLog('CREATE_BUTTON_TOUCH_START', { newCategoryName: categorySearch.trim() })
+                      pendingSelectionRef.current = true
                     }}
                   >
-                    <Plus size={18} color={purpleColor} />
-                    <Text
-                      className="font-sans-medium ml-2"
-                      style={{ color: purpleColor }}
-                      numberOfLines={1}
+                    <TouchableOpacity
+                      onPressIn={() => {
+                        debugLog('CREATE_BUTTON_PRESS_IN', { newCategoryName: categorySearch.trim() })
+                        handleCreateCategory()
+                      }}
+                      disabled={disabled}
+                      className="flex-row items-center py-3 px-4 rounded-xl"
+                      style={{
+                        backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                        borderWidth: 1,
+                        borderColor: purpleColor,
+                        borderStyle: 'dashed',
+                      }}
                     >
-                      Create &quot;{categorySearch.trim()}&quot;
-                    </Text>
-                  </TouchableOpacity>
+                      <Plus size={18} color={purpleColor} />
+                      <Text
+                        className="font-sans-medium ml-2"
+                        style={{ color: purpleColor }}
+                        numberOfLines={1}
+                      >
+                        Create &quot;{categorySearch.trim()}&quot;
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               )}
             </View>
@@ -504,6 +665,16 @@ export function CategorySelector({
         onCancel={handleCancelDelete}
         isLoading={deleteCategory.isPending}
       />
+
+      {/* Debug Overlay - Shows events on screen for production debugging */}
+      {DEBUG_CATEGORY_SELECTOR && (
+        <DebugOverlayWithText
+          events={debugState.events}
+          isVisible={debugState.isVisible}
+          onClear={debugState.clearEvents}
+          onToggle={debugState.toggleVisibility}
+        />
+      )}
     </View>
   )
 }
@@ -520,5 +691,98 @@ const styles = StyleSheet.create({
   categoryGridItem: {
     width: '48%',
     position: 'relative',
+  },
+  // Debug overlay styles
+  debugToggle: {
+    position: 'absolute',
+    top: -40,
+    right: 0,
+    width: 36,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  debugToggleText: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  debugPanel: {
+    position: 'absolute',
+    top: -200,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+    borderRadius: 12,
+    padding: 8,
+    zIndex: 999,
+    borderWidth: 1,
+    borderColor: '#334155',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  debugHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+    marginBottom: 6,
+  },
+  debugTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  debugClearBtn: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  debugScroll: {
+    maxHeight: 150,
+  },
+  debugEvent: {
+    paddingVertical: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(51, 65, 85, 0.3)',
+  },
+  debugEventRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  debugEventText: {
+    fontSize: 9,
+    color: '#94a3b8',
+  },
+  debugSeq: {
+    fontSize: 9,
+    color: '#fbbf24',
+    marginRight: 4,
+  },
+  debugTime: {
+    fontSize: 9,
+    color: '#64748b',
+    marginRight: 4,
+  },
+  debugEventName: {
+    fontSize: 9,
+    color: '#22d3ee',
+    fontWeight: 'bold',
+  },
+  debugEventData: {
+    fontSize: 8,
+    color: '#a78bfa',
+    marginLeft: 8,
   },
 })
