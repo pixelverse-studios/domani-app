@@ -8,6 +8,8 @@
     "start": "expo start",
     "android": "expo start --tunnel --clear",
     "android:build": "eas build --profile development --platform android",
+    "android:debug": "cd android && ./gradlew assembleDebug",
+    "android:release": "cd android && ./gradlew assembleRelease",
     "ios": "expo start --ios --clear",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
