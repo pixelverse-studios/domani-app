@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import {
   View,
   TextInput,
@@ -62,6 +62,8 @@ interface AddTaskFormProps {
   selectedTarget: PlanningTarget
   /** Callback when target day changes */
   onTargetChange: (target: PlanningTarget) => void
+  /** Auto-focus the title input when form opens (e.g., when editing) */
+  autoFocusTitle?: boolean
 }
 
 export function AddTaskForm({
@@ -73,9 +75,11 @@ export function AddTaskForm({
   editingTaskId,
   selectedTarget,
   onTargetChange,
+  autoFocusTitle = false,
 }: AddTaskFormProps) {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
+  const titleInputRef = useRef<TextInput>(null)
 
   const [title, setTitle] = useState(initialValues?.title ?? '')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
@@ -113,6 +117,17 @@ export function AddTaskForm({
       onTargetChange(initialValues.plannedFor)
     }
   }, [isEditing, initialValues?.plannedFor, onTargetChange])
+
+  // Auto-focus title input when requested (e.g., when editing a task)
+  useEffect(() => {
+    if (autoFocusTitle) {
+      // Delay focus to allow scroll animation to complete
+      const timer = setTimeout(() => {
+        titleInputRef.current?.focus()
+      }, 350)
+      return () => clearTimeout(timer)
+    }
+  }, [autoFocusTitle])
 
   const handleToggleNotes = useCallback(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
@@ -242,6 +257,7 @@ export function AddTaskForm({
 
       {/* Task Title Input */}
       <TextInput
+        ref={titleInputRef}
         value={title}
         onChangeText={setTitle}
         placeholder="What do you want to accomplish?"
