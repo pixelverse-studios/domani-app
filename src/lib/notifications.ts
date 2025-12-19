@@ -134,7 +134,7 @@ export const NotificationService = {
         body: 'A few minutes now sets you up for success tomorrow.',
         sound: true,
         priority: Notifications.AndroidNotificationPriority.HIGH,
-        data: { url: '/(tabs)/planning?defaultPlanningFor=tomorrow', type: 'planning_reminder' },
+        data: { url: '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true', type: 'planning_reminder' },
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
