@@ -575,8 +575,11 @@ export type Database = {
           expo_push_token: string | null
           full_name: string | null
           id: string
+          last_execution_reminder_sent_at: string | null
           notification_onboarding_completed: boolean
           planning_reminder_time: string | null
+          push_token_invalid_at: string | null
+          push_token_last_verified_at: string | null
           revenuecat_user_id: string | null
           subscription_expires_at: string | null
           subscription_status: string | null
@@ -597,8 +600,11 @@ export type Database = {
           expo_push_token?: string | null
           full_name?: string | null
           id: string
+          last_execution_reminder_sent_at?: string | null
           notification_onboarding_completed?: boolean
           planning_reminder_time?: string | null
+          push_token_invalid_at?: string | null
+          push_token_last_verified_at?: string | null
           revenuecat_user_id?: string | null
           subscription_expires_at?: string | null
           subscription_status?: string | null
@@ -619,8 +625,11 @@ export type Database = {
           expo_push_token?: string | null
           full_name?: string | null
           id?: string
+          last_execution_reminder_sent_at?: string | null
           notification_onboarding_completed?: boolean
           planning_reminder_time?: string | null
+          push_token_invalid_at?: string | null
+          push_token_last_verified_at?: string | null
           revenuecat_user_id?: string | null
           subscription_expires_at?: string | null
           subscription_status?: string | null
@@ -1020,6 +1029,19 @@ export type Database = {
       }
     }
     Views: {
+      admin_tasks_by_user: {
+        Row: {
+          completed_at: string | null
+          email: string | null
+          full_name: string | null
+          is_mit: boolean | null
+          planned_for: string | null
+          status: string | null
+          task_created: string | null
+          task_title: string | null
+        }
+        Relationships: []
+      }
       admin_user_tasks_today: {
         Row: {
           category: string | null

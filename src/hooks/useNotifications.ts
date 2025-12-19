@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import { Platform } from 'react-native'
+import { useEffect, useRef, useCallback } from 'react'
+import { Platform, AppState, type AppStateStatus } from 'react-native'
 import { router } from 'expo-router'
 import Constants from 'expo-constants'
 
@@ -17,6 +17,72 @@ const Notifications = isNotificationsSupported
     require('expo-notifications')
   : null
 
+// Retry configuration for push token registration
+const MAX_RETRY_ATTEMPTS = 3
+const INITIAL_RETRY_DELAY_MS = 1000
+
+/**
+ * Register push token with retry logic and exponential backoff
+ * @param attempt Current attempt number (1-based)
+ * @returns True if registration succeeded, false otherwise
+ */
+async function registerPushTokenWithRetry(attempt: number = 1): Promise<boolean> {
+  try {
+    const token = await NotificationService.getExpoPushToken()
+    if (!token) {
+      console.log(`[Notifications] No push token available (attempt ${attempt})`)
+      return false
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      console.log('[Notifications] No authenticated user')
+      return false
+    }
+
+    // Get current profile to check if token changed
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('expo_push_token, push_token_invalid_at')
+      .eq('id', user.id)
+      .single()
+
+    // Only update if token is different or was previously invalid
+    if (profile?.expo_push_token !== token || profile?.push_token_invalid_at !== null) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          expo_push_token: token,
+          push_token_invalid_at: null, // Clear invalid flag on re-registration
+        })
+        .eq('id', user.id)
+
+      if (error) {
+        throw error
+      }
+
+      console.log('[Notifications] Push token registered successfully')
+    }
+
+    return true
+  } catch (error) {
+    console.error(`[Notifications] Push token registration failed (attempt ${attempt}):`, error)
+
+    // Retry with exponential backoff
+    if (attempt < MAX_RETRY_ATTEMPTS) {
+      const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1)
+      console.log(`[Notifications] Retrying in ${delay}ms...`)
+      await new Promise((resolve) => setTimeout(resolve, delay))
+      return registerPushTokenWithRetry(attempt + 1)
+    }
+
+    console.error('[Notifications] Max retry attempts reached')
+    return false
+  }
+}
+
 /**
  * Hook to handle notification responses (when user taps a notification)
  * Should be called in the root layout to enable deep linking
@@ -24,6 +90,18 @@ const Notifications = isNotificationsSupported
 export function useNotificationObserver() {
   const notificationListener = useRef<{ remove: () => void } | null>(null)
   const responseListener = useRef<{ remove: () => void } | null>(null)
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState)
+  const hasRegisteredToken = useRef(false)
+
+  // Memoized function to handle push token registration
+  const handleTokenRegistration = useCallback(async () => {
+    if (hasRegisteredToken.current) return
+
+    const success = await registerPushTokenWithRetry()
+    if (success) {
+      hasRegisteredToken.current = true
+    }
+  }, [])
 
   useEffect(() => {
     // Skip if notifications aren't supported
@@ -33,34 +111,25 @@ export function useNotificationObserver() {
     NotificationService.initialize()
 
     // Register push token for server-side notifications (execution reminders)
-    const registerPushToken = async () => {
-      try {
-        const token = await NotificationService.getExpoPushToken()
-        if (token) {
-          const {
-            data: { user },
-          } = await supabase.auth.getUser()
-          if (user) {
-            // Only update if token is different to avoid unnecessary writes
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('expo_push_token')
-              .eq('id', user.id)
-              .single()
+    // Initial registration with a short delay to ensure auth is ready
+    const tokenTimeout = setTimeout(handleTokenRegistration, 2000)
 
-            if (profile?.expo_push_token !== token) {
-              await supabase.from('profiles').update({ expo_push_token: token }).eq('id', user.id)
-              console.log('[Notifications] Push token registered')
-            }
-          }
-        }
-      } catch (error) {
-        console.error('[Notifications] Failed to register push token:', error)
+    // AppState listener to re-register token when app comes to foreground
+    // This handles cases where user re-grants permissions in settings
+    const appStateSubscription = AppState.addEventListener('change', async (nextAppState) => {
+      const wasBackground = appStateRef.current.match(/inactive|background/)
+      appStateRef.current = nextAppState
+
+      // App came to foreground
+      if (wasBackground && nextAppState === 'active') {
+        // Reset flag to allow re-registration attempt
+        hasRegisteredToken.current = false
+        // Small delay for stability
+        setTimeout(() => {
+          registerPushTokenWithRetry()
+        }, 500)
       }
-    }
-
-    // Register token after a short delay to ensure auth is ready
-    const tokenTimeout = setTimeout(registerPushToken, 2000)
+    })
 
     // Reschedule planning reminder on app launch to ensure notification text is current
     const reschedulePlanningReminder = async () => {
@@ -82,10 +151,9 @@ export function useNotificationObserver() {
         const { hour, minute } = NotificationService.parseTimeString(profile.planning_reminder_time)
         const store = useNotificationStore.getState()
 
-        // Cancel existing if present
-        if (store.planningReminderId) {
-          await NotificationService.cancelNotification(store.planningReminderId)
-        }
+        // Cancel ALL existing reminders first to prevent any duplicates
+        // This is more bulletproof than tracking individual IDs
+        await NotificationService.cancelAllReminders()
 
         // Schedule fresh notification with current text
         const newId = await NotificationService.schedulePlanningReminder(hour, minute)
@@ -144,10 +212,11 @@ export function useNotificationObserver() {
     return () => {
       clearTimeout(tokenTimeout)
       clearTimeout(rescheduleTimeout)
+      appStateSubscription.remove()
       notificationListener.current?.remove()
       responseListener.current?.remove()
     }
-  }, [])
+  }, [handleTokenRegistration])
 }
 
 /**
@@ -157,20 +226,18 @@ export function useNotifications() {
   const store = useNotificationStore()
 
   const schedulePlanningReminder = async (hour: number, minute: number) => {
-    // Always cancel existing reminder before scheduling new one to prevent duplicates
-    if (store.planningReminderId) {
-      await NotificationService.cancelNotification(store.planningReminderId)
-    }
+    // Cancel ALL reminders before scheduling new one to prevent duplicates
+    // This is more bulletproof than tracking individual IDs which can become stale
+    await NotificationService.cancelAllReminders()
     const identifier = await NotificationService.schedulePlanningReminder(hour, minute)
     store.setPlanningReminderId(identifier)
     return identifier
   }
 
   const cancelPlanningReminder = async () => {
-    if (store.planningReminderId) {
-      await NotificationService.cancelNotification(store.planningReminderId)
-      store.setPlanningReminderId(null)
-    }
+    // Cancel all to ensure no orphaned notifications
+    await NotificationService.cancelAllReminders()
+    store.setPlanningReminderId(null)
   }
 
   // Note: Execution reminders are now handled server-side via Edge Function
@@ -179,6 +246,13 @@ export function useNotifications() {
   const requestPermissions = async () => {
     const granted = await NotificationService.requestPermissions()
     store.setPermissionStatus(granted ? 'granted' : 'denied')
+
+    // If permissions granted, trigger token registration
+    if (granted) {
+      // Register token with retry
+      registerPushTokenWithRetry()
+    }
+
     return granted
   }
 
