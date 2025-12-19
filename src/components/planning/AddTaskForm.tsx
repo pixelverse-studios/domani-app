@@ -111,13 +111,6 @@ export function AddTaskForm({
     }
   }, [initialValues, notesChevronRotation])
 
-  // Sync the day toggle when editing - ensure the form shows the task's actual day
-  useEffect(() => {
-    if (isEditing && initialValues?.plannedFor) {
-      onTargetChange(initialValues.plannedFor)
-    }
-  }, [isEditing, initialValues?.plannedFor, onTargetChange])
-
   // Auto-focus title input when requested (e.g., when editing a task)
   useEffect(() => {
     if (autoFocusTitle) {
