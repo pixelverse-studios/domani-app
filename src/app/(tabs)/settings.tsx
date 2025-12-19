@@ -219,7 +219,7 @@ export default function SettingsScreen() {
   const { profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const subscription = useSubscription()
-  const { schedulePlanningReminder, permissionStatus } = useNotifications()
+  const { schedulePlanningReminder, permissionStatus, requestPermissions } = useNotifications()
   const accountDeletion = useAccountDeletion()
   const { phase } = useAppConfig()
 
@@ -317,8 +317,23 @@ export default function SettingsScreen() {
 
   const handleToggleExecutionReminder = async (enabled: boolean) => {
     if (enabled) {
-      // Enable: set default time (8 AM)
-      // Note: Execution reminder is handled server-side via Edge Function
+      // Enable: Check if we have a push token, request permissions if not
+      // Execution reminders are server-side push notifications, so we need a token
+      if (!profile?.expo_push_token) {
+        const granted = await requestPermissions()
+        if (!granted) {
+          Alert.alert(
+            'Notifications Required',
+            'Please enable notifications to receive execution reminders. You can enable them in your device settings.',
+            [{ text: 'OK' }],
+          )
+          return
+        }
+        // Wait briefly for token registration to complete
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+      }
+
+      // Set default time (8 AM)
       const defaultTime = new Date()
       defaultTime.setHours(8, 0, 0, 0)
       const timeString = format(defaultTime, 'HH:mm:ss')
@@ -688,7 +703,10 @@ export default function SettingsScreen() {
                     <Text className="text-sm text-slate-500 dark:text-slate-400 mr-2">
                       {formatTimeDisplay(profile.execution_reminder_time)}
                     </Text>
-                    <ChevronRight size={16} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
+                    <ChevronRight
+                      size={16}
+                      color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'}
+                    />
                   </View>
                 </TouchableOpacity>
               )}
