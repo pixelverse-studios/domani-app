@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { ScrollView, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -52,6 +52,7 @@ interface TaskFormData {
 
 export default function PlanningScreen() {
   const router = useRouter()
+  const scrollViewRef = useRef<ScrollView>(null)
   const { defaultPlanningFor, editTaskId, openForm } = useLocalSearchParams<{
     defaultPlanningFor?: 'today' | 'tomorrow'
     editTaskId?: string
@@ -62,6 +63,7 @@ export default function PlanningScreen() {
   )
   const [isFormVisible, setIsFormVisible] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskWithCategory | null>(null)
+  const [shouldAutoFocusTitle, setShouldAutoFocusTitle] = useState(false)
 
   // Update target when navigation param changes (tab navigation preserves component state)
   // This effect must run synchronously before the openForm effect to ensure correct target
@@ -161,6 +163,7 @@ export default function PlanningScreen() {
   const handleCloseForm = () => {
     setIsFormVisible(false)
     setEditingTask(null)
+    setShouldAutoFocusTitle(false)
   }
 
   const handleEditTask = (taskId: string) => {
@@ -168,6 +171,11 @@ export default function PlanningScreen() {
     if (task) {
       setEditingTask(task)
       setIsFormVisible(true)
+      setShouldAutoFocusTitle(true)
+      // Scroll to top after state updates to bring form into view
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({ y: 0, animated: true })
+      }, 100)
     }
   }
 
@@ -279,8 +287,7 @@ export default function PlanningScreen() {
     }
 
     // Determine which day the task is planned for based on its plan_id
-    const plannedFor: PlanningTarget =
-      editingTask.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
+    const plannedFor: PlanningTarget = editingTask.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
 
     return {
       title: editingTask.title,
@@ -303,6 +310,7 @@ export default function PlanningScreen() {
   return (
     <SafeAreaView className="flex-1 bg-white dark:bg-slate-950" edges={['top']}>
       <ScrollView
+        ref={scrollViewRef}
         className="flex-1"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
@@ -323,6 +331,7 @@ export default function PlanningScreen() {
             editingTaskId={editingTask?.id}
             selectedTarget={selectedTarget}
             onTargetChange={setSelectedTarget}
+            autoFocusTitle={shouldAutoFocusTitle}
           />
         ) : (
           <AddTaskPlaceholder
