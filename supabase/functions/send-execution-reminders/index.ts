@@ -93,12 +93,16 @@ Deno.serve(async (req) => {
 
     console.log('[send-execution-reminders] Starting execution reminder check...')
 
-    // Get all users with execution reminders enabled and push tokens registered
+    // Get all users with execution reminders enabled, valid push tokens,
+    // and who haven't already received a reminder today
     const { data: users, error: usersError } = await supabase
       .from('profiles')
-      .select('id, expo_push_token, timezone, execution_reminder_time')
+      .select(
+        'id, expo_push_token, timezone, execution_reminder_time, last_execution_reminder_sent_at',
+      )
       .not('execution_reminder_time', 'is', null)
       .not('expo_push_token', 'is', null)
+      .is('push_token_invalid_at', null) // Skip users with invalid tokens
 
     if (usersError) {
       console.error('[send-execution-reminders] Error fetching users:', usersError)
@@ -112,6 +116,18 @@ Deno.serve(async (req) => {
     const results: ProcessResult[] = []
 
     for (const user of users || []) {
+      // Get today's date in user's timezone for accurate deduplication
+      const todayInUserTz = getTodayForTimezone(user.timezone)
+
+      // Check if we already sent a reminder today (in user's timezone)
+      if (user.last_execution_reminder_sent_at === todayInUserTz) {
+        console.log(
+          `[send-execution-reminders] Skipping user ${user.id} - already sent today (${todayInUserTz})`,
+        )
+        results.push({ userId: user.id, skipped: true, reason: 'already_sent_today' })
+        continue
+      }
+
       // Check if current time matches user's reminder time (in their timezone)
       const currentTime = getCurrentTimeForTimezone(user.timezone)
 
@@ -198,9 +214,54 @@ Deno.serve(async (req) => {
 
       console.log(`[send-execution-reminders] Push result for user ${user.id}:`, pushResult)
 
+      // Handle DeviceNotRegistered error - clear the invalid token
+      if (pushResult.status === 'error' && pushResult.details?.error === 'DeviceNotRegistered') {
+        console.log(`[send-execution-reminders] Token invalid for user ${user.id} - clearing token`)
+        const { error: clearError } = await supabase
+          .from('profiles')
+          .update({
+            expo_push_token: null,
+            push_token_invalid_at: new Date().toISOString(),
+          })
+          .eq('id', user.id)
+
+        if (clearError) {
+          console.error(
+            `[send-execution-reminders] Error clearing token for user ${user.id}:`,
+            clearError,
+          )
+        }
+
+        results.push({
+          userId: user.id,
+          skipped: true,
+          reason: 'token_invalid',
+          pushResult,
+        })
+        continue
+      }
+
+      // Update tracking fields after successful send
+      if (pushResult.status === 'ok') {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            last_execution_reminder_sent_at: today,
+            push_token_last_verified_at: new Date().toISOString(),
+          })
+          .eq('id', user.id)
+
+        if (updateError) {
+          console.error(
+            `[send-execution-reminders] Error updating tracking for user ${user.id}:`,
+            updateError,
+          )
+        }
+      }
+
       results.push({
         userId: user.id,
-        sent: true,
+        sent: pushResult.status === 'ok',
         taskCount: count,
         pushResult,
       })
@@ -208,15 +269,22 @@ Deno.serve(async (req) => {
 
     const sentCount = results.filter((r) => r.sent).length
     const skippedCount = results.filter((r) => r.skipped).length
+    const alreadySentCount = results.filter((r) => r.reason === 'already_sent_today').length
+    const invalidTokenCount = results.filter((r) => r.reason === 'token_invalid').length
 
     console.log(
-      `[send-execution-reminders] Complete - Sent: ${sentCount}, Skipped: ${skippedCount}`,
+      `[send-execution-reminders] Complete - Sent: ${sentCount}, Skipped: ${skippedCount} (already_sent: ${alreadySentCount}, invalid_token: ${invalidTokenCount})`,
     )
 
     return new Response(
       JSON.stringify({
         success: true,
-        summary: { sent: sentCount, skipped: skippedCount },
+        summary: {
+          sent: sentCount,
+          skipped: skippedCount,
+          already_sent_today: alreadySentCount,
+          invalid_tokens_cleared: invalidTokenCount,
+        },
         results,
       }),
       {

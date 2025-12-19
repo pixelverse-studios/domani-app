@@ -10,9 +10,12 @@ interface NotificationStore {
   // Note: executionReminderId removed - execution reminders now handled server-side
   // Cached permission status
   permissionStatus: PermissionStatus
+  // Flag to track if we've validated IDs after hydration
+  hasValidatedIds: boolean
 
   setPlanningReminderId: (id: string | null) => void
   setPermissionStatus: (status: PermissionStatus) => void
+  setHasValidatedIds: (validated: boolean) => void
 }
 
 export const useNotificationStore = create<NotificationStore>()(
@@ -20,13 +23,25 @@ export const useNotificationStore = create<NotificationStore>()(
     (set) => ({
       planningReminderId: null,
       permissionStatus: 'undetermined' as PermissionStatus,
+      hasValidatedIds: false,
 
       setPlanningReminderId: (id) => set({ planningReminderId: id }),
       setPermissionStatus: (status) => set({ permissionStatus: status }),
+      setHasValidatedIds: (validated) => set({ hasValidatedIds: validated }),
     }),
     {
       name: 'notification-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      // On rehydrate, mark IDs as needing validation
+      // The useNotificationObserver hook will handle actual validation
+      // by calling cancelAllReminders() before scheduling
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          // Reset validation flag on each app launch
+          // This ensures we always validate/reschedule notifications
+          state.hasValidatedIds = false
+        }
+      },
     },
   ),
 )

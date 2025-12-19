@@ -12,6 +12,23 @@ import { NotificationService } from '~/lib/notifications'
 import { useNotificationStore } from '~/stores/notificationStore'
 import { useUpdateProfile } from '~/hooks/useProfile'
 
+/**
+ * Detect device timezone using Intl API
+ * This is called during notification setup to ensure timezone is saved
+ */
+function getDeviceTimezone(): string {
+  try {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (timezone && timezone !== 'UTC') {
+      return timezone
+    }
+    // Fallback to UTC if detection fails
+    return 'UTC'
+  } catch {
+    return 'UTC'
+  }
+}
+
 export default function NotificationSetupScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
@@ -67,17 +84,28 @@ export default function NotificationSetupScreen() {
         // Note: Execution reminder is handled server-side via Edge Function
         // We only save the time preference here - the server will send push notifications
 
-        // Save times and mark onboarding complete
+        // Save times, timezone, and mark onboarding complete
+        // We detect and save timezone here to ensure it's properly set during onboarding
         const planTimeString = format(planTime, 'HH:mm:ss')
         const executeTimeString = executionReminderEnabled ? format(executeTime, 'HH:mm:ss') : null
+        const detectedTimezone = getDeviceTimezone()
+
         await updateProfile.mutateAsync({
           planning_reminder_time: planTimeString,
           execution_reminder_time: executeTimeString,
           notification_onboarding_completed: true,
+          timezone: detectedTimezone,
         })
+
+        console.log('[NotificationSetup] Saved timezone:', detectedTimezone)
       } else {
-        // User denied permissions, still mark onboarding as complete
-        await updateProfile.mutateAsync({ notification_onboarding_completed: true })
+        // User denied permissions, still mark onboarding as complete and save timezone
+        const detectedTimezone = getDeviceTimezone()
+        await updateProfile.mutateAsync({
+          notification_onboarding_completed: true,
+          timezone: detectedTimezone,
+        })
+        console.log('[NotificationSetup] Saved timezone (permissions denied):', detectedTimezone)
       }
 
       router.replace('/(tabs)')
@@ -226,7 +254,9 @@ export default function NotificationSetupScreen() {
                   </Text>
                 </Button>
               ) : (
-                <View style={[styles.pickerContainer, { backgroundColor: colors.pickerBackground }]}>
+                <View
+                  style={[styles.pickerContainer, { backgroundColor: colors.pickerBackground }]}
+                >
                   <DateTimePicker
                     value={executeTime}
                     mode="time"
