@@ -300,7 +300,7 @@ export function CategorySelector({
                 setIsFocused(false)
               }, 150)
             }}
-            placeholder="Search All Categories"
+            placeholder={`Search All Categories (${allCategories.length})`}
             placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
             editable={!disabled}
             className="flex-1 font-sans px-3"

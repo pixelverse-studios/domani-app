@@ -226,13 +226,21 @@ export function useSortedCategories(autoSort: boolean = false) {
   return unified
 }
 
-// Get only favorite categories
+// Get categories to display in quick-select (top 4)
+// When autoSort is true: returns top 4 by usage count (smart mode)
+// When autoSort is false: returns user's manually selected favorites
 export function useFavoriteCategories(autoSort: boolean = false) {
   const allCategories = useSortedCategories(autoSort)
 
   return React.useMemo(() => {
-    return allCategories.filter((cat) => cat.isFavorite)
-  }, [allCategories])
+    if (autoSort) {
+      // Smart mode: return top 4 by usage count (already sorted by useSortedCategories)
+      return allCategories.slice(0, 4)
+    } else {
+      // Manual mode: return user's selected favorites
+      return allCategories.filter((cat) => cat.isFavorite)
+    }
+  }, [allCategories, autoSort])
 }
 
 // Update favorite categories
