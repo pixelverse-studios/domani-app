@@ -101,11 +101,15 @@ export default function PlanningScreen() {
     if (editTaskId && tasks.length > 0) {
       const task = tasks.find((t) => t.id === editTaskId)
       if (task) {
+        // Set day toggle to task's actual day
+        const taskDay: PlanningTarget = task.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
+        setSelectedTarget(taskDay)
+
         setEditingTask(task)
         setIsFormVisible(true)
       }
     }
-  }, [editTaskId, tasks])
+  }, [editTaskId, tasks, todayPlan?.id])
 
   // Free tier limit logic (disabled during beta - all users get unlimited tasks)
   const isBeta = phase === 'closed_beta' || phase === 'open_beta'
@@ -169,6 +173,10 @@ export default function PlanningScreen() {
   const handleEditTask = (taskId: string) => {
     const task = tasks.find((t) => t.id === taskId)
     if (task) {
+      // Set day toggle to task's actual day BEFORE opening form
+      const taskDay: PlanningTarget = task.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
+      setSelectedTarget(taskDay)
+
       setEditingTask(task)
       setIsFormVisible(true)
       setShouldAutoFocusTitle(true)
