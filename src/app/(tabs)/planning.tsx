@@ -64,6 +64,8 @@ export default function PlanningScreen() {
   const [isFormVisible, setIsFormVisible] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskWithCategory | null>(null)
   const [shouldAutoFocusTitle, setShouldAutoFocusTitle] = useState(false)
+  // Separate state for form's day toggle - decoupled from header to prevent race conditions
+  const [formSelectedDay, setFormSelectedDay] = useState<PlanningTarget>('tomorrow')
 
   // Update target when navigation param changes (tab navigation preserves component state)
   // This effect must run synchronously before the openForm effect to ensure correct target
@@ -101,9 +103,9 @@ export default function PlanningScreen() {
     if (editTaskId && tasks.length > 0) {
       const task = tasks.find((t) => t.id === editTaskId)
       if (task) {
-        // Set day toggle to task's actual day
+        // Set form's day toggle to task's actual day (decoupled from header)
         const taskDay: PlanningTarget = task.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
-        setSelectedTarget(taskDay)
+        setFormSelectedDay(taskDay)
 
         setEditingTask(task)
         setIsFormVisible(true)
@@ -124,9 +126,12 @@ export default function PlanningScreen() {
     if (openForm === 'true' && !editTaskId) {
       // Ensure target is set correctly BEFORE opening the form
       // This handles race conditions where the defaultPlanningFor effect hasn't run yet
+      const targetDay: PlanningTarget = defaultPlanningFor === 'today' ? 'today' : 'tomorrow'
       if (defaultPlanningFor) {
-        setSelectedTarget(defaultPlanningFor === 'today' ? 'today' : 'tomorrow')
+        setSelectedTarget(targetDay)
       }
+      // Initialize form's day toggle for new task
+      setFormSelectedDay(targetDay)
 
       // Check task limit before opening
       if (enforceLimits && atTaskLimit) {
@@ -160,6 +165,8 @@ export default function PlanningScreen() {
       )
       return
     }
+    // Initialize form's day toggle from header selection for new tasks
+    setFormSelectedDay(selectedTarget)
     setEditingTask(null)
     setIsFormVisible(true)
   }
@@ -173,9 +180,9 @@ export default function PlanningScreen() {
   const handleEditTask = (taskId: string) => {
     const task = tasks.find((t) => t.id === taskId)
     if (task) {
-      // Set day toggle to task's actual day BEFORE opening form
+      // Set form's day toggle to task's actual day (decoupled from header)
       const taskDay: PlanningTarget = task.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
-      setSelectedTarget(taskDay)
+      setFormSelectedDay(taskDay)
 
       setEditingTask(task)
       setIsFormVisible(true)
@@ -337,8 +344,8 @@ export default function PlanningScreen() {
             isEditing={!!editingTask}
             existingHighPriorityTask={existingHighPriorityTask}
             editingTaskId={editingTask?.id}
-            selectedTarget={selectedTarget}
-            onTargetChange={setSelectedTarget}
+            selectedTarget={formSelectedDay}
+            onTargetChange={setFormSelectedDay}
             autoFocusTitle={shouldAutoFocusTitle}
           />
         ) : (
