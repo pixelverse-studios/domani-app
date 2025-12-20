@@ -122,6 +122,7 @@ This ensures nothing falls through the cracks between development sessions.
 3. **Commit the version bump** before building
 
 **Current versions (update after each build):**
+
 - Android versionCode: 9
 - Android versionName: 1.0.8
 - app.json version: 1.0.8
