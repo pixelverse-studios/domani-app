@@ -71,6 +71,10 @@ interface ProcessResult {
   reason?: string
   taskCount?: number
   pushResult?: PushResult
+  // Debug fields
+  userTime?: string
+  currentTime?: string
+  timezone?: string
 }
 
 Deno.serve(async (req) => {
@@ -136,7 +140,15 @@ Deno.serve(async (req) => {
       const checkTime = currentTime.substring(0, 5)
 
       if (checkTime !== userTime) {
-        // Time doesn't match, skip silently (this is expected for most users)
+        // Time doesn't match - add to results with debug info for troubleshooting
+        results.push({
+          userId: user.id,
+          skipped: true,
+          reason: 'time_mismatch',
+          userTime,
+          currentTime: checkTime,
+          timezone: user.timezone,
+        })
         continue
       }
 
@@ -212,7 +224,13 @@ Deno.serve(async (req) => {
         priority: 'high',
       })
 
-      console.log(`[send-execution-reminders] Push result for user ${user.id}:`, pushResult)
+      console.log(
+        `[send-execution-reminders] Push result for user ${user.id}:`,
+        JSON.stringify(pushResult),
+      )
+      console.log(
+        `[send-execution-reminders] Push status check: status="${pushResult.status}", isOk=${pushResult.status === 'ok'}`,
+      )
 
       // Handle DeviceNotRegistered error - clear the invalid token
       if (pushResult.status === 'error' && pushResult.details?.error === 'DeviceNotRegistered') {
@@ -243,20 +261,33 @@ Deno.serve(async (req) => {
 
       // Update tracking fields after successful send
       if (pushResult.status === 'ok') {
-        const { error: updateError } = await supabase
+        console.log(
+          `[send-execution-reminders] Updating tracking for user ${user.id} with date: ${today}`,
+        )
+        const { error: updateError, data: updateData } = await supabase
           .from('profiles')
           .update({
             last_execution_reminder_sent_at: today,
             push_token_last_verified_at: new Date().toISOString(),
           })
           .eq('id', user.id)
+          .select('last_execution_reminder_sent_at')
 
         if (updateError) {
           console.error(
             `[send-execution-reminders] Error updating tracking for user ${user.id}:`,
-            updateError,
+            JSON.stringify(updateError),
+          )
+        } else {
+          console.log(
+            `[send-execution-reminders] Successfully updated tracking for user ${user.id}:`,
+            JSON.stringify(updateData),
           )
         }
+      } else {
+        console.log(
+          `[send-execution-reminders] NOT updating tracking for user ${user.id} - pushResult.status is "${pushResult.status}" (not "ok")`,
+        )
       }
 
       results.push({
@@ -271,9 +302,10 @@ Deno.serve(async (req) => {
     const skippedCount = results.filter((r) => r.skipped).length
     const alreadySentCount = results.filter((r) => r.reason === 'already_sent_today').length
     const invalidTokenCount = results.filter((r) => r.reason === 'token_invalid').length
+    const timeMismatchCount = results.filter((r) => r.reason === 'time_mismatch').length
 
     console.log(
-      `[send-execution-reminders] Complete - Sent: ${sentCount}, Skipped: ${skippedCount} (already_sent: ${alreadySentCount}, invalid_token: ${invalidTokenCount})`,
+      `[send-execution-reminders] Complete - Sent: ${sentCount}, Skipped: ${skippedCount} (already_sent: ${alreadySentCount}, invalid_token: ${invalidTokenCount}, time_mismatch: ${timeMismatchCount})`,
     )
 
     return new Response(
@@ -284,6 +316,7 @@ Deno.serve(async (req) => {
           skipped: skippedCount,
           already_sent_today: alreadySentCount,
           invalid_tokens_cleared: invalidTokenCount,
+          time_mismatch: timeMismatchCount,
         },
         results,
       }),
