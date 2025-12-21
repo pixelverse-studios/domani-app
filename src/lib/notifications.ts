@@ -159,11 +159,60 @@ export const NotificationService = {
   },
 
   /**
-   * Cancel all scheduled notifications
+   * Cancel all scheduled notifications with verification and retry
+   * @returns true if all notifications were cancelled, false if some remain
    */
-  async cancelAllReminders(): Promise<void> {
-    if (!Notifications) return
-    await Notifications.cancelAllScheduledNotificationsAsync()
+  async cancelAllReminders(): Promise<boolean> {
+    if (!Notifications) return true
+
+    const MAX_RETRIES = 3
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      // Cancel all scheduled notifications
+      await Notifications.cancelAllScheduledNotificationsAsync()
+
+      // Verify cancellation worked
+      const remaining = await Notifications.getAllScheduledNotificationsAsync()
+
+      if (remaining.length === 0) {
+        if (attempt > 1) {
+          console.log(`[Notifications] cancelAllReminders succeeded on attempt ${attempt}`)
+        }
+        return true
+      }
+
+      console.warn(
+        `[Notifications] cancelAllReminders attempt ${attempt}: ${remaining.length} notifications still exist`,
+      )
+
+      // If notifications remain, try cancelling each individually
+      for (const notification of remaining) {
+        try {
+          await Notifications.cancelScheduledNotificationAsync(notification.identifier)
+        } catch (error) {
+          console.error(
+            `[Notifications] Failed to cancel notification ${notification.identifier}:`,
+            error,
+          )
+        }
+      }
+
+      // Small delay before retry
+      if (attempt < MAX_RETRIES) {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+    }
+
+    // Final check
+    const finalRemaining = await Notifications.getAllScheduledNotificationsAsync()
+    if (finalRemaining.length > 0) {
+      console.error(
+        `[Notifications] CRITICAL: ${finalRemaining.length} notifications could not be cancelled after ${MAX_RETRIES} attempts`,
+      )
+      return false
+    }
+
+    return true
   },
 
   /**
