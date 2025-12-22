@@ -48,7 +48,32 @@ function getTodayForTimezone(timezone: string | null): string {
 }
 
 /**
- * Get current time string (HH:MM:00) for a given timezone
+ * Get current time in minutes since midnight for a given timezone
+ */
+function getCurrentMinutesSinceMidnight(timezone: string | null): number {
+  const now = new Date()
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone || 'America/New_York',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+  const parts = formatter.formatToParts(now)
+  const hour = parseInt(parts.find((p) => p.type === 'hour')?.value || '0', 10)
+  const minute = parseInt(parts.find((p) => p.type === 'minute')?.value || '0', 10)
+  return hour * 60 + minute
+}
+
+/**
+ * Parse time string (HH:MM:SS) to minutes since midnight
+ */
+function timeStringToMinutes(timeString: string): number {
+  const [hours, minutes] = timeString.split(':').map((s) => parseInt(s, 10))
+  return hours * 60 + minutes
+}
+
+/**
+ * Get current time string (HH:MM:00) for a given timezone (for logging)
  */
 function getCurrentTimeForTimezone(timezone: string | null): string {
   const now = new Date()
@@ -132,25 +157,34 @@ Deno.serve(async (req) => {
         continue
       }
 
-      // Check if current time matches user's reminder time (in their timezone)
-      const currentTime = getCurrentTimeForTimezone(user.timezone)
+      // Check if current time is within the window of user's reminder time
+      // Using a 5-minute window (0-4 minutes past target) to account for cron drift
+      const currentMinutes = getCurrentMinutesSinceMidnight(user.timezone)
+      const targetMinutes = timeStringToMinutes(user.execution_reminder_time || '00:00:00')
+      const currentTime = getCurrentTimeForTimezone(user.timezone) // For logging
 
-      // Only process if times match (comparing HH:MM, ignoring seconds)
-      const userTime = user.execution_reminder_time?.substring(0, 5)
-      const checkTime = currentTime.substring(0, 5)
+      // Calculate minutes since target time (handling midnight wrap)
+      let minutesSinceTarget = currentMinutes - targetMinutes
+      if (minutesSinceTarget < -720) minutesSinceTarget += 1440 // Handle midnight wrap
 
-      if (checkTime !== userTime) {
-        // Time doesn't match - add to results with debug info for troubleshooting
+      // Only process if we're within 0-4 minutes past the target time
+      // This gives a 5-minute window to catch any cron drift
+      const WINDOW_MINUTES = 5
+      if (minutesSinceTarget < 0 || minutesSinceTarget >= WINDOW_MINUTES) {
+        // Outside the window - add to results with debug info for troubleshooting
+        const userTime = user.execution_reminder_time?.substring(0, 5)
         results.push({
           userId: user.id,
           skipped: true,
           reason: 'time_mismatch',
           userTime,
-          currentTime: checkTime,
+          currentTime: currentTime.substring(0, 5),
           timezone: user.timezone,
         })
         continue
       }
+
+      const userTime = user.execution_reminder_time?.substring(0, 5)
 
       console.log(
         `[send-execution-reminders] Processing user ${user.id} - time matches ${userTime}`,

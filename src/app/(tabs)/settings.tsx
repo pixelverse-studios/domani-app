@@ -31,9 +31,6 @@ import {
   HelpCircle,
   LogOut,
   ClipboardClock,
-  Bug,
-  Bell,
-  RefreshCw,
 } from 'lucide-react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { format } from 'date-fns'
@@ -46,8 +43,6 @@ import { useTheme } from '~/hooks/useTheme'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
 import { useSubscription } from '~/hooks/useSubscription'
 import { useNotifications } from '~/hooks/useNotifications'
-import { NotificationService } from '~/lib/notifications'
-import { useNotificationStore } from '~/stores/notificationStore'
 import { useAccountDeletion } from '~/hooks/useAccountDeletion'
 import { useAppConfig } from '~/stores/appConfigStore'
 import type { ThemeMode } from '~/stores/themeStore'
@@ -237,28 +232,10 @@ export default function SettingsScreen() {
   const [showFarewellOverlay, setShowFarewellOverlay] = useState(false)
   const [showSmartCategoriesModal, setShowSmartCategoriesModal] = useState(false)
   const [pendingSmartCategoriesValue, setPendingSmartCategoriesValue] = useState(false)
-  const [showNotificationDebugModal, setShowNotificationDebugModal] = useState(false)
-  const [debugInfo, setDebugInfo] = useState<{
-    loading: boolean
-    permissionStatus: string
-    profileReminderTime: string | null
-    scheduledNotifications: Array<{
-      id: string
-      title: string
-      body: string
-      triggerHour?: number
-      triggerMinute?: number
-    }>
-    storeReminderId: string | null
-    hasValidatedIds: boolean
-  } | null>(null)
 
   // Form states
   const [editName, setEditName] = useState('')
   const [selectedTime, setSelectedTime] = useState(new Date())
-
-  // Get notification store state
-  const notificationStore = useNotificationStore()
 
   const handleSignOut = async () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
@@ -364,77 +341,6 @@ export default function SettingsScreen() {
     } else {
       // Disable: clear time
       await updateProfile.mutateAsync({ execution_reminder_time: null })
-    }
-  }
-
-  const fetchNotificationDebugInfo = async () => {
-    setDebugInfo({ loading: true } as typeof debugInfo)
-
-    try {
-      // Check current permission status
-      const hasPermissions = await NotificationService.hasPermissions()
-
-      // Get scheduled notifications
-      const scheduled = await NotificationService.getScheduledNotifications()
-      const formattedNotifications = scheduled.map((n: unknown) => {
-        const notif = n as {
-          identifier: string
-          content?: { title?: string; body?: string }
-          trigger?: { hour?: number; minute?: number }
-        }
-        return {
-          id: notif.identifier,
-          title: notif.content?.title || 'Unknown',
-          body: notif.content?.body || 'Unknown',
-          triggerHour: notif.trigger?.hour,
-          triggerMinute: notif.trigger?.minute,
-        }
-      })
-
-      // Get store state
-      const storeState = useNotificationStore.getState()
-
-      setDebugInfo({
-        loading: false,
-        permissionStatus: hasPermissions ? 'granted' : 'denied',
-        profileReminderTime: profile?.planning_reminder_time || null,
-        scheduledNotifications: formattedNotifications,
-        storeReminderId: storeState.planningReminderId,
-        hasValidatedIds: storeState.hasValidatedIds,
-      })
-    } catch (error) {
-      setDebugInfo({
-        loading: false,
-        permissionStatus: 'error',
-        profileReminderTime: null,
-        scheduledNotifications: [],
-        storeReminderId: null,
-        hasValidatedIds: false,
-      })
-    }
-  }
-
-  const handleForceReschedule = async () => {
-    try {
-      // Reset validation flag to force reschedule
-      notificationStore.setHasValidatedIds(false)
-
-      // Cancel all and reschedule
-      await NotificationService.cancelAllReminders()
-
-      if (profile?.planning_reminder_time) {
-        const { hour, minute } = NotificationService.parseTimeString(profile.planning_reminder_time)
-        const newId = await NotificationService.schedulePlanningReminder(hour, minute)
-        notificationStore.setPlanningReminderId(newId)
-        notificationStore.setHasValidatedIds(true)
-      }
-
-      // Refresh debug info
-      await fetchNotificationDebugInfo()
-
-      Alert.alert('Success', 'Notifications rescheduled successfully')
-    } catch (error) {
-      Alert.alert('Error', 'Failed to reschedule notifications')
     }
   }
 
@@ -848,27 +754,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Developer Debug Section */}
-        <SectionHeader title="Developer" />
-        <View className="mb-6">
-          <TouchableOpacity
-            onPress={() => {
-              setShowNotificationDebugModal(true)
-              fetchNotificationDebugInfo()
-            }}
-            activeOpacity={0.7}
-            className="flex-row items-center justify-between py-3.5 px-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl"
-          >
-            <View className="flex-row items-center">
-              <Bug size={20} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
-              <Text className="text-base text-slate-900 dark:text-slate-100 ml-3">
-                Notification Debug
-              </Text>
-            </View>
-            <ChevronRight size={18} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
-          </TouchableOpacity>
-        </View>
-
         {/* Support Section */}
         <SectionHeader title="Support" />
         <View className="mb-6">
@@ -1257,141 +1142,6 @@ export default function SettingsScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Notification Debug Modal */}
-      <Modal
-        visible={showNotificationDebugModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowNotificationDebugModal(false)}
-      >
-        <View className="flex-1 bg-black/50 justify-center px-4">
-          <View className="bg-white dark:bg-slate-800 rounded-2xl p-5 max-h-[80%]">
-            {/* Header */}
-            <View className="flex-row items-center justify-between mb-4">
-              <View className="flex-row items-center">
-                <Bell size={20} color="#8b5cf6" />
-                <Text className="text-lg font-semibold text-slate-900 dark:text-white ml-2">
-                  Notification Debug
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => setShowNotificationDebugModal(false)}>
-                <X size={24} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {debugInfo?.loading ? (
-                <View className="py-8 items-center">
-                  <ActivityIndicator size="large" color="#8b5cf6" />
-                  <Text className="text-slate-500 mt-2">Loading...</Text>
-                </View>
-              ) : debugInfo ? (
-                <View className="gap-4">
-                  {/* Permission Status */}
-                  <View className="bg-slate-100 dark:bg-slate-700/50 rounded-xl p-3">
-                    <Text className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                      PERMISSION STATUS
-                    </Text>
-                    <Text
-                      className={`text-base font-semibold ${
-                        debugInfo.permissionStatus === 'granted'
-                          ? 'text-green-600'
-                          : 'text-red-500'
-                      }`}
-                    >
-                      {debugInfo.permissionStatus === 'granted' ? '✓ Granted' : '✗ Denied'}
-                    </Text>
-                  </View>
-
-                  {/* Profile Reminder Time */}
-                  <View className="bg-slate-100 dark:bg-slate-700/50 rounded-xl p-3">
-                    <Text className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                      PROFILE REMINDER TIME (DB)
-                    </Text>
-                    <Text className="text-base font-semibold text-slate-900 dark:text-white">
-                      {debugInfo.profileReminderTime || 'Not set'}
-                    </Text>
-                  </View>
-
-                  {/* Store State */}
-                  <View className="bg-slate-100 dark:bg-slate-700/50 rounded-xl p-3">
-                    <Text className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
-                      STORE STATE
-                    </Text>
-                    <Text className="text-sm text-slate-700 dark:text-slate-300">
-                      Reminder ID: {debugInfo.storeReminderId || 'None'}
-                    </Text>
-                    <Text className="text-sm text-slate-700 dark:text-slate-300">
-                      Validated: {debugInfo.hasValidatedIds ? 'Yes' : 'No'}
-                    </Text>
-                  </View>
-
-                  {/* Scheduled Notifications */}
-                  <View className="bg-slate-100 dark:bg-slate-700/50 rounded-xl p-3">
-                    <Text className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
-                      SCHEDULED NOTIFICATIONS ({debugInfo.scheduledNotifications.length})
-                    </Text>
-                    {debugInfo.scheduledNotifications.length === 0 ? (
-                      <Text className="text-sm text-red-500 font-medium">
-                        ⚠ No notifications scheduled!
-                      </Text>
-                    ) : (
-                      debugInfo.scheduledNotifications.map((notif, index) => (
-                        <View
-                          key={notif.id}
-                          className={`${index > 0 ? 'mt-2 pt-2 border-t border-slate-200 dark:border-slate-600' : ''}`}
-                        >
-                          <Text className="text-sm font-medium text-slate-900 dark:text-white">
-                            {notif.title}
-                          </Text>
-                          <Text className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                            {notif.body}
-                          </Text>
-                          <Text className="text-xs text-purple-600 dark:text-purple-400 mt-1">
-                            Trigger: {notif.triggerHour?.toString().padStart(2, '0')}:
-                            {notif.triggerMinute?.toString().padStart(2, '0')}
-                          </Text>
-                          <Text className="text-xs text-slate-400 mt-0.5">
-                            ID: {notif.id.substring(0, 20)}...
-                          </Text>
-                        </View>
-                      ))
-                    )}
-                  </View>
-
-                  {/* Action Buttons */}
-                  <View className="gap-2 mt-2">
-                    <TouchableOpacity
-                      onPress={fetchNotificationDebugInfo}
-                      activeOpacity={0.8}
-                      className="flex-row items-center justify-center py-3 bg-slate-200 dark:bg-slate-700 rounded-xl"
-                    >
-                      <RefreshCw size={16} color={activeTheme === 'dark' ? '#e2e8f0' : '#475569'} />
-                      <Text className="text-slate-700 dark:text-slate-200 font-semibold ml-2">
-                        Refresh
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      onPress={handleForceReschedule}
-                      activeOpacity={0.8}
-                      className="flex-row items-center justify-center py-3 bg-purple-500 rounded-xl"
-                    >
-                      <Bell size={16} color="#fff" />
-                      <Text className="text-white font-semibold ml-2">Force Reschedule</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : (
-                <Text className="text-slate-500 text-center py-4">
-                  Tap Refresh to load debug info
-                </Text>
-              )}
-            </ScrollView>
           </View>
         </View>
       </Modal>
