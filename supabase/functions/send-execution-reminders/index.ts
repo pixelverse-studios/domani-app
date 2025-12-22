@@ -48,7 +48,32 @@ function getTodayForTimezone(timezone: string | null): string {
 }
 
 /**
- * Get current time string (HH:MM:00) for a given timezone
+ * Get current time in minutes since midnight for a given timezone
+ */
+function getCurrentMinutesSinceMidnight(timezone: string | null): number {
+  const now = new Date()
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone || 'America/New_York',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+  const parts = formatter.formatToParts(now)
+  const hour = parseInt(parts.find((p) => p.type === 'hour')?.value || '0', 10)
+  const minute = parseInt(parts.find((p) => p.type === 'minute')?.value || '0', 10)
+  return hour * 60 + minute
+}
+
+/**
+ * Parse time string (HH:MM:SS) to minutes since midnight
+ */
+function timeStringToMinutes(timeString: string): number {
+  const [hours, minutes] = timeString.split(':').map((s) => parseInt(s, 10))
+  return hours * 60 + minutes
+}
+
+/**
+ * Get current time string (HH:MM:00) for a given timezone (for logging)
  */
 function getCurrentTimeForTimezone(timezone: string | null): string {
   const now = new Date()
@@ -71,6 +96,10 @@ interface ProcessResult {
   reason?: string
   taskCount?: number
   pushResult?: PushResult
+  // Debug fields
+  userTime?: string
+  currentTime?: string
+  timezone?: string
 }
 
 Deno.serve(async (req) => {
@@ -128,17 +157,34 @@ Deno.serve(async (req) => {
         continue
       }
 
-      // Check if current time matches user's reminder time (in their timezone)
-      const currentTime = getCurrentTimeForTimezone(user.timezone)
+      // Check if current time is within the window of user's reminder time
+      // Using a 5-minute window (0-4 minutes past target) to account for cron drift
+      const currentMinutes = getCurrentMinutesSinceMidnight(user.timezone)
+      const targetMinutes = timeStringToMinutes(user.execution_reminder_time || '00:00:00')
+      const currentTime = getCurrentTimeForTimezone(user.timezone) // For logging
 
-      // Only process if times match (comparing HH:MM, ignoring seconds)
-      const userTime = user.execution_reminder_time?.substring(0, 5)
-      const checkTime = currentTime.substring(0, 5)
+      // Calculate minutes since target time (handling midnight wrap)
+      let minutesSinceTarget = currentMinutes - targetMinutes
+      if (minutesSinceTarget < -720) minutesSinceTarget += 1440 // Handle midnight wrap
 
-      if (checkTime !== userTime) {
-        // Time doesn't match, skip silently (this is expected for most users)
+      // Only process if we're within 0-4 minutes past the target time
+      // This gives a 5-minute window to catch any cron drift
+      const WINDOW_MINUTES = 5
+      if (minutesSinceTarget < 0 || minutesSinceTarget >= WINDOW_MINUTES) {
+        // Outside the window - add to results with debug info for troubleshooting
+        const userTime = user.execution_reminder_time?.substring(0, 5)
+        results.push({
+          userId: user.id,
+          skipped: true,
+          reason: 'time_mismatch',
+          userTime,
+          currentTime: currentTime.substring(0, 5),
+          timezone: user.timezone,
+        })
         continue
       }
+
+      const userTime = user.execution_reminder_time?.substring(0, 5)
 
       console.log(
         `[send-execution-reminders] Processing user ${user.id} - time matches ${userTime}`,
@@ -212,7 +258,13 @@ Deno.serve(async (req) => {
         priority: 'high',
       })
 
-      console.log(`[send-execution-reminders] Push result for user ${user.id}:`, pushResult)
+      console.log(
+        `[send-execution-reminders] Push result for user ${user.id}:`,
+        JSON.stringify(pushResult),
+      )
+      console.log(
+        `[send-execution-reminders] Push status check: status="${pushResult.status}", isOk=${pushResult.status === 'ok'}`,
+      )
 
       // Handle DeviceNotRegistered error - clear the invalid token
       if (pushResult.status === 'error' && pushResult.details?.error === 'DeviceNotRegistered') {
@@ -243,20 +295,33 @@ Deno.serve(async (req) => {
 
       // Update tracking fields after successful send
       if (pushResult.status === 'ok') {
-        const { error: updateError } = await supabase
+        console.log(
+          `[send-execution-reminders] Updating tracking for user ${user.id} with date: ${today}`,
+        )
+        const { error: updateError, data: updateData } = await supabase
           .from('profiles')
           .update({
             last_execution_reminder_sent_at: today,
             push_token_last_verified_at: new Date().toISOString(),
           })
           .eq('id', user.id)
+          .select('last_execution_reminder_sent_at')
 
         if (updateError) {
           console.error(
             `[send-execution-reminders] Error updating tracking for user ${user.id}:`,
-            updateError,
+            JSON.stringify(updateError),
+          )
+        } else {
+          console.log(
+            `[send-execution-reminders] Successfully updated tracking for user ${user.id}:`,
+            JSON.stringify(updateData),
           )
         }
+      } else {
+        console.log(
+          `[send-execution-reminders] NOT updating tracking for user ${user.id} - pushResult.status is "${pushResult.status}" (not "ok")`,
+        )
       }
 
       results.push({
@@ -271,9 +336,10 @@ Deno.serve(async (req) => {
     const skippedCount = results.filter((r) => r.skipped).length
     const alreadySentCount = results.filter((r) => r.reason === 'already_sent_today').length
     const invalidTokenCount = results.filter((r) => r.reason === 'token_invalid').length
+    const timeMismatchCount = results.filter((r) => r.reason === 'time_mismatch').length
 
     console.log(
-      `[send-execution-reminders] Complete - Sent: ${sentCount}, Skipped: ${skippedCount} (already_sent: ${alreadySentCount}, invalid_token: ${invalidTokenCount})`,
+      `[send-execution-reminders] Complete - Sent: ${sentCount}, Skipped: ${skippedCount} (already_sent: ${alreadySentCount}, invalid_token: ${invalidTokenCount}, time_mismatch: ${timeMismatchCount})`,
     )
 
     return new Response(
@@ -284,6 +350,7 @@ Deno.serve(async (req) => {
           skipped: skippedCount,
           already_sent_today: alreadySentCount,
           invalid_tokens_cleared: invalidTokenCount,
+          time_mismatch: timeMismatchCount,
         },
         results,
       }),

@@ -123,9 +123,9 @@ This ensures nothing falls through the cracks between development sessions.
 
 **Current versions (update after each build):**
 
-- Android versionCode: 12
-- Android versionName: 1.0.11
-- app.json version: 1.0.11
+- Android versionCode: 13
+- Android versionName: 1.0.12
+- app.json version: 1.0.12
 - iOS uses EAS auto-increment
 
 ## Linear Ticket Creation
