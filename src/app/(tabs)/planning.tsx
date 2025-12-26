@@ -65,7 +65,10 @@ export default function PlanningScreen() {
   const [editingTask, setEditingTask] = useState<TaskWithCategory | null>(null)
   const [shouldAutoFocusTitle, setShouldAutoFocusTitle] = useState(false)
   // Separate state for form's day toggle - decoupled from header to prevent race conditions
-  const [formSelectedDay, setFormSelectedDay] = useState<PlanningTarget>('tomorrow')
+  // Initialize from defaultPlanningFor to avoid showing wrong day when editing from Today screen
+  const [formSelectedDay, setFormSelectedDay] = useState<PlanningTarget>(
+    defaultPlanningFor === 'today' ? 'today' : 'tomorrow',
+  )
 
   // Update target when navigation param changes (tab navigation preserves component state)
   // This effect must run synchronously before the openForm effect to ensure correct target
@@ -74,6 +77,14 @@ export default function PlanningScreen() {
       setSelectedTarget(defaultPlanningFor === 'today' ? 'today' : 'tomorrow')
     }
   }, [defaultPlanningFor])
+
+  // Sync form's day toggle when defaultPlanningFor changes (handles component already mounted)
+  // This ensures editing from Today screen shows "Today" even if component state persisted "Tomorrow"
+  useEffect(() => {
+    if (defaultPlanningFor && editTaskId) {
+      setFormSelectedDay(defaultPlanningFor === 'today' ? 'today' : 'tomorrow')
+    }
+  }, [defaultPlanningFor, editTaskId])
 
   // Get the target date based on selection
   const targetDate = useMemo(() => {
@@ -109,9 +120,12 @@ export default function PlanningScreen() {
 
         setEditingTask(task)
         setIsFormVisible(true)
+
+        // Clear editTaskId param to prevent re-triggering when toggling days
+        router.setParams({ editTaskId: undefined })
       }
     }
-  }, [editTaskId, tasks, todayPlan?.id])
+  }, [editTaskId, tasks, todayPlan?.id, router])
 
   // Free tier limit logic (disabled during beta - all users get unlimited tasks)
   const isBeta = phase === 'closed_beta' || phase === 'open_beta'
