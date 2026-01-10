@@ -184,6 +184,13 @@ export type Database = {
             foreignKeyName: 'beta_feedback_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
+            referencedRelation: 'admin_user_task_details'
+            referencedColumns: ['user_id']
+          },
+          {
+            foreignKeyName: 'beta_feedback_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
@@ -551,6 +558,13 @@ export type Database = {
             foreignKeyName: 'plans_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
+            referencedRelation: 'admin_user_task_details'
+            referencedColumns: ['user_id']
+          },
+          {
+            foreignKeyName: 'plans_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
@@ -581,6 +595,8 @@ export type Database = {
           push_token_invalid_at: string | null
           push_token_last_verified_at: string | null
           revenuecat_user_id: string | null
+          signup_cohort: Database['public']['Enums']['signup_cohort'] | null
+          signup_method: string | null
           subscription_expires_at: string | null
           subscription_status: string | null
           tier: Database['public']['Enums']['tier']
@@ -606,6 +622,8 @@ export type Database = {
           push_token_invalid_at?: string | null
           push_token_last_verified_at?: string | null
           revenuecat_user_id?: string | null
+          signup_cohort?: Database['public']['Enums']['signup_cohort'] | null
+          signup_method?: string | null
           subscription_expires_at?: string | null
           subscription_status?: string | null
           tier?: Database['public']['Enums']['tier']
@@ -631,6 +649,8 @@ export type Database = {
           push_token_invalid_at?: string | null
           push_token_last_verified_at?: string | null
           revenuecat_user_id?: string | null
+          signup_cohort?: Database['public']['Enums']['signup_cohort'] | null
+          signup_method?: string | null
           subscription_expires_at?: string | null
           subscription_status?: string | null
           tier?: Database['public']['Enums']['tier']
@@ -709,6 +729,13 @@ export type Database = {
             foreignKeyName: 'support_requests_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
+            referencedRelation: 'admin_user_task_details'
+            referencedColumns: ['user_id']
+          },
+          {
+            foreignKeyName: 'support_requests_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
@@ -781,6 +808,13 @@ export type Database = {
             foreignKeyName: 'task_time_blocks_task_id_fkey'
             columns: ['task_id']
             isOneToOne: false
+            referencedRelation: 'admin_user_task_details'
+            referencedColumns: ['task_id']
+          },
+          {
+            foreignKeyName: 'task_time_blocks_task_id_fkey'
+            columns: ['task_id']
+            isOneToOne: false
             referencedRelation: 'tasks'
             referencedColumns: ['id']
           },
@@ -846,6 +880,13 @@ export type Database = {
             foreignKeyName: 'tasks_plan_id_fkey'
             columns: ['plan_id']
             isOneToOne: false
+            referencedRelation: 'admin_user_task_details'
+            referencedColumns: ['plan_id']
+          },
+          {
+            foreignKeyName: 'tasks_plan_id_fkey'
+            columns: ['plan_id']
+            isOneToOne: false
             referencedRelation: 'plans'
             referencedColumns: ['id']
           },
@@ -862,6 +903,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'user_categories'
             referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'tasks_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'admin_user_task_details'
+            referencedColumns: ['user_id']
           },
           {
             foreignKeyName: 'tasks_user_id_fkey'
@@ -921,6 +969,13 @@ export type Database = {
             foreignKeyName: 'user_categories_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
+            referencedRelation: 'admin_user_task_details'
+            referencedColumns: ['user_id']
+          },
+          {
+            foreignKeyName: 'user_categories_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
@@ -971,6 +1026,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'system_categories'
             referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'user_category_preferences_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'admin_user_task_details'
+            referencedColumns: ['user_id']
           },
           {
             foreignKeyName: 'user_category_preferences_user_id_fkey'
@@ -1041,6 +1103,58 @@ export type Database = {
           task_title: string | null
         }
         Relationships: []
+      }
+      admin_user_task_details: {
+        Row: {
+          category_color: string | null
+          category_icon: string | null
+          category_name: string | null
+          category_type: string | null
+          completed_at: string | null
+          description: string | null
+          estimated_duration_minutes: number | null
+          full_name: string | null
+          is_mit: boolean | null
+          notes: string | null
+          plan_id: string | null
+          plan_status: Database['public']['Enums']['plan_status'] | null
+          planned_for: string | null
+          position: number | null
+          priority: Database['public']['Enums']['task_priority'] | null
+          system_category_id: string | null
+          task_created_at: string | null
+          task_id: string | null
+          task_status: string | null
+          task_title: string | null
+          task_updated_at: string | null
+          tier: Database['public']['Enums']['tier'] | null
+          user_category_id: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'profiles_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
+            referencedRelation: 'admin_users_overview'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'tasks_system_category_id_fkey'
+            columns: ['system_category_id']
+            isOneToOne: false
+            referencedRelation: 'system_categories'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'tasks_user_category_id_fkey'
+            columns: ['user_category_id']
+            isOneToOne: false
+            referencedRelation: 'user_categories'
+            referencedColumns: ['id']
+          },
+        ]
       }
       admin_user_tasks_today: {
         Row: {
@@ -1131,6 +1245,7 @@ export type Database = {
         Returns: number
       }
       get_task_count_for_plan: { Args: { p_plan_id: string }; Returns: number }
+      get_user_cohort: { Args: { p_user_id: string }; Returns: string }
       get_user_role_level: { Args: { p_user_id: string }; Returns: number }
       get_user_tier: { Args: { p_user_id: string }; Returns: string }
       has_permission: {
@@ -1205,6 +1320,7 @@ export type Database = {
         | 'login_error'
         | 'read'
       plan_status: 'draft' | 'locked' | 'active' | 'completed'
+      signup_cohort: 'friends_family' | 'early_adopter' | 'general'
       subscription_status_enum: 'none' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired'
       task_priority: 'high' | 'medium' | 'low'
       tier: 'free' | 'premium' | 'lifetime'
@@ -1352,6 +1468,7 @@ export const Constants = {
         'read',
       ],
       plan_status: ['draft', 'locked', 'active', 'completed'],
+      signup_cohort: ['friends_family', 'early_adopter', 'general'],
       subscription_status_enum: ['none', 'trialing', 'active', 'past_due', 'canceled', 'expired'],
       task_priority: ['high', 'medium', 'low'],
       tier: ['free', 'premium', 'lifetime'],

@@ -136,7 +136,7 @@ When creating Linear tickets for this project:
 | -------- | ------------------- |
 | Team     | Domani              |
 | Assignee | `me`                |
-| Project  | Domani Closed Alpha |
+| Project  | Domani Public Beta |
 | Priority | Medium (3)          |
 
 **Labels:** Always apply one from each sub-label group:
