@@ -103,7 +103,9 @@ async function checkAndFixMissingPushToken(): Promise<void> {
 
     // Check if user has execution reminder enabled but no push token
     if (profile?.execution_reminder_time && !profile?.expo_push_token) {
-      console.log('[Notifications] Self-healing: User has execution reminder but no token, fixing...')
+      console.log(
+        '[Notifications] Self-healing: User has execution reminder but no token, fixing...',
+      )
 
       // Request permissions (this will also trigger token registration if granted)
       const granted = await NotificationService.requestPermissions()
@@ -219,21 +221,29 @@ export function useNotificationObserver() {
           return
         }
 
-        console.log(`[Notifications] Profile planning_reminder_time: ${profile?.planning_reminder_time || 'NOT SET'}`)
+        console.log(
+          `[Notifications] Profile planning_reminder_time: ${profile?.planning_reminder_time || 'NOT SET'}`,
+        )
 
         // Log existing scheduled notifications before any action
         const existingNotifications = await NotificationService.getScheduledNotifications()
         console.log(
           `[Notifications] Found ${existingNotifications.length} existing scheduled notifications:`,
-          JSON.stringify(existingNotifications.map((n: unknown) => {
-            const notif = n as { identifier: string; content?: { title?: string; body?: string }; trigger?: unknown }
-            return {
-              id: notif.identifier,
-              title: notif.content?.title,
-              body: notif.content?.body?.substring(0, 30),
-              trigger: notif.trigger,
-            }
-          })),
+          JSON.stringify(
+            existingNotifications.map((n: unknown) => {
+              const notif = n as {
+                identifier: string
+                content?: { title?: string; body?: string }
+                trigger?: unknown
+              }
+              return {
+                id: notif.identifier,
+                title: notif.content?.title,
+                body: notif.content?.body?.substring(0, 30),
+                trigger: notif.trigger,
+              }
+            }),
+          ),
         )
 
         // Always cancel ALL existing reminders first to prevent any duplicates
@@ -272,17 +282,26 @@ export function useNotificationObserver() {
         )
 
         if (afterSchedule.length === 0) {
-          console.error('[Notifications] CRITICAL: No notifications scheduled after schedulePlanningReminder!')
+          console.error(
+            '[Notifications] CRITICAL: No notifications scheduled after schedulePlanningReminder!',
+          )
         } else {
           // Log details of the scheduled notification
-          const scheduled = afterSchedule[0] as { identifier: string; content?: { title?: string; body?: string }; trigger?: { hour?: number; minute?: number } }
-          console.log(`[Notifications] Scheduled notification details:`, JSON.stringify({
-            id: scheduled.identifier,
-            title: scheduled.content?.title,
-            body: scheduled.content?.body,
-            triggerHour: scheduled.trigger?.hour,
-            triggerMinute: scheduled.trigger?.minute,
-          }))
+          const scheduled = afterSchedule[0] as {
+            identifier: string
+            content?: { title?: string; body?: string }
+            trigger?: { hour?: number; minute?: number }
+          }
+          console.log(
+            `[Notifications] Scheduled notification details:`,
+            JSON.stringify({
+              id: scheduled.identifier,
+              title: scheduled.content?.title,
+              body: scheduled.content?.body,
+              triggerHour: scheduled.trigger?.hour,
+              triggerMinute: scheduled.trigger?.minute,
+            }),
+          )
         }
 
         // Mark as validated for this session
