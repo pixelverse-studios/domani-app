@@ -5,22 +5,12 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal",
-      "env": {
-        "SENTRY_ENVIRONMENT": "development"
-      }
+      "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal",
-      "env": {
-        "SENTRY_ENVIRONMENT": "preview"
-      }
+      "distribution": "internal"
     },
-    "production": {
-      "env": {
-        "SENTRY_ENVIRONMENT": "production"
-      }
-    }
+    "production": {}
   },
   "submit": {
     "production": {}

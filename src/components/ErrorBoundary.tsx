@@ -3,7 +3,6 @@ import { View, TouchableOpacity } from 'react-native'
 import { AlertTriangle, RotateCcw } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
-import { captureException } from '~/lib/sentry'
 
 interface ErrorBoundaryState {
   hasError: boolean
@@ -26,12 +25,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       console.error('[ErrorBoundary] Caught error:', error)
       console.error('[ErrorBoundary] Component stack:', info.componentStack)
     }
-
-    // Report to Sentry with component stack context
-    captureException(error, {
-      componentStack: info.componentStack,
-      errorBoundary: true,
-    })
+    // TODO: Report to error tracking service (e.g., Sentry)
   }
 
   handleRetry = () => {
