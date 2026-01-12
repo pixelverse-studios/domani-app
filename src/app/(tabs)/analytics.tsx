@@ -9,6 +9,7 @@ import {
   AnalyticsEmptyState,
   DailyCompletionChart,
   StreaksCard,
+  WeeklySummaryCard,
 } from '~/components/analytics'
 import { useAnalyticsSummary, useDailyCompletions } from '~/hooks/useAnalytics'
 import { colors } from '~/theme'
@@ -116,6 +117,9 @@ export default function AnalyticsScreen() {
           executionStreak={analytics.executionStreak}
           mitCompletionRate={analytics.mitCompletionRate}
         />
+
+        {/* Weekly Summary Card - Most productive day, consistency, perfect days */}
+        {dailyData && dailyData.length > 0 && <WeeklySummaryCard dailyData={dailyData} />}
       </View>
     </ScrollView>
   )
