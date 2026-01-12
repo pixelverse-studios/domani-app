@@ -1,5 +1,9 @@
 import '../../global.css'
 
+// Initialize Sentry before any other code runs
+import { initSentry } from '~/lib/sentry'
+initSentry()
+
 import React from 'react'
 import { Stack } from 'expo-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
