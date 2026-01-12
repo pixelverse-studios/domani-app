@@ -1,15 +1,31 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { View } from 'react-native'
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg'
+import Animated, {
+  useSharedValue,
+  useAnimatedProps,
+  withTiming,
+  withDelay,
+  Easing,
+  runOnJS,
+  useAnimatedReaction,
+} from 'react-native-reanimated'
 
 import { Text } from './Text'
 import { useTheme } from '~/hooks/useTheme'
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle)
+
+// Animation timing
+const ANIMATION_DURATION = 800
+const ANIMATION_DELAY = 200
 
 interface CircularProgressProps {
   progress: number // 0-100
   size?: number
   strokeWidth?: number
   showPercentage?: boolean
+  animationKey?: number
 }
 
 export function CircularProgress({
@@ -17,6 +33,7 @@ export function CircularProgress({
   size = 100,
   strokeWidth = 8,
   showPercentage = true,
+  animationKey = 0,
 }: CircularProgressProps) {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
@@ -24,9 +41,43 @@ export function CircularProgress({
   const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
   const clampedProgress = Math.min(100, Math.max(0, progress))
-  const strokeDashoffset = circumference - (clampedProgress / 100) * circumference
 
-  // Theme-aware colors - darker, more subtle background ring
+  // Animated value for progress
+  const animatedProgress = useSharedValue(0)
+
+  // State for displayed percentage (updated from animation)
+  const [displayedProgress, setDisplayedProgress] = useState(0)
+
+  // Update displayed progress when animated value changes
+  useAnimatedReaction(
+    () => Math.round(animatedProgress.value),
+    (currentValue) => {
+      runOnJS(setDisplayedProgress)(currentValue)
+    },
+    [animatedProgress],
+  )
+
+  useEffect(() => {
+    animatedProgress.value = 0
+    setDisplayedProgress(0)
+    animatedProgress.value = withDelay(
+      ANIMATION_DELAY,
+      withTiming(clampedProgress, {
+        duration: ANIMATION_DURATION,
+        easing: Easing.out(Easing.cubic),
+      }),
+    )
+  }, [clampedProgress, animationKey, animatedProgress])
+
+  // Animated stroke dash offset
+  const animatedProps = useAnimatedProps(() => {
+    const currentOffset = circumference - (animatedProgress.value / 100) * circumference
+    return {
+      strokeDashoffset: currentOffset,
+    }
+  })
+
+  // Theme-aware colors
   const backgroundStroke = isDark ? '#2D2D3A' : '#e2e8f0'
 
   return (
@@ -48,8 +99,8 @@ export function CircularProgress({
           strokeWidth={strokeWidth}
           fill="none"
         />
-        {/* Progress circle with gradient */}
-        <Circle
+        {/* Progress circle with gradient - animated */}
+        <AnimatedCircle
           cx={size / 2}
           cy={size / 2}
           r={radius}
@@ -57,10 +108,10 @@ export function CircularProgress({
           strokeWidth={strokeWidth}
           fill="none"
           strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"
           rotation={-90}
           origin={`${size / 2}, ${size / 2}`}
+          animatedProps={animatedProps}
         />
       </Svg>
       {showPercentage && (
@@ -69,7 +120,7 @@ export function CircularProgress({
             className="font-bold text-slate-900 dark:text-white"
             style={{ fontSize: size * 0.26, lineHeight: size * 0.32 }}
           >
-            {Math.round(clampedProgress)}
+            {displayedProgress}
           </Text>
           <Text
             className="font-medium text-slate-600 dark:text-slate-300"

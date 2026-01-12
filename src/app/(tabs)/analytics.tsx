@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react'
 import { View, ScrollView, RefreshControl } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useQueryClient } from '@tanstack/react-query'
+import { useFocusEffect } from 'expo-router'
 
 import { Text } from '~/components/ui'
 import {
@@ -9,6 +10,7 @@ import {
   AnalyticsEmptyState,
   DailyCompletionChart,
   StreaksCard,
+  WeeklySummaryCard,
 } from '~/components/analytics'
 import { useAnalyticsSummary, useDailyCompletions } from '~/hooks/useAnalytics'
 import { colors } from '~/theme'
@@ -17,9 +19,17 @@ export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets()
   const queryClient = useQueryClient()
   const [refreshing, setRefreshing] = useState(false)
+  const [animationKey, setAnimationKey] = useState(0)
 
   const { data: analytics, isLoading, error } = useAnalyticsSummary()
   const { data: dailyData } = useDailyCompletions(7)
+
+  // Trigger animations when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      setAnimationKey((prev) => prev + 1)
+    }, []),
+  )
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -107,7 +117,11 @@ export default function AnalyticsScreen() {
       <View className="px-5 gap-4 pb-8">
         {/* Daily Completion Chart - combines completion rate, chart, and category breakdown */}
         {dailyData && dailyData.length > 0 && (
-          <DailyCompletionChart dailyData={dailyData} completionRate={analytics.completionRate} />
+          <DailyCompletionChart
+            dailyData={dailyData}
+            completionRate={analytics.completionRate}
+            animationKey={animationKey}
+          />
         )}
 
         {/* Streaks & Focus Card - Combined view of all streak metrics */}
@@ -115,7 +129,13 @@ export default function AnalyticsScreen() {
           planningStreak={analytics.planningStreak}
           executionStreak={analytics.executionStreak}
           mitCompletionRate={analytics.mitCompletionRate}
+          animationKey={animationKey}
         />
+
+        {/* Weekly Summary Card - Most productive day, consistency, perfect days */}
+        {dailyData && dailyData.length > 0 && (
+          <WeeklySummaryCard dailyData={dailyData} animationKey={animationKey} />
+        )}
       </View>
     </ScrollView>
   )
