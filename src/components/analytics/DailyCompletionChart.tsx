@@ -1,15 +1,106 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useEffect } from 'react'
 import { View, Dimensions } from 'react-native'
 import Svg, { Rect, G, ClipPath, Defs, Text as SvgText } from 'react-native-svg'
+import Animated, {
+  useSharedValue,
+  useAnimatedProps,
+  withTiming,
+  withDelay,
+  Easing,
+  SharedValue,
+} from 'react-native-reanimated'
 
 import { Text, Card } from '~/components/ui'
 import { CircularProgress } from '~/components/ui/CircularProgress'
 import { useTheme } from '~/hooks/useTheme'
 import type { DailyCompletionData, CompletionRateData } from '~/lib/analytics-queries'
 
+const AnimatedRect = Animated.createAnimatedComponent(Rect)
+
 interface DailyCompletionChartProps {
   dailyData: DailyCompletionData[]
   completionRate: CompletionRateData | null
+  animationKey?: number
+}
+
+interface BarSegment {
+  color: string
+  height: number
+  y: number
+}
+
+interface AnimatedBarProps {
+  segments: BarSegment[]
+  barX: number
+  barWidth: number
+  chartHeight: number
+  dayIndex: number
+  animationKey: number
+}
+
+// Animation timing constants
+const ANIMATION_DURATION = 500
+const STAGGER_DELAY = 60
+
+function AnimatedBar({
+  segments,
+  barX,
+  barWidth,
+  chartHeight,
+  dayIndex,
+  animationKey,
+}: AnimatedBarProps) {
+  const progress = useSharedValue(0)
+
+  useEffect(() => {
+    progress.value = 0
+    progress.value = withDelay(
+      dayIndex * STAGGER_DELAY,
+      withTiming(1, {
+        duration: ANIMATION_DURATION,
+        easing: Easing.out(Easing.cubic),
+      }),
+    )
+  }, [dayIndex, progress, animationKey])
+
+  return (
+    <>
+      {segments.map((seg, segIndex) => (
+        <AnimatedSegment
+          key={segIndex}
+          segment={seg}
+          barX={barX}
+          barWidth={barWidth}
+          chartHeight={chartHeight}
+          progress={progress}
+        />
+      ))}
+    </>
+  )
+}
+
+interface AnimatedSegmentProps {
+  segment: BarSegment
+  barX: number
+  barWidth: number
+  chartHeight: number
+  progress: SharedValue<number>
+}
+
+function AnimatedSegment({ segment, barX, barWidth, chartHeight, progress }: AnimatedSegmentProps) {
+  const animatedProps = useAnimatedProps(() => {
+    const animatedHeight = segment.height * progress.value
+    const baseY = chartHeight - (chartHeight - segment.y) * progress.value
+
+    return {
+      y: baseY,
+      height: animatedHeight + 1,
+    }
+  })
+
+  return (
+    <AnimatedRect x={barX} width={barWidth} fill={segment.color} animatedProps={animatedProps} />
+  )
 }
 
 // Get unique categories across all days
@@ -33,7 +124,11 @@ function getUniqueCategories(
   return Array.from(categoryMap.values())
 }
 
-export function DailyCompletionChart({ dailyData, completionRate }: DailyCompletionChartProps) {
+export function DailyCompletionChart({
+  dailyData,
+  completionRate,
+  animationKey = 0,
+}: DailyCompletionChartProps) {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
   const screenWidth = Dimensions.get('window').width
@@ -64,6 +159,43 @@ export function DailyCompletionChart({ dailyData, completionRate }: DailyComplet
     return Math.max(max, 5)
   }, [dailyData])
 
+  // Pre-compute bar data with segments
+  const barData = useMemo(() => {
+    return dailyData.map((day, dayIndex) => {
+      const barX = spacing + dayIndex * (barWidth + spacing)
+      const segments: BarSegment[] = []
+      let currentY = chartHeight
+
+      // Add completed by category
+      for (const category of categories) {
+        const dayCategory = day.categories.find((c) => c.categoryId === category.id)
+        const completed = dayCategory?.completed ?? 0
+        if (completed > 0) {
+          const height = (completed / maxValue) * chartHeight
+          currentY -= height
+          segments.push({
+            color: category.color,
+            height,
+            y: currentY,
+          })
+        }
+      }
+
+      // Add incomplete on top
+      if (day.totalIncomplete > 0) {
+        const height = (day.totalIncomplete / maxValue) * chartHeight
+        currentY -= height
+        segments.push({
+          color: incompleteColor,
+          height,
+          y: currentY,
+        })
+      }
+
+      return { day, dayIndex, barX, segments }
+    })
+  }, [dailyData, categories, maxValue, chartHeight, spacing, barWidth, incompleteColor])
+
   // Overall stats
   const overallRate = completionRate?.overall ?? 0
   const totalCompleted = completionRate?.completed ?? 0
@@ -73,7 +205,12 @@ export function DailyCompletionChart({ dailyData, completionRate }: DailyComplet
     <Card className="p-5 overflow-hidden">
       {/* Header with overall completion rate */}
       <View className="flex-row items-center mb-5">
-        <CircularProgress progress={overallRate} size={72} strokeWidth={6} />
+        <CircularProgress
+          progress={overallRate}
+          size={72}
+          strokeWidth={6}
+          animationKey={animationKey}
+        />
         <View className="ml-4 flex-1">
           <Text className="text-base font-semibold text-slate-700 dark:text-slate-200">
             Completion Rate
@@ -110,67 +247,33 @@ export function DailyCompletionChart({ dailyData, completionRate }: DailyComplet
             ))}
           </Defs>
 
-          {dailyData.map((day, dayIndex) => {
-            const barX = spacing + dayIndex * (barWidth + spacing)
-
-            // Build segments from bottom to top
-            const segments: { color: string; height: number }[] = []
-
-            // Add completed by category
-            for (const category of categories) {
-              const dayCategory = day.categories.find((c) => c.categoryId === category.id)
-              const completed = dayCategory?.completed ?? 0
-              if (completed > 0) {
-                segments.push({
-                  color: category.color,
-                  height: (completed / maxValue) * chartHeight,
-                })
-              }
-            }
-
-            // Add incomplete on top
-            if (day.totalIncomplete > 0) {
-              segments.push({
-                color: incompleteColor,
-                height: (day.totalIncomplete / maxValue) * chartHeight,
-              })
-            }
-
-            let currentY = chartHeight
-
-            return (
-              <G key={day.date}>
-                {/* Clipped bar group - segments blend seamlessly */}
-                <G clipPath={`url(#clip-${dayIndex})`}>
-                  {segments.map((seg, segIndex) => {
-                    currentY -= seg.height
-                    return (
-                      <Rect
-                        key={segIndex}
-                        x={barX}
-                        y={currentY}
-                        width={barWidth}
-                        height={seg.height + 1}
-                        fill={seg.color}
-                      />
-                    )
-                  })}
-                </G>
-
-                {/* Day label */}
-                <SvgText
-                  x={barX + barWidth / 2}
-                  y={chartHeight + labelHeight - 4}
-                  fontSize={11}
-                  fontWeight="500"
-                  fill={labelColor}
-                  textAnchor="middle"
-                >
-                  {day.dayLabel}
-                </SvgText>
+          {barData.map(({ day, dayIndex, barX, segments }) => (
+            <G key={day.date}>
+              {/* Clipped bar group - segments blend seamlessly */}
+              <G clipPath={`url(#clip-${dayIndex})`}>
+                <AnimatedBar
+                  segments={segments}
+                  barX={barX}
+                  barWidth={barWidth}
+                  chartHeight={chartHeight}
+                  dayIndex={dayIndex}
+                  animationKey={animationKey}
+                />
               </G>
-            )
-          })}
+
+              {/* Day label */}
+              <SvgText
+                x={barX + barWidth / 2}
+                y={chartHeight + labelHeight - 4}
+                fontSize={11}
+                fontWeight="500"
+                fill={labelColor}
+                textAnchor="middle"
+              >
+                {day.dayLabel}
+              </SvgText>
+            </G>
+          ))}
         </Svg>
       </View>
 
