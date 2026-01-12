@@ -383,10 +383,26 @@ export async function fetchExecutionStreak(userId: string): Promise<number | nul
 }
 
 /**
- * Placeholder for MIT completion rate query
- * Will be implemented in DOM-248
+ * Fetch MIT (Most Important Task) completion rate
+ *
+ * Calculates the percentage of MITs that have been completed.
+ * Returns null if user has no MITs.
  */
-export async function fetchMitCompletionRate(_userId: string): Promise<number | null> {
-  // TODO: Implement in DOM-248
-  return null
+export async function fetchMitCompletionRate(userId: string): Promise<number | null> {
+  // Query all MIT tasks for the user
+  const { data: mits, error } = await supabase
+    .from('tasks')
+    .select('id, completed_at')
+    .eq('user_id', userId)
+    .eq('is_mit', true)
+
+  if (error || !mits || mits.length === 0) {
+    return null
+  }
+
+  const totalMits = mits.length
+  const completedMits = mits.filter((t) => t.completed_at !== null).length
+  const rate = Math.round((completedMits / totalMits) * 100)
+
+  return rate
 }
