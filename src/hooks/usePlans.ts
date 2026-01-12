@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format, addDays } from 'date-fns'
 
 import { supabase } from '~/lib/supabase'
+import { useAnalytics } from '~/providers/AnalyticsProvider'
+import type { TaskWithCategory } from '~/types'
 
 // 5 minutes - plans change with user action but don't need real-time updates
 const PLAN_STALE_TIME = 1000 * 60 * 5
@@ -105,9 +107,14 @@ export function usePlan(planId: string | undefined) {
 
 export function useLockPlan() {
   const queryClient = useQueryClient()
+  const { track } = useAnalytics()
 
   return useMutation({
     mutationFn: async (planId: string) => {
+      // Get task count from cache before locking for analytics
+      const tasksFromCache = queryClient.getQueryData<TaskWithCategory[]>(['tasks', planId])
+      const taskCount = tasksFromCache?.length ?? 0
+
       const { data, error } = await supabase
         .from('plans')
         .update({ locked_at: new Date().toISOString() })
@@ -116,11 +123,17 @@ export function useLockPlan() {
         .single()
 
       if (error) throw error
-      return data
+      return { plan: data, taskCount }
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['plan', data.planned_for] })
-      queryClient.invalidateQueries({ queryKey: ['plan', data.id] })
+    onSuccess: ({ plan, taskCount }) => {
+      queryClient.invalidateQueries({ queryKey: ['plan', plan.planned_for] })
+      queryClient.invalidateQueries({ queryKey: ['plan', plan.id] })
+
+      // Track plan lock event
+      track('plan_locked', {
+        task_count: taskCount,
+        plan_date: plan.planned_for,
+      })
     },
   })
 }
