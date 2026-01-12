@@ -7,7 +7,7 @@ interface CardCarouselProps {
   children: React.ReactNode[]
 }
 
-const AUTO_SCROLL_INTERVAL = 5000
+const AUTO_SCROLL_INTERVAL = 8000
 const RESUME_DELAY = 10000
 
 export function CardCarousel({ children }: CardCarouselProps) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { View } from 'react-native'
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg'
 import Animated, {
@@ -45,6 +45,9 @@ export function CircularProgress({
   // Animated value for progress
   const animatedProgress = useSharedValue(0)
 
+  // Track previous animationKey to detect when to reset from 0
+  const prevAnimationKeyRef = useRef(animationKey)
+
   // State for displayed percentage (updated from animation)
   const [displayedProgress, setDisplayedProgress] = useState(0)
 
@@ -58,15 +61,28 @@ export function CircularProgress({
   )
 
   useEffect(() => {
-    animatedProgress.value = 0
-    setDisplayedProgress(0)
-    animatedProgress.value = withDelay(
-      ANIMATION_DELAY,
-      withTiming(clampedProgress, {
-        duration: ANIMATION_DURATION,
+    const animationKeyChanged = prevAnimationKeyRef.current !== animationKey
+    prevAnimationKeyRef.current = animationKey
+
+    // Only reset to 0 when animationKey changes (e.g., Analytics screen focus)
+    // When just progress changes (e.g., task completion), animate from current value
+    if (animationKeyChanged) {
+      animatedProgress.value = 0
+      setDisplayedProgress(0)
+      animatedProgress.value = withDelay(
+        ANIMATION_DELAY,
+        withTiming(clampedProgress, {
+          duration: ANIMATION_DURATION,
+          easing: Easing.out(Easing.cubic),
+        }),
+      )
+    } else {
+      // Animate from current value to new value (incremental update)
+      animatedProgress.value = withTiming(clampedProgress, {
+        duration: ANIMATION_DURATION / 2, // Faster for incremental updates
         easing: Easing.out(Easing.cubic),
-      }),
-    )
+      })
+    }
   }, [clampedProgress, animationKey, animatedProgress])
 
   // Animated stroke dash offset
