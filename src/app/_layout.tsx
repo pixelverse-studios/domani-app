@@ -24,6 +24,7 @@ import { AuthProvider } from '~/providers/AuthProvider'
 import { AnalyticsProvider } from '~/providers/AnalyticsProvider'
 import { useNotificationObserver } from '~/hooks/useNotifications'
 import { useAnalyticsIdentify } from '~/hooks/useAnalyticsIdentify'
+import { useSentryIdentify } from '~/hooks/useSentryIdentify'
 import { useAuth } from '~/hooks/useAuth'
 import { useAppConfigStore } from '~/stores/appConfigStore'
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
@@ -37,6 +38,9 @@ function RootLayoutContent() {
 
   // Initialize analytics user identification
   useAnalyticsIdentify()
+
+  // Initialize Sentry user identification
+  useSentryIdentify()
 
   // Fetch app config on mount
   const fetchConfig = useAppConfigStore((state) => state.fetchConfig)
