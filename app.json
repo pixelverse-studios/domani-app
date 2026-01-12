@@ -48,6 +48,13 @@
         {
           "color": "#7c3aed"
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "pixelverse-studios",
+          "project": "react-native"
+        }
       ]
     ],
     "extra": {
