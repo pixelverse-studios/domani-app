@@ -262,12 +262,49 @@ export async function fetchDailyCompletions(
 }
 
 /**
- * Placeholder for planning streak query
- * Will be implemented in DOM-246
+ * Fetch planning streak - consecutive days the user created a plan
+ *
+ * Counts backwards from today, checking for plans on each date.
+ * A day counts if a plan exists for that date (regardless of task completion).
  */
-export async function fetchPlanningStreak(_userId: string): Promise<number | null> {
-  // TODO: Implement in DOM-246
-  return null
+export async function fetchPlanningStreak(userId: string): Promise<number | null> {
+  // Get today's date
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayStr = today.toISOString().split('T')[0]
+
+  // Fetch all plan dates for the user, ordered by date descending
+  const { data: plans, error } = await supabase
+    .from('plans')
+    .select('planned_for')
+    .eq('user_id', userId)
+    .lte('planned_for', todayStr) // Include today and past
+    .order('planned_for', { ascending: false })
+
+  if (error || !plans) {
+    return null
+  }
+
+  // Get unique dates (in case of duplicates)
+  const planDates = new Set(plans.map((p) => p.planned_for))
+
+  // Calculate streak - count consecutive days with plans
+  let streak = 0
+  let checkDate = new Date(today)
+
+  while (true) {
+    const checkDateStr = checkDate.toISOString().split('T')[0]
+
+    if (planDates.has(checkDateStr)) {
+      streak++
+      checkDate.setDate(checkDate.getDate() - 1)
+    } else {
+      // Gap found - streak ends
+      break
+    }
+  }
+
+  return streak
 }
 
 /**
