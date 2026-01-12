@@ -132,12 +132,12 @@ This ensures nothing falls through the cracks between development sessions.
 
 When creating Linear tickets for this project:
 
-| Field    | Value               |
-| -------- | ------------------- |
-| Team     | Domani              |
-| Assignee | `me`                |
+| Field    | Value              |
+| -------- | ------------------ |
+| Team     | Domani             |
+| Assignee | `me`               |
 | Project  | Domani Public Beta |
-| Priority | Medium (3)          |
+| Priority | Medium (3)         |
 
 **Labels:** Always apply one from each sub-label group:
 

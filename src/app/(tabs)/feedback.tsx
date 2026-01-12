@@ -21,6 +21,7 @@ import {
   InfoBanner,
   FormSuccessState,
 } from '~/components/forms'
+import { useScreenTracking } from '~/hooks/useScreenTracking'
 
 // Category configuration
 const FEEDBACK_CATEGORIES = [
@@ -33,6 +34,7 @@ const FEEDBACK_CATEGORIES = [
 const MIN_MESSAGE_LENGTH = 1
 
 export default function FeedbackScreen() {
+  useScreenTracking('feedback')
   const insets = useSafeAreaInsets()
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'

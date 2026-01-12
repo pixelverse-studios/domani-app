@@ -19,6 +19,7 @@ import { useCreateTask, useTasks, useDeleteTask, useUpdateTask } from '~/hooks/u
 import { useSystemCategories } from '~/hooks/useCategories'
 import { useSubscription } from '~/hooks/useSubscription'
 import { useAppConfig } from '~/stores/appConfigStore'
+import { useScreenTracking } from '~/hooks/useScreenTracking'
 import type { TaskWithCategory } from '~/types'
 
 const FREE_TIER_TASK_LIMIT = 3
@@ -51,6 +52,7 @@ interface TaskFormData {
 }
 
 export default function PlanningScreen() {
+  useScreenTracking('planning')
   const router = useRouter()
   const scrollViewRef = useRef<ScrollView>(null)
   const { defaultPlanningFor, editTaskId, openForm } = useLocalSearchParams<{

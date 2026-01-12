@@ -31,11 +31,13 @@ import { inferDayType } from '~/utils/dayTypeInference'
 import { useTodayPlan } from '~/hooks/usePlans'
 import { useTasks, useToggleTask, useDeleteTask } from '~/hooks/useTasks'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
+import { useScreenTracking } from '~/hooks/useScreenTracking'
 import type { TaskWithCategory } from '~/types'
 
 const NAME_PROMPT_DISMISSED_KEY = 'domani_name_prompt_dismissed'
 
 export default function TodayScreen() {
+  useScreenTracking('today')
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const { activeTheme } = useTheme()

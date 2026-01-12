@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 
 import { Button, Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
+import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { NotificationService } from '~/lib/notifications'
 import { useNotificationStore } from '~/stores/notificationStore'
 import { useUpdateProfile } from '~/hooks/useProfile'
@@ -30,6 +31,7 @@ function getDeviceTimezone(): string {
 }
 
 export default function NotificationSetupScreen() {
+  useScreenTracking('notification_setup')
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const updateProfile = useUpdateProfile()

@@ -24,6 +24,7 @@ import {
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
+import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useCreateSupportRequest, type SupportCategory } from '~/hooks/useSupportRequests'
 import {
   CategoryGrid,
@@ -44,6 +45,7 @@ const SUPPORT_CATEGORIES = [
 const MIN_DESCRIPTION_LENGTH = 6
 
 export default function ContactSupportScreen() {
+  useScreenTracking('contact_support')
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { activeTheme } = useTheme()

@@ -5,9 +5,11 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { GradientText, LegalFooter, Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
+import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { colors } from '~/theme'
 
 export default function WelcomeScreen() {
+  useScreenTracking('welcome')
   const insets = useSafeAreaInsets()
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'

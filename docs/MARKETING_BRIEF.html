@@ -1,0 +1,521 @@
+<!DOCTYPE html><html><head><title></title><meta charset="utf-8"><style>* {
+	box-sizing: border-box;
+}
+
+html {
+	font-size: 100%;
+}
+
+body {
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
+		'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+	line-height: 1.6;
+	font-size: 0.6875em; /* 11 pt */
+	color: #111;
+	margin: 0;
+}
+
+body > :first-child {
+	padding-top: 0;
+	margin-top: 0;
+}
+
+body > :last-child {
+	margin-bottom: 0;
+	padding-bottom: 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	margin: 0;
+	padding: 0.5em 0 0.25em;
+}
+
+h5,
+h6 {
+	padding: 0;
+}
+
+h5 {
+	font-size: 1em;
+}
+
+h6 {
+	font-size: 0.875em;
+	text-transform: uppercase;
+}
+
+p {
+	margin: 0.25em 0 1em;
+}
+
+blockquote {
+	margin: 0.5em 0 1em;
+	padding-left: 0.5em;
+	padding-right: 1em;
+	border-left: 4px solid gainsboro;
+	font-style: italic;
+}
+
+ul,
+ol {
+	margin: 0;
+	margin-left: 1em;
+	padding: 0 1.5em 0.5em;
+}
+
+pre {
+	white-space: pre-wrap;
+}
+
+h1 code,
+h2 code,
+h3 code,
+h4 code,
+h5 code,
+h6 code,
+p code,
+li code,
+pre code {
+	background-color: #f8f8f8;
+	padding: 0.1em 0.375em;
+	border: 1px solid #f8f8f8;
+	border-radius: 0.25em;
+	font-family: monospace;
+	font-size: 1.2em;
+}
+
+pre code {
+	display: block;
+	padding: 0.5em;
+}
+
+.page-break {
+	page-break-after: always;
+}
+
+img {
+	max-width: 100%;
+	margin: 1em 0;
+}
+
+table {
+	border-spacing: 0;
+	border-collapse: collapse;
+	display: block;
+	margin: 0 0 1em;
+	width: 100%;
+	overflow: auto;
+}
+
+table th,
+table td {
+	padding: 0.5em 1em;
+	border: 1px solid gainsboro;
+}
+
+table th {
+	font-weight: 600;
+}
+
+table tr {
+	background-color: white;
+	border-top: 1px solid gainsboro;
+}
+
+table tr:nth-child(2n) {
+	background-color: whitesmoke;
+}
+/*# sourceURL=/Users/phil/.npm/_npx/55158e48eb5c59f7/node_modules/md-to-pdf/markdown.css*/</style><style>pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 1em
+}
+code.hljs {
+  padding: 3px 5px
+}
+/*!
+  Theme: GitHub
+  Description: Light theme as seen on github.com
+  Author: github.com
+  Maintainer: @Hirse
+  Updated: 2021-05-15
+
+  Outdated base version: https://github.com/primer/github-syntax-light
+  Current colors taken from GitHub's CSS
+*/
+.hljs {
+  color: #24292e;
+  background: #ffffff
+}
+.hljs-doctag,
+.hljs-keyword,
+.hljs-meta .hljs-keyword,
+.hljs-template-tag,
+.hljs-template-variable,
+.hljs-type,
+.hljs-variable.language_ {
+  /* prettylights-syntax-keyword */
+  color: #d73a49
+}
+.hljs-title,
+.hljs-title.class_,
+.hljs-title.class_.inherited__,
+.hljs-title.function_ {
+  /* prettylights-syntax-entity */
+  color: #6f42c1
+}
+.hljs-attr,
+.hljs-attribute,
+.hljs-literal,
+.hljs-meta,
+.hljs-number,
+.hljs-operator,
+.hljs-variable,
+.hljs-selector-attr,
+.hljs-selector-class,
+.hljs-selector-id {
+  /* prettylights-syntax-constant */
+  color: #005cc5
+}
+.hljs-regexp,
+.hljs-string,
+.hljs-meta .hljs-string {
+  /* prettylights-syntax-string */
+  color: #032f62
+}
+.hljs-built_in,
+.hljs-symbol {
+  /* prettylights-syntax-variable */
+  color: #e36209
+}
+.hljs-comment,
+.hljs-code,
+.hljs-formula {
+  /* prettylights-syntax-comment */
+  color: #6a737d
+}
+.hljs-name,
+.hljs-quote,
+.hljs-selector-tag,
+.hljs-selector-pseudo {
+  /* prettylights-syntax-entity-tag */
+  color: #22863a
+}
+.hljs-subst {
+  /* prettylights-syntax-storage-modifier-import */
+  color: #24292e
+}
+.hljs-section {
+  /* prettylights-syntax-markup-heading */
+  color: #005cc5;
+  font-weight: bold
+}
+.hljs-bullet {
+  /* prettylights-syntax-markup-list */
+  color: #735c0f
+}
+.hljs-emphasis {
+  /* prettylights-syntax-markup-italic */
+  color: #24292e;
+  font-style: italic
+}
+.hljs-strong {
+  /* prettylights-syntax-markup-bold */
+  color: #24292e;
+  font-weight: bold
+}
+.hljs-addition {
+  /* prettylights-syntax-markup-inserted */
+  color: #22863a;
+  background-color: #f0fff4
+}
+.hljs-deletion {
+  /* prettylights-syntax-markup-deleted */
+  color: #b31d28;
+  background-color: #ffeef0
+}
+.hljs-char.escape_,
+.hljs-link,
+.hljs-params,
+.hljs-property,
+.hljs-punctuation,
+.hljs-tag {
+  /* purposely ignored */
+  
+}/*# sourceURL=/Users/phil/.npm/_npx/55158e48eb5c59f7/node_modules/highlight.js/styles/github.css*/</style></head>
+	<body class="">
+		<h1 id="domani-app---marketing-brief-for-landing-page">Domani App - Marketing Brief for Landing Page</h1>
+<h2 id="executive-summary">Executive Summary</h2>
+<p>Domani is a mobile productivity app built on the psychology of evening planning. Users plan tomorrow's tasks at night when calm and reflective, rather than in the morning when rushed.</p>
+<p><strong>Current Version</strong>: 1.0.12
+<strong>Platforms</strong>: iOS, Android
+<strong>Status</strong>: Moving to Public Beta</p>
+<hr>
+<h2 id="core-value-proposition">Core Value Proposition</h2>
+<h3 id="tagline">Tagline</h3>
+<p><strong>"Plan Tomorrow, Tonight"</strong></p>
+<h3 id="subheadline">Subheadline</h3>
+<p>"Make better decisions when you're calm, not rushed. Execute with clarity."</p>
+<h3 id="the-problem-we-solve">The Problem We Solve</h3>
+<ul>
+<li>Morning chaos and decision paralysis</li>
+<li>Task overwhelm from endless todo lists</li>
+<li>Anxiety from constantly re-planning</li>
+<li>Lack of daily focus and priorities</li>
+</ul>
+<h3 id="our-unique-approach">Our Unique Approach</h3>
+<p>Unlike traditional todo apps, Domani shifts planning to the evening when users are calm, focused, and can think strategically. This addresses decision fatigue research showing better choices are made in reflective states vs. reactive states.</p>
+<hr>
+<h2 id="key-features">Key Features</h2>
+<h3 id="1-evening-planning-default-9-pm">1. Evening Planning (Default 9 PM)</h3>
+<ul>
+<li>Plan tomorrow's tasks during calm evening hours</li>
+<li>Add up to 3 tasks (free) or unlimited (premium)</li>
+<li>Assign categories: Work, Wellness, Personal, Education</li>
+<li>Set priority levels: High, Medium, Low</li>
+</ul>
+<h3 id="2-most-important-task-mit">2. Most Important Task (MIT)</h3>
+<ul>
+<li>Select exactly ONE task as your daily priority</li>
+<li>Prevents context-switching and scattered focus</li>
+<li>Prominently displayed on Today screen</li>
+</ul>
+<h3 id="3-plan-locking">3. Plan Locking</h3>
+<ul>
+<li>Lock your plan to prevent midnight anxiety editing</li>
+<li>Commit to decisions made in your calm state</li>
+<li>Builds trust in your own planning</li>
+</ul>
+<h3 id="4-todayexecution-screen-default-8-am-reminder">4. Today/Execution Screen (Default 8 AM reminder)</h3>
+<ul>
+<li>Wake up to a pre-planned day</li>
+<li>Progress card shows completion percentage</li>
+<li>Focus card highlights MIT with "day theme"</li>
+<li>Check off tasks with satisfying animations</li>
+</ul>
+<h3 id="5-smart-categories">5. Smart Categories</h3>
+<ul>
+<li>App learns your usage patterns</li>
+<li>Auto-sorts favorite categories for quick access</li>
+<li>Custom categories available for premium users</li>
+</ul>
+<h3 id="6-customizable-reminders">6. Customizable Reminders</h3>
+<ul>
+<li>Evening planning reminder (customizable time)</li>
+<li>Morning execution reminder (optional)</li>
+<li>Timezone-aware scheduling</li>
+</ul>
+<hr>
+<h2 id="pricing--business-model">Pricing &amp; Business Model</h2>
+<h3 id="free-tier-forever">Free Tier (Forever)</h3>
+<ul>
+<li>3 tasks per day</li>
+<li>System categories (Work, Wellness, Personal, Education)</li>
+<li>7 days task history</li>
+<li>All core features (MIT, plan locking, reminders)</li>
+<li><strong>$0</strong></li>
+</ul>
+<h3 id="premium-tier">Premium Tier</h3>
+<ul>
+<li>Unlimited tasks per day</li>
+<li>Custom categories</li>
+<li>Unlimited history</li>
+<li>Advanced analytics</li>
+<li><strong>$4.99/month</strong> or <strong>$39.99/year</strong></li>
+</ul>
+<h3 id="lifetime-tier">Lifetime Tier</h3>
+<ul>
+<li>Everything in Premium, forever</li>
+<li><strong>$99.99 one-time</strong></li>
+</ul>
+<h3 id="trial">Trial</h3>
+<ul>
+<li>14-day free trial of Premium</li>
+</ul>
+<hr>
+<h2 id="target-audience">Target Audience</h2>
+<h3 id="primary-users">Primary Users</h3>
+<ul>
+<li><strong>Professionals</strong> seeking work-life balance</li>
+<li><strong>Remote workers</strong> wanting daily structure</li>
+<li><strong>Students</strong> managing multiple deadlines</li>
+<li><strong>Anyone</strong> struggling with morning decision paralysis</li>
+</ul>
+<h3 id="psychographics">Psychographics</h3>
+<ul>
+<li>Values intentional, calm productivity</li>
+<li>Interested in psychology-backed approaches</li>
+<li>Mobile-first, tech-savvy</li>
+<li>Wants simplicity over feature bloat</li>
+</ul>
+<hr>
+<h2 id="marketing-copy-suggestions">Marketing Copy Suggestions</h2>
+<h3 id="hero-headlines">Hero Headlines</h3>
+<ul>
+<li>"Plan Tomorrow, Tonight"</li>
+<li>"Escape the Morning Rush"</li>
+<li>"Know Your Single Priority"</li>
+<li>"Make Plans You'll Keep"</li>
+</ul>
+<h3 id="feature-taglines">Feature Taglines</h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Tagline</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Evening Planning</td>
+<td>"Think clearly when the world is quiet"</td>
+</tr>
+<tr>
+<td>MIT Selection</td>
+<td>"One task. Total focus. Maximum impact."</td>
+</tr>
+<tr>
+<td>Plan Locking</td>
+<td>"Decide at night. Commit. Execute."</td>
+</tr>
+<tr>
+<td>Today Screen</td>
+<td>"Your plan is waiting. You've got this."</td>
+</tr>
+<tr>
+<td>Progress Tracking</td>
+<td>"See your wins in real time"</td>
+</tr>
+</tbody></table>
+<h3 id="ctas">CTAs</h3>
+<ul>
+<li><strong>Primary</strong>: "Start Planning Tonight"</li>
+<li><strong>Secondary</strong>: "See How It Works"</li>
+<li><strong>Trial</strong>: "Try 14 Days Free"</li>
+<li><strong>Upgrade</strong>: "Unlock Unlimited"</li>
+</ul>
+<h3 id="social-media--short-form">Social Media / Short Form</h3>
+<ul>
+<li>"Planning at night changes everything"</li>
+<li>"Your calm evening brain &gt; your rushed morning brain"</li>
+<li>"3 thoughtful tasks beat 10 rushed ones"</li>
+<li>"Escape decision fatigue. Plan tomorrow tonight."</li>
+</ul>
+<hr>
+<h2 id="key-screens-for-screenshots">Key Screens for Screenshots</h2>
+<h3 id="must-have">Must Have</h3>
+<ol>
+<li><strong>Welcome Screen</strong> - Logo, tagline, CTAs</li>
+<li><strong>Planning Screen</strong> - Task creation, MIT selection, categories</li>
+<li><strong>Today Screen</strong> - Progress card, focus card, task list</li>
+<li><strong>Settings Screen</strong> - Subscription status, preferences</li>
+</ol>
+<h3 id="should-have">Should Have</h3>
+<ol start="5">
+<li><strong>Focus Card</strong> - MIT highlighted with day theme</li>
+<li><strong>Add Task Form</strong> - Full task creation flow</li>
+<li><strong>Completed Tasks</strong> - Progress visualization</li>
+</ol>
+<hr>
+<h2 id="competitive-positioning">Competitive Positioning</h2>
+<table>
+<thead>
+<tr>
+<th>Traditional Apps</th>
+<th>Domani</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Morning planning (reactive)</td>
+<td>Evening planning (reflective)</td>
+</tr>
+<tr>
+<td>Unlimited tasks (overwhelm)</td>
+<td>3 tasks/day (focused)</td>
+</tr>
+<tr>
+<td>All tasks equal</td>
+<td>MIT for daily priority</td>
+</tr>
+<tr>
+<td>Edit anytime (anxiety)</td>
+<td>Plan locking (commitment)</td>
+</tr>
+</tbody></table>
+<h3 id="positioning-statement">Positioning Statement</h3>
+<blockquote>
+<p>"Domani is the only todo app built on the science of evening planning. We help you make better decisions when you're calm, lock in your commitment, and execute with clarity the next day."</p>
+</blockquote>
+<hr>
+<h2 id="brand-identity">Brand Identity</h2>
+<h3 id="color-palette">Color Palette</h3>
+<ul>
+<li><strong>Primary Gradient</strong>: Pink to Purple (#ec4899 → #a855f7)</li>
+<li><strong>Primary Action</strong>: Purple (#a855f7)</li>
+<li><strong>Success</strong>: Green (#22c55e)</li>
+<li><strong>Background Light</strong>: Off-white (#f8fafc)</li>
+<li><strong>Background Dark</strong>: Slate 950 (#0f172a)</li>
+</ul>
+<h3 id="brand-personality">Brand Personality</h3>
+<ul>
+<li><strong>Smart</strong>: Psychology-backed design</li>
+<li><strong>Calm</strong>: Reduces planning anxiety</li>
+<li><strong>Focused</strong>: MIT prevents clutter</li>
+<li><strong>Modern</strong>: Clean, minimal UI</li>
+<li><strong>Supportive</strong>: Guides without overwhelming</li>
+</ul>
+<h3 id="visual-style">Visual Style</h3>
+<ul>
+<li>Modern, minimal layouts</li>
+<li>Purple-pink gradient accents</li>
+<li>Rounded corners (12-14px)</li>
+<li>Card-based UI with subtle shadows</li>
+<li>Full dark mode support</li>
+</ul>
+<hr>
+<h2 id="technical-highlights-for-marketing">Technical Highlights (for marketing)</h2>
+<ul>
+<li><strong>Cross-platform</strong>: iOS and Android from one codebase</li>
+<li><strong>Offline-capable</strong>: Works without internet</li>
+<li><strong>Real-time sync</strong>: Instant updates across devices</li>
+<li><strong>Secure auth</strong>: Google/Apple sign-in only (no passwords)</li>
+<li><strong>Privacy-first</strong>: Minimal tracking, encrypted data</li>
+</ul>
+<hr>
+<h2 id="available-assets">Available Assets</h2>
+<h3 id="in-repository">In Repository</h3>
+<ul>
+<li>App icons (light/dark): <code>/assets/icon-dark.png</code>, <code>/assets/icon-light.png</code></li>
+<li>Splash screen: <code>/assets/splash.png</code></li>
+<li>Feature graphic: <code>/assets/feature-graphic-1024x500.png</code></li>
+<li>App banner: <code>/assets/app-banner.png</code></li>
+</ul>
+<h3 id="needed-for-landing-page">Needed for Landing Page</h3>
+<ul>
+<li><input disabled="" type="checkbox"> High-res device mockups with screenshots</li>
+<li><input disabled="" type="checkbox"> Feature comparison graphics</li>
+<li><input disabled="" type="checkbox"> Demo video / GIF animations</li>
+<li><input disabled="" type="checkbox"> Testimonial graphics (when available)</li>
+</ul>
+<hr>
+<h2 id="app-store-links-when-live">App Store Links (When Live)</h2>
+<ul>
+<li><strong>iOS</strong>: [TestFlight Public Beta Link - TBD]</li>
+<li><strong>Android</strong>: [Google Play Open Testing - In Review]</li>
+</ul>
+<hr>
+<h2 id="contact">Contact</h2>
+<ul>
+<li><strong>Support</strong>: [Support form in app]</li>
+<li><strong>Feedback</strong>: In-app feedback during beta</li>
+</ul>
+<hr>
+<p><em>Last Updated: January 4, 2026</em></p>
+
+	
+
+</body></html>
