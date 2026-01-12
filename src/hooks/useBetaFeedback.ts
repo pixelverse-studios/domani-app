@@ -4,6 +4,7 @@ import { supabase } from '~/lib/supabase'
 import { sendDiscordNotification } from '~/lib/discord'
 import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
+import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { getDeviceMetadata } from '~/utils/deviceInfo'
 import type { BetaFeedback } from '~/types'
 
@@ -17,6 +18,7 @@ interface CreateBetaFeedbackInput {
 export function useCreateBetaFeedback() {
   const { user } = useAuth()
   const { profile } = useProfile()
+  const { track } = useAnalytics()
 
   return useMutation({
     mutationFn: async (input: CreateBetaFeedbackInput): Promise<BetaFeedback> => {
@@ -47,6 +49,9 @@ export function useCreateBetaFeedback() {
         .single()
 
       if (error) throw error
+
+      // Track feedback submission
+      track('feedback_submitted', { category: input.category })
 
       // Send Discord notification (fire and forget)
       sendDiscordNotification({
