@@ -32,10 +32,10 @@ export function MetricCard({
 
   return (
     <Card className="p-5">
-      <View className="flex-row items-center gap-4">
+      <View className="flex-row items-center gap-5">
         {/* Left side: Icon or Progress Ring */}
         {showProgress ? (
-          <CircularProgress progress={progress} size={72} strokeWidth={7} />
+          <CircularProgress progress={progress} size={96} strokeWidth={8} />
         ) : Icon ? (
           <View
             className="w-14 h-14 rounded-full items-center justify-center"
