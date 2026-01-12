@@ -2,14 +2,13 @@ import React, { useState, useCallback } from 'react'
 import { View, ScrollView, RefreshControl } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useQueryClient } from '@tanstack/react-query'
-import { Calendar, Flame, Target } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import {
-  MetricCard,
   AnalyticsSkeleton,
   AnalyticsEmptyState,
   DailyCompletionChart,
+  StreaksCard,
 } from '~/components/analytics'
 import { useAnalyticsSummary, useDailyCompletions } from '~/hooks/useAnalytics'
 import { colors } from '~/theme'
@@ -111,33 +110,11 @@ export default function AnalyticsScreen() {
           <DailyCompletionChart dailyData={dailyData} completionRate={analytics.completionRate} />
         )}
 
-        {/* Planning Streak */}
-        <MetricCard
-          title="Planning Streak"
-          value={analytics.planningStreak ?? '--'}
-          subtitle={analytics.planningStreak === 1 ? 'day' : 'days'}
-          icon={Calendar}
-          accentColor={colors.primary}
-        />
-
-        {/* Execution Streak */}
-        <MetricCard
-          title="Execution Streak"
-          value={analytics.executionStreak ?? '--'}
-          subtitle={analytics.executionStreak === 1 ? 'day' : 'days'}
-          icon={Flame}
-          accentColor="#f97316" // orange-500
-        />
-
-        {/* MIT Completion Rate - uses progress ring */}
-        <MetricCard
-          title="MIT Completion"
-          value={analytics.mitCompletionRate ?? '--'}
-          showProgress={analytics.mitCompletionRate !== null}
-          progress={analytics.mitCompletionRate ?? 0}
-          subtitle="Most Important Tasks"
-          icon={Target}
-          accentColor={colors.primary}
+        {/* Streaks & Focus Card - Combined view of all streak metrics */}
+        <StreaksCard
+          planningStreak={analytics.planningStreak}
+          executionStreak={analytics.executionStreak}
+          mitCompletionRate={analytics.mitCompletionRate}
         />
       </View>
     </ScrollView>
