@@ -1,5 +1,9 @@
 import '../../global.css'
 
+// Initialize Sentry before any other code runs
+import { initSentry } from '~/lib/sentry'
+initSentry()
+
 import React from 'react'
 import { Stack } from 'expo-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -20,6 +24,7 @@ import { AuthProvider } from '~/providers/AuthProvider'
 import { AnalyticsProvider } from '~/providers/AnalyticsProvider'
 import { useNotificationObserver } from '~/hooks/useNotifications'
 import { useAnalyticsIdentify } from '~/hooks/useAnalyticsIdentify'
+import { useSentryIdentify } from '~/hooks/useSentryIdentify'
 import { useAuth } from '~/hooks/useAuth'
 import { useAppConfigStore } from '~/stores/appConfigStore'
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
@@ -33,6 +38,9 @@ function RootLayoutContent() {
 
   // Initialize analytics user identification
   useAnalyticsIdentify()
+
+  // Initialize Sentry user identification
+  useSentryIdentify()
 
   // Fetch app config on mount
   const fetchConfig = useAppConfigStore((state) => state.fetchConfig)
