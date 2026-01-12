@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { supabase } from '~/lib/supabase'
 import { useIncrementCategoryUsage } from '~/hooks/useCategories'
+import { useAnalytics } from '~/providers/AnalyticsProvider'
 import type { TaskWithCategory, TaskPriority } from '~/types'
 
 // 5 minutes - tasks change with user action but don't need real-time updates
@@ -36,6 +37,7 @@ export function useTasks(planId: string | undefined) {
 
 export function useToggleTask() {
   const queryClient = useQueryClient()
+  const { track } = useAnalytics()
 
   return useMutation({
     mutationFn: async ({ taskId, completed }: { taskId: string; completed: boolean }) => {
@@ -57,6 +59,16 @@ export function useToggleTask() {
 
       const previousTasks = queryClient.getQueriesData({ queryKey: ['tasks'] })
 
+      // Find the task being toggled for analytics
+      let taskForAnalytics: TaskWithCategory | undefined
+      for (const [, tasks] of previousTasks) {
+        const found = (tasks as TaskWithCategory[] | undefined)?.find((t) => t.id === taskId)
+        if (found) {
+          taskForAnalytics = found
+          break
+        }
+      }
+
       queryClient.setQueriesData({ queryKey: ['tasks'] }, (old: TaskWithCategory[] | undefined) => {
         if (!old) return old
         return old.map((task) =>
@@ -66,7 +78,7 @@ export function useToggleTask() {
         )
       })
 
-      return { previousTasks }
+      return { previousTasks, taskForAnalytics }
     },
     onError: (_err, _variables, context) => {
       // Rollback on error
@@ -76,8 +88,28 @@ export function useToggleTask() {
         })
       }
     },
-    onSettled: (_data, _error, variables) => {
+    onSettled: (_data, _error, variables, context) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+
+      // Track completion/uncompletion event
+      const task = context?.taskForAnalytics
+      if (task) {
+        if (variables.completed) {
+          // Calculate time to complete in hours
+          const createdAt = new Date(task.created_at)
+          const timeToCompleteHours = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60)
+
+          track('task_completed', {
+            is_mit: task.is_mit ?? false,
+            priority: task.priority ?? 'medium',
+            time_to_complete_hours: Math.round(timeToCompleteHours * 10) / 10,
+          })
+        } else {
+          track('task_uncompleted', {
+            is_mit: task.is_mit ?? false,
+          })
+        }
+      }
     },
   })
 }
@@ -98,6 +130,7 @@ interface CreateTaskInput {
 export function useCreateTask() {
   const queryClient = useQueryClient()
   const incrementUsage = useIncrementCategoryUsage()
+  const { track } = useAnalytics()
 
   return useMutation({
     mutationFn: async ({
@@ -153,6 +186,15 @@ export function useCreateTask() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tasks', data.plan_id] })
+
+      // Track task creation
+      const categoryName = data.system_category?.name || data.user_category?.name
+      track('task_created', {
+        priority: data.priority ?? 'medium',
+        has_duration: !!data.estimated_duration_minutes,
+        has_notes: !!data.notes,
+        ...(categoryName && { category: categoryName }),
+      })
 
       // Increment category usage count for smart sorting
       if (data.system_category_id || data.user_category_id) {
@@ -217,15 +259,31 @@ export function useUpdateTask() {
 
 export function useDeleteTask() {
   const queryClient = useQueryClient()
+  const { track } = useAnalytics()
 
   return useMutation({
     mutationFn: async (taskId: string) => {
+      // Look up task from cache before deleting for analytics
+      const allTaskQueries = queryClient.getQueriesData({ queryKey: ['tasks'] })
+      let wasCompleted = false
+      for (const [, tasks] of allTaskQueries) {
+        const found = (tasks as TaskWithCategory[] | undefined)?.find((t) => t.id === taskId)
+        if (found) {
+          wasCompleted = !!found.completed_at
+          break
+        }
+      }
+
       const { error } = await supabase.from('tasks').delete().eq('id', taskId)
 
       if (error) throw error
+      return { wasCompleted }
     },
-    onSuccess: () => {
+    onSuccess: ({ wasCompleted }) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+
+      // Track task deletion
+      track('task_deleted', { was_completed: wasCompleted })
     },
   })
 }
