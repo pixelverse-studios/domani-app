@@ -271,12 +271,78 @@ export async function fetchPlanningStreak(_userId: string): Promise<number | nul
 }
 
 /**
- * Placeholder for execution streak query
- * Will be implemented in DOM-247
+ * Fetch execution streak - consecutive days where ALL tasks were completed
+ *
+ * A "perfect day" is a day where the user had a plan with at least one task,
+ * and ALL tasks in that plan were completed.
+ *
+ * Counts backwards from yesterday (today is still in progress).
  */
-export async function fetchExecutionStreak(_userId: string): Promise<number | null> {
-  // TODO: Implement in DOM-247
-  return null
+export async function fetchExecutionStreak(userId: string): Promise<number | null> {
+  // Get today's date in user's local context (we'll use UTC for now)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayStr = today.toISOString().split('T')[0]
+
+  // Fetch all plans with task counts for the user, ordered by date descending
+  // We need: planned_for, total tasks, completed tasks
+  const { data: plans, error } = await supabase
+    .from('plans')
+    .select(
+      `
+      id,
+      planned_for,
+      tasks (
+        id,
+        completed_at
+      )
+    `,
+    )
+    .eq('user_id', userId)
+    .lt('planned_for', todayStr) // Only past days (today is still in progress)
+    .order('planned_for', { ascending: false })
+
+  if (error || !plans) {
+    return null
+  }
+
+  // Calculate streak - count consecutive perfect days
+  let streak = 0
+  let expectedDate = new Date(today)
+  expectedDate.setDate(expectedDate.getDate() - 1) // Start from yesterday
+
+  for (const plan of plans) {
+    const planDate = new Date(plan.planned_for)
+    planDate.setHours(0, 0, 0, 0)
+
+    // Check if this plan is for the expected date in the streak
+    const expectedDateStr = expectedDate.toISOString().split('T')[0]
+    if (plan.planned_for !== expectedDateStr) {
+      // Gap in dates - streak is broken
+      break
+    }
+
+    // Check if this was a perfect day (has tasks and all completed)
+    const tasks = plan.tasks as { id: string; completed_at: string | null }[]
+    if (tasks.length === 0) {
+      // No tasks planned - doesn't count as perfect, but also doesn't break streak
+      // Move to previous day and continue
+      expectedDate.setDate(expectedDate.getDate() - 1)
+      continue
+    }
+
+    const allCompleted = tasks.every((task) => task.completed_at !== null)
+    if (!allCompleted) {
+      // Not all tasks completed - streak broken
+      break
+    }
+
+    // Perfect day! Increment streak and move to previous day
+    streak++
+    expectedDate.setDate(expectedDate.getDate() - 1)
+  }
+
+  return streak
 }
 
 /**
