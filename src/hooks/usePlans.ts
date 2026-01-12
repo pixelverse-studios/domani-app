@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format, addDays } from 'date-fns'
 
 import { supabase } from '~/lib/supabase'
+import { addBreadcrumb } from '~/lib/sentry'
 
 // 5 minutes - plans change with user action but don't need real-time updates
 const PLAN_STALE_TIME = 1000 * 60 * 5
@@ -121,6 +122,7 @@ export function useLockPlan() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['plan', data.planned_for] })
       queryClient.invalidateQueries({ queryKey: ['plan', data.id] })
+      addBreadcrumb('Plan locked', 'plan', { planId: data.id, plannedFor: data.planned_for })
     },
   })
 }

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { supabase } from '~/lib/supabase'
+import { addBreadcrumb } from '~/lib/sentry'
 import { useIncrementCategoryUsage } from '~/hooks/useCategories'
 import type { TaskWithCategory, TaskPriority } from '~/types'
 
@@ -78,6 +79,10 @@ export function useToggleTask() {
     },
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      addBreadcrumb('Task toggled', 'task', {
+        taskId: variables.taskId,
+        completed: variables.completed,
+      })
     },
   })
 }
@@ -153,6 +158,11 @@ export function useCreateTask() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tasks', data.plan_id] })
+      addBreadcrumb('Task created', 'task', {
+        taskId: data.id,
+        priority: data.priority,
+        isMit: data.is_mit,
+      })
 
       // Increment category usage count for smart sorting
       if (data.system_category_id || data.user_category_id) {
@@ -223,9 +233,11 @@ export function useDeleteTask() {
       const { error } = await supabase.from('tasks').delete().eq('id', taskId)
 
       if (error) throw error
+      return taskId
     },
-    onSuccess: () => {
+    onSuccess: (taskId) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      addBreadcrumb('Task deleted', 'task', { taskId })
     },
   })
 }

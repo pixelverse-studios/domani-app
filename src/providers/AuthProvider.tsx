@@ -6,6 +6,7 @@ import * as AuthSession from 'expo-auth-session'
 import * as AppleAuthentication from 'expo-apple-authentication'
 
 import { supabase, sendAccountEmail } from '~/lib/supabase'
+import { captureException, addBreadcrumb } from '~/lib/sentry'
 
 // Configure web browser for OAuth
 WebBrowser.maybeCompleteAuthSession()
@@ -51,6 +52,7 @@ const getDeviceTimezone = (): string => {
     return 'UTC'
   } catch (error) {
     console.warn('[AuthProvider] Failed to get device timezone:', error)
+    captureException(error as Error, { context: 'getDeviceTimezone' })
     return 'UTC'
   }
 }
@@ -123,6 +125,7 @@ const checkPendingDeletion = async (
     })
   } catch (error) {
     console.error('[AuthProvider] Failed to check pending deletion:', error)
+    captureException(error as Error, { context: 'checkPendingDeletion', userId })
     return false
   }
 }
@@ -164,6 +167,7 @@ const validateUserExists = async (userId: string): Promise<boolean> => {
     return true
   } catch (error) {
     console.error('[AuthProvider] Failed to validate user:', error)
+    captureException(error as Error, { context: 'validateUserExists', userId })
     return false
   }
 }
@@ -224,6 +228,7 @@ const ensureProfileExists = async (userId: string, email: string, fullName?: str
     }
   } catch (error) {
     console.error('[AuthProvider] Failed to ensure profile exists:', error)
+    captureException(error as Error, { context: 'ensureProfileExists', userId })
   }
 }
 
@@ -415,6 +420,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
 
             console.log('[AuthProvider] Session set successfully!')
+            addBreadcrumb('Google sign in completed', 'auth', { provider: 'google' })
             // Profile creation is handled by onAuthStateChange callback
           } else {
             console.error('[AuthProvider] No tokens in redirect URL')
@@ -462,6 +468,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       console.log('[AuthProvider] Apple sign in successful!')
+      addBreadcrumb('Apple sign in completed', 'auth', { provider: 'apple' })
       // Note: Don't log full user data as it may contain sensitive information
 
       // Capture name from Apple if provided (only available on first sign-in)
@@ -502,6 +509,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
+      addBreadcrumb('User signing out', 'auth')
       const { error } = await supabase.auth.signOut()
       if (error) throw error
     } catch (error) {
