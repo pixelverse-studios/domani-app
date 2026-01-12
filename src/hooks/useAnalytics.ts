@@ -1,7 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 
 import { supabase } from '~/lib/supabase'
-import { checkHasAnalyticsData, AnalyticsSummary } from '~/lib/analytics-queries'
+import {
+  checkHasAnalyticsData,
+  fetchCompletionRate,
+  AnalyticsSummary,
+  CompletionRateData,
+} from '~/lib/analytics-queries'
 
 // Analytics data is relatively stable - 5 minute stale time
 const ANALYTICS_STALE_TIME = 1000 * 60 * 5
@@ -26,11 +31,28 @@ export function useHasAnalyticsData() {
 }
 
 /**
+ * Fetch completion rate data for the current user
+ */
+export function useCompletionRate() {
+  return useQuery<CompletionRateData | null>({
+    queryKey: ['analytics', 'completionRate'],
+    queryFn: async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      return fetchCompletionRate(user.id)
+    },
+    staleTime: ANALYTICS_STALE_TIME,
+  })
+}
+
+/**
  * Fetch all analytics summary data for the current user
- * Returns placeholder nulls for metrics not yet implemented
  *
- * Individual metric hooks will be added as they are implemented:
- * - DOM-245: useCompletionRate
+ * Individual metric hooks:
+ * - useCompletionRate (DOM-245) - implemented
  * - DOM-246: usePlanningStreak
  * - DOM-247: useExecutionStreak
  * - DOM-248: useMitCompletionRate
@@ -44,11 +66,14 @@ export function useAnalyticsSummary() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
-      const hasData = await checkHasAnalyticsData(user.id)
+      // Fetch all metrics in parallel
+      const [hasData, completionRate] = await Promise.all([
+        checkHasAnalyticsData(user.id),
+        fetchCompletionRate(user.id),
+      ])
 
-      // Return placeholder data - will be filled in by subsequent tickets
       return {
-        completionRate: null,
+        completionRate,
         planningStreak: null,
         executionStreak: null,
         mitCompletionRate: null,

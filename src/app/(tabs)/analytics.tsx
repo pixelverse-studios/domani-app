@@ -4,7 +4,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Calendar, Flame, Target, CheckCircle2 } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
-import { MetricCard, AnalyticsSkeleton, AnalyticsEmptyState } from '~/components/analytics'
+import {
+  MetricCard,
+  AnalyticsSkeleton,
+  AnalyticsEmptyState,
+  CategoryBreakdown,
+} from '~/components/analytics'
 import { useAnalyticsSummary } from '~/hooks/useAnalytics'
 import { colors } from '~/theme'
 
@@ -76,6 +81,11 @@ export default function AnalyticsScreen() {
     )
   }
 
+  // Extract completion rate data
+  const completionRate = analytics.completionRate
+  const overallRate = completionRate?.overall ?? null
+  const categoryBreakdown = completionRate?.byCategory ?? []
+
   // Main analytics view with metrics
   return (
     <ScrollView
@@ -97,13 +107,20 @@ export default function AnalyticsScreen() {
         {/* Completion Rate - uses progress ring */}
         <MetricCard
           title="Completion Rate"
-          value={analytics.completionRate ?? '--'}
-          showProgress={analytics.completionRate !== null}
-          progress={analytics.completionRate ?? 0}
-          subtitle="Overall task completion"
+          value={overallRate !== null ? `${overallRate}%` : '--'}
+          showProgress={overallRate !== null}
+          progress={overallRate ?? 0}
+          subtitle={
+            completionRate
+              ? `${completionRate.completed}/${completionRate.total} tasks completed`
+              : 'Overall task completion'
+          }
           icon={CheckCircle2}
           accentColor={colors.success}
         />
+
+        {/* Category Breakdown */}
+        {categoryBreakdown.length > 0 && <CategoryBreakdown categories={categoryBreakdown} />}
 
         {/* Planning Streak */}
         <MetricCard
