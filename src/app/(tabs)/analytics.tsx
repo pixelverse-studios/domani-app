@@ -30,7 +30,7 @@ export default function AnalyticsScreen() {
     return (
       <View className="flex-1 bg-white dark:bg-slate-950">
         <View className="px-5 pt-4 pb-2">
-          <Text variant="title">Analytics</Text>
+          <Text variant="title">Progress</Text>
           <Text variant="caption" className="mt-1">
             Track your productivity trends
           </Text>
@@ -69,7 +69,7 @@ export default function AnalyticsScreen() {
         }
       >
         <View className="px-5 pt-4 pb-2">
-          <Text variant="title">Analytics</Text>
+          <Text variant="title">Progress</Text>
           <Text variant="caption" className="mt-1">
             Track your productivity trends
           </Text>
@@ -96,7 +96,7 @@ export default function AnalyticsScreen() {
     >
       {/* Header */}
       <View className="px-5 pt-4 pb-4">
-        <Text variant="title">Analytics</Text>
+        <Text variant="title">Progress</Text>
         <Text variant="caption" className="mt-1">
           Track your productivity trends
         </Text>

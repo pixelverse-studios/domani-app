@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useTheme } from '~/hooks/useTheme'
 import { useAuth } from '~/hooks/useAuth'
-import { useAppConfig } from '~/stores/appConfigStore'
 
 const TAB_BAR_CONTENT_HEIGHT = 56
 
@@ -14,7 +13,6 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets()
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
-  const { isFeatureEnabled } = useAppConfig()
   const { user, loading } = useAuth()
 
   // Show loading while checking auth
@@ -84,10 +82,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="analytics"
         options={{
-          title: 'Analytics',
+          title: 'Progress',
           tabBarIcon: ({ color, size }) => <BarChart3 size={size} color={color} />,
-          // Hide analytics tab if feature is disabled
-          href: isFeatureEnabled('analytics_enabled') ? undefined : null,
         }}
       />
       <Tabs.Screen

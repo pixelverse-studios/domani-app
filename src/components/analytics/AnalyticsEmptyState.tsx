@@ -24,7 +24,7 @@ export function AnalyticsEmptyState() {
 
       {/* Heading */}
       <Text className="text-xl font-semibold text-slate-900 dark:text-white mb-3 text-center">
-        No analytics yet
+        No progress yet
       </Text>
 
       {/* Description */}
