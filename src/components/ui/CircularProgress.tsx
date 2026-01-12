@@ -64,9 +64,18 @@ export function CircularProgress({
         />
       </Svg>
       {showPercentage && (
-        <View className="absolute items-center justify-center">
-          <Text className="text-3xl font-bold text-slate-900 dark:text-white">
-            {Math.round(clampedProgress)}%
+        <View className="absolute items-center justify-center flex-row">
+          <Text
+            className="font-bold text-slate-900 dark:text-white"
+            style={{ fontSize: size * 0.26, lineHeight: size * 0.32 }}
+          >
+            {Math.round(clampedProgress)}
+          </Text>
+          <Text
+            className="font-medium text-slate-600 dark:text-slate-300"
+            style={{ fontSize: size * 0.14, marginTop: size * 0.02, marginLeft: 1 }}
+          >
+            %
           </Text>
         </View>
       )}

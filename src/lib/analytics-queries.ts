@@ -28,6 +28,22 @@ export interface CompletionRateData {
   byCategory: CategoryCompletionRate[]
 }
 
+export interface DailyCategoryData {
+  categoryId: string
+  categoryName: string
+  categoryColor: string
+  completed: number
+  incomplete: number
+}
+
+export interface DailyCompletionData {
+  date: string // ISO date string
+  dayLabel: string // "Mon", "Tue", etc.
+  categories: DailyCategoryData[]
+  totalCompleted: number
+  totalIncomplete: number
+}
+
 export interface AnalyticsSummary {
   completionRate: CompletionRateData | null
   planningStreak: number | null
@@ -138,6 +154,111 @@ export async function fetchCompletionRate(userId: string): Promise<CompletionRat
     total: totalTasks,
     byCategory,
   }
+}
+
+/**
+ * Fetch daily completion data for the last N days
+ * Returns completion breakdown by category for each day
+ */
+export async function fetchDailyCompletions(
+  userId: string,
+  days: number = 7,
+): Promise<DailyCompletionData[]> {
+  // Calculate date range (last N days including today)
+  const today = new Date()
+  const startDate = new Date(today)
+  startDate.setDate(startDate.getDate() - (days - 1))
+  startDate.setHours(0, 0, 0, 0)
+
+  const startDateStr = startDate.toISOString().split('T')[0]
+
+  // Fetch tasks with their plan dates and category info
+  const { data: tasks, error } = await supabase
+    .from('tasks')
+    .select(
+      `
+      id,
+      completed_at,
+      system_category_id,
+      plan_id,
+      system_categories (
+        id,
+        name,
+        color
+      ),
+      plans!inner (
+        planned_for
+      )
+    `,
+    )
+    .eq('user_id', userId)
+    .gte('plans.planned_for', startDateStr)
+
+  if (error || !tasks) {
+    return []
+  }
+
+  // Group tasks by date
+  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const dailyMap = new Map<string, DailyCompletionData>()
+
+  // Initialize all days in range
+  for (let i = 0; i < days; i++) {
+    const date = new Date(startDate)
+    date.setDate(date.getDate() + i)
+    const dateStr = date.toISOString().split('T')[0]
+    dailyMap.set(dateStr, {
+      date: dateStr,
+      dayLabel: dayLabels[date.getDay()],
+      categories: [],
+      totalCompleted: 0,
+      totalIncomplete: 0,
+    })
+  }
+
+  // Process tasks
+  for (const task of tasks) {
+    const plan = task.plans as { planned_for: string } | null
+    if (!plan) continue
+
+    const dateStr = plan.planned_for
+    const dayData = dailyMap.get(dateStr)
+    if (!dayData) continue
+
+    const category = task.system_categories as {
+      id: string
+      name: string
+      color: string
+    } | null
+
+    if (!category) continue
+
+    const isCompleted = task.completed_at !== null
+
+    // Find or create category entry for this day
+    let categoryEntry = dayData.categories.find((c) => c.categoryId === category.id)
+    if (!categoryEntry) {
+      categoryEntry = {
+        categoryId: category.id,
+        categoryName: category.name,
+        categoryColor: category.color,
+        completed: 0,
+        incomplete: 0,
+      }
+      dayData.categories.push(categoryEntry)
+    }
+
+    if (isCompleted) {
+      categoryEntry.completed++
+      dayData.totalCompleted++
+    } else {
+      categoryEntry.incomplete++
+      dayData.totalIncomplete++
+    }
+  }
+
+  // Convert map to sorted array (oldest to newest)
+  return Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date))
 }
 
 /**

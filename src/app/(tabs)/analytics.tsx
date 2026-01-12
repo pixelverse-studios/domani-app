@@ -1,23 +1,26 @@
 import React, { useState, useCallback } from 'react'
 import { View, ScrollView, RefreshControl } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useQueryClient } from '@tanstack/react-query'
-import { Calendar, Flame, Target, CheckCircle2 } from 'lucide-react-native'
+import { Calendar, Flame, Target } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import {
   MetricCard,
   AnalyticsSkeleton,
   AnalyticsEmptyState,
-  CategoryBreakdown,
+  DailyCompletionChart,
 } from '~/components/analytics'
-import { useAnalyticsSummary } from '~/hooks/useAnalytics'
+import { useAnalyticsSummary, useDailyCompletions } from '~/hooks/useAnalytics'
 import { colors } from '~/theme'
 
 export default function AnalyticsScreen() {
+  const insets = useSafeAreaInsets()
   const queryClient = useQueryClient()
   const [refreshing, setRefreshing] = useState(false)
 
   const { data: analytics, isLoading, error } = useAnalyticsSummary()
+  const { data: dailyData } = useDailyCompletions(7)
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -29,7 +32,7 @@ export default function AnalyticsScreen() {
   if (isLoading && !refreshing) {
     return (
       <View className="flex-1 bg-white dark:bg-slate-950">
-        <View className="px-5 pt-4 pb-2">
+        <View className="px-5 pb-2" style={{ paddingTop: insets.top + 16 }}>
           <Text variant="title">Progress</Text>
           <Text variant="caption" className="mt-1">
             Track your productivity trends
@@ -43,7 +46,10 @@ export default function AnalyticsScreen() {
   // Error state
   if (error) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-slate-950 px-6">
+      <View
+        className="flex-1 items-center justify-center bg-white dark:bg-slate-950 px-6"
+        style={{ paddingTop: insets.top }}
+      >
         <Text variant="title" className="mb-2">
           Something went wrong
         </Text>
@@ -59,7 +65,7 @@ export default function AnalyticsScreen() {
     return (
       <ScrollView
         className="flex-1 bg-white dark:bg-slate-950"
-        contentContainerStyle={{ flexGrow: 1 }}
+        contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -81,15 +87,11 @@ export default function AnalyticsScreen() {
     )
   }
 
-  // Extract completion rate data
-  const completionRate = analytics.completionRate
-  const overallRate = completionRate?.overall ?? null
-  const categoryBreakdown = completionRate?.byCategory ?? []
-
   // Main analytics view with metrics
   return (
     <ScrollView
       className="flex-1 bg-white dark:bg-slate-950"
+      contentContainerStyle={{ paddingTop: insets.top }}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
       }
@@ -104,23 +106,10 @@ export default function AnalyticsScreen() {
 
       {/* Metrics Grid */}
       <View className="px-5 gap-4 pb-8">
-        {/* Completion Rate - uses progress ring */}
-        <MetricCard
-          title="Completion Rate"
-          value={overallRate !== null ? `${overallRate}%` : '--'}
-          showProgress={overallRate !== null}
-          progress={overallRate ?? 0}
-          subtitle={
-            completionRate
-              ? `${completionRate.completed}/${completionRate.total} tasks completed`
-              : 'Overall task completion'
-          }
-          icon={CheckCircle2}
-          accentColor={colors.success}
-        />
-
-        {/* Category Breakdown */}
-        {categoryBreakdown.length > 0 && <CategoryBreakdown categories={categoryBreakdown} />}
+        {/* Daily Completion Chart - combines completion rate, chart, and category breakdown */}
+        {dailyData && dailyData.length > 0 && (
+          <DailyCompletionChart dailyData={dailyData} completionRate={analytics.completionRate} />
+        )}
 
         {/* Planning Streak */}
         <MetricCard

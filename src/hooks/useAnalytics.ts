@@ -4,8 +4,10 @@ import { supabase } from '~/lib/supabase'
 import {
   checkHasAnalyticsData,
   fetchCompletionRate,
+  fetchDailyCompletions,
   AnalyticsSummary,
   CompletionRateData,
+  DailyCompletionData,
 } from '~/lib/analytics-queries'
 
 // Analytics data is relatively stable - 5 minute stale time
@@ -43,6 +45,24 @@ export function useCompletionRate() {
       if (!user) throw new Error('Not authenticated')
 
       return fetchCompletionRate(user.id)
+    },
+    staleTime: ANALYTICS_STALE_TIME,
+  })
+}
+
+/**
+ * Fetch daily completion data for the last N days
+ */
+export function useDailyCompletions(days: number = 7) {
+  return useQuery<DailyCompletionData[]>({
+    queryKey: ['analytics', 'dailyCompletions', days],
+    queryFn: async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      return fetchDailyCompletions(user.id, days)
     },
     staleTime: ANALYTICS_STALE_TIME,
   })
