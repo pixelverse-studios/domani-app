@@ -5,6 +5,7 @@ import {
   checkHasAnalyticsData,
   fetchCompletionRate,
   fetchDailyCompletions,
+  fetchExecutionStreak,
   AnalyticsSummary,
   CompletionRateData,
   DailyCompletionData,
@@ -87,15 +88,16 @@ export function useAnalyticsSummary() {
       if (!user) throw new Error('Not authenticated')
 
       // Fetch all metrics in parallel
-      const [hasData, completionRate] = await Promise.all([
+      const [hasData, completionRate, executionStreak] = await Promise.all([
         checkHasAnalyticsData(user.id),
         fetchCompletionRate(user.id),
+        fetchExecutionStreak(user.id),
       ])
 
       return {
         completionRate,
         planningStreak: null,
-        executionStreak: null,
+        executionStreak,
         mitCompletionRate: null,
         hasData,
       }

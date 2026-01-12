@@ -1,5 +1,5 @@
-import React, { createContext, useEffect, useMemo } from 'react'
-import { useColorScheme as useRNColorScheme } from 'react-native'
+import React, { createContext, useEffect, useMemo, useRef } from 'react'
+import { useColorScheme as useRNColorScheme, InteractionManager } from 'react-native'
 import { useColorScheme as useNativeWindColorScheme } from 'nativewind'
 
 import { ThemeMode, useThemeStore } from '~/stores/themeStore'
@@ -19,9 +19,23 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const setMode = useThemeStore((state) => state.setMode)
   const activeTheme = mode === 'auto' ? systemTheme : mode
   const nativeWindScheme = mode === 'auto' ? 'system' : activeTheme
+  const isMounted = useRef(false)
 
   useEffect(() => {
-    setNativeWindColorScheme(nativeWindScheme)
+    isMounted.current = true
+    return () => {
+      isMounted.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    // Defer NativeWind color scheme update to avoid state updates during render
+    const task = InteractionManager.runAfterInteractions(() => {
+      if (isMounted.current) {
+        setNativeWindColorScheme(nativeWindScheme)
+      }
+    })
+    return () => task.cancel()
   }, [nativeWindScheme, setNativeWindColorScheme])
 
   const value = useMemo<ThemeContextValue>(
