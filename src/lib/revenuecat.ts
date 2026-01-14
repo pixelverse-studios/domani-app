@@ -17,14 +17,12 @@ export const ENTITLEMENT_ID = 'premium'
 // Beta sunset date - after this, new users get general pricing
 export const BETA_END_DATE = new Date('2026-03-01T00:00:00Z')
 
-// Cohort-specific offerings (configure in RevenueCat dashboard)
+// Cohort-specific offerings (must match RevenueCat dashboard identifiers)
 export const OFFERINGS = {
-  EARLY_ADOPTER: 'early_adopter_offering', // $9.99 lifetime
-  GENERAL: 'general_offering', // $34.99 lifetime
+  EARLY_ADOPTER: 'early_adopter', // $9.99 lifetime
+  FRIENDS_FAMILY: 'friends_family', // $9.99 lifetime (same price, separate offering)
+  GENERAL: 'general', // $34.99 lifetime
 } as const
-
-// Signup cohorts that qualify for early adopter pricing
-export const EARLY_ADOPTER_COHORTS = ['early_adopter', 'friends_family'] as const
 
 /**
  * Initialize RevenueCat SDK
@@ -115,19 +113,22 @@ export async function getOfferings(
 
 /**
  * Get the appropriate offering identifier based on user's signup cohort
- * Early adopters and friends/family get $9.99 pricing
- * General users get $34.99 pricing
+ * Maps cohort to corresponding RevenueCat offering:
+ * - early_adopter → early_adopter offering ($9.99)
+ * - friends_family → friends_family offering ($9.99)
+ * - general (or null/undefined) → general offering ($34.99)
  */
 export function getOfferingForCohort(
   signupCohort: string | null | undefined,
 ): (typeof OFFERINGS)[keyof typeof OFFERINGS] {
-  if (
-    signupCohort &&
-    EARLY_ADOPTER_COHORTS.includes(signupCohort as (typeof EARLY_ADOPTER_COHORTS)[number])
-  ) {
-    return OFFERINGS.EARLY_ADOPTER
+  switch (signupCohort) {
+    case 'early_adopter':
+      return OFFERINGS.EARLY_ADOPTER
+    case 'friends_family':
+      return OFFERINGS.FRIENDS_FAMILY
+    default:
+      return OFFERINGS.GENERAL
   }
-  return OFFERINGS.GENERAL
 }
 
 /**
