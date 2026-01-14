@@ -14,6 +14,18 @@ export const PRODUCT_IDS = {
 // Entitlement identifier (configure in RevenueCat dashboard)
 export const ENTITLEMENT_ID = 'premium'
 
+// Beta sunset date - after this, new users get general pricing
+export const BETA_END_DATE = new Date('2026-03-01T00:00:00Z')
+
+// Cohort-specific offerings (configure in RevenueCat dashboard)
+export const OFFERINGS = {
+  EARLY_ADOPTER: 'early_adopter_offering', // $9.99 lifetime
+  GENERAL: 'general_offering', // $34.99 lifetime
+} as const
+
+// Signup cohorts that qualify for early adopter pricing
+export const EARLY_ADOPTER_COHORTS = ['early_adopter', 'friends_family'] as const
+
 /**
  * Initialize RevenueCat SDK
  * Call this once on app startup after user authentication
@@ -79,15 +91,43 @@ export async function logoutRevenueCat() {
 
 /**
  * Get current offerings (products available for purchase)
+ * @param offeringIdentifier - Optional specific offering to fetch (for cohort-based pricing)
  */
-export async function getOfferings(): Promise<PurchasesOffering | null> {
+export async function getOfferings(
+  offeringIdentifier?: string,
+): Promise<PurchasesOffering | null> {
   try {
     const offerings = await Purchases.getOfferings()
+
+    // If a specific offering is requested, return that one
+    if (offeringIdentifier && offerings.all[offeringIdentifier]) {
+      console.log('[RevenueCat] Returning cohort-specific offering:', offeringIdentifier)
+      return offerings.all[offeringIdentifier]
+    }
+
+    // Fall back to the default/current offering
     return offerings.current
   } catch (error) {
     console.error('[RevenueCat] Error fetching offerings:', error)
     return null
   }
+}
+
+/**
+ * Get the appropriate offering identifier based on user's signup cohort
+ * Early adopters and friends/family get $9.99 pricing
+ * General users get $34.99 pricing
+ */
+export function getOfferingForCohort(
+  signupCohort: string | null | undefined,
+): (typeof OFFERINGS)[keyof typeof OFFERINGS] {
+  if (
+    signupCohort &&
+    EARLY_ADOPTER_COHORTS.includes(signupCohort as (typeof EARLY_ADOPTER_COHORTS)[number])
+  ) {
+    return OFFERINGS.EARLY_ADOPTER
+  }
+  return OFFERINGS.GENERAL
 }
 
 /**

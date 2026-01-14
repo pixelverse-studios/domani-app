@@ -12,6 +12,7 @@ import {
   loginRevenueCat,
   logoutRevenueCat,
   getOfferings,
+  getOfferingForCohort,
   purchasePackage,
   restorePurchases,
   ENTITLEMENT_ID,
@@ -110,11 +111,15 @@ export function useSubscription() {
     retry: false, // Don't retry if RevenueCat is not configured
   })
 
+  // Get the cohort-specific offering identifier
+  const offeringIdentifier = getOfferingForCohort(profile?.signup_cohort)
+
   // Query for offerings (available products) - disabled during beta
+  // Uses cohort-specific offering based on user's signup_cohort
   const { data: offerings, isLoading: isLoadingOfferings } = useQuery({
-    queryKey: ['offerings'],
-    queryFn: getOfferings,
-    enabled: isInitialized && !isBeta,
+    queryKey: ['offerings', offeringIdentifier],
+    queryFn: () => getOfferings(offeringIdentifier),
+    enabled: isInitialized && !isBeta && !!profile,
     retry: false, // Don't retry if RevenueCat is not configured
   })
 
@@ -183,6 +188,7 @@ export function useSubscription() {
   return {
     ...subscriptionState,
     offerings,
+    offeringIdentifier, // Which pricing tier the user qualifies for
     isLoading: isLoadingCustomerInfo || isLoadingOfferings || !isInitialized,
     startTrial: startTrialMutation.mutateAsync,
     isStartingTrial: startTrialMutation.isPending,
