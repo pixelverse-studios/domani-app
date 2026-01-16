@@ -76,11 +76,13 @@ const TIMEZONES = [
 ]
 
 // Subscription status display config
+// Note: 'premium' status is kept for backwards compatibility but lifetime model
+// means all paid users are 'lifetime' status
 const STATUS_CONFIG: Record<SubscriptionStatus, { label: string; color: string; bgColor: string }> =
   {
     free: { label: 'Free', color: '#94a3b8', bgColor: 'bg-slate-500/20' },
     trialing: { label: 'Trial', color: '#22c55e', bgColor: 'bg-green-500/20' },
-    premium: { label: 'Pro', color: '#a855f7', bgColor: 'bg-purple-500/20' },
+    premium: { label: 'Lifetime', color: '#f59e0b', bgColor: 'bg-amber-500/20' },
     lifetime: { label: 'Lifetime', color: '#f59e0b', bgColor: 'bg-amber-500/20' },
   }
 
@@ -544,24 +546,16 @@ export default function SettingsScreen() {
                         activeOpacity={0.8}
                         className="bg-purple-500 py-3 rounded-xl items-center"
                       >
-                        <Text className="text-white font-semibold">Subscribe Now</Text>
+                        <Text className="text-white font-semibold">Get Lifetime Access</Text>
                       </TouchableOpacity>
                     </>
                   )}
 
-                  {/* Premium - show renewal date */}
+                  {/* Premium/Lifetime - no renewal, lifetime access */}
                   {subscription.status === 'premium' && (
-                    <>
-                      <Text className="text-sm text-slate-500 dark:text-slate-400 mb-2">
-                        Unlimited tasks • All features unlocked
-                      </Text>
-                      {subscription.expirationDate && (
-                        <Text className="text-sm text-slate-500 dark:text-slate-400">
-                          {subscription.willRenew ? 'Renews' : 'Expires'}{' '}
-                          {format(subscription.expirationDate, 'MMM d, yyyy')}
-                        </Text>
-                      )}
-                    </>
+                    <Text className="text-sm text-slate-500 dark:text-slate-400">
+                      Unlimited tasks • All features unlocked forever
+                    </Text>
                   )}
 
                   {/* Lifetime */}

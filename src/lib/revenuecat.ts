@@ -6,9 +6,9 @@ const REVENUECAT_API_KEY_IOS = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || ''
 const REVENUECAT_API_KEY_ANDROID = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY || ''
 
 // Product identifiers (configure these in RevenueCat dashboard)
+// Lifetime-only model - no subscriptions
 export const PRODUCT_IDS = {
-  MONTHLY: 'domani_pro_monthly',
-  YEARLY: 'domani_pro_yearly',
+  LIFETIME: 'domani_lifetime',
 } as const
 
 // Entitlement identifier (configure in RevenueCat dashboard)
@@ -132,40 +132,39 @@ export function getOfferingForCohort(
 }
 
 /**
- * Check if user has premium access (active subscription or trial)
+ * Check if user has premium access (lifetime purchase or trial)
+ * Lifetime purchases have no expiration date; trials have expiration dates
  */
 export async function checkPremiumAccess(): Promise<{
   hasPremium: boolean
   isTrialing: boolean
-  expirationDate: string | null
-  willRenew: boolean
+  trialExpirationDate: string | null
 }> {
   try {
     const customerInfo = await Purchases.getCustomerInfo()
     const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID]
 
     if (entitlement) {
+      const isTrialing = entitlement.periodType === 'TRIAL'
       return {
         hasPremium: true,
-        isTrialing: entitlement.periodType === 'TRIAL',
-        expirationDate: entitlement.expirationDate,
-        willRenew: entitlement.willRenew,
+        isTrialing,
+        // Only include expiration for trials (lifetime has no expiration)
+        trialExpirationDate: isTrialing ? entitlement.expirationDate : null,
       }
     }
 
     return {
       hasPremium: false,
       isTrialing: false,
-      expirationDate: null,
-      willRenew: false,
+      trialExpirationDate: null,
     }
   } catch (error) {
     console.error('[RevenueCat] Error checking premium access:', error)
     return {
       hasPremium: false,
       isTrialing: false,
-      expirationDate: null,
-      willRenew: false,
+      trialExpirationDate: null,
     }
   }
 }
