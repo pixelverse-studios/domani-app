@@ -13,8 +13,8 @@ export function PlanningEmptyState({ taskCount = 0 }: PlanningEmptyStateProps) {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
 
-  const iconColor = isDark ? '#475569' : '#94a3b8' // slate-600 / slate-400
-  const countColor = isDark ? '#64748b' : '#94a3b8' // slate-500 / slate-400
+  const iconColor = isDark ? '#94a3b8' : '#64748b' // slate-400 / slate-600
+  const countColor = isDark ? '#94a3b8' : '#64748b' // slate-400 / slate-600
 
   return (
     <View className="mx-5 mt-8">
@@ -36,7 +36,7 @@ export function PlanningEmptyState({ taskCount = 0 }: PlanningEmptyStateProps) {
         <Calendar size={40} color={iconColor} strokeWidth={1.5} />
         <Text
           className="font-sans mt-4"
-          style={{ fontSize: 16, color: isDark ? '#64748b' : '#94a3b8' }}
+          style={{ fontSize: 16, color: isDark ? '#94a3b8' : '#64748b' }}
         >
           No tasks planned yet
         </Text>

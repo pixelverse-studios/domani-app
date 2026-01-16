@@ -87,7 +87,7 @@ export default function LoginScreen() {
           <Text
             style={[
               styles.subtitle,
-              { color: isDark ? 'rgba(250, 245, 255, 0.6)' : 'rgba(30, 27, 75, 0.6)' },
+              { color: isDark ? 'rgba(250, 245, 255, 0.6)' : 'rgb(71, 85, 105)' },
             ]}
           >
             {isNewUser
@@ -120,7 +120,7 @@ export default function LoginScreen() {
             <Text
               style={[
                 styles.backButtonText,
-                { color: isDark ? 'rgba(250, 245, 255, 0.5)' : 'rgba(30, 27, 75, 0.5)' },
+                { color: isDark ? 'rgba(250, 245, 255, 0.5)' : 'rgb(100, 116, 139)' },
               ]}
             >
               ← Back

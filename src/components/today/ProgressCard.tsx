@@ -14,7 +14,7 @@ export function ProgressCard({ completed, total }: ProgressCardProps) {
   const remaining = total - completed
 
   return (
-    <View className="bg-slate-100 dark:bg-[#1A1A1F] rounded-2xl p-6 mx-5 border border-slate-200/50 dark:border-slate-800/80">
+    <View className="bg-slate-100 dark:bg-slate-900 rounded-2xl p-6 mx-5 border border-slate-200 dark:border-slate-800/80">
       <View className="flex-row items-center gap-6">
         <CircularProgress progress={percentage} size={100} strokeWidth={9} />
         <View className="flex-1">
@@ -26,13 +26,13 @@ export function ProgressCard({ completed, total }: ProgressCardProps) {
               <Text className="text-4xl font-bold text-green-500 dark:text-green-400">
                 {completed}
               </Text>
-              <Text className="text-base text-slate-500 dark:text-slate-500">Completed</Text>
+              <Text className="text-base text-slate-600 dark:text-slate-400">Completed</Text>
             </View>
             <View className="items-center">
               <Text className="text-4xl font-bold text-orange-500 dark:text-orange-400">
                 {remaining}
               </Text>
-              <Text className="text-base text-slate-500 dark:text-slate-500">Remaining</Text>
+              <Text className="text-base text-slate-600 dark:text-slate-400">Remaining</Text>
             </View>
           </View>
         </View>

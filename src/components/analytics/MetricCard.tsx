@@ -54,7 +54,7 @@ export function MetricCard({
             <Text className="text-4xl font-bold text-slate-900 dark:text-white">{value}</Text>
           )}
           {subtitle && (
-            <Text className="text-sm text-slate-500 dark:text-slate-500 mt-1">{subtitle}</Text>
+            <Text className="text-sm text-slate-600 dark:text-slate-400 mt-1">{subtitle}</Text>
           )}
         </View>
       </View>
