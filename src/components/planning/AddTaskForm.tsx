@@ -254,7 +254,7 @@ export function AddTaskForm({
         value={title}
         onChangeText={setTitle}
         placeholder="What do you want to accomplish?"
-        placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
+        placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
         editable={!isFormDisabled}
         onFocus={() => setIsTitleFocused(true)}
         onBlur={() => setIsTitleFocused(false)}
@@ -312,7 +312,7 @@ export function AddTaskForm({
             value={notes}
             onChangeText={setNotes}
             placeholder="Add shopping list, details, or any notes..."
-            placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
+            placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
             multiline
             numberOfLines={4}
             textAlignVertical="top"

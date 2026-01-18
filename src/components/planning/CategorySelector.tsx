@@ -301,7 +301,7 @@ export function CategorySelector({
               }, 150)
             }}
             placeholder={`Search All Categories (${allCategories.length})`}
-            placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
+            placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
             editable={!disabled}
             className="flex-1 font-sans px-3"
             style={{

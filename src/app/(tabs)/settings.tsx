@@ -89,7 +89,7 @@ const STATUS_CONFIG: Record<SubscriptionStatus, { label: string; color: string; 
 // Section Header component
 function SectionHeader({ title }: { title: string }) {
   return (
-    <Text className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 px-1">
+    <Text className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2 px-1">
       {title}
     </Text>
   )
@@ -206,7 +206,7 @@ function SettingsRow({
         <Text className="text-base text-slate-900 dark:text-slate-100">{label}</Text>
       </View>
       <View className="flex-row items-center">
-        {value && <Text className="text-sm text-slate-500 dark:text-slate-400 mr-2">{value}</Text>}
+        {value && <Text className="text-sm text-slate-600 dark:text-slate-400 mr-2">{value}</Text>}
         {showChevron && onPress && <ChevronRight size={18} color={iconColor} />}
       </View>
     </TouchableOpacity>
@@ -451,7 +451,7 @@ export default function SettingsScreen() {
                   </View>
                 </View>
 
-                <Text className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                <Text className="text-sm text-slate-600 dark:text-slate-400 mb-4">
                   You&apos;re part of our exclusive beta program with full Pro access while we build
                   Domani together.
                 </Text>
@@ -498,7 +498,7 @@ export default function SettingsScreen() {
                   {/* Free tier - show trial option */}
                   {subscription.status === 'free' && (
                     <>
-                      <Text className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+                      <Text className="text-sm text-slate-600 dark:text-slate-400 mb-3">
                         3 tasks per day • Basic features
                       </Text>
                       {subscription.canStartTrial ? (
@@ -539,7 +539,7 @@ export default function SettingsScreen() {
                           {subscription.trialDaysRemaining} days remaining in trial
                         </Text>
                       </View>
-                      <Text className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+                      <Text className="text-sm text-slate-600 dark:text-slate-400 mb-3">
                         Unlimited tasks • All features unlocked
                       </Text>
                       <TouchableOpacity
@@ -553,14 +553,14 @@ export default function SettingsScreen() {
 
                   {/* Premium/Lifetime - no renewal, lifetime access */}
                   {subscription.status === 'premium' && (
-                    <Text className="text-sm text-slate-500 dark:text-slate-400">
+                    <Text className="text-sm text-slate-600 dark:text-slate-400">
                       Unlimited tasks • All features unlocked forever
                     </Text>
                   )}
 
                   {/* Lifetime */}
                   {subscription.status === 'lifetime' && (
-                    <Text className="text-sm text-slate-500 dark:text-slate-400">
+                    <Text className="text-sm text-slate-600 dark:text-slate-400">
                       Unlimited tasks • All features unlocked forever
                     </Text>
                   )}
@@ -579,7 +579,7 @@ export default function SettingsScreen() {
                     ) : (
                       <>
                         <RotateCcw size={14} color="#94a3b8" />
-                        <Text className="text-sm text-slate-500 dark:text-slate-400 ml-1.5">
+                        <Text className="text-sm text-slate-600 dark:text-slate-400 ml-1.5">
                           Restore Purchases
                         </Text>
                       </>
@@ -692,9 +692,9 @@ export default function SettingsScreen() {
                   activeOpacity={0.7}
                   className="flex-row items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-slate-700"
                 >
-                  <Text className="text-sm text-slate-500 dark:text-slate-400">Reminder time</Text>
+                  <Text className="text-sm text-slate-600 dark:text-slate-400">Reminder time</Text>
                   <View className="flex-row items-center">
-                    <Text className="text-sm text-slate-500 dark:text-slate-400 mr-2">
+                    <Text className="text-sm text-slate-600 dark:text-slate-400 mr-2">
                       {formatTimeDisplay(profile.execution_reminder_time)}
                     </Text>
                     <ChevronRight
@@ -711,7 +711,7 @@ export default function SettingsScreen() {
         {/* Appearance Section */}
         <SectionHeader title="Appearance" />
         <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 mb-6">
-          <Text className="text-sm text-slate-500 dark:text-slate-400 mb-3">Theme</Text>
+          <Text className="text-sm text-slate-600 dark:text-slate-400 mb-3">Theme</Text>
           <View className="flex-row gap-2">
             {THEME_OPTIONS.map(({ mode: optionMode, label, icon: Icon }) => {
               const isSelected = mode === optionMode
@@ -785,7 +785,7 @@ export default function SettingsScreen() {
                   <Text className="text-base font-medium text-red-500">
                     Account Scheduled for Deletion
                   </Text>
-                  <Text className="text-sm text-slate-500 dark:text-slate-400">
+                  <Text className="text-sm text-slate-600 dark:text-slate-400">
                     {accountDeletion.daysRemaining} days remaining
                   </Text>
                 </View>
@@ -829,7 +829,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* App Version */}
-        <Text className="text-center text-sm text-slate-400 dark:text-slate-500 mb-4">
+        <Text className="text-center text-sm text-slate-500 dark:text-slate-500 mb-4">
           Domani v{APP_VERSION}
         </Text>
 
@@ -858,7 +858,7 @@ export default function SettingsScreen() {
               value={editName}
               onChangeText={setEditName}
               placeholder="Enter your name"
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={activeTheme === 'dark' ? '#94a3b8' : '#64748b'}
               autoFocus
               className="bg-slate-100 dark:bg-slate-700 rounded-xl px-4 text-slate-900 dark:text-white text-base mb-4"
               style={{ paddingTop: 14, paddingBottom: 14, lineHeight: undefined }}
@@ -908,7 +908,7 @@ export default function SettingsScreen() {
                   >
                     <View>
                       <Text className="text-base text-slate-900 dark:text-white">{tz.label}</Text>
-                      <Text className="text-sm text-slate-500 dark:text-slate-400">
+                      <Text className="text-sm text-slate-600 dark:text-slate-400">
                         {tz.offset}
                       </Text>
                     </View>
@@ -939,7 +939,7 @@ export default function SettingsScreen() {
                 <X size={24} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
               </TouchableOpacity>
             </View>
-            <Text className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+            <Text className="text-sm text-slate-600 dark:text-slate-400 mb-4">
               Get reminded to plan tomorrow&apos;s tasks
             </Text>
             <View className="items-center mb-4">
@@ -984,7 +984,7 @@ export default function SettingsScreen() {
                 <X size={24} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
               </TouchableOpacity>
             </View>
-            <Text className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+            <Text className="text-sm text-slate-600 dark:text-slate-400 mb-4">
               Get reminded to start your planned tasks
             </Text>
             <View className="items-center mb-4">
@@ -1032,7 +1032,7 @@ export default function SettingsScreen() {
             </Text>
 
             {/* Description */}
-            <Text className="text-sm text-slate-500 dark:text-slate-400 text-center mb-4">
+            <Text className="text-sm text-slate-600 dark:text-slate-400 text-center mb-4">
               Your account and all data will be permanently deleted after 30 days. You can sign in
               anytime before then to reactivate your account.
             </Text>
@@ -1102,7 +1102,7 @@ export default function SettingsScreen() {
             </Text>
 
             {/* Description */}
-            <Text className="text-sm text-slate-500 dark:text-slate-400 text-center mb-6">
+            <Text className="text-sm text-slate-600 dark:text-slate-400 text-center mb-6">
               {pendingSmartCategoriesValue
                 ? 'Your quick access categories will automatically adapt based on your usage patterns. This will override your current favorite categories.'
                 : 'Your categories will return to manual ordering. You can reorder them by going to Favorite Categories.'}
