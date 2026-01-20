@@ -11,6 +11,7 @@ import {
 } from 'react-native'
 import { X, Check, ChevronRight, FileText } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import { addDays, setHours, setMinutes } from 'date-fns'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -28,6 +29,7 @@ import { Text } from '~/components/ui'
 import { CategorySelector } from './CategorySelector'
 import { PrioritySelector, type Priority } from './PrioritySelector'
 import { DayToggle, type PlanningTarget } from './DayToggle'
+import { ReminderSection } from './ReminderSection'
 import { useTheme } from '~/hooks/useTheme'
 import { colors } from '~/theme'
 
@@ -41,6 +43,7 @@ interface InitialFormValues {
   priority?: Priority | null
   notes?: string | null
   plannedFor?: PlanningTarget
+  reminderAt?: string | null // ISO timestamp
 }
 
 interface AddTaskFormProps {
@@ -51,6 +54,7 @@ interface AddTaskFormProps {
     priority: Priority
     notes?: string | null
     plannedFor?: PlanningTarget
+    reminderAt?: string | null // ISO timestamp
   }) => Promise<void> | void
   initialValues?: InitialFormValues
   isEditing?: boolean
@@ -94,6 +98,17 @@ export function AddTaskForm({
   const [notes, setNotes] = useState(initialValues?.notes ?? '')
   const [isNotesExpanded, setIsNotesExpanded] = useState(!!initialValues?.notes)
 
+  // Reminder state
+  const [isReminderEnabled, setIsReminderEnabled] = useState(!!initialValues?.reminderAt)
+  const [reminderDate, setReminderDate] = useState<Date>(() => {
+    if (initialValues?.reminderAt) {
+      return new Date(initialValues.reminderAt)
+    }
+    // Default: 9 AM on the selected target day
+    const baseDate = selectedTarget === 'tomorrow' ? addDays(new Date(), 1) : new Date()
+    return setMinutes(setHours(baseDate, 9), 0)
+  })
+
   // Animation for chevron rotation
   const notesChevronRotation = useSharedValue(initialValues?.notes ? 1 : 0)
 
@@ -108,6 +123,12 @@ export function AddTaskForm({
       setNotes(initialValues.notes ?? '')
       setIsNotesExpanded(!!initialValues.notes)
       notesChevronRotation.value = initialValues.notes ? 1 : 0
+
+      // Sync reminder state
+      setIsReminderEnabled(!!initialValues.reminderAt)
+      if (initialValues.reminderAt) {
+        setReminderDate(new Date(initialValues.reminderAt))
+      }
     }
   }, [initialValues, notesChevronRotation])
 
@@ -155,6 +176,10 @@ export function AddTaskForm({
     setNotes('')
     setIsNotesExpanded(false)
     notesChevronRotation.value = 0
+    // Reset reminder
+    setIsReminderEnabled(false)
+    const baseDate = selectedTarget === 'tomorrow' ? addDays(new Date(), 1) : new Date()
+    setReminderDate(setMinutes(setHours(baseDate, 9), 0))
     setSubmitState('idle')
   }
 
@@ -174,12 +199,17 @@ export function AddTaskForm({
     setSubmitState('submitting')
 
     try {
+      // Only include reminder if enabled and date is in the future
+      const reminderAt =
+        isReminderEnabled && reminderDate > new Date() ? reminderDate.toISOString() : null
+
       await onSubmit({
         title: title.trim(),
         category: selectedCategory,
         priority: selectedPriority,
         notes: notes.trim() || null,
         plannedFor: selectedTarget,
+        reminderAt,
       })
 
       // Show success state
@@ -329,6 +359,16 @@ export function AddTaskForm({
           />
         )}
       </View>
+
+      {/* Reminder Section */}
+      <ReminderSection
+        reminderDate={reminderDate}
+        onReminderDateChange={setReminderDate}
+        isReminderEnabled={isReminderEnabled}
+        onReminderEnabledChange={setIsReminderEnabled}
+        disabled={isFormDisabled}
+        selectedTarget={selectedTarget}
+      />
 
       {/* Action Buttons - above overlay */}
       <View className="mt-6" style={{ zIndex: 2 }}>

@@ -312,8 +312,64 @@ export function useNotificationObserver() {
       }
     }
 
+    // Reschedule pending task reminders on app launch
+    // This ensures notifications survive app reinstalls or device restarts
+    const rescheduleTaskReminders = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (!user) return
+
+        // Fetch tasks with pending reminders (reminder_at in the future, not completed)
+        const { data: tasksWithReminders, error } = await supabase
+          .from('tasks')
+          .select('id, title, is_mit, reminder_at, notification_id')
+          .eq('user_id', user.id)
+          .gt('reminder_at', new Date().toISOString())
+          .is('completed_at', null)
+
+        if (error) {
+          console.error('[Notifications] Failed to fetch tasks with reminders:', error)
+          return
+        }
+
+        if (!tasksWithReminders || tasksWithReminders.length === 0) {
+          console.log('[Notifications] No pending task reminders to reschedule')
+          return
+        }
+
+        console.log(
+          `[Notifications] Rescheduling ${tasksWithReminders.length} pending task reminders`,
+        )
+
+        // Reschedule all task reminders
+        const results = await NotificationService.rescheduleTaskReminders(
+          tasksWithReminders.map((t) => ({
+            id: t.id,
+            title: t.title,
+            is_mit: t.is_mit,
+            reminder_at: t.reminder_at!,
+            notification_id: t.notification_id,
+          })),
+        )
+
+        // Update notification IDs in database
+        for (const [taskId, notificationId] of results) {
+          await supabase.from('tasks').update({ notification_id: notificationId }).eq('id', taskId)
+        }
+
+        console.log(`[Notifications] Successfully rescheduled ${results.size} task reminders`)
+      } catch (error) {
+        console.error('[Notifications] Failed to reschedule task reminders:', error)
+      }
+    }
+
     // Reschedule after auth is ready
     const rescheduleTimeout = setTimeout(reschedulePlanningReminder, 2500)
+
+    // Reschedule task reminders slightly after planning reminder
+    const taskReminderTimeout = setTimeout(rescheduleTaskReminders, 3000)
 
     // Handle notifications received while app is foregrounded
     notificationListener.current = Notifications.addNotificationReceivedListener(
@@ -360,6 +416,7 @@ export function useNotificationObserver() {
       clearTimeout(tokenTimeout)
       clearTimeout(selfHealTimeout)
       clearTimeout(rescheduleTimeout)
+      clearTimeout(taskReminderTimeout)
       appStateSubscription.remove()
       notificationListener.current?.remove()
       responseListener.current?.remove()
