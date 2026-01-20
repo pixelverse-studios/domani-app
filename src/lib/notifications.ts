@@ -159,9 +159,6 @@ export const NotificationService = {
     return identifier
   },
 
-  // Note: Execution reminders are now handled server-side via Edge Function
-  // The scheduleExecutionReminder method has been removed
-
   /**
    * Cancel a specific scheduled notification
    */
