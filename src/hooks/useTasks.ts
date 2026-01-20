@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { supabase } from '~/lib/supabase'
 import { addBreadcrumb } from '~/lib/sentry'
+import { NotificationService } from '~/lib/notifications'
 import { useIncrementCategoryUsage } from '~/hooks/useCategories'
 import type { TaskWithCategory, TaskPriority } from '~/types'
 
@@ -40,6 +41,13 @@ export function useToggleTask() {
 
   return useMutation({
     mutationFn: async ({ taskId, completed }: { taskId: string; completed: boolean }) => {
+      // First get the task to check for notification_id
+      const { data: existingTask } = await supabase
+        .from('tasks')
+        .select('notification_id')
+        .eq('id', taskId)
+        .single()
+
       const { data, error } = await supabase
         .from('tasks')
         .update({
@@ -50,6 +58,12 @@ export function useToggleTask() {
         .single()
 
       if (error) throw error
+
+      // Cancel notification if task is being completed
+      if (completed && existingTask?.notification_id) {
+        await NotificationService.cancelTaskReminder(existingTask.notification_id)
+      }
+
       return data
     },
     onMutate: async ({ taskId, completed }) => {
@@ -96,6 +110,7 @@ interface CreateTaskInput {
   priority?: TaskPriority
   estimatedDurationMinutes?: number
   notes?: string | null
+  reminderAt?: string | null // ISO timestamp for when to send reminder notification
   // Note: is_mit is now automatically controlled by priority via DB trigger
   // HIGH priority = is_mit: true, MEDIUM/LOW = is_mit: false
 }
@@ -114,6 +129,7 @@ export function useCreateTask() {
       priority = 'medium',
       estimatedDurationMinutes,
       notes,
+      reminderAt,
     }: CreateTaskInput) => {
       // Get current user for user_id
       const {
@@ -136,6 +152,7 @@ export function useCreateTask() {
           priority,
           estimated_duration_minutes: estimatedDurationMinutes,
           notes,
+          reminder_at: reminderAt,
         })
         .select(
           `
@@ -152,6 +169,22 @@ export function useCreateTask() {
           throw new Error('FREE_TIER_LIMIT')
         }
         throw error
+      }
+
+      // Schedule reminder notification if set
+      if (data.reminder_at) {
+        const notificationId = await NotificationService.scheduleTaskReminder({
+          id: data.id,
+          title: data.title,
+          is_mit: data.is_mit,
+          reminder_at: data.reminder_at,
+        })
+
+        // Update task with notification ID for later cancellation
+        if (notificationId) {
+          await supabase.from('tasks').update({ notification_id: notificationId }).eq('id', data.id)
+          data.notification_id = notificationId
+        }
       }
 
       return data as TaskWithCategory
@@ -195,12 +228,20 @@ export function useUpdateTask() {
         position: number
         notes: string | null
         plan_id: string // Support moving task to different plan (day change)
+        reminder_at: string | null // Update reminder time
         // Note: is_mit is automatically controlled by priority via DB trigger
         // Setting priority to 'high' will auto-set is_mit=true and demote other HIGH tasks
       }>
       /** Original plan ID for cache invalidation when task moves to different plan */
       originalPlanId?: string
     }) => {
+      // Get existing task to check for notification changes
+      const { data: existingTask } = await supabase
+        .from('tasks')
+        .select('notification_id, reminder_at, title, is_mit')
+        .eq('id', taskId)
+        .single()
+
       // Note: When priority is updated to 'high', DB trigger will:
       // 1. Set is_mit = true on this task
       // 2. Demote any other HIGH priority tasks to MEDIUM
@@ -212,6 +253,45 @@ export function useUpdateTask() {
         .single()
 
       if (error) throw error
+
+      // Handle reminder notification changes
+      const reminderChanged = 'reminder_at' in updates
+      const titleChanged = 'title' in updates
+
+      if (reminderChanged || titleChanged) {
+        // Cancel existing notification if any
+        if (existingTask?.notification_id) {
+          await NotificationService.cancelTaskReminder(existingTask.notification_id)
+        }
+
+        // Schedule new notification if reminder is set
+        if (data.reminder_at) {
+          const notificationId = await NotificationService.scheduleTaskReminder({
+            id: data.id,
+            title: data.title,
+            is_mit: data.is_mit,
+            reminder_at: data.reminder_at,
+          })
+
+          // Update task with new notification ID
+          if (notificationId) {
+            await supabase
+              .from('tasks')
+              .update({ notification_id: notificationId })
+              .eq('id', taskId)
+            data.notification_id = notificationId
+          } else {
+            // Clear notification_id if scheduling failed or reminder is in the past
+            await supabase.from('tasks').update({ notification_id: null }).eq('id', taskId)
+            data.notification_id = null
+          }
+        } else {
+          // Clear notification_id since reminder was removed
+          await supabase.from('tasks').update({ notification_id: null }).eq('id', taskId)
+          data.notification_id = null
+        }
+      }
+
       return { data, originalPlanId }
     },
     onSuccess: ({ data, originalPlanId }) => {
@@ -230,6 +310,18 @@ export function useDeleteTask() {
 
   return useMutation({
     mutationFn: async (taskId: string) => {
+      // First get the task to check for notification_id
+      const { data: existingTask } = await supabase
+        .from('tasks')
+        .select('notification_id')
+        .eq('id', taskId)
+        .single()
+
+      // Cancel notification if task had one scheduled
+      if (existingTask?.notification_id) {
+        await NotificationService.cancelTaskReminder(existingTask.notification_id)
+      }
+
       const { error } = await supabase.from('tasks').delete().eq('id', taskId)
 
       if (error) throw error

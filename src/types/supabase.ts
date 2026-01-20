@@ -830,9 +830,11 @@ export type Database = {
           id: string
           is_mit: boolean
           notes: string | null
+          notification_id: string | null
           plan_id: string
           position: number
           priority: Database['public']['Enums']['task_priority'] | null
+          reminder_at: string | null
           system_category_id: string | null
           title: string
           updated_at: string
@@ -848,9 +850,11 @@ export type Database = {
           id?: string
           is_mit?: boolean
           notes?: string | null
+          notification_id?: string | null
           plan_id: string
           position?: number
           priority?: Database['public']['Enums']['task_priority'] | null
+          reminder_at?: string | null
           system_category_id?: string | null
           title: string
           updated_at?: string
@@ -866,9 +870,11 @@ export type Database = {
           id?: string
           is_mit?: boolean
           notes?: string | null
+          notification_id?: string | null
           plan_id?: string
           position?: number
           priority?: Database['public']['Enums']['task_priority'] | null
+          reminder_at?: string | null
           system_category_id?: string | null
           title?: string
           updated_at?: string
