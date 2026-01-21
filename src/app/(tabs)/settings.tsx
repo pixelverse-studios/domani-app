@@ -18,7 +18,6 @@ import {
   Smartphone,
   ChevronRight,
   User,
-  Clock,
   Globe,
   Crown,
   X,
@@ -221,7 +220,7 @@ export default function SettingsScreen() {
   const { profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const subscription = useSubscription()
-  const { schedulePlanningReminder, permissionStatus, requestPermissions } = useNotifications()
+  const { schedulePlanningReminder, permissionStatus } = useNotifications()
   const accountDeletion = useAccountDeletion()
   const { phase } = useAppConfig()
 
@@ -229,7 +228,6 @@ export default function SettingsScreen() {
   const [showNameModal, setShowNameModal] = useState(false)
   const [showTimezoneModal, setShowTimezoneModal] = useState(false)
   const [showPlanningTimeModal, setShowPlanningTimeModal] = useState(false)
-  const [showExecutionTimeModal, setShowExecutionTimeModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showFarewellOverlay, setShowFarewellOverlay] = useState(false)
   const [showSmartCategoriesModal, setShowSmartCategoriesModal] = useState(false)
@@ -309,43 +307,6 @@ export default function SettingsScreen() {
     setShowPlanningTimeModal(false)
   }
 
-  const handleUpdateExecutionTime = async (time: Date) => {
-    const timeString = format(time, 'HH:mm:ss')
-    await updateProfile.mutateAsync({ execution_reminder_time: timeString })
-    // Note: Execution reminder is handled server-side via Edge Function
-    // No local notification scheduling needed
-    setShowExecutionTimeModal(false)
-  }
-
-  const handleToggleExecutionReminder = async (enabled: boolean) => {
-    if (enabled) {
-      // Enable: Check if we have a push token, request permissions if not
-      // Execution reminders are server-side push notifications, so we need a token
-      if (!profile?.expo_push_token) {
-        const granted = await requestPermissions()
-        if (!granted) {
-          Alert.alert(
-            'Notifications Required',
-            'Please enable notifications to receive execution reminders. You can enable them in your device settings.',
-            [{ text: 'OK' }],
-          )
-          return
-        }
-        // Wait briefly for token registration to complete
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-      }
-
-      // Set default time (8 AM)
-      const defaultTime = new Date()
-      defaultTime.setHours(8, 0, 0, 0)
-      const timeString = format(defaultTime, 'HH:mm:ss')
-      await updateProfile.mutateAsync({ execution_reminder_time: timeString })
-    } else {
-      // Disable: clear time
-      await updateProfile.mutateAsync({ execution_reminder_time: null })
-    }
-  }
-
   const openNameModal = () => {
     setEditName(profile?.full_name || '')
     setShowNameModal(true)
@@ -363,20 +324,6 @@ export default function SettingsScreen() {
       setSelectedTime(date)
     }
     setShowPlanningTimeModal(true)
-  }
-
-  const openExecutionTimeModal = () => {
-    if (profile?.execution_reminder_time) {
-      const [hours, minutes] = profile.execution_reminder_time.split(':')
-      const date = new Date()
-      date.setHours(parseInt(hours), parseInt(minutes), 0)
-      setSelectedTime(date)
-    } else {
-      const date = new Date()
-      date.setHours(8, 0, 0) // Default 8 AM
-      setSelectedTime(date)
-    }
-    setShowExecutionTimeModal(true)
   }
 
   // Format time for display
@@ -663,48 +610,6 @@ export default function SettingsScreen() {
               onPress={openPlanningTimeModal}
               icon={ClipboardClock}
             />
-            {/* Execution Reminder Toggle */}
-            <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3 mb-2">
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center flex-1">
-                  <View className="mr-3">
-                    <Clock size={20} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
-                  </View>
-                  <Text className="text-base text-slate-900 dark:text-slate-100">
-                    Execution Reminder
-                  </Text>
-                </View>
-                <Switch
-                  value={!!profile?.execution_reminder_time}
-                  onValueChange={handleToggleExecutionReminder}
-                  trackColor={{
-                    false: activeTheme === 'dark' ? '#334155' : '#e2e8f0',
-                    true: activeTheme === 'dark' ? '#a78bfa' : '#8b5cf6',
-                  }}
-                  thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
-                  ios_backgroundColor={activeTheme === 'dark' ? '#334155' : '#e2e8f0'}
-                />
-              </View>
-              {/* Time selector - only shown when enabled */}
-              {profile?.execution_reminder_time && (
-                <TouchableOpacity
-                  onPress={openExecutionTimeModal}
-                  activeOpacity={0.7}
-                  className="flex-row items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-slate-700"
-                >
-                  <Text className="text-sm text-slate-600 dark:text-slate-400">Reminder time</Text>
-                  <View className="flex-row items-center">
-                    <Text className="text-sm text-slate-600 dark:text-slate-400 mr-2">
-                      {formatTimeDisplay(profile.execution_reminder_time)}
-                    </Text>
-                    <ChevronRight
-                      size={16}
-                      color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'}
-                    />
-                  </View>
-                </TouchableOpacity>
-              )}
-            </View>
           </View>
         )}
 
@@ -953,51 +858,6 @@ export default function SettingsScreen() {
             </View>
             <TouchableOpacity
               onPress={() => handleUpdatePlanningTime(selectedTime)}
-              disabled={updateProfile.isPending}
-              activeOpacity={0.8}
-              className="bg-purple-500 py-3 rounded-xl items-center"
-            >
-              {updateProfile.isPending ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text className="text-white font-semibold">Save</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Execution Time Picker Modal */}
-      <Modal
-        visible={showExecutionTimeModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowExecutionTimeModal(false)}
-      >
-        <View className="flex-1 bg-black/50 justify-center px-6">
-          <View className="bg-white dark:bg-slate-800 rounded-2xl p-5 max-h-[75%]">
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-lg font-semibold text-slate-900 dark:text-white">
-                Execution Reminder
-              </Text>
-              <TouchableOpacity onPress={() => setShowExecutionTimeModal(false)}>
-                <X size={24} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
-              </TouchableOpacity>
-            </View>
-            <Text className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-              Get reminded to start your planned tasks
-            </Text>
-            <View className="items-center mb-4">
-              <DateTimePicker
-                value={selectedTime}
-                mode="time"
-                display="spinner"
-                onChange={(_event: unknown, date?: Date) => date && setSelectedTime(date)}
-                textColor={activeTheme === 'dark' ? '#fff' : '#000'}
-              />
-            </View>
-            <TouchableOpacity
-              onPress={() => handleUpdateExecutionTime(selectedTime)}
               disabled={updateProfile.isPending}
               activeOpacity={0.8}
               className="bg-purple-500 py-3 rounded-xl items-center"

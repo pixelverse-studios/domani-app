@@ -12,7 +12,6 @@ import {
   PlanningEmptyState,
   TaskList,
   TasksRecap,
-  ReminderBanner,
 } from '~/components/planning'
 import { usePlanForDate } from '~/hooks/usePlans'
 import { useCreateTask, useTasks, useDeleteTask, useUpdateTask } from '~/hooks/useTasks'
@@ -372,7 +371,6 @@ export default function PlanningScreen() {
 
         {tasks.length > 0 ? (
           <>
-            {selectedTarget === 'tomorrow' && <ReminderBanner />}
             <TaskList
               tasks={tasks}
               onEditTask={handleEditTask}

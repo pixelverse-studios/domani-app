@@ -37,7 +37,6 @@ User profiles linked to Supabase Auth. Created automatically on signup via trigg
 | subscription_expires_at | timestamptz | YES      | -       | When subscription expires          |
 | timezone                | text        | YES      | 'UTC'   | User's timezone                    |
 | planning_reminder_time  | time        | YES      | -       | Evening planning notification      |
-| execution_reminder_time | time        | YES      | -       | Morning reminder notification      |
 | trial_started_at        | timestamptz | YES      | -       | When trial began                   |
 | trial_ends_at           | timestamptz | YES      | -       | When trial expires                 |
 | created_at              | timestamptz | NO       | now()   | -                                  |
