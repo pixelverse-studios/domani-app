@@ -592,6 +592,7 @@ export type Database = {
           planning_reminder_time: string | null
           push_token_invalid_at: string | null
           push_token_last_verified_at: string | null
+          reminder_shortcuts: Json | null
           revenuecat_user_id: string | null
           signup_cohort: Database['public']['Enums']['signup_cohort'] | null
           signup_method: string | null
@@ -617,6 +618,7 @@ export type Database = {
           planning_reminder_time?: string | null
           push_token_invalid_at?: string | null
           push_token_last_verified_at?: string | null
+          reminder_shortcuts?: Json | null
           revenuecat_user_id?: string | null
           signup_cohort?: Database['public']['Enums']['signup_cohort'] | null
           signup_method?: string | null
@@ -642,6 +644,7 @@ export type Database = {
           planning_reminder_time?: string | null
           push_token_invalid_at?: string | null
           push_token_last_verified_at?: string | null
+          reminder_shortcuts?: Json | null
           revenuecat_user_id?: string | null
           signup_cohort?: Database['public']['Enums']['signup_cohort'] | null
           signup_method?: string | null

@@ -36,7 +36,7 @@ import { format } from 'date-fns'
 
 import { Text } from '~/components/ui'
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
-import { FavoriteCategoriesAccordion } from '~/components/settings'
+import { FavoriteCategoriesAccordion, ReminderShortcutsSection } from '~/components/settings'
 import { useAuth } from '~/hooks/useAuth'
 import { useTheme } from '~/hooks/useTheme'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
@@ -610,6 +610,9 @@ export default function SettingsScreen() {
               onPress={openPlanningTimeModal}
               icon={ClipboardClock}
             />
+            <View className="mt-2">
+              <ReminderShortcutsSection />
+            </View>
           </View>
         )}
 
