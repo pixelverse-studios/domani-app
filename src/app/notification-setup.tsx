@@ -192,6 +192,17 @@ export default function NotificationSetupScreen() {
           )}
         </View>
 
+        {/* Task Reminders Info */}
+        <View style={[styles.infoSection, { backgroundColor: colors.pickerBackground }]}>
+          <Text style={[styles.infoTitle, { color: colors.sectionTitle }]}>
+            Task Reminders
+          </Text>
+          <Text style={[styles.infoDescription, { color: colors.sectionDescription }]}>
+            Each task has its own reminder. You can set individual reminder times when creating or
+            editing tasks.
+          </Text>
+        </View>
+
         {/* Spacer to push button down */}
         <View style={styles.spacer} />
 
@@ -241,7 +252,21 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   reminderSection: {
+    marginBottom: 24,
+  },
+  infoSection: {
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 20,
+  },
+  infoTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  infoDescription: {
+    fontSize: 14,
+    lineHeight: 20,
   },
   sectionTitle: {
     fontSize: 18,
