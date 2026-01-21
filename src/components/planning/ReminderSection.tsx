@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { View, TouchableOpacity, Platform, LayoutAnimation, UIManager, Modal } from 'react-native'
 import { Bell, Clock, Settings2 } from 'lucide-react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
@@ -7,6 +7,8 @@ import Animated from 'react-native-reanimated'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
+import { useProfile } from '~/hooks/useProfile'
+import { DEFAULT_SHORTCUTS, type ReminderShortcut } from '~/components/settings'
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -22,13 +24,6 @@ interface ReminderSectionProps {
   selectedTarget: 'today' | 'tomorrow'
 }
 
-// Quick time presets
-const TIME_PRESETS = [
-  { id: 'morning', hour: 9, minute: 0 },
-  { id: 'afternoon', hour: 13, minute: 0 },
-  { id: 'evening', hour: 18, minute: 0 },
-] as const
-
 export function ReminderSection({
   reminderDate,
   onReminderDateChange,
@@ -39,6 +34,13 @@ export function ReminderSection({
 }: ReminderSectionProps) {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
+  const { profile } = useProfile()
+
+  // Get user's shortcuts from profile or use defaults
+  const timePresets: ReminderShortcut[] = useMemo(() => {
+    const shortcuts = profile?.reminder_shortcuts as ReminderShortcut[] | null
+    return shortcuts && shortcuts.length > 0 ? shortcuts : DEFAULT_SHORTCUTS
+  }, [profile?.reminder_shortcuts])
 
   // Colors
   const purpleColor = isDark ? '#a78bfa' : '#8b5cf6'
@@ -65,12 +67,13 @@ export function ReminderSection({
     if (isReminderEnabled) {
       onReminderEnabledChange(false)
     } else {
-      // Set default time when enabling
-      const defaultDate = setMinutes(setHours(getBaseDate(), 9), 0)
+      // Set default time to first shortcut when enabling
+      const firstPreset = timePresets[0] || DEFAULT_SHORTCUTS[0]
+      const defaultDate = setMinutes(setHours(getBaseDate(), firstPreset.hour), firstPreset.minute)
       onReminderDateChange(defaultDate)
       onReminderEnabledChange(true)
     }
-  }, [isReminderEnabled, getBaseDate, onReminderDateChange, onReminderEnabledChange])
+  }, [isReminderEnabled, getBaseDate, onReminderDateChange, onReminderEnabledChange, timePresets])
 
   return (
     <View className="mt-4">
@@ -134,16 +137,16 @@ export function ReminderSection({
             borderColor: borderColor,
           }}
         >
-          {/* Quick Presets Section - subtle/secondary */}
+          {/* Shortcuts Section - subtle/secondary */}
           <Text className="text-[10px] font-sans text-slate-400 dark:text-slate-500 mb-1.5 uppercase tracking-wide">
-            Quick Pick
+            Shortcuts
           </Text>
           <View className="flex-row" style={{ gap: 6 }}>
-            {TIME_PRESETS.map((preset) => {
+            {timePresets.map((preset) => {
               const isSelected =
                 reminderDate.getHours() === preset.hour &&
                 reminderDate.getMinutes() === preset.minute
-              const textColor = isSelected ? purpleColor : (isDark ? '#64748b' : '#94a3b8')
+              const textColor = isSelected ? purpleColor : isDark ? '#64748b' : '#94a3b8'
               return (
                 <TouchableOpacity
                   key={preset.id}
@@ -160,10 +163,7 @@ export function ReminderSection({
                     borderColor: purpleColor,
                   }}
                 >
-                  <Text
-                    className="text-sm font-sans-semibold"
-                    style={{ color: textColor }}
-                  >
+                  <Text className="text-sm font-sans-semibold" style={{ color: textColor }}>
                     {format(setMinutes(setHours(new Date(), preset.hour), preset.minute), 'h:mm a')}
                   </Text>
                 </TouchableOpacity>
@@ -172,16 +172,14 @@ export function ReminderSection({
           </View>
 
           {/* Divider */}
-          <View
-            className="my-3"
-            style={{ height: 1, backgroundColor: borderColor }}
-          />
+          <View className="my-3" style={{ height: 1, backgroundColor: borderColor }} />
 
           {/* Custom Time Row */}
           {(() => {
-            const isCustomTime = !TIME_PRESETS.some(
+            const isCustomTime = !timePresets.some(
               (preset) =>
-                reminderDate.getHours() === preset.hour && reminderDate.getMinutes() === preset.minute,
+                reminderDate.getHours() === preset.hour &&
+                reminderDate.getMinutes() === preset.minute,
             )
 
             return (
@@ -253,11 +251,14 @@ export function ReminderSection({
                   className="rounded-t-2xl pb-8"
                   style={{ backgroundColor: isDark ? '#1e293b' : '#ffffff' }}
                 >
-                  <View className="flex-row justify-between items-center px-4 py-3 border-b"
+                  <View
+                    className="flex-row justify-between items-center px-4 py-3 border-b"
                     style={{ borderColor: borderColor }}
                   >
                     <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                      <Text className="text-base" style={{ color: iconColor }}>Cancel</Text>
+                      <Text className="text-base" style={{ color: iconColor }}>
+                        Cancel
+                      </Text>
                     </TouchableOpacity>
                     <Text className="text-base font-sans-semibold text-slate-900 dark:text-white">
                       Select Time
