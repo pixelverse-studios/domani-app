@@ -12,6 +12,7 @@ import {
   loginRevenueCat,
   logoutRevenueCat,
   getOfferings,
+  getOfferingForCohort,
   purchasePackage,
   restorePurchases,
   ENTITLEMENT_ID,
@@ -23,8 +24,7 @@ interface SubscriptionState {
   status: SubscriptionStatus
   isTrialing: boolean
   trialDaysRemaining: number | null
-  expirationDate: Date | null
-  willRenew: boolean
+  trialExpirationDate: Date | null
   canStartTrial: boolean
 }
 
@@ -110,11 +110,15 @@ export function useSubscription() {
     retry: false, // Don't retry if RevenueCat is not configured
   })
 
+  // Get the cohort-specific offering identifier
+  const offeringIdentifier = getOfferingForCohort(profile?.signup_cohort)
+
   // Query for offerings (available products) - disabled during beta
+  // Uses cohort-specific offering based on user's signup_cohort
   const { data: offerings, isLoading: isLoadingOfferings } = useQuery({
-    queryKey: ['offerings'],
-    queryFn: getOfferings,
-    enabled: isInitialized && !isBeta,
+    queryKey: ['offerings', offeringIdentifier],
+    queryFn: () => getOfferings(offeringIdentifier),
+    enabled: isInitialized && !isBeta && !!profile,
     retry: false, // Don't retry if RevenueCat is not configured
   })
 
@@ -183,6 +187,7 @@ export function useSubscription() {
   return {
     ...subscriptionState,
     offerings,
+    offeringIdentifier, // Which pricing tier the user qualifies for
     isLoading: isLoadingCustomerInfo || isLoadingOfferings || !isInitialized,
     startTrial: startTrialMutation.mutateAsync,
     isStartingTrial: startTrialMutation.isPending,
@@ -196,6 +201,7 @@ export function useSubscription() {
 
 /**
  * Compute subscription state from profile and RevenueCat data
+ * Lifetime-only model: no subscriptions, just lifetime purchases and trials
  */
 function computeSubscriptionState(
   profile: ReturnType<typeof useProfile>['profile'],
@@ -203,35 +209,50 @@ function computeSubscriptionState(
 ): SubscriptionState {
   const now = new Date()
 
-  // Check lifetime tier first (manual upgrade)
+  // Check lifetime tier first (manual upgrade or RevenueCat lifetime purchase)
   if (profile?.tier === 'lifetime') {
     return {
       status: 'lifetime',
       isTrialing: false,
       trialDaysRemaining: null,
-      expirationDate: null,
-      willRenew: false,
+      trialExpirationDate: null,
       canStartTrial: false,
     }
   }
 
-  // Check RevenueCat entitlements
+  // Check RevenueCat entitlements (lifetime purchase or trial)
   const entitlement = customerInfo?.entitlements.active[ENTITLEMENT_ID]
   if (entitlement) {
     const isTrialing = entitlement.periodType === 'TRIAL'
-    const expirationDate = entitlement.expirationDate ? new Date(entitlement.expirationDate) : null
-    const trialDaysRemaining =
-      isTrialing && expirationDate
-        ? Math.max(0, Math.ceil((expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+
+    // For lifetime purchases, no expiration; for trials, track expiration
+    if (isTrialing) {
+      const trialExpirationDate = entitlement.expirationDate
+        ? new Date(entitlement.expirationDate)
+        : null
+      const trialDaysRemaining = trialExpirationDate
+        ? Math.max(
+            0,
+            Math.ceil((trialExpirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
+          )
         : null
 
+      return {
+        status: 'trialing',
+        isTrialing: true,
+        trialDaysRemaining,
+        trialExpirationDate,
+        canStartTrial: false,
+      }
+    }
+
+    // Lifetime purchase via RevenueCat
     return {
-      status: isTrialing ? 'trialing' : 'premium',
-      isTrialing,
-      trialDaysRemaining,
-      expirationDate,
-      willRenew: entitlement.willRenew,
-      canStartTrial: false, // Already using RevenueCat
+      status: 'lifetime',
+      isTrialing: false,
+      trialDaysRemaining: null,
+      trialExpirationDate: null,
+      canStartTrial: false,
     }
   }
 
@@ -244,9 +265,8 @@ function computeSubscriptionState(
         status: 'trialing',
         isTrialing: true,
         trialDaysRemaining: daysRemaining,
-        expirationDate: trialEnd,
-        willRenew: false,
-        canStartTrial: false, // Already used trial
+        trialExpirationDate: trialEnd,
+        canStartTrial: false,
       }
     }
   }
@@ -259,14 +279,14 @@ function computeSubscriptionState(
     status: 'free',
     isTrialing: false,
     trialDaysRemaining: null,
-    expirationDate: null,
-    willRenew: false,
+    trialExpirationDate: null,
     canStartTrial: !hasUsedTrial,
   }
 }
 
 /**
- * Sync RevenueCat subscription status to Supabase
+ * Sync RevenueCat purchase status to Supabase
+ * Lifetime-only model: purchases are either lifetime or trialing
  */
 async function syncSubscriptionToSupabase(userId: string | undefined, customerInfo: CustomerInfo) {
   if (!userId) return
@@ -278,9 +298,19 @@ async function syncSubscriptionToSupabase(userId: string | undefined, customerIn
   let expiresAt: string | null = null
 
   if (entitlement) {
-    tier = 'premium'
-    subscriptionStatus = entitlement.periodType === 'TRIAL' ? 'trialing' : 'active'
-    expiresAt = entitlement.expirationDate || null
+    const isTrialing = entitlement.periodType === 'TRIAL'
+
+    if (isTrialing) {
+      // Trial period
+      tier = 'premium'
+      subscriptionStatus = 'trialing'
+      expiresAt = entitlement.expirationDate || null
+    } else {
+      // Lifetime purchase - no expiration
+      tier = 'lifetime'
+      subscriptionStatus = 'active'
+      expiresAt = null
+    }
   }
 
   await supabase

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format, addDays } from 'date-fns'
 
 import { supabase } from '~/lib/supabase'
+import { addBreadcrumb } from '~/lib/sentry'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import type { TaskWithCategory } from '~/types'
 
@@ -128,6 +129,7 @@ export function useLockPlan() {
     onSuccess: ({ plan, taskCount }) => {
       queryClient.invalidateQueries({ queryKey: ['plan', plan.planned_for] })
       queryClient.invalidateQueries({ queryKey: ['plan', plan.id] })
+      addBreadcrumb('Plan locked', 'plan', { planId: plan.id, plannedFor: plan.planned_for })
 
       // Track plan lock event
       track('plan_locked', {

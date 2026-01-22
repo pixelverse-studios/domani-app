@@ -1,5 +1,9 @@
 import '../../global.css'
 
+// Initialize Sentry before any other code runs
+import { initSentry } from '~/lib/sentry'
+initSentry()
+
 import React from 'react'
 import { Stack } from 'expo-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -20,6 +24,7 @@ import { AuthProvider } from '~/providers/AuthProvider'
 import { AnalyticsProvider } from '~/providers/AnalyticsProvider'
 import { useNotificationObserver } from '~/hooks/useNotifications'
 import { useAnalyticsIdentify } from '~/hooks/useAnalyticsIdentify'
+import { useSentryIdentify } from '~/hooks/useSentryIdentify'
 import { useAuthAnalytics } from '~/hooks/useAuthAnalytics'
 import { useAuth } from '~/hooks/useAuth'
 import { useAppConfigStore } from '~/stores/appConfigStore'
@@ -34,6 +39,9 @@ function RootLayoutContent() {
 
   // Initialize analytics user identification
   useAnalyticsIdentify()
+
+  // Initialize Sentry user identification
+  useSentryIdentify()
 
   // Track auth events (sign in, sign out)
   useAuthAnalytics()

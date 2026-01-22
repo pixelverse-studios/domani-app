@@ -84,46 +84,6 @@ async function registerPushTokenWithRetry(attempt: number = 1): Promise<boolean>
 }
 
 /**
- * Self-healing check for users who have execution reminder enabled but no push token
- * This can happen if user enabled execution reminder via Settings before the bug fix
- * On detection, automatically requests permissions and registers the token
- */
-async function checkAndFixMissingPushToken(): Promise<void> {
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('expo_push_token, execution_reminder_time')
-      .eq('id', user.id)
-      .single()
-
-    // Check if user has execution reminder enabled but no push token
-    if (profile?.execution_reminder_time && !profile?.expo_push_token) {
-      console.log(
-        '[Notifications] Self-healing: User has execution reminder but no token, fixing...',
-      )
-
-      // Request permissions (this will also trigger token registration if granted)
-      const granted = await NotificationService.requestPermissions()
-
-      if (granted) {
-        // Register the token
-        await registerPushTokenWithRetry()
-        console.log('[Notifications] Self-healing: Token registered successfully')
-      } else {
-        console.log('[Notifications] Self-healing: User denied permissions')
-      }
-    }
-  } catch (error) {
-    console.error('[Notifications] Self-healing check failed:', error)
-  }
-}
-
-/**
  * Hook to handle notification responses (when user taps a notification)
  * Should be called in the root layout to enable deep linking
  */
@@ -150,13 +110,9 @@ export function useNotificationObserver() {
     // Initialize notification system on mount
     NotificationService.initialize()
 
-    // Register push token for server-side notifications (execution reminders)
+    // Register push token for future push notification features
     // Initial registration with a short delay to ensure auth is ready
     const tokenTimeout = setTimeout(handleTokenRegistration, 2000)
-
-    // Self-healing: Check if user has execution reminder enabled but no push token
-    // This fixes users who enabled the feature via Settings before the bug fix
-    const selfHealTimeout = setTimeout(checkAndFixMissingPushToken, 3000)
 
     // AppState listener to re-register token when app comes to foreground
     // This handles cases where user re-grants permissions in settings
@@ -312,8 +268,64 @@ export function useNotificationObserver() {
       }
     }
 
+    // Reschedule pending task reminders on app launch
+    // This ensures notifications survive app reinstalls or device restarts
+    const rescheduleTaskReminders = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (!user) return
+
+        // Fetch tasks with pending reminders (reminder_at in the future, not completed)
+        const { data: tasksWithReminders, error } = await supabase
+          .from('tasks')
+          .select('id, title, is_mit, reminder_at, notification_id')
+          .eq('user_id', user.id)
+          .gt('reminder_at', new Date().toISOString())
+          .is('completed_at', null)
+
+        if (error) {
+          console.error('[Notifications] Failed to fetch tasks with reminders:', error)
+          return
+        }
+
+        if (!tasksWithReminders || tasksWithReminders.length === 0) {
+          console.log('[Notifications] No pending task reminders to reschedule')
+          return
+        }
+
+        console.log(
+          `[Notifications] Rescheduling ${tasksWithReminders.length} pending task reminders`,
+        )
+
+        // Reschedule all task reminders
+        const results = await NotificationService.rescheduleTaskReminders(
+          tasksWithReminders.map((t) => ({
+            id: t.id,
+            title: t.title,
+            is_mit: t.is_mit,
+            reminder_at: t.reminder_at!,
+            notification_id: t.notification_id,
+          })),
+        )
+
+        // Update notification IDs in database
+        for (const [taskId, notificationId] of results) {
+          await supabase.from('tasks').update({ notification_id: notificationId }).eq('id', taskId)
+        }
+
+        console.log(`[Notifications] Successfully rescheduled ${results.size} task reminders`)
+      } catch (error) {
+        console.error('[Notifications] Failed to reschedule task reminders:', error)
+      }
+    }
+
     // Reschedule after auth is ready
     const rescheduleTimeout = setTimeout(reschedulePlanningReminder, 2500)
+
+    // Reschedule task reminders slightly after planning reminder
+    const taskReminderTimeout = setTimeout(rescheduleTaskReminders, 3000)
 
     // Handle notifications received while app is foregrounded
     notificationListener.current = Notifications.addNotificationReceivedListener(
@@ -358,8 +370,8 @@ export function useNotificationObserver() {
 
     return () => {
       clearTimeout(tokenTimeout)
-      clearTimeout(selfHealTimeout)
       clearTimeout(rescheduleTimeout)
+      clearTimeout(taskReminderTimeout)
       appStateSubscription.remove()
       notificationListener.current?.remove()
       responseListener.current?.remove()

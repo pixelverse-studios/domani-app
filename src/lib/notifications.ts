@@ -29,7 +29,8 @@ if (isNotificationsSupported) {
   }
 }
 
-const CHANNEL_ID = 'planning-reminders'
+const PLANNING_CHANNEL_ID = 'planning-reminders'
+const TASK_CHANNEL_ID = 'task-reminders'
 
 export const NotificationService = {
   /**
@@ -47,9 +48,17 @@ export const NotificationService = {
     if (!Notifications) return
 
     if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+      await Notifications.setNotificationChannelAsync(PLANNING_CHANNEL_ID, {
         name: 'Planning Reminders',
         description: 'Daily reminders to plan tomorrow',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#7c3aed',
+      })
+
+      await Notifications.setNotificationChannelAsync(TASK_CHANNEL_ID, {
+        name: 'Task Reminders',
+        description: 'Reminders for individual tasks',
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#7c3aed',
@@ -143,15 +152,12 @@ export const NotificationService = {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
         hour,
         minute,
-        channelId: Platform.OS === 'android' ? CHANNEL_ID : undefined,
+        channelId: Platform.OS === 'android' ? PLANNING_CHANNEL_ID : undefined,
       },
     })
 
     return identifier
   },
-
-  // Note: Execution reminders are now handled server-side via Edge Function
-  // The scheduleExecutionReminder method has been removed
 
   /**
    * Cancel a specific scheduled notification
@@ -282,5 +288,103 @@ export const NotificationService = {
       console.error('[Notifications] Failed to get push token:', error)
       return null
     }
+  },
+
+  /**
+   * Schedule a reminder notification for a specific task
+   * @param task - Task object with id, title, is_mit, and reminder_at
+   * @returns Notification identifier for cancellation, or null if scheduling failed
+   */
+  async scheduleTaskReminder(task: {
+    id: string
+    title: string
+    is_mit: boolean
+    reminder_at: string
+  }): Promise<string | null> {
+    if (!Notifications) return null
+
+    try {
+      const reminderDate = new Date(task.reminder_at)
+
+      // Don't schedule if reminder is in the past
+      if (reminderDate <= new Date()) {
+        console.log(`[Notifications] Skipping past reminder for task ${task.id}`)
+        return null
+      }
+
+      const identifier = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: task.title,
+          body: task.is_mit ? 'Your Most Important Task' : 'Time to work on this task',
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+          data: {
+            taskId: task.id,
+            url: '/(tabs)',
+            type: 'task_reminder',
+          },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: reminderDate,
+          channelId: Platform.OS === 'android' ? TASK_CHANNEL_ID : undefined,
+        },
+      })
+
+      console.log(`[Notifications] Scheduled reminder for task ${task.id} at ${reminderDate}`)
+      return identifier
+    } catch (error) {
+      console.error(`[Notifications] Failed to schedule task reminder:`, error)
+      return null
+    }
+  },
+
+  /**
+   * Cancel a task's scheduled reminder notification
+   * @param notificationId - The notification identifier to cancel
+   */
+  async cancelTaskReminder(notificationId: string | null): Promise<void> {
+    if (!Notifications || !notificationId) return
+
+    try {
+      await Notifications.cancelScheduledNotificationAsync(notificationId)
+      console.log(`[Notifications] Cancelled task reminder: ${notificationId}`)
+    } catch (error) {
+      console.error(`[Notifications] Failed to cancel task reminder:`, error)
+    }
+  },
+
+  /**
+   * Reschedule all pending task reminders
+   * Call on app launch to ensure notifications are scheduled after app reinstall
+   * @param tasks - Array of tasks with pending reminders
+   * @returns Map of task ID to new notification ID
+   */
+  async rescheduleTaskReminders(
+    tasks: Array<{
+      id: string
+      title: string
+      is_mit: boolean
+      reminder_at: string
+      notification_id: string | null
+    }>,
+  ): Promise<Map<string, string>> {
+    const results = new Map<string, string>()
+
+    for (const task of tasks) {
+      // Cancel existing notification if any (might be stale)
+      if (task.notification_id) {
+        await this.cancelTaskReminder(task.notification_id)
+      }
+
+      // Schedule new notification
+      const newId = await this.scheduleTaskReminder(task)
+      if (newId) {
+        results.set(task.id, newId)
+      }
+    }
+
+    console.log(`[Notifications] Rescheduled ${results.size} task reminders`)
+    return results
   },
 }

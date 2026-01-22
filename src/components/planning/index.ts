@@ -7,4 +7,6 @@ export { PlanningEmptyState } from './PlanningEmptyState'
 export { TaskCard } from './TaskCard'
 export { TaskList } from './TaskList'
 export { TasksRecap } from './TasksRecap'
-export { ReminderBanner } from './ReminderBanner'
+export { ReminderSection } from './ReminderSection'
+
+export { CategorySelector } from './CategorySelector'

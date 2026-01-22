@@ -18,7 +18,6 @@ import {
   Smartphone,
   ChevronRight,
   User,
-  Clock,
   Globe,
   Crown,
   X,
@@ -37,7 +36,7 @@ import { format } from 'date-fns'
 
 import { Text } from '~/components/ui'
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
-import { FavoriteCategoriesAccordion } from '~/components/settings'
+import { FavoriteCategoriesAccordion, ReminderShortcutsSection } from '~/components/settings'
 import { useAuth } from '~/hooks/useAuth'
 import { useTheme } from '~/hooks/useTheme'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
@@ -77,18 +76,20 @@ const TIMEZONES = [
 ]
 
 // Subscription status display config
+// Note: 'premium' status is kept for backwards compatibility but lifetime model
+// means all paid users are 'lifetime' status
 const STATUS_CONFIG: Record<SubscriptionStatus, { label: string; color: string; bgColor: string }> =
   {
     free: { label: 'Free', color: '#94a3b8', bgColor: 'bg-slate-500/20' },
     trialing: { label: 'Trial', color: '#22c55e', bgColor: 'bg-green-500/20' },
-    premium: { label: 'Pro', color: '#a855f7', bgColor: 'bg-purple-500/20' },
+    premium: { label: 'Lifetime', color: '#f59e0b', bgColor: 'bg-amber-500/20' },
     lifetime: { label: 'Lifetime', color: '#f59e0b', bgColor: 'bg-amber-500/20' },
   }
 
 // Section Header component
 function SectionHeader({ title }: { title: string }) {
   return (
-    <Text className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 px-1">
+    <Text className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2 px-1">
       {title}
     </Text>
   )
@@ -205,7 +206,7 @@ function SettingsRow({
         <Text className="text-base text-slate-900 dark:text-slate-100">{label}</Text>
       </View>
       <View className="flex-row items-center">
-        {value && <Text className="text-sm text-slate-500 dark:text-slate-400 mr-2">{value}</Text>}
+        {value && <Text className="text-sm text-slate-600 dark:text-slate-400 mr-2">{value}</Text>}
         {showChevron && onPress && <ChevronRight size={18} color={iconColor} />}
       </View>
     </TouchableOpacity>
@@ -221,7 +222,7 @@ export default function SettingsScreen() {
   const { profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const subscription = useSubscription()
-  const { schedulePlanningReminder, permissionStatus, requestPermissions } = useNotifications()
+  const { schedulePlanningReminder, permissionStatus } = useNotifications()
   const accountDeletion = useAccountDeletion()
   const { phase } = useAppConfig()
 
@@ -229,7 +230,6 @@ export default function SettingsScreen() {
   const [showNameModal, setShowNameModal] = useState(false)
   const [showTimezoneModal, setShowTimezoneModal] = useState(false)
   const [showPlanningTimeModal, setShowPlanningTimeModal] = useState(false)
-  const [showExecutionTimeModal, setShowExecutionTimeModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showFarewellOverlay, setShowFarewellOverlay] = useState(false)
   const [showSmartCategoriesModal, setShowSmartCategoriesModal] = useState(false)
@@ -309,43 +309,6 @@ export default function SettingsScreen() {
     setShowPlanningTimeModal(false)
   }
 
-  const handleUpdateExecutionTime = async (time: Date) => {
-    const timeString = format(time, 'HH:mm:ss')
-    await updateProfile.mutateAsync({ execution_reminder_time: timeString })
-    // Note: Execution reminder is handled server-side via Edge Function
-    // No local notification scheduling needed
-    setShowExecutionTimeModal(false)
-  }
-
-  const handleToggleExecutionReminder = async (enabled: boolean) => {
-    if (enabled) {
-      // Enable: Check if we have a push token, request permissions if not
-      // Execution reminders are server-side push notifications, so we need a token
-      if (!profile?.expo_push_token) {
-        const granted = await requestPermissions()
-        if (!granted) {
-          Alert.alert(
-            'Notifications Required',
-            'Please enable notifications to receive execution reminders. You can enable them in your device settings.',
-            [{ text: 'OK' }],
-          )
-          return
-        }
-        // Wait briefly for token registration to complete
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-      }
-
-      // Set default time (8 AM)
-      const defaultTime = new Date()
-      defaultTime.setHours(8, 0, 0, 0)
-      const timeString = format(defaultTime, 'HH:mm:ss')
-      await updateProfile.mutateAsync({ execution_reminder_time: timeString })
-    } else {
-      // Disable: clear time
-      await updateProfile.mutateAsync({ execution_reminder_time: null })
-    }
-  }
-
   const openNameModal = () => {
     setEditName(profile?.full_name || '')
     setShowNameModal(true)
@@ -363,20 +326,6 @@ export default function SettingsScreen() {
       setSelectedTime(date)
     }
     setShowPlanningTimeModal(true)
-  }
-
-  const openExecutionTimeModal = () => {
-    if (profile?.execution_reminder_time) {
-      const [hours, minutes] = profile.execution_reminder_time.split(':')
-      const date = new Date()
-      date.setHours(parseInt(hours), parseInt(minutes), 0)
-      setSelectedTime(date)
-    } else {
-      const date = new Date()
-      date.setHours(8, 0, 0) // Default 8 AM
-      setSelectedTime(date)
-    }
-    setShowExecutionTimeModal(true)
   }
 
   // Format time for display
@@ -451,7 +400,7 @@ export default function SettingsScreen() {
                   </View>
                 </View>
 
-                <Text className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+                <Text className="text-sm text-slate-600 dark:text-slate-400 mb-4">
                   You&apos;re part of our exclusive beta program with full Pro access while we build
                   Domani together.
                 </Text>
@@ -498,7 +447,7 @@ export default function SettingsScreen() {
                   {/* Free tier - show trial option */}
                   {subscription.status === 'free' && (
                     <>
-                      <Text className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+                      <Text className="text-sm text-slate-600 dark:text-slate-400 mb-3">
                         3 tasks per day • Basic features
                       </Text>
                       {subscription.canStartTrial ? (
@@ -539,36 +488,28 @@ export default function SettingsScreen() {
                           {subscription.trialDaysRemaining} days remaining in trial
                         </Text>
                       </View>
-                      <Text className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+                      <Text className="text-sm text-slate-600 dark:text-slate-400 mb-3">
                         Unlimited tasks • All features unlocked
                       </Text>
                       <TouchableOpacity
                         activeOpacity={0.8}
                         className="bg-purple-500 py-3 rounded-xl items-center"
                       >
-                        <Text className="text-white font-semibold">Subscribe Now</Text>
+                        <Text className="text-white font-semibold">Get Lifetime Access</Text>
                       </TouchableOpacity>
                     </>
                   )}
 
-                  {/* Premium - show renewal date */}
+                  {/* Premium/Lifetime - no renewal, lifetime access */}
                   {subscription.status === 'premium' && (
-                    <>
-                      <Text className="text-sm text-slate-500 dark:text-slate-400 mb-2">
-                        Unlimited tasks • All features unlocked
-                      </Text>
-                      {subscription.expirationDate && (
-                        <Text className="text-sm text-slate-500 dark:text-slate-400">
-                          {subscription.willRenew ? 'Renews' : 'Expires'}{' '}
-                          {format(subscription.expirationDate, 'MMM d, yyyy')}
-                        </Text>
-                      )}
-                    </>
+                    <Text className="text-sm text-slate-600 dark:text-slate-400">
+                      Unlimited tasks • All features unlocked forever
+                    </Text>
                   )}
 
                   {/* Lifetime */}
                   {subscription.status === 'lifetime' && (
-                    <Text className="text-sm text-slate-500 dark:text-slate-400">
+                    <Text className="text-sm text-slate-600 dark:text-slate-400">
                       Unlimited tasks • All features unlocked forever
                     </Text>
                   )}
@@ -587,7 +528,7 @@ export default function SettingsScreen() {
                     ) : (
                       <>
                         <RotateCcw size={14} color="#94a3b8" />
-                        <Text className="text-sm text-slate-500 dark:text-slate-400 ml-1.5">
+                        <Text className="text-sm text-slate-600 dark:text-slate-400 ml-1.5">
                           Restore Purchases
                         </Text>
                       </>
@@ -671,47 +612,8 @@ export default function SettingsScreen() {
               onPress={openPlanningTimeModal}
               icon={ClipboardClock}
             />
-            {/* Execution Reminder Toggle */}
-            <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3 mb-2">
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center flex-1">
-                  <View className="mr-3">
-                    <Clock size={20} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
-                  </View>
-                  <Text className="text-base text-slate-900 dark:text-slate-100">
-                    Execution Reminder
-                  </Text>
-                </View>
-                <Switch
-                  value={!!profile?.execution_reminder_time}
-                  onValueChange={handleToggleExecutionReminder}
-                  trackColor={{
-                    false: activeTheme === 'dark' ? '#334155' : '#e2e8f0',
-                    true: activeTheme === 'dark' ? '#a78bfa' : '#8b5cf6',
-                  }}
-                  thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
-                  ios_backgroundColor={activeTheme === 'dark' ? '#334155' : '#e2e8f0'}
-                />
-              </View>
-              {/* Time selector - only shown when enabled */}
-              {profile?.execution_reminder_time && (
-                <TouchableOpacity
-                  onPress={openExecutionTimeModal}
-                  activeOpacity={0.7}
-                  className="flex-row items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-slate-700"
-                >
-                  <Text className="text-sm text-slate-500 dark:text-slate-400">Reminder time</Text>
-                  <View className="flex-row items-center">
-                    <Text className="text-sm text-slate-500 dark:text-slate-400 mr-2">
-                      {formatTimeDisplay(profile.execution_reminder_time)}
-                    </Text>
-                    <ChevronRight
-                      size={16}
-                      color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'}
-                    />
-                  </View>
-                </TouchableOpacity>
-              )}
+            <View className="mt-2">
+              <ReminderShortcutsSection />
             </View>
           </View>
         )}
@@ -719,7 +621,7 @@ export default function SettingsScreen() {
         {/* Appearance Section */}
         <SectionHeader title="Appearance" />
         <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 mb-6">
-          <Text className="text-sm text-slate-500 dark:text-slate-400 mb-3">Theme</Text>
+          <Text className="text-sm text-slate-600 dark:text-slate-400 mb-3">Theme</Text>
           <View className="flex-row gap-2">
             {THEME_OPTIONS.map(({ mode: optionMode, label, icon: Icon }) => {
               const isSelected = mode === optionMode
@@ -793,7 +695,7 @@ export default function SettingsScreen() {
                   <Text className="text-base font-medium text-red-500">
                     Account Scheduled for Deletion
                   </Text>
-                  <Text className="text-sm text-slate-500 dark:text-slate-400">
+                  <Text className="text-sm text-slate-600 dark:text-slate-400">
                     {accountDeletion.daysRemaining} days remaining
                   </Text>
                 </View>
@@ -837,7 +739,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* App Version */}
-        <Text className="text-center text-sm text-slate-400 dark:text-slate-500 mb-4">
+        <Text className="text-center text-sm text-slate-500 dark:text-slate-500 mb-4">
           Domani v{APP_VERSION}
         </Text>
 
@@ -866,7 +768,7 @@ export default function SettingsScreen() {
               value={editName}
               onChangeText={setEditName}
               placeholder="Enter your name"
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={activeTheme === 'dark' ? '#94a3b8' : '#64748b'}
               autoFocus
               className="bg-slate-100 dark:bg-slate-700 rounded-xl px-4 text-slate-900 dark:text-white text-base mb-4"
               style={{ paddingTop: 14, paddingBottom: 14, lineHeight: undefined }}
@@ -916,7 +818,7 @@ export default function SettingsScreen() {
                   >
                     <View>
                       <Text className="text-base text-slate-900 dark:text-white">{tz.label}</Text>
-                      <Text className="text-sm text-slate-500 dark:text-slate-400">
+                      <Text className="text-sm text-slate-600 dark:text-slate-400">
                         {tz.offset}
                       </Text>
                     </View>
@@ -947,7 +849,7 @@ export default function SettingsScreen() {
                 <X size={24} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
               </TouchableOpacity>
             </View>
-            <Text className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+            <Text className="text-sm text-slate-600 dark:text-slate-400 mb-4">
               Get reminded to plan tomorrow&apos;s tasks
             </Text>
             <View className="items-center mb-4">
@@ -961,51 +863,6 @@ export default function SettingsScreen() {
             </View>
             <TouchableOpacity
               onPress={() => handleUpdatePlanningTime(selectedTime)}
-              disabled={updateProfile.isPending}
-              activeOpacity={0.8}
-              className="bg-purple-500 py-3 rounded-xl items-center"
-            >
-              {updateProfile.isPending ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text className="text-white font-semibold">Save</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Execution Time Picker Modal */}
-      <Modal
-        visible={showExecutionTimeModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowExecutionTimeModal(false)}
-      >
-        <View className="flex-1 bg-black/50 justify-center px-6">
-          <View className="bg-white dark:bg-slate-800 rounded-2xl p-5 max-h-[75%]">
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-lg font-semibold text-slate-900 dark:text-white">
-                Execution Reminder
-              </Text>
-              <TouchableOpacity onPress={() => setShowExecutionTimeModal(false)}>
-                <X size={24} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
-              </TouchableOpacity>
-            </View>
-            <Text className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-              Get reminded to start your planned tasks
-            </Text>
-            <View className="items-center mb-4">
-              <DateTimePicker
-                value={selectedTime}
-                mode="time"
-                display="spinner"
-                onChange={(_event: unknown, date?: Date) => date && setSelectedTime(date)}
-                textColor={activeTheme === 'dark' ? '#fff' : '#000'}
-              />
-            </View>
-            <TouchableOpacity
-              onPress={() => handleUpdateExecutionTime(selectedTime)}
               disabled={updateProfile.isPending}
               activeOpacity={0.8}
               className="bg-purple-500 py-3 rounded-xl items-center"
@@ -1040,7 +897,7 @@ export default function SettingsScreen() {
             </Text>
 
             {/* Description */}
-            <Text className="text-sm text-slate-500 dark:text-slate-400 text-center mb-4">
+            <Text className="text-sm text-slate-600 dark:text-slate-400 text-center mb-4">
               Your account and all data will be permanently deleted after 30 days. You can sign in
               anytime before then to reactivate your account.
             </Text>
@@ -1110,7 +967,7 @@ export default function SettingsScreen() {
             </Text>
 
             {/* Description */}
-            <Text className="text-sm text-slate-500 dark:text-slate-400 text-center mb-6">
+            <Text className="text-sm text-slate-600 dark:text-slate-400 text-center mb-6">
               {pendingSmartCategoriesValue
                 ? 'Your quick access categories will automatically adapt based on your usage patterns. This will override your current favorite categories.'
                 : 'Your categories will return to manual ordering. You can reorder them by going to Favorite Categories.'}

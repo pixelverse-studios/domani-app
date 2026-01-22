@@ -36,7 +36,7 @@ function CategoryRow({ category }: CategoryRowProps) {
         <Text className="text-sm font-medium text-slate-700 dark:text-slate-300">
           {category.categoryName}
         </Text>
-        <Text className="text-xs text-slate-500 dark:text-slate-500">
+        <Text className="text-xs text-slate-600 dark:text-slate-400">
           {category.completed}/{category.total} tasks
         </Text>
       </View>

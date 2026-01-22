@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Platform, StyleSheet, View, ScrollView, Switch } from 'react-native'
+import { Platform, StyleSheet, View, ScrollView } from 'react-native'
 import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -41,7 +41,6 @@ export default function NotificationSetupScreen() {
   const { track } = useAnalytics()
 
   const { setPlanningReminderId, setPermissionStatus } = useNotificationStore()
-  const [executionReminderEnabled, setExecutionReminderEnabled] = useState(false)
 
   // Default Plan Reminder: 9:00 PM
   const defaultPlanTime = useMemo(() => {
@@ -50,20 +49,11 @@ export default function NotificationSetupScreen() {
     return date
   }, [])
 
-  // Default Execute Reminder: 8:00 AM
-  const defaultExecuteTime = useMemo(() => {
-    const date = new Date()
-    date.setHours(8, 0, 0, 0)
-    return date
-  }, [])
-
   const [planTime, setPlanTime] = useState(defaultPlanTime)
-  const [executeTime, setExecuteTime] = useState(defaultExecuteTime)
   const [loading, setLoading] = useState(false)
 
   // Android picker visibility state
   const [showPlanPicker, setShowPlanPicker] = useState(Platform.OS === 'ios')
-  const [showExecutePicker, setShowExecutePicker] = useState(Platform.OS === 'ios')
 
   const handleContinue = async () => {
     setLoading(true)
@@ -88,18 +78,13 @@ export default function NotificationSetupScreen() {
         const planningId = await NotificationService.schedulePlanningReminder(planHour, planMinute)
         setPlanningReminderId(planningId)
 
-        // Note: Execution reminder is handled server-side via Edge Function
-        // We only save the time preference here - the server will send push notifications
-
-        // Save times, timezone, and mark onboarding complete
+        // Save time, timezone, and mark onboarding complete
         // We detect and save timezone here to ensure it's properly set during onboarding
         const planTimeString = format(planTime, 'HH:mm:ss')
-        const executeTimeString = executionReminderEnabled ? format(executeTime, 'HH:mm:ss') : null
         const detectedTimezone = getDeviceTimezone()
 
         await updateProfile.mutateAsync({
           planning_reminder_time: planTimeString,
-          execution_reminder_time: executeTimeString,
           notification_onboarding_completed: true,
           timezone: detectedTimezone,
         })
@@ -142,15 +127,6 @@ export default function NotificationSetupScreen() {
     }
   }
 
-  const handleExecuteTimeChange = (_: unknown, date?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowExecutePicker(false)
-    }
-    if (date) {
-      setExecuteTime(date)
-    }
-  }
-
   // Theme-aware colors
   const colors = {
     background: isDark ? '#0c0c1a' : '#f8f7fc',
@@ -186,15 +162,17 @@ export default function NotificationSetupScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.title }]}>Set Your Reminders</Text>
+          <Text style={[styles.title, { color: colors.title }]}>Set Your Reminder</Text>
           <Text style={[styles.subtitle, { color: colors.subtitle }]}>
-            When to plan and execute
+            When to plan for tomorrow
           </Text>
         </View>
 
         {/* Plan Reminder Section */}
         <View style={styles.reminderSection}>
-          <Text style={[styles.sectionTitle, { color: colors.sectionTitle }]}>Plan Reminder</Text>
+          <Text style={[styles.sectionTitle, { color: colors.sectionTitle }]}>
+            Planning Reminder
+          </Text>
           <Text style={[styles.sectionDescription, { color: colors.sectionDescription }]}>
             When would you like Domani to remind you to plan for tomorrow?
           </Text>
@@ -224,62 +202,15 @@ export default function NotificationSetupScreen() {
           )}
         </View>
 
-        {/* Execute Reminder Section */}
-        <View style={styles.reminderSection}>
-          <Text style={[styles.sectionTitle, { color: colors.sectionTitle }]}>
-            Execution Reminder
+        {/* Task Reminders Info */}
+        <View style={[styles.infoSection, { backgroundColor: colors.pickerBackground }]}>
+          <Text style={[styles.infoTitle, { color: colors.sectionTitle }]}>
+            Task Reminders
           </Text>
-          <Text style={[styles.sectionDescription, { color: colors.sectionDescription }]}>
-            Optional: Get a morning reminder to start your tasks
+          <Text style={[styles.infoDescription, { color: colors.sectionDescription }]}>
+            Each task has its own reminder. You can set individual reminder times when creating or
+            editing tasks.
           </Text>
-
-          {/* Toggle to enable/disable */}
-          <View style={[styles.toggleRow, { backgroundColor: colors.pickerBackground }]}>
-            <Text style={[styles.toggleLabel, { color: colors.sectionTitle }]}>
-              Enable reminder
-            </Text>
-            <Switch
-              value={executionReminderEnabled}
-              onValueChange={setExecutionReminderEnabled}
-              trackColor={{
-                false: isDark ? '#334155' : '#e2e8f0',
-                true: isDark ? '#a78bfa' : '#8b5cf6',
-              }}
-              thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
-              ios_backgroundColor={isDark ? '#334155' : '#e2e8f0'}
-            />
-          </View>
-
-          {/* Time picker - only shown when enabled */}
-          {executionReminderEnabled && (
-            <>
-              {Platform.OS === 'android' && !showExecutePicker ? (
-                <Button
-                  variant="ghost"
-                  onPress={() => setShowExecutePicker(true)}
-                  style={[styles.androidTimeButton, { backgroundColor: colors.androidButtonBg }]}
-                >
-                  <Text style={[styles.androidTimeText, { color: colors.androidTimeText }]}>
-                    {format(executeTime, 'h:mm a')}
-                  </Text>
-                </Button>
-              ) : (
-                <View
-                  style={[styles.pickerContainer, { backgroundColor: colors.pickerBackground }]}
-                >
-                  <DateTimePicker
-                    value={executeTime}
-                    mode="time"
-                    display="spinner"
-                    onChange={handleExecuteTimeChange}
-                    textColor={colors.pickerText}
-                    themeVariant={isDark ? 'dark' : 'light'}
-                    style={styles.picker}
-                  />
-                </View>
-              )}
-            </>
-          )}
         </View>
 
         {/* Spacer to push button down */}
@@ -331,7 +262,21 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   reminderSection: {
+    marginBottom: 24,
+  },
+  infoSection: {
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 20,
+  },
+  infoTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  infoDescription: {
+    fontSize: 14,
+    lineHeight: 20,
   },
   sectionTitle: {
     fontSize: 18,
@@ -363,18 +308,6 @@ const styles = StyleSheet.create({
   androidTimeText: {
     fontSize: 24,
     fontWeight: '600',
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  toggleLabel: {
-    fontSize: 16,
-    fontWeight: '500',
   },
   spacer: {
     flex: 1,

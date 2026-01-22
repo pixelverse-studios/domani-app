@@ -199,7 +199,7 @@ export type Database = {
             columns: ['user_id']
             isOneToOne: false
             referencedRelation: 'user_overview'
-            referencedColumns: ['user_id']
+            referencedColumns: ['id']
           },
         ]
       }
@@ -573,7 +573,7 @@ export type Database = {
             columns: ['user_id']
             isOneToOne: false
             referencedRelation: 'user_overview'
-            referencedColumns: ['user_id']
+            referencedColumns: ['id']
           },
         ]
       }
@@ -585,15 +585,14 @@ export type Database = {
           deleted_at: string | null
           deletion_scheduled_for: string | null
           email: string
-          execution_reminder_time: string | null
           expo_push_token: string | null
           full_name: string | null
           id: string
-          last_execution_reminder_sent_at: string | null
           notification_onboarding_completed: boolean
           planning_reminder_time: string | null
           push_token_invalid_at: string | null
           push_token_last_verified_at: string | null
+          reminder_shortcuts: Json | null
           revenuecat_user_id: string | null
           signup_cohort: Database['public']['Enums']['signup_cohort'] | null
           signup_method: string | null
@@ -612,15 +611,14 @@ export type Database = {
           deleted_at?: string | null
           deletion_scheduled_for?: string | null
           email: string
-          execution_reminder_time?: string | null
           expo_push_token?: string | null
           full_name?: string | null
           id: string
-          last_execution_reminder_sent_at?: string | null
           notification_onboarding_completed?: boolean
           planning_reminder_time?: string | null
           push_token_invalid_at?: string | null
           push_token_last_verified_at?: string | null
+          reminder_shortcuts?: Json | null
           revenuecat_user_id?: string | null
           signup_cohort?: Database['public']['Enums']['signup_cohort'] | null
           signup_method?: string | null
@@ -639,15 +637,14 @@ export type Database = {
           deleted_at?: string | null
           deletion_scheduled_for?: string | null
           email?: string
-          execution_reminder_time?: string | null
           expo_push_token?: string | null
           full_name?: string | null
           id?: string
-          last_execution_reminder_sent_at?: string | null
           notification_onboarding_completed?: boolean
           planning_reminder_time?: string | null
           push_token_invalid_at?: string | null
           push_token_last_verified_at?: string | null
+          reminder_shortcuts?: Json | null
           revenuecat_user_id?: string | null
           signup_cohort?: Database['public']['Enums']['signup_cohort'] | null
           signup_method?: string | null
@@ -744,7 +741,7 @@ export type Database = {
             columns: ['user_id']
             isOneToOne: false
             referencedRelation: 'user_overview'
-            referencedColumns: ['user_id']
+            referencedColumns: ['id']
           },
         ]
       }
@@ -830,9 +827,11 @@ export type Database = {
           id: string
           is_mit: boolean
           notes: string | null
+          notification_id: string | null
           plan_id: string
           position: number
           priority: Database['public']['Enums']['task_priority'] | null
+          reminder_at: string | null
           system_category_id: string | null
           title: string
           updated_at: string
@@ -848,9 +847,11 @@ export type Database = {
           id?: string
           is_mit?: boolean
           notes?: string | null
+          notification_id?: string | null
           plan_id: string
           position?: number
           priority?: Database['public']['Enums']['task_priority'] | null
+          reminder_at?: string | null
           system_category_id?: string | null
           title: string
           updated_at?: string
@@ -866,9 +867,11 @@ export type Database = {
           id?: string
           is_mit?: boolean
           notes?: string | null
+          notification_id?: string | null
           plan_id?: string
           position?: number
           priority?: Database['public']['Enums']['task_priority'] | null
+          reminder_at?: string | null
           system_category_id?: string | null
           title?: string
           updated_at?: string
@@ -923,7 +926,7 @@ export type Database = {
             columns: ['user_id']
             isOneToOne: false
             referencedRelation: 'user_overview'
-            referencedColumns: ['user_id']
+            referencedColumns: ['id']
           },
         ]
       }
@@ -984,7 +987,7 @@ export type Database = {
             columns: ['user_id']
             isOneToOne: false
             referencedRelation: 'user_overview'
-            referencedColumns: ['user_id']
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1046,7 +1049,7 @@ export type Database = {
             columns: ['user_id']
             isOneToOne: false
             referencedRelation: 'user_overview'
-            referencedColumns: ['user_id']
+            referencedColumns: ['id']
           },
         ]
       }
@@ -1194,30 +1197,23 @@ export type Database = {
       }
       user_overview: {
         Row: {
-          completed_plans: number | null
           completed_tasks: number | null
-          custom_categories_count: number | null
-          custom_category_names: string[] | null
+          created_at: string | null
           email: string | null
-          execution_reminder_time: string | null
           full_name: string | null
-          mit_tasks: number | null
+          id: string | null
           planning_reminder_time: string | null
-          system_categories_used: number | null
-          system_category_names: string[] | null
-          task_names: string[] | null
+          subscription_status: string | null
           tier: Database['public']['Enums']['tier'] | null
-          time_blocks_count: number | null
           timezone: string | null
           total_plans: number | null
           total_tasks: number | null
-          user_created_at: string | null
-          user_id: string | null
+          updated_at: string | null
         }
         Relationships: [
           {
             foreignKeyName: 'profiles_id_fkey'
-            columns: ['user_id']
+            columns: ['id']
             isOneToOne: true
             referencedRelation: 'admin_users_overview'
             referencedColumns: ['id']
