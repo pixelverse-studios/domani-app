@@ -116,7 +116,7 @@ export function TaskCard({
 
   const isCompleted = !!task.completed_at
   const priority = task.priority || 'medium'
-  const priorityConfig = PRIORITY_COLORS[priority]
+  const priorityConfig = PRIORITY_COLORS[priority] || PRIORITY_COLORS.medium
 
   // Get category info (prefer user category, fall back to system category)
   const category = task.user_category || task.system_category
