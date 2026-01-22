@@ -91,9 +91,7 @@ export async function logoutRevenueCat() {
  * Get current offerings (products available for purchase)
  * @param offeringIdentifier - Optional specific offering to fetch (for cohort-based pricing)
  */
-export async function getOfferings(
-  offeringIdentifier?: string,
-): Promise<PurchasesOffering | null> {
+export async function getOfferings(offeringIdentifier?: string): Promise<PurchasesOffering | null> {
   try {
     const offerings = await Purchases.getOfferings()
 

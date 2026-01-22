@@ -204,9 +204,7 @@ export default function NotificationSetupScreen() {
 
         {/* Task Reminders Info */}
         <View style={[styles.infoSection, { backgroundColor: colors.pickerBackground }]}>
-          <Text style={[styles.infoTitle, { color: colors.sectionTitle }]}>
-            Task Reminders
-          </Text>
+          <Text style={[styles.infoTitle, { color: colors.sectionTitle }]}>Task Reminders</Text>
           <Text style={[styles.infoDescription, { color: colors.sectionDescription }]}>
             Each task has its own reminder. You can set individual reminder times when creating or
             editing tasks.

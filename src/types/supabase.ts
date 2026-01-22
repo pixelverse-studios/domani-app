@@ -1318,7 +1318,7 @@ export type Database = {
       plan_status: 'draft' | 'locked' | 'active' | 'completed'
       signup_cohort: 'friends_family' | 'early_adopter' | 'general'
       subscription_status_enum: 'none' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired'
-      task_priority: 'high' | 'medium' | 'low'
+      task_priority: 'top' | 'high' | 'medium' | 'low'
       tier: 'free' | 'premium' | 'lifetime'
     }
     CompositeTypes: {
@@ -1466,7 +1466,7 @@ export const Constants = {
       plan_status: ['draft', 'locked', 'active', 'completed'],
       signup_cohort: ['friends_family', 'early_adopter', 'general'],
       subscription_status_enum: ['none', 'trialing', 'active', 'past_due', 'canceled', 'expired'],
-      task_priority: ['high', 'medium', 'low'],
+      task_priority: ['top', 'high', 'medium', 'low'],
       tier: ['free', 'premium', 'lifetime'],
     },
   },

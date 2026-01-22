@@ -345,15 +345,23 @@ export function CategorySelector({
           className="flex-row items-center py-2.5 px-3 rounded-xl"
           style={{
             backgroundColor: isSelected
-              ? isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.1)'
-              : isDark ? '#1e293b' : '#f8fafc',
+              ? isDark
+                ? 'rgba(139, 92, 246, 0.2)'
+                : 'rgba(139, 92, 246, 0.1)'
+              : isDark
+                ? '#1e293b'
+                : '#f8fafc',
             borderWidth: isSelected ? 2 : 1,
             borderColor: isSelected ? purpleColor : isDark ? '#334155' : '#e2e8f0',
           }}
           activeOpacity={0.7}
         >
           {getCategoryIcon(category.id, isSelected, purpleColor, iconColor, 16)}
-          <Text className="font-sans-medium ml-2 text-sm" style={{ color: isSelected ? purpleColor : isDark ? '#e2e8f0' : '#334155' }} numberOfLines={1}>
+          <Text
+            className="font-sans-medium ml-2 text-sm"
+            style={{ color: isSelected ? purpleColor : isDark ? '#e2e8f0' : '#334155' }}
+            numberOfLines={1}
+          >
             {category.label}
           </Text>
           {isSelected && <Check size={14} color={purpleColor} style={{ marginLeft: 4 }} />}
@@ -481,10 +489,7 @@ export function CategorySelector({
           ]}
         >
           <Plus size={14} color={purpleColor} />
-          <Text
-            className="font-sans-medium ml-1"
-            style={{ color: purpleColor, fontSize: 13 }}
-          >
+          <Text className="font-sans-medium ml-1" style={{ color: purpleColor, fontSize: 13 }}>
             New
           </Text>
         </TouchableOpacity>
@@ -504,11 +509,7 @@ export function CategorySelector({
         >
           {/* Backdrop - only render when sheet is open */}
           {isSheetOpen && (
-            <TouchableOpacity
-              style={styles.backdrop}
-              activeOpacity={1}
-              onPress={closeSheet}
-            />
+            <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={closeSheet} />
           )}
 
           {/* Sheet Content */}
@@ -539,7 +540,10 @@ export function CategorySelector({
               >
                 Select Category
               </Text>
-              <TouchableOpacity onPress={closeSheet} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <TouchableOpacity
+                onPress={closeSheet}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
                 <X size={24} color={iconColor} />
               </TouchableOpacity>
             </View>
@@ -663,10 +667,7 @@ export function CategorySelector({
             />
           )}
           <View
-            style={[
-              styles.createModalContent,
-              { backgroundColor: isDark ? '#1e293b' : '#ffffff' },
-            ]}
+            style={[styles.createModalContent, { backgroundColor: isDark ? '#1e293b' : '#ffffff' }]}
             pointerEvents={isCreateModalOpen ? 'auto' : 'none'}
           >
             <Text

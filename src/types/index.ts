@@ -40,8 +40,8 @@ export type UserCategoryUpdate = TablesUpdate<'user_categories'>
 export type Tier = Enums<'tier'>
 export type PlanStatus = Enums<'plan_status'>
 
-// Priority type (will be in Enums after migration + type regen)
-export type TaskPriority = 'high' | 'medium' | 'low'
+// Priority type - matches database enum
+export type TaskPriority = Enums<'task_priority'>
 
 // Extended task type with category relations
 export interface TaskWithCategory extends Task {

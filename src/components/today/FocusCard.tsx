@@ -15,7 +15,7 @@ const THEME_FOCUS_PHRASES: Record<DayTheme, string> = {
 }
 
 interface FocusCardProps {
-  /** The MIT (Most Important Task) - high priority incomplete task */
+  /** The MIT (Most Important Task) - top priority incomplete task */
   mitTask?: TaskWithCategory | null
   /** The inferred day theme based on remaining tasks */
   dayTheme: DayType

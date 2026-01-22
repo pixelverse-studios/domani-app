@@ -1,14 +1,15 @@
 import type { TaskWithCategory } from '~/types'
 
 const PRIORITY_ORDER: Record<string, number> = {
-  high: 0,
-  medium: 1,
-  low: 2,
-  null: 3,
+  top: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+  null: 4,
 }
 
 /**
- * Sort tasks by priority (high → medium → low → null), then alphabetically by title.
+ * Sort tasks by priority (top → high → medium → low → null), then alphabetically by title.
  * Creates a new array, does not mutate the original.
  */
 export function sortTasksByPriority<T extends Pick<TaskWithCategory, 'priority' | 'title'>>(
