@@ -770,8 +770,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   sheetContent: {
-    maxHeight: '70%',
-    minHeight: '40%',
+    maxHeight: '80%',
+    minHeight: '50%',
   },
   scrollView: {
     flex: 1,
