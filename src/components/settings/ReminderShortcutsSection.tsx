@@ -41,10 +41,49 @@ export const DEFAULT_SHORTCUTS: ReminderShortcut[] = [
   { id: 'evening', hour: 18, minute: 0 },
 ]
 
-const SHORTCUT_LABELS: Record<string, string> = {
-  morning: 'Morning',
-  afternoon: 'Afternoon',
-  evening: 'Evening',
+// Labels based on index position (not time-based)
+const SHORTCUT_LABELS: Record<number, string> = {
+  0: 'Shortcut 1',
+  1: 'Shortcut 2',
+  2: 'Shortcut 3',
+}
+
+// Zone colors based on actual time of day
+const ZONE_COLORS = {
+  morning: {
+    light: '#f59e0b', // amber-500
+    dark: '#fbbf24', // amber-400
+    bg: 'rgba(245, 158, 11, 0.15)',
+    bgDark: 'rgba(251, 191, 36, 0.2)',
+  },
+  afternoon: {
+    light: '#8b5cf6', // violet-500
+    dark: '#a78bfa', // violet-400
+    bg: 'rgba(139, 92, 246, 0.15)',
+    bgDark: 'rgba(167, 139, 250, 0.2)',
+  },
+  evening: {
+    light: '#6366f1', // indigo-500
+    dark: '#818cf8', // indigo-400
+    bg: 'rgba(99, 102, 241, 0.15)',
+    bgDark: 'rgba(129, 140, 248, 0.2)',
+  },
+}
+
+/**
+ * Determines the color zone based on the actual hour value.
+ * - Morning: 5 AM - 11:59 AM (amber)
+ * - Afternoon: 12 PM - 4:59 PM (violet)
+ * - Evening: 5 PM - 4:59 AM (indigo)
+ */
+function getTimeZoneColor(hour: number): { light: string; dark: string; bg: string; bgDark: string } {
+  if (hour >= 5 && hour < 12) {
+    return ZONE_COLORS.morning
+  }
+  if (hour >= 12 && hour < 17) {
+    return ZONE_COLORS.afternoon
+  }
+  return ZONE_COLORS.evening
 }
 
 export function ReminderShortcutsSection() {
@@ -54,7 +93,10 @@ export function ReminderShortcutsSection() {
   const updateProfile = useUpdateProfile()
 
   const [isExpanded, setIsExpanded] = useState(false)
-  const [editingShortcut, setEditingShortcut] = useState<ReminderShortcut | null>(null)
+  const [editingShortcut, setEditingShortcut] = useState<{
+    shortcut: ReminderShortcut
+    index: number
+  } | null>(null)
   const [showTimePicker, setShowTimePicker] = useState(false)
   const [selectedTime, setSelectedTime] = useState(new Date())
 
@@ -74,8 +116,8 @@ export function ReminderShortcutsSection() {
     })
   }, [isExpanded, rotation])
 
-  const handleEditShortcut = useCallback((shortcut: ReminderShortcut) => {
-    setEditingShortcut(shortcut)
+  const handleEditShortcut = useCallback((shortcut: ReminderShortcut, index: number) => {
+    setEditingShortcut({ shortcut, index })
     const date = setMinutes(setHours(new Date(), shortcut.hour), shortcut.minute)
     setSelectedTime(date)
     setShowTimePicker(true)
@@ -90,7 +132,7 @@ export function ReminderShortcutsSection() {
 
       // Update the shortcuts array
       const newShortcuts = shortcuts.map((s) =>
-        s.id === editingShortcut.id ? { ...s, hour: newHour, minute: newMinute } : s,
+        s.id === editingShortcut.shortcut.id ? { ...s, hour: newHour, minute: newMinute } : s,
       )
 
       // Save to database (cast to JSON for Supabase compatibility)
@@ -122,7 +164,16 @@ export function ReminderShortcutsSection() {
   const dividerColor = isDark ? '#334155' : '#e2e8f0'
   const borderColor = isDark ? '#334155' : '#e2e8f0'
 
-  // Format time for display
+  // Format time for display (compact format without minutes if on the hour)
+  const formatTimeCompact = (hour: number, minute: number) => {
+    const date = setMinutes(setHours(new Date(), hour), minute)
+    if (minute === 0) {
+      return format(date, 'h a') // "9 AM"
+    }
+    return format(date, 'h:mm a') // "9:30 AM"
+  }
+
+  // Format time for display (full format)
   const formatTime = (hour: number, minute: number) => {
     const date = setMinutes(setHours(new Date(), hour), minute)
     return format(date, 'h:mm a')
@@ -132,25 +183,39 @@ export function ReminderShortcutsSection() {
     <View
       style={[styles.container, { backgroundColor: isDark ? 'rgba(30, 41, 59, 0.5)' : '#f8fafc' }]}
     >
-      {/* Header Row - Always Visible */}
-      <TouchableOpacity onPress={handleToggleExpand} activeOpacity={0.7} style={styles.headerRow}>
-        <View style={styles.headerLeft}>
-          <Bell size={18} color={purpleColor} />
-          <Text
-            className={`text-base font-sans-medium ${isDark ? 'text-white' : 'text-slate-900'}`}
-            style={{ marginLeft: 12 }}
-          >
-            Reminder Shortcuts
-          </Text>
-        </View>
-
-        <View style={styles.headerRight}>
-          <Text style={{ color: textMuted, fontSize: 14, marginRight: 4 }}>
-            {shortcuts.map((s) => formatTime(s.hour, s.minute)).join(', ')}
-          </Text>
+      {/* Header Section - Always Visible */}
+      <TouchableOpacity onPress={handleToggleExpand} activeOpacity={0.7} style={styles.headerSection}>
+        {/* Top Row: Title and Chevron */}
+        <View style={styles.headerRow}>
+          <View style={styles.headerLeft}>
+            <Bell size={18} color={purpleColor} />
+            <Text
+              className={`text-base font-sans-medium ${isDark ? 'text-white' : 'text-slate-900'}`}
+              style={{ marginLeft: 12 }}
+            >
+              Reminder Shortcuts
+            </Text>
+          </View>
           <Animated.View style={chevronStyle}>
             <ChevronDown size={18} color={iconColor} />
           </Animated.View>
+        </View>
+
+        {/* Second Row: Time Pills */}
+        <View style={styles.pillsRow}>
+          {shortcuts.map((shortcut) => {
+            const colors = getTimeZoneColor(shortcut.hour)
+            const pillBg = isDark ? colors.bgDark : colors.bg
+            const textColor = isDark ? colors.dark : colors.light
+
+            return (
+              <View key={shortcut.id} style={[styles.timePill, { backgroundColor: pillBg }]}>
+                <Text style={[styles.pillTime, { color: textColor }]}>
+                  {formatTimeCompact(shortcut.hour, shortcut.minute)}
+                </Text>
+              </View>
+            )
+          })}
         </View>
       </TouchableOpacity>
 
@@ -173,21 +238,31 @@ export function ReminderShortcutsSection() {
           <View style={styles.shortcutList}>
             {shortcuts.map((shortcut, index) => {
               const isLast = index === shortcuts.length - 1
+              const colors = getTimeZoneColor(shortcut.hour)
+              const accentColor = isDark ? colors.dark : colors.light
 
               return (
                 <TouchableOpacity
                   key={shortcut.id}
-                  onPress={() => handleEditShortcut(shortcut)}
+                  onPress={() => handleEditShortcut(shortcut, index)}
                   activeOpacity={0.7}
                   style={[
                     styles.shortcutRow,
                     !isLast && { borderBottomWidth: 1, borderBottomColor: dividerColor },
                   ]}
                 >
-                  <Text className={`text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    {SHORTCUT_LABELS[shortcut.id] || shortcut.id}
-                  </Text>
-                  <Text style={{ color: purpleColor, fontSize: 16, fontWeight: '600' }}>
+                  <View style={styles.shortcutLabelRow}>
+                    <View
+                      style={[
+                        styles.shortcutDot,
+                        { backgroundColor: accentColor },
+                      ]}
+                    />
+                    <Text className={`text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      {SHORTCUT_LABELS[index] || `Shortcut ${index + 1}`}
+                    </Text>
+                  </View>
+                  <Text style={{ color: accentColor, fontSize: 16, fontWeight: '600' }}>
                     {formatTime(shortcut.hour, shortcut.minute)}
                   </Text>
                 </TouchableOpacity>
@@ -241,7 +316,7 @@ export function ReminderShortcutsSection() {
                 </TouchableOpacity>
                 <Text className="text-base font-sans-semibold text-slate-900 dark:text-white">
                   {editingShortcut
-                    ? `${SHORTCUT_LABELS[editingShortcut.id] || editingShortcut.id} Time`
+                    ? `${SHORTCUT_LABELS[editingShortcut.index] || `Shortcut ${editingShortcut.index + 1}`} Time`
                     : 'Select Time'}
                 </Text>
                 <TouchableOpacity
@@ -280,22 +355,35 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
   },
+  headerSection: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 12,
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  headerRight: {
+  pillsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 10,
+    marginLeft: 30, // Align with text (icon width + marginLeft)
+  },
+  timePill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  pillTime: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   expandedContent: {
     paddingHorizontal: 16,
@@ -315,5 +403,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     paddingHorizontal: 4,
+  },
+  shortcutLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  shortcutDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 10,
   },
 })

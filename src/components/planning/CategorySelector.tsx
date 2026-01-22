@@ -1,5 +1,15 @@
-import React, { useMemo, useRef } from 'react'
-import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native'
+import React, { useMemo, useRef, useState } from 'react'
+import {
+  View,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Modal,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
+} from 'react-native'
 import {
   Tag,
   Briefcase,
@@ -8,7 +18,6 @@ import {
   BookOpen,
   Search,
   Plus,
-  ChevronUp,
   Star,
   Check,
   X,
@@ -45,21 +54,22 @@ function getCategoryIcon(
   isSelected: boolean,
   purpleColor: string,
   iconColor: string,
+  size: number = 16,
 ) {
   const color = isSelected ? purpleColor : iconColor
   const fill = isSelected ? purpleColor : 'none'
 
   switch (categoryId) {
     case 'work':
-      return <Briefcase size={18} color={color} fill={fill} />
+      return <Briefcase size={size} color={color} fill={fill} />
     case 'wellness':
-      return <Heart size={18} color={color} fill={fill} />
+      return <Heart size={size} color={color} fill={fill} />
     case 'personal':
-      return <User size={18} color={color} fill={fill} />
+      return <User size={size} color={color} fill={fill} />
     case 'education':
-      return <BookOpen size={18} color={color} fill={fill} />
+      return <BookOpen size={size} color={color} fill={fill} />
     default:
-      return <Tag size={18} color={color} fill={fill} />
+      return <Tag size={size} color={color} fill={fill} />
   }
 }
 
@@ -78,6 +88,9 @@ interface CategorySelectorProps {
   disabled?: boolean
 }
 
+// Number of categories to show in collapsed state
+const COLLAPSED_COUNT = 4
+
 export function CategorySelector({
   selectedCategory,
   selectedCategoryLabel,
@@ -93,48 +106,22 @@ export function CategorySelector({
   const createCategory = useCreateUserCategory()
   const deleteCategory = useDeleteUserCategory()
 
-  const [categorySearch, setCategorySearch] = React.useState('')
-  const [isFocused, setIsFocused] = React.useState(false)
-  const categorySearchRef = useRef<TextInput>(null)
-  // Track pending selection to prevent blur race condition in production builds
-  const pendingSelectionRef = useRef(false)
+  // Bottom sheet state
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [categorySearch, setCategorySearch] = useState('')
+  const searchInputRef = useRef<TextInput>(null)
 
   // Delete confirmation state
-  const [categoryToDelete, setCategoryToDelete] = React.useState<CategoryOption | null>(null)
-  const [showDeleteModal, setShowDeleteModal] = React.useState(false)
+  const [categoryToDelete, setCategoryToDelete] = useState<CategoryOption | null>(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const purpleColor = isDark ? '#a78bfa' : '#8b5cf6'
   const iconColor = isDark ? '#94a3b8' : '#64748b'
 
-  // Get the user's favorite categories for quick-select buttons (max 4)
-  const quickSelectCategories: CategoryOption[] = useMemo(() => {
-    return favoriteCategories.slice(0, 4).map((cat) => {
-      if (cat.isSystem) {
-        const formId = SYSTEM_NAME_TO_FORM_ID[cat.name] || cat.name.toLowerCase()
-        const displayLabel = FORM_ID_TO_DISPLAY[formId] || cat.name
-        return {
-          id: formId,
-          label: displayLabel,
-          icon: getCategoryIcon(formId, false, purpleColor, iconColor),
-          isSystem: true,
-        }
-      } else {
-        return {
-          id: cat.id,
-          label: cat.name,
-          icon: <Tag size={18} color={iconColor} />,
-          isSystem: false,
-        }
-      }
-    })
-  }, [favoriteCategories, iconColor, purpleColor])
-
   // All categories - favorites first (in user-set order), then remaining alphabetically
   const allCategories: CategoryOption[] = useMemo(() => {
-    // Get favorite IDs for filtering
     const favoriteIds = new Set(favoriteCategories.map((c) => c.id))
 
-    // Helper to convert a category to CategoryOption
     const toCategoryOption = (cat: (typeof sortedCategories)[0]): CategoryOption => {
       if (cat.isSystem) {
         const formId = SYSTEM_NAME_TO_FORM_ID[cat.name] || cat.name.toLowerCase()
@@ -149,7 +136,7 @@ export function CategorySelector({
         return {
           id: cat.id,
           label: cat.name,
-          icon: <Tag size={18} color={iconColor} />,
+          icon: <Tag size={16} color={iconColor} />,
           isSystem: false,
         }
       }
@@ -167,16 +154,20 @@ export function CategorySelector({
     return [...favoriteOptions, ...remainingOptions]
   }, [sortedCategories, favoriteCategories, iconColor, purpleColor])
 
-  // Filter categories based on search (show all when focused but empty)
+  // Categories to display in collapsed state (first 4)
+  const collapsedCategories = useMemo(() => {
+    return allCategories.slice(0, COLLAPSED_COUNT)
+  }, [allCategories])
+
+  // Count of additional categories
+  const additionalCount = Math.max(0, allCategories.length - COLLAPSED_COUNT)
+
+  // Filter categories based on search
   const filteredCategories = useMemo(() => {
-    // When focused but no search text, show all categories
-    if (isFocused && !categorySearch.trim()) return allCategories
-    // When not focused and no search text, return empty (show quick select instead)
-    if (!categorySearch.trim()) return []
-    // Filter based on search text
+    if (!categorySearch.trim()) return allCategories
     const search = categorySearch.toLowerCase()
     return allCategories.filter((cat) => cat.label.toLowerCase().includes(search))
-  }, [categorySearch, allCategories, isFocused])
+  }, [categorySearch, allCategories])
 
   // Check if exact match exists
   const exactMatchExists = useMemo(() => {
@@ -186,41 +177,45 @@ export function CategorySelector({
   }, [categorySearch, allCategories])
 
   const hasSearchText = categorySearch.trim().length > 0
-  // Show dropdown when focused (all categories) or when searching
-  const showDropdown = isFocused || hasSearchText
-  const showCategoryButtons = !isFocused && !hasSearchText
+
+  const openSheet = () => {
+    if (disabled) return
+    setIsSheetOpen(true)
+    // Focus search input after sheet opens
+    setTimeout(() => {
+      searchInputRef.current?.focus()
+    }, 100)
+  }
+
+  const closeSheet = () => {
+    Keyboard.dismiss()
+    setCategorySearch('')
+    setIsSheetOpen(false)
+  }
 
   const handleSelectCategory = (category: CategoryOption) => {
-    // Mark selection as pending to prevent blur race condition
-    pendingSelectionRef.current = true
     onSelectCategory(category.id, category.label)
-    setCategorySearch('')
-    setIsFocused(false)
-    categorySearchRef.current?.blur()
+  }
+
+  const handleSelectCategoryAndClose = (category: CategoryOption) => {
+    onSelectCategory(category.id, category.label)
+    closeSheet()
   }
 
   const handleCreateCategory = async () => {
     const newCategoryName = categorySearch.trim()
     if (newCategoryName) {
-      // Mark selection as pending to prevent blur race condition
-      pendingSelectionRef.current = true
       try {
         const newCategory = await createCategory.mutateAsync({ name: newCategoryName })
         onSelectCategory(newCategory.id, newCategory.name)
-        setCategorySearch('')
-        setIsFocused(false)
-        categorySearchRef.current?.blur()
-      } catch (error) {
-        console.error('Failed to create category:', error)
-        // Reset pending flag on error so blur can work normally
-        pendingSelectionRef.current = false
+        closeSheet()
+      } catch (_error) {
+        // Silently fail - user can retry
       }
     }
   }
 
   const handleDeletePress = (category: CategoryOption) => {
-    // Mark selection as pending to prevent blur race condition
-    pendingSelectionRef.current = true
     setCategoryToDelete(category)
     setShowDeleteModal(true)
   }
@@ -235,14 +230,129 @@ export function CategorySelector({
       }
       setShowDeleteModal(false)
       setCategoryToDelete(null)
-    } catch (error) {
-      console.error('Failed to delete category:', error)
+    } catch (_error) {
+      // Silently fail - user can retry
     }
   }
 
   const handleCancelDelete = () => {
     setShowDeleteModal(false)
     setCategoryToDelete(null)
+  }
+
+  // Render a chip in collapsed state (no delete button)
+  const renderCollapsedChip = (category: CategoryOption) => {
+    const isSelected = selectedCategory === category.id
+    return (
+      <TouchableOpacity
+        key={category.id}
+        onPress={() => handleSelectCategory(category)}
+        disabled={disabled}
+        style={[
+          styles.chip,
+          {
+            backgroundColor: isDark ? '#0f172a' : '#ffffff',
+            borderColor: isSelected ? purpleColor : isDark ? '#334155' : '#e2e8f0',
+            borderWidth: isSelected ? 2 : 1,
+          },
+        ]}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isSelected }}
+      >
+        {getCategoryIcon(category.id, isSelected, purpleColor, iconColor)}
+        <Text
+          className="font-sans-medium ml-1.5"
+          style={{
+            color: isSelected ? purpleColor : isDark ? '#e2e8f0' : '#334155',
+            fontSize: 14,
+          }}
+          numberOfLines={1}
+        >
+          {category.label}
+        </Text>
+      </TouchableOpacity>
+    )
+  }
+
+  // Render a category chip in the bottom sheet (with delete button for custom)
+  const renderSheetChip = (category: CategoryOption) => {
+    const isSelected = selectedCategory === category.id
+    return (
+      <View key={category.id} style={styles.chipWrapper}>
+        <TouchableOpacity
+          onPress={() => handleSelectCategoryAndClose(category)}
+          disabled={disabled}
+          className="flex-row items-center py-2.5 px-3 rounded-xl"
+          style={{
+            backgroundColor: isSelected
+              ? isDark
+                ? 'rgba(139, 92, 246, 0.2)'
+                : 'rgba(139, 92, 246, 0.1)'
+              : isDark
+                ? '#1e293b'
+                : '#f8fafc',
+            borderWidth: isSelected ? 2 : 1,
+            borderColor: isSelected ? purpleColor : isDark ? '#334155' : '#e2e8f0',
+          }}
+          activeOpacity={0.7}
+        >
+          {getCategoryIcon(category.id, isSelected, purpleColor, iconColor, 16)}
+          <Text
+            className="font-sans-medium ml-2 text-sm"
+            style={{
+              color: isSelected ? purpleColor : isDark ? '#e2e8f0' : '#334155',
+            }}
+            numberOfLines={1}
+          >
+            {category.label}
+          </Text>
+          {isSelected && <Check size={14} color={purpleColor} style={{ marginLeft: 4 }} />}
+        </TouchableOpacity>
+        {/* Delete button for user-created categories */}
+        {!category.isSystem && (
+          <TouchableOpacity
+            onPress={() => handleDeletePress(category)}
+            disabled={disabled}
+            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full items-center justify-center"
+            style={{ backgroundColor: isDark ? '#ef4444' : '#dc2626' }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <X size={11} color="#ffffff" />
+          </TouchableOpacity>
+        )}
+      </View>
+    )
+  }
+
+  // Render the inline "+ New" pill in the bottom sheet
+  const renderNewPill = () => {
+    const showCreateLabel = hasSearchText && !exactMatchExists
+    const pillLabel = showCreateLabel ? `+ Create "${categorySearch.trim()}"` : '+ New'
+
+    return (
+      <TouchableOpacity
+        onPress={handleCreateCategory}
+        disabled={disabled || createCategory.isPending || (hasSearchText && exactMatchExists)}
+        style={[
+          styles.newPill,
+          {
+            backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.1)',
+            borderColor: purpleColor,
+            opacity: hasSearchText && exactMatchExists ? 0.5 : 1,
+          },
+        ]}
+        activeOpacity={0.7}
+      >
+        <Plus size={14} color={purpleColor} />
+        <Text
+          className="font-sans-medium ml-1"
+          style={{ color: purpleColor, fontSize: 14 }}
+          numberOfLines={1}
+        >
+          {pillLabel}
+        </Text>
+      </TouchableOpacity>
+    )
   }
 
   return (
@@ -256,213 +366,205 @@ export function CategorySelector({
 
         {/* Selected Category Badge */}
         {selectedCategoryLabel && (
+          <View className="flex-row items-center">
+            <View
+              className="flex-row items-center px-3 py-1.5 rounded-full"
+              style={{ backgroundColor: isDark ? '#7c3aed' : '#8b5cf6' }}
+            >
+              <Star size={12} color="#ffffff" fill="#ffffff" />
+              <Text className="font-sans-medium text-white text-xs ml-1.5">
+                {selectedCategoryLabel}
+              </Text>
+              <Check size={12} color="#ffffff" style={{ marginLeft: 4 }} />
+            </View>
+            {/* X button to clear selection */}
+            <TouchableOpacity
+              onPress={onClearCategory}
+              disabled={disabled}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ marginLeft: 8 }}
+            >
+              <X size={18} color={iconColor} />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      {/* Collapsed View: Horizontal chips with "+N more" and "+ New" */}
+      <View style={styles.collapsedContainer}>
+        {/* Category chips */}
+        {collapsedCategories.map((category) => renderCollapsedChip(category))}
+
+        {/* "+N more" button - opens bottom sheet */}
+        {additionalCount > 0 && (
           <TouchableOpacity
-            onPress={onClearCategory}
+            onPress={openSheet}
             disabled={disabled}
-            className="flex-row items-center px-3 py-1.5 rounded-full"
-            style={{ backgroundColor: isDark ? '#7c3aed' : '#8b5cf6' }}
+            style={[
+              styles.moreButton,
+              {
+                backgroundColor: isDark ? 'rgba(148, 163, 184, 0.15)' : 'rgba(100, 116, 139, 0.1)',
+                borderColor: isDark ? '#475569' : '#cbd5e1',
+              },
+            ]}
           >
-            <Star size={12} color="#ffffff" fill="#ffffff" />
-            <Text className="font-sans-medium text-white text-xs ml-1.5">
-              {selectedCategoryLabel}
+            <Text
+              className="font-sans-medium"
+              style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 13 }}
+            >
+              +{additionalCount} more
             </Text>
-            <Check size={12} color="#ffffff" className="ml-1" />
           </TouchableOpacity>
         )}
+
+        {/* "+ New" button */}
+        <TouchableOpacity
+          onPress={openSheet}
+          disabled={disabled}
+          style={[
+            styles.newButton,
+            {
+              backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.1)',
+              borderColor: purpleColor,
+            },
+          ]}
+        >
+          <Plus size={14} color={purpleColor} />
+          <Text
+            className="font-sans-medium ml-1"
+            style={{ color: purpleColor, fontSize: 13 }}
+          >
+            New
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Category Search Input */}
-      <View className="relative">
-        <View
-          className="flex-row items-center rounded-xl"
-          style={{
-            backgroundColor: isDark ? '#0f172a' : '#ffffff',
-            borderWidth: isFocused || hasSearchText ? 2 : 1,
-            borderColor: isFocused || hasSearchText ? purpleColor : isDark ? '#334155' : '#e2e8f0',
-          }}
+      {/* Bottom Sheet Modal */}
+      <Modal
+        visible={isSheetOpen}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={closeSheet}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
         >
-          <View className="pl-4">
-            <Search size={18} color={iconColor} />
-          </View>
-          <TextInput
-            ref={categorySearchRef}
-            value={categorySearch}
-            onChangeText={setCategorySearch}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => {
-              // Skip blur if a selection is pending (fixes blur/press race condition in production)
-              if (pendingSelectionRef.current) {
-                pendingSelectionRef.current = false
-                return
-              }
-              // Fallback delay for other blur scenarios (e.g., tapping outside)
-              setTimeout(() => {
-                setIsFocused(false)
-              }, 150)
-            }}
-            placeholder={`Search All Categories (${allCategories.length})`}
-            placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
-            editable={!disabled}
-            className="flex-1 font-sans px-3"
-            style={{
-              fontSize: 15,
-              paddingVertical: 14,
-              color: isDark ? '#f8fafc' : '#0f172a',
-            }}
+          {/* Backdrop */}
+          <TouchableOpacity
+            style={styles.backdrop}
+            activeOpacity={1}
+            onPress={closeSheet}
           />
-        </View>
 
-        {/* Search Results Grid */}
-        {showDropdown && (
-          <View className="mt-3">
-            {/* Category Grid - 2 columns */}
-            <View className="flex-row flex-wrap" style={{ gap: 10 }}>
-              {/* Matching Categories */}
-              {filteredCategories.map((category) => {
-                const isSelected = selectedCategory === category.id
-                return (
-                  <View key={category.id} style={styles.categoryGridItem}>
-                    {/* Wrapper View handles selection in onTouchStart - fires before blur */}
-                    <View
-                      onTouchStart={() => {
-                        if (disabled) return
-                        handleSelectCategory(category)
-                      }}
-                    >
-                      <TouchableOpacity
-                        disabled={disabled}
-                        className="flex-row items-center py-3 px-4 rounded-xl"
-                        style={{
-                          backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                          borderWidth: isSelected ? 2 : 1,
-                          borderColor: isSelected ? purpleColor : isDark ? '#334155' : '#e2e8f0',
-                        }}
-                      >
-                        {getCategoryIcon(category.id, isSelected, purpleColor, iconColor)}
-                        <Text
-                          className="font-sans-medium ml-2"
-                          style={{
-                            color: isSelected ? purpleColor : isDark ? '#e2e8f0' : '#334155',
-                          }}
-                          numberOfLines={1}
-                        >
-                          {category.label}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                    {/* Delete button for user categories */}
-                    {!category.isSystem && (
-                      <View
-                        onTouchStart={() => {
-                          if (disabled) return
-                          handleDeletePress(category)
-                        }}
-                        className="absolute -top-1 -right-1"
-                      >
-                        <TouchableOpacity
-                          disabled={disabled}
-                          className="w-5 h-5 rounded-full items-center justify-center"
-                          style={{ backgroundColor: isDark ? '#ef4444' : '#dc2626' }}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        >
-                          <X size={12} color="#ffffff" />
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-                )
-              })}
-
-              {/* Create New Category Option (if searching and no exact match) */}
-              {hasSearchText && !exactMatchExists && (
-                <View style={styles.categoryGridItem}>
-                  <View
-                    onTouchStart={() => {
-                      if (disabled) return
-                      handleCreateCategory()
-                    }}
-                  >
-                    <TouchableOpacity
-                      disabled={disabled}
-                      className="flex-row items-center py-3 px-4 rounded-xl"
-                      style={{
-                        backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                        borderWidth: 1,
-                        borderColor: purpleColor,
-                        borderStyle: 'dashed',
-                      }}
-                    >
-                      <Plus size={18} color={purpleColor} />
-                      <Text
-                        className="font-sans-medium ml-2"
-                        style={{ color: purpleColor }}
-                        numberOfLines={1}
-                      >
-                        Create &quot;{categorySearch.trim()}&quot;
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
+          {/* Sheet Content */}
+          <View
+            style={[
+              styles.sheetContent,
+              {
+                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+              },
+            ]}
+          >
+            {/* Handle Bar */}
+            <View className="items-center pt-3 pb-2">
+              <View
+                className="w-10 h-1 rounded-full"
+                style={{ backgroundColor: isDark ? '#334155' : '#cbd5e1' }}
+              />
             </View>
 
-            {/* Show Less Button */}
-            <TouchableOpacity
-              onPress={() => {
-                setCategorySearch('')
-                setIsFocused(false)
-                categorySearchRef.current?.blur()
-              }}
-              className="flex-row items-center justify-center py-3 mt-2"
-            >
-              <ChevronUp size={16} color={iconColor} />
-              <Text className="font-sans-medium text-slate-500 dark:text-slate-400 ml-1">
-                Show Less
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-
-      {/* Category Grid - 2x2 (shown when not actively searching) */}
-      {showCategoryButtons && (
-        <View className="flex-row flex-wrap mt-3" style={{ gap: 10 }}>
-          {quickSelectCategories.map((category) => (
-            <TouchableOpacity
-              key={category.id}
-              onPress={() => handleSelectCategory(category)}
-              disabled={disabled}
-              style={[
-                styles.categoryButton,
-                {
-                  backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                  borderColor:
-                    selectedCategory === category.id ? purpleColor : isDark ? '#334155' : '#e2e8f0',
-                  borderWidth: selectedCategory === category.id ? 2 : 1,
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: selectedCategory === category.id }}
-            >
-              {getCategoryIcon(
-                category.id,
-                selectedCategory === category.id,
-                purpleColor,
-                iconColor,
-              )}
+            {/* Header */}
+            <View className="flex-row items-center justify-between px-5 py-3">
               <Text
-                className={`font-sans-medium ml-2 ${
-                  selectedCategory === category.id
-                    ? 'text-purple-400'
-                    : 'text-slate-700 dark:text-slate-300'
-                }`}
+                className="font-sans-semibold text-lg"
+                style={{ color: isDark ? '#f8fafc' : '#0f172a' }}
               >
-                {category.label}
+                Select Category
               </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+              <TouchableOpacity onPress={closeSheet} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <X size={24} color={iconColor} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Search Input */}
+            <View className="px-5 pb-4">
+              <View
+                className="flex-row items-center rounded-xl"
+                style={{
+                  backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
+                  borderWidth: 1,
+                  borderColor: hasSearchText ? purpleColor : 'transparent',
+                }}
+              >
+                <View className="pl-4">
+                  <Search size={18} color={iconColor} />
+                </View>
+                <TextInput
+                  ref={searchInputRef}
+                  value={categorySearch}
+                  onChangeText={setCategorySearch}
+                  placeholder="Search or create..."
+                  placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
+                  className="flex-1 font-sans px-3"
+                  style={{
+                    fontSize: 15,
+                    paddingVertical: 14,
+                    color: isDark ? '#f8fafc' : '#0f172a',
+                  }}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  returnKeyType={hasSearchText && !exactMatchExists ? 'done' : 'search'}
+                  enablesReturnKeyAutomatically={true}
+                  blurOnSubmit={false}
+                  onSubmitEditing={() => {
+                    if (hasSearchText && !exactMatchExists) {
+                      handleCreateCategory()
+                    }
+                  }}
+                />
+                {hasSearchText && (
+                  <TouchableOpacity
+                    onPress={() => setCategorySearch('')}
+                    className="pr-4"
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <X size={18} color={iconColor} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            {/* Category Grid */}
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View className="flex-row flex-wrap px-5" style={{ gap: 10 }}>
+                {filteredCategories.map((category) => renderSheetChip(category))}
+                {/* Inline "+ New" pill */}
+                {renderNewPill()}
+              </View>
+
+              {/* Empty state when no matches */}
+              {filteredCategories.length === 0 && hasSearchText && (
+                <View className="items-center py-6 px-5">
+                  <Text
+                    className="font-sans text-center"
+                    style={{ color: isDark ? '#64748b' : '#94a3b8' }}
+                  >
+                    No categories match &quot;{categorySearch.trim()}&quot;
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Delete Category Confirmation Modal */}
       <ConfirmationModal
@@ -480,16 +582,69 @@ export function CategorySelector({
 }
 
 const styles = StyleSheet.create({
-  categoryButton: {
+  // Collapsed view styles
+  collapsedContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    alignItems: 'center',
+  },
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    width: '48%',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 20,
   },
-  categoryGridItem: {
-    width: '48%',
+  moreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  newButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  // Bottom sheet styles
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  sheetContent: {
+    maxHeight: '70%',
+    minHeight: '40%',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 32,
+  },
+  chipWrapper: {
     position: 'relative',
+    marginBottom: 4,
+  },
+  // Inline new pill in sheet
+  newPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    marginBottom: 4,
   },
 })
