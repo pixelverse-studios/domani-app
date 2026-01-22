@@ -100,14 +100,14 @@ export default function TodayScreen() {
 
   const totalCount = tasks.length
 
-  // Extract MIT task (high priority, not completed)
+  // Extract MIT task (top priority, not completed)
   const mitTask = useMemo(() => {
-    return tasks.find((task) => task.priority === 'high' && !task.completed_at) ?? null
+    return tasks.find((task) => task.priority === 'top' && !task.completed_at) ?? null
   }, [tasks])
 
   // Calculate day theme from tasks excluding MIT
   const dayTheme = useMemo(() => {
-    const nonMitTasks = tasks.filter((task) => task.priority !== 'high')
+    const nonMitTasks = tasks.filter((task) => task.priority !== 'top')
     return inferDayType(nonMitTasks)
   }, [tasks])
 

@@ -5,14 +5,14 @@ import { AlertTriangle, Crown } from 'lucide-react-native'
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
 
-export type Priority = 'high' | 'medium' | 'low'
+export type Priority = 'top' | 'high' | 'medium' | 'low'
 
 interface PrioritySelectorProps {
   selectedPriority: Priority | null
   onSelectPriority: (priority: Priority) => void
-  /** Existing HIGH priority task in this plan (for MIT warning) */
-  existingHighPriorityTask?: { id: string; title: string } | null
-  /** ID of the task being edited (to exclude self from HIGH check) */
+  /** Existing TOP priority task in this plan (for MIT warning) */
+  existingTopPriorityTask?: { id: string; title: string } | null
+  /** ID of the task being edited (to exclude self from TOP check) */
   editingTaskId?: string
   disabled?: boolean
 }
@@ -20,7 +20,7 @@ interface PrioritySelectorProps {
 export function PrioritySelector({
   selectedPriority,
   onSelectPriority,
-  existingHighPriorityTask,
+  existingTopPriorityTask,
   editingTaskId,
   disabled = false,
 }: PrioritySelectorProps) {
@@ -31,16 +31,20 @@ export function PrioritySelector({
   const iconColor = isDark ? '#94a3b8' : '#64748b'
   const amberColor = '#f59e0b'
 
-  // MIT message logic: determine which message to show when HIGH is selected
-  const isEditingCurrentHighTask = editingTaskId && existingHighPriorityTask?.id === editingTaskId
+  // MIT message logic: determine which message to show when TOP is selected
+  const isEditingCurrentTopTask = editingTaskId && existingTopPriorityTask?.id === editingTaskId
   const showMitReplaceWarning =
-    selectedPriority === 'high' && existingHighPriorityTask && !isEditingCurrentHighTask
+    selectedPriority === 'top' && existingTopPriorityTask && !isEditingCurrentTopTask
   const showMitFirstTimeMessage =
-    selectedPriority === 'high' && !existingHighPriorityTask && !isEditingCurrentHighTask
+    selectedPriority === 'top' && !existingTopPriorityTask && !isEditingCurrentTopTask
 
-  const priorities: Priority[] = ['high', 'medium', 'low']
+  const priorities: Priority[] = ['top', 'high', 'medium', 'low']
 
-  const priorityColors = {
+  const priorityColors: Record<Priority, { bg: string; text: string }> = {
+    top: {
+      bg: isDark ? 'rgba(234, 179, 8, 0.15)' : 'rgba(234, 179, 8, 0.1)',
+      text: '#eab308',
+    },
     high: {
       bg: isDark ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.1)',
       text: '#ef4444',
@@ -97,10 +101,10 @@ export function PrioritySelector({
               accessibilityRole="button"
               accessibilityState={{ selected: isSelected }}
             >
-              {priority === 'high' && <Crown size={16} color={textColor} className="mr-1.5" />}
+              {priority === 'top' && <Crown size={16} color={textColor} className="mr-1.5" />}
               <Text
                 className="font-sans-medium"
-                style={{ color: textColor, marginLeft: priority === 'high' ? 4 : 0 }}
+                style={{ color: textColor, marginLeft: priority === 'top' ? 4 : 0 }}
               >
                 {priority.charAt(0).toUpperCase() + priority.slice(1)}
               </Text>
@@ -110,7 +114,7 @@ export function PrioritySelector({
       </View>
 
       {/* MIT Message - Replace Warning */}
-      {showMitReplaceWarning && existingHighPriorityTask && (
+      {showMitReplaceWarning && existingTopPriorityTask && (
         <View
           className="rounded-xl p-3 mt-3"
           style={{
@@ -123,27 +127,27 @@ export function PrioritySelector({
             <AlertTriangle size={16} color={amberColor} />
             <Text className="flex-1 ml-2" style={{ color: amberColor }}>
               <Text className="font-sans">This will replace </Text>
-              <Text className="font-sans-bold">{existingHighPriorityTask.title}</Text>
-              <Text className="font-sans"> as your highest priority</Text>
+              <Text className="font-sans-bold">{existingTopPriorityTask.title}</Text>
+              <Text className="font-sans"> as your Most Important Task</Text>
             </Text>
           </View>
         </View>
       )}
 
-      {/* MIT Message - First Time HIGH */}
+      {/* MIT Message - First Time TOP */}
       {showMitFirstTimeMessage && (
         <View
           className="rounded-xl p-3 mt-3"
           style={{
-            backgroundColor: isDark ? 'rgba(139, 92, 246, 0.1)' : 'rgba(139, 92, 246, 0.08)',
+            backgroundColor: isDark ? 'rgba(234, 179, 8, 0.1)' : 'rgba(234, 179, 8, 0.08)',
             borderWidth: 1,
-            borderColor: isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.25)',
+            borderColor: isDark ? 'rgba(234, 179, 8, 0.3)' : 'rgba(234, 179, 8, 0.25)',
           }}
         >
           <View className="flex-row items-center">
-            <Crown size={16} color={purpleColor} />
-            <Text className="font-sans ml-2" style={{ color: purpleColor }}>
-              This will be your highest priority task
+            <Crown size={16} color="#eab308" />
+            <Text className="font-sans ml-2" style={{ color: '#eab308' }}>
+              This will be your Most Important Task
             </Text>
           </View>
         </View>

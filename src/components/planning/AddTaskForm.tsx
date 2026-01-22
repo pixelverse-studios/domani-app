@@ -58,9 +58,9 @@ interface AddTaskFormProps {
   }) => Promise<void> | void
   initialValues?: InitialFormValues
   isEditing?: boolean
-  /** Existing HIGH priority task in this plan (for MIT warning) */
-  existingHighPriorityTask?: { id: string; title: string } | null
-  /** ID of the task being edited (to exclude self from HIGH check) */
+  /** Existing TOP priority task in this plan (for MIT warning) */
+  existingTopPriorityTask?: { id: string; title: string } | null
+  /** ID of the task being edited (to exclude self from TOP check) */
   editingTaskId?: string
   /** Currently selected planning target (today/tomorrow) */
   selectedTarget: PlanningTarget
@@ -75,7 +75,7 @@ export function AddTaskForm({
   onSubmit,
   initialValues,
   isEditing = false,
-  existingHighPriorityTask,
+  existingTopPriorityTask,
   editingTaskId,
   selectedTarget,
   onTargetChange,
@@ -313,7 +313,7 @@ export function AddTaskForm({
       <PrioritySelector
         selectedPriority={selectedPriority}
         onSelectPriority={setSelectedPriority}
-        existingHighPriorityTask={existingHighPriorityTask}
+        existingTopPriorityTask={existingTopPriorityTask}
         editingTaskId={editingTaskId}
         disabled={isFormDisabled}
       />

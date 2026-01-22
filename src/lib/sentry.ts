@@ -120,11 +120,7 @@ export function captureMessage(message: string, level: Sentry.SeverityLevel = 'i
 /**
  * Add a breadcrumb for debugging context.
  */
-export function addBreadcrumb(
-  message: string,
-  category: string,
-  data?: Record<string, unknown>,
-) {
+export function addBreadcrumb(message: string, category: string, data?: Record<string, unknown>) {
   if (!SENTRY_DSN || __DEV__) return
 
   Sentry.addBreadcrumb({

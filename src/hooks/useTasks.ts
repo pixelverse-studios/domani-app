@@ -144,7 +144,7 @@ interface CreateTaskInput {
   notes?: string | null
   reminderAt?: string | null // ISO timestamp for when to send reminder notification
   // Note: is_mit is now automatically controlled by priority via DB trigger
-  // HIGH priority = is_mit: true, MEDIUM/LOW = is_mit: false
+  // TOP priority = is_mit: true, HIGH/MEDIUM/LOW = is_mit: false
 }
 
 export function useCreateTask() {
@@ -171,8 +171,8 @@ export function useCreateTask() {
       if (!user) throw new Error('Not authenticated')
 
       // Note: is_mit is automatically set by DB trigger based on priority
-      // HIGH priority tasks are automatically marked as MIT
-      // If another HIGH task exists, it will be demoted to MEDIUM by the trigger
+      // TOP priority tasks are automatically marked as MIT
+      // If another TOP task exists, it will be demoted to HIGH by the trigger
       const { data, error } = await supabase
         .from('tasks')
         .insert({
@@ -272,7 +272,7 @@ export function useUpdateTask() {
         plan_id: string // Support moving task to different plan (day change)
         reminder_at: string | null // Update reminder time
         // Note: is_mit is automatically controlled by priority via DB trigger
-        // Setting priority to 'high' will auto-set is_mit=true and demote other HIGH tasks
+        // Setting priority to 'top' will auto-set is_mit=true and demote other TOP tasks to HIGH
       }>
       /** Original plan ID for cache invalidation when task moves to different plan */
       originalPlanId?: string
@@ -284,9 +284,9 @@ export function useUpdateTask() {
         .eq('id', taskId)
         .single()
 
-      // Note: When priority is updated to 'high', DB trigger will:
+      // Note: When priority is updated to 'top', DB trigger will:
       // 1. Set is_mit = true on this task
-      // 2. Demote any other HIGH priority tasks to MEDIUM
+      // 2. Demote any other TOP priority tasks to HIGH
       const { data, error } = await supabase
         .from('tasks')
         .update(updates)

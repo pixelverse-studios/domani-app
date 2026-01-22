@@ -21,6 +21,7 @@ import {
   Circle,
   CheckCircle,
   Bell,
+  Crown,
 } from 'lucide-react-native'
 import { format, parseISO, isFuture } from 'date-fns'
 
@@ -42,6 +43,10 @@ interface TaskCardProps {
 }
 
 const PRIORITY_COLORS = {
+  top: {
+    border: '#eab308',
+    badge: { bg: 'rgba(234, 179, 8, 0.15)', text: '#eab308' },
+  },
   high: {
     border: '#ef4444',
     badge: { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444' },
@@ -199,7 +204,15 @@ export function TaskCard({
               </Text>
             </View>
 
-            <View style={[styles.priorityBadge, { backgroundColor: priorityConfig.badge.bg }]}>
+            <View
+              style={[
+                styles.priorityBadge,
+                { backgroundColor: priorityConfig.badge.bg, flexDirection: 'row', alignItems: 'center' },
+              ]}
+            >
+              {priority === 'top' && (
+                <Crown size={12} color={priorityConfig.badge.text} style={{ marginRight: 4 }} />
+              )}
               <Text
                 className="font-sans-medium text-xs capitalize"
                 style={{ color: priorityConfig.badge.text }}
