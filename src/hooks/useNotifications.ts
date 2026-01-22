@@ -13,7 +13,7 @@ const isNotificationsSupported = !(isExpoGo && Platform.OS === 'android')
 
 // Conditionally get the notifications module
 const Notifications = isNotificationsSupported
-  ? // eslint-disable-next-line @typescript-eslint/no-require-imports
+  ?  
     require('expo-notifications')
   : null
 

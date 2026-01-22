@@ -187,10 +187,6 @@ export function CategorySelector({
   const openSheet = () => {
     if (disabled) return
     setIsSheetOpen(true)
-    // Focus search input after sheet opens
-    setTimeout(() => {
-      searchInputRef.current?.focus()
-    }, 300)
   }
 
   const closeSheet = () => {
@@ -505,14 +501,14 @@ export function CategorySelector({
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalContainer}
-          pointerEvents={isSheetOpen ? 'auto' : 'none'}
         >
-          {/* Backdrop - only render when sheet is open */}
-          {isSheetOpen && (
-            <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={closeSheet} />
-          )}
+          {/* Backdrop with semi-transparent background for touch handling */}
+          <Pressable
+            style={styles.backdrop}
+            onPress={closeSheet}
+          />
 
-          {/* Sheet Content */}
+          {/* Sheet Content - Single ScrollView for proper keyboard tap handling */}
           <View
             style={[
               styles.sheetContent,
@@ -522,87 +518,87 @@ export function CategorySelector({
                 borderTopRightRadius: 24,
               },
             ]}
-            pointerEvents={isSheetOpen ? 'auto' : 'none'}
           >
-            {/* Handle Bar */}
-            <View className="items-center pt-3 pb-2">
-              <View
-                className="w-10 h-1 rounded-full"
-                style={{ backgroundColor: isDark ? '#334155' : '#cbd5e1' }}
-              />
-            </View>
-
-            {/* Header */}
-            <View className="flex-row items-center justify-between px-5 py-3">
-              <Text
-                className="font-sans-semibold text-lg"
-                style={{ color: isDark ? '#f8fafc' : '#0f172a' }}
-              >
-                Select Category
-              </Text>
-              <TouchableOpacity
-                onPress={closeSheet}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <X size={24} color={iconColor} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Search Input */}
-            <View className="px-5 pb-4">
-              <View
-                className="flex-row items-center rounded-xl"
-                style={{
-                  backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
-                  borderWidth: 1,
-                  borderColor: hasSearchText ? purpleColor : 'transparent',
-                }}
-              >
-                <View className="pl-4">
-                  <Search size={18} color={iconColor} />
-                </View>
-                <TextInput
-                  ref={searchInputRef}
-                  value={categorySearch}
-                  onChangeText={setCategorySearch}
-                  placeholder="Search or create..."
-                  placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
-                  className="flex-1 font-sans px-3"
-                  style={{
-                    fontSize: 15,
-                    paddingVertical: 14,
-                    color: isDark ? '#f8fafc' : '#0f172a',
-                  }}
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  returnKeyType={hasSearchText && !exactMatchExists ? 'done' : 'search'}
-                  enablesReturnKeyAutomatically={true}
-                  blurOnSubmit={false}
-                  onSubmitEditing={() => {
-                    if (hasSearchText && !exactMatchExists) {
-                      handleCreateCategory()
-                    }
-                  }}
-                />
-                {hasSearchText && (
-                  <TouchableOpacity
-                    onPress={() => setCategorySearch('')}
-                    className="pr-4"
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <X size={18} color={iconColor} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-
-            {/* Category Grid */}
             <ScrollView
               style={styles.scrollView}
-              contentContainerStyle={styles.scrollContent}
+              contentContainerStyle={styles.sheetScrollContent}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
+              bounces={false}
             >
+              {/* Handle Bar */}
+              <View className="items-center pt-3 pb-2">
+                <View
+                  className="w-10 h-1 rounded-full"
+                  style={{ backgroundColor: isDark ? '#334155' : '#cbd5e1' }}
+                />
+              </View>
+
+              {/* Header */}
+              <View className="flex-row items-center justify-between px-5 py-3">
+                <Text
+                  className="font-sans-semibold text-lg"
+                  style={{ color: isDark ? '#f8fafc' : '#0f172a' }}
+                >
+                  Select Category
+                </Text>
+                <TouchableOpacity
+                  onPress={closeSheet}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <X size={24} color={iconColor} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Search Input */}
+              <View className="px-5 pb-4">
+                <View
+                  className="flex-row items-center rounded-xl"
+                  style={{
+                    backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
+                    borderWidth: 1,
+                    borderColor: hasSearchText ? purpleColor : 'transparent',
+                  }}
+                >
+                  <View className="pl-4">
+                    <Search size={18} color={iconColor} />
+                  </View>
+                  <TextInput
+                    ref={searchInputRef}
+                    value={categorySearch}
+                    onChangeText={setCategorySearch}
+                    placeholder="Search or create..."
+                    placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
+                    className="flex-1 font-sans px-3"
+                    style={{
+                      fontSize: 15,
+                      paddingVertical: 14,
+                      color: isDark ? '#f8fafc' : '#0f172a',
+                    }}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    returnKeyType={hasSearchText && !exactMatchExists ? 'done' : 'search'}
+                    enablesReturnKeyAutomatically={true}
+                    blurOnSubmit={false}
+                    onSubmitEditing={() => {
+                      if (hasSearchText && !exactMatchExists) {
+                        handleCreateCategory()
+                      }
+                    }}
+                  />
+                  {hasSearchText && (
+                    <TouchableOpacity
+                      onPress={() => setCategorySearch('')}
+                      className="pr-4"
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <X size={18} color={iconColor} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              {/* Category Grid */}
               <View className="flex-row flex-wrap px-5 pt-2" style={{ gap: 10 }}>
                 {filteredCategories.map((category) => renderSheetChip(category))}
                 {/* Inline "+ New" pill */}
@@ -784,6 +780,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    paddingBottom: 32,
+  },
+  sheetScrollContent: {
     paddingBottom: 32,
   },
   chipWrapper: {

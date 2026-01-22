@@ -12,7 +12,7 @@ const isNotificationsSupported = !(isExpoGo && Platform.OS === 'android')
 let Notifications: typeof import('expo-notifications') | null = null
 
 if (isNotificationsSupported) {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   Notifications = require('expo-notifications')
 
   // Configure how notifications appear when app is foregrounded
