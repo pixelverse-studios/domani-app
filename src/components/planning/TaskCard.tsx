@@ -44,8 +44,8 @@ interface TaskCardProps {
 
 const PRIORITY_COLORS = {
   top: {
-    border: '#eab308',
-    badge: { bg: 'rgba(234, 179, 8, 0.15)', text: '#eab308' },
+    border: '#8b5cf6',
+    badge: { bg: 'rgba(139, 92, 246, 0.15)', text: '#8b5cf6' },
   },
   high: {
     border: '#ef4444',
