@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { View, TouchableOpacity, LayoutChangeEvent } from 'react-native'
-import { Crown, Triangle } from 'lucide-react-native'
+import { Crown, Triangle, AlertTriangle } from 'lucide-react-native'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -58,8 +58,12 @@ export function PrioritySelector({
 
   // MIT message logic
   const isEditingCurrentTopTask = editingTaskId && existingTopPriorityTask?.id === editingTaskId
+  const showMitReplaceWarning =
+    selectedPriority === 'top' && existingTopPriorityTask && !isEditingCurrentTopTask
   const showMitFirstTimeMessage =
     selectedPriority === 'top' && !existingTopPriorityTask && !isEditingCurrentTopTask
+
+  const amberColor = '#f59e0b'
 
   // Track positions of each option for pill animation
   const [optionPositions, setOptionPositions] = useState<Record<Priority, { x: number; width: number }>>({
@@ -209,6 +213,27 @@ export function PrioritySelector({
             style={{ color: PRIORITY_COLORS.top }}
           >
             This will be your top priority task
+          </Text>
+        </Animated.View>
+      )}
+
+      {/* MIT Message - Replace Warning */}
+      {showMitReplaceWarning && existingTopPriorityTask && (
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(150)}
+          className="flex-row items-center mt-3 px-3 py-2.5 rounded-lg"
+          style={{
+            borderWidth: 1,
+            borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.4)',
+            backgroundColor: isDark ? 'rgba(245, 158, 11, 0.08)' : 'rgba(245, 158, 11, 0.05)',
+          }}
+        >
+          <AlertTriangle size={14} color={amberColor} />
+          <Text className="flex-1 ml-2" style={{ color: amberColor }}>
+            <Text className="font-sans text-sm">This will replace </Text>
+            <Text className="font-sans-bold text-sm">{existingTopPriorityTask.title}</Text>
+            <Text className="font-sans text-sm"> as your top priority</Text>
           </Text>
         </Animated.View>
       )}
