@@ -44,6 +44,7 @@ import { useSubscription } from '~/hooks/useSubscription'
 import { useNotifications } from '~/hooks/useNotifications'
 import { useAccountDeletion } from '~/hooks/useAccountDeletion'
 import { useAppConfig } from '~/stores/appConfigStore'
+import { useScreenTracking } from '~/hooks/useScreenTracking'
 import type { ThemeMode } from '~/stores/themeStore'
 import type { SubscriptionStatus } from '~/hooks/useSubscription'
 
@@ -213,6 +214,7 @@ function SettingsRow({
 }
 
 export default function SettingsScreen() {
+  useScreenTracking('settings')
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const { signOut } = useAuth()

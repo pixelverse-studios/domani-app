@@ -8,9 +8,11 @@ import { LegalFooter, Text } from '~/components/ui'
 import { SocialButton } from '~/components/ui/SocialButton'
 import { useAuth } from '~/hooks/useAuth'
 import { useTheme } from '~/hooks/useTheme'
+import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { colors } from '~/theme'
 
 export default function LoginScreen() {
+  useScreenTracking('login')
   const router = useRouter()
   const { mode } = useLocalSearchParams<{ mode?: 'new' | 'returning' }>()
   const insets = useSafeAreaInsets()

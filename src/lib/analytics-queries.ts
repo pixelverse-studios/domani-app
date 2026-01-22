@@ -231,17 +231,20 @@ export async function fetchDailyCompletions(
       color: string
     } | null
 
-    if (!category) continue
-
     const isCompleted = task.completed_at !== null
 
+    // Use actual category or fallback to "Uncategorized"
+    const categoryId = category?.id ?? 'uncategorized'
+    const categoryName = category?.name ?? 'Uncategorized'
+    const categoryColor = category?.color ?? '#8b5cf6' // Purple for uncategorized
+
     // Find or create category entry for this day
-    let categoryEntry = dayData.categories.find((c) => c.categoryId === category.id)
+    let categoryEntry = dayData.categories.find((c) => c.categoryId === categoryId)
     if (!categoryEntry) {
       categoryEntry = {
-        categoryId: category.id,
-        categoryName: category.name,
-        categoryColor: category.color,
+        categoryId,
+        categoryName,
+        categoryColor,
         completed: 0,
         incomplete: 0,
       }

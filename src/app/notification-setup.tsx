@@ -8,9 +8,11 @@ import { format } from 'date-fns'
 
 import { Button, Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
+import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { NotificationService } from '~/lib/notifications'
 import { useNotificationStore } from '~/stores/notificationStore'
 import { useUpdateProfile } from '~/hooks/useProfile'
+import { useAnalytics } from '~/providers/AnalyticsProvider'
 
 /**
  * Detect device timezone using Intl API
@@ -30,11 +32,13 @@ function getDeviceTimezone(): string {
 }
 
 export default function NotificationSetupScreen() {
+  useScreenTracking('notification_setup')
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const updateProfile = useUpdateProfile()
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
+  const { track } = useAnalytics()
 
   const { setPlanningReminderId, setPermissionStatus } = useNotificationStore()
 
@@ -62,6 +66,9 @@ export default function NotificationSetupScreen() {
       setPermissionStatus(granted ? 'granted' : 'denied')
 
       if (granted) {
+        // Track notifications enabled
+        track('notifications_enabled')
+
         // Cancel any existing local reminders first
         await NotificationService.cancelAllReminders()
 
@@ -84,6 +91,9 @@ export default function NotificationSetupScreen() {
 
         console.log('[NotificationSetup] Saved timezone:', detectedTimezone)
       } else {
+        // Track notifications skipped/denied
+        track('notifications_skipped')
+
         // User denied permissions, still mark onboarding as complete and save timezone
         const detectedTimezone = getDeviceTimezone()
         await updateProfile.mutateAsync({

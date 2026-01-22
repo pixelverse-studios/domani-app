@@ -13,9 +13,11 @@ import {
   WeeklySummaryCard,
 } from '~/components/analytics'
 import { useAnalyticsSummary, useDailyCompletions } from '~/hooks/useAnalytics'
+import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { colors } from '~/theme'
 
 export default function AnalyticsScreen() {
+  useScreenTracking('progress')
   const insets = useSafeAreaInsets()
   const queryClient = useQueryClient()
   const [refreshing, setRefreshing] = useState(false)
