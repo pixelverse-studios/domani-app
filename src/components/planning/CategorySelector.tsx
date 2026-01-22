@@ -3,6 +3,7 @@ import {
   View,
   TextInput,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   Modal,
   ScrollView,
@@ -252,6 +253,19 @@ export function CategorySelector({
     setShowDeleteModal(true)
   }
 
+  // For deleting from within the sheet - close sheet first to avoid Modal stacking issues
+  const handleDeletePressFromSheet = (category: CategoryOption) => {
+    // Close the sheet first
+    Keyboard.dismiss()
+    setCategorySearch('')
+    setIsSheetOpen(false)
+    // Then show delete modal after sheet closes
+    setTimeout(() => {
+      setCategoryToDelete(category)
+      setShowDeleteModal(true)
+    }, 300)
+  }
+
   const handleConfirmDelete = async () => {
     if (!categoryToDelete) return
 
@@ -309,7 +323,7 @@ export function CategorySelector({
             onPress={() => handleDeletePress(category)}
             disabled={disabled}
             className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full items-center justify-center"
-            style={{ backgroundColor: isDark ? '#ef4444' : '#dc2626' }}
+            style={{ backgroundColor: isDark ? '#ef4444' : '#dc2626', zIndex: 10 }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <X size={11} color="#ffffff" />
@@ -319,51 +333,43 @@ export function CategorySelector({
     )
   }
 
-  // Render a category chip in the bottom sheet (with delete button for custom)
+  // Render a chip in the sheet (with delete button for custom categories)
   const renderSheetChip = (category: CategoryOption) => {
     const isSelected = selectedCategory === category.id
     return (
       <View key={category.id} style={styles.chipWrapper}>
+        {/* Chip */}
         <TouchableOpacity
           onPress={() => handleSelectCategoryAndClose(category)}
           disabled={disabled}
           className="flex-row items-center py-2.5 px-3 rounded-xl"
           style={{
             backgroundColor: isSelected
-              ? isDark
-                ? 'rgba(139, 92, 246, 0.2)'
-                : 'rgba(139, 92, 246, 0.1)'
-              : isDark
-                ? '#1e293b'
-                : '#f8fafc',
+              ? isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.1)'
+              : isDark ? '#1e293b' : '#f8fafc',
             borderWidth: isSelected ? 2 : 1,
             borderColor: isSelected ? purpleColor : isDark ? '#334155' : '#e2e8f0',
           }}
           activeOpacity={0.7}
         >
           {getCategoryIcon(category.id, isSelected, purpleColor, iconColor, 16)}
-          <Text
-            className="font-sans-medium ml-2 text-sm"
-            style={{
-              color: isSelected ? purpleColor : isDark ? '#e2e8f0' : '#334155',
-            }}
-            numberOfLines={1}
-          >
+          <Text className="font-sans-medium ml-2 text-sm" style={{ color: isSelected ? purpleColor : isDark ? '#e2e8f0' : '#334155' }} numberOfLines={1}>
             {category.label}
           </Text>
           {isSelected && <Check size={14} color={purpleColor} style={{ marginLeft: 4 }} />}
         </TouchableOpacity>
-        {/* Delete button for user-created categories */}
+        {/* Delete button for user-created categories - same approach as collapsed view */}
         {!category.isSystem && (
-          <TouchableOpacity
-            onPress={() => handleDeletePress(category)}
+          <Pressable
+            onPress={() => handleDeletePressFromSheet(category)}
             disabled={disabled}
+            onStartShouldSetResponder={() => true}
             className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full items-center justify-center"
-            style={{ backgroundColor: isDark ? '#ef4444' : '#dc2626' }}
+            style={{ backgroundColor: isDark ? '#ef4444' : '#dc2626', zIndex: 10 }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <X size={11} color="#ffffff" />
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
     )
@@ -782,6 +788,27 @@ const styles = StyleSheet.create({
   chipWrapper: {
     position: 'relative',
     marginBottom: 4,
+  },
+  // Sheet chip wrapper - needs padding to contain delete button within touch bounds
+  sheetChipWrapper: {
+    position: 'relative',
+  },
+  sheetChipWrapperWithDelete: {
+    paddingTop: 6,
+    paddingRight: 6,
+    marginTop: -2,
+    marginRight: -2,
+  },
+  sheetDeleteButton: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
   // Inline new pill in sheet
   newPill: {
