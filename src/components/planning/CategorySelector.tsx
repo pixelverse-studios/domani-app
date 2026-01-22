@@ -111,6 +111,11 @@ export function CategorySelector({
   const [categorySearch, setCategorySearch] = useState('')
   const searchInputRef = useRef<TextInput>(null)
 
+  // Create category modal state
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const createInputRef = useRef<TextInput>(null)
+
   // Delete confirmation state
   const [categoryToDelete, setCategoryToDelete] = useState<CategoryOption | null>(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -184,13 +189,40 @@ export function CategorySelector({
     // Focus search input after sheet opens
     setTimeout(() => {
       searchInputRef.current?.focus()
-    }, 100)
+    }, 300)
   }
 
   const closeSheet = () => {
     Keyboard.dismiss()
     setCategorySearch('')
     setIsSheetOpen(false)
+  }
+
+  const openCreateModal = () => {
+    if (disabled) return
+    setIsCreateModalOpen(true)
+    setTimeout(() => {
+      createInputRef.current?.focus()
+    }, 300)
+  }
+
+  const closeCreateModal = () => {
+    Keyboard.dismiss()
+    setNewCategoryName('')
+    setIsCreateModalOpen(false)
+  }
+
+  const handleCreateFromModal = async () => {
+    const trimmedName = newCategoryName.trim()
+    if (!trimmedName) return
+
+    try {
+      const newCategory = await createCategory.mutateAsync({ name: trimmedName })
+      onSelectCategory(newCategory.id, newCategory.name)
+      closeCreateModal()
+    } catch (_error) {
+      // Silently fail - user can retry
+    }
   }
 
   const handleSelectCategory = (category: CategoryOption) => {
@@ -240,37 +272,50 @@ export function CategorySelector({
     setCategoryToDelete(null)
   }
 
-  // Render a chip in collapsed state (no delete button)
+  // Render a chip in collapsed state (with delete button for custom)
   const renderCollapsedChip = (category: CategoryOption) => {
     const isSelected = selectedCategory === category.id
     return (
-      <TouchableOpacity
-        key={category.id}
-        onPress={() => handleSelectCategory(category)}
-        disabled={disabled}
-        style={[
-          styles.chip,
-          {
-            backgroundColor: isDark ? '#0f172a' : '#ffffff',
-            borderColor: isSelected ? purpleColor : isDark ? '#334155' : '#e2e8f0',
-            borderWidth: isSelected ? 2 : 1,
-          },
-        ]}
-        accessibilityRole="button"
-        accessibilityState={{ selected: isSelected }}
-      >
-        {getCategoryIcon(category.id, isSelected, purpleColor, iconColor)}
-        <Text
-          className="font-sans-medium ml-1.5"
-          style={{
-            color: isSelected ? purpleColor : isDark ? '#e2e8f0' : '#334155',
-            fontSize: 14,
-          }}
-          numberOfLines={1}
+      <View key={category.id} style={styles.chipWrapper}>
+        <TouchableOpacity
+          onPress={() => handleSelectCategory(category)}
+          disabled={disabled}
+          style={[
+            styles.chip,
+            {
+              backgroundColor: isDark ? '#0f172a' : '#ffffff',
+              borderColor: isSelected ? purpleColor : isDark ? '#334155' : '#e2e8f0',
+              borderWidth: isSelected ? 2 : 1,
+            },
+          ]}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isSelected }}
         >
-          {category.label}
-        </Text>
-      </TouchableOpacity>
+          {getCategoryIcon(category.id, isSelected, purpleColor, iconColor)}
+          <Text
+            className="font-sans-medium ml-1.5"
+            style={{
+              color: isSelected ? purpleColor : isDark ? '#e2e8f0' : '#334155',
+              fontSize: 14,
+            }}
+            numberOfLines={1}
+          >
+            {category.label}
+          </Text>
+        </TouchableOpacity>
+        {/* Delete button for user-created categories */}
+        {!category.isSystem && (
+          <TouchableOpacity
+            onPress={() => handleDeletePress(category)}
+            disabled={disabled}
+            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full items-center justify-center"
+            style={{ backgroundColor: isDark ? '#ef4444' : '#dc2626' }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <X size={11} color="#ffffff" />
+          </TouchableOpacity>
+        )}
+      </View>
     )
   }
 
@@ -327,7 +372,7 @@ export function CategorySelector({
   // Render the inline "+ New" pill in the bottom sheet
   const renderNewPill = () => {
     const showCreateLabel = hasSearchText && !exactMatchExists
-    const pillLabel = showCreateLabel ? `+ Create "${categorySearch.trim()}"` : '+ New'
+    const pillLabel = showCreateLabel ? `Create "${categorySearch.trim()}"` : 'New'
 
     return (
       <TouchableOpacity
@@ -419,7 +464,7 @@ export function CategorySelector({
 
         {/* "+ New" button */}
         <TouchableOpacity
-          onPress={openSheet}
+          onPress={openCreateModal}
           disabled={disabled}
           style={[
             styles.newButton,
@@ -449,13 +494,16 @@ export function CategorySelector({
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalContainer}
+          pointerEvents={isSheetOpen ? 'auto' : 'none'}
         >
-          {/* Backdrop */}
-          <TouchableOpacity
-            style={styles.backdrop}
-            activeOpacity={1}
-            onPress={closeSheet}
-          />
+          {/* Backdrop - only render when sheet is open */}
+          {isSheetOpen && (
+            <TouchableOpacity
+              style={styles.backdrop}
+              activeOpacity={1}
+              onPress={closeSheet}
+            />
+          )}
 
           {/* Sheet Content */}
           <View
@@ -467,6 +515,7 @@ export function CategorySelector({
                 borderTopRightRadius: 24,
               },
             ]}
+            pointerEvents={isSheetOpen ? 'auto' : 'none'}
           >
             {/* Handle Bar */}
             <View className="items-center pt-3 pb-2">
@@ -544,7 +593,7 @@ export function CategorySelector({
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              <View className="flex-row flex-wrap px-5" style={{ gap: 10 }}>
+              <View className="flex-row flex-wrap px-5 pt-2" style={{ gap: 10 }}>
                 {filteredCategories.map((category) => renderSheetChip(category))}
                 {/* Inline "+ New" pill */}
                 {renderNewPill()}
@@ -562,6 +611,15 @@ export function CategorySelector({
                 </View>
               )}
             </ScrollView>
+
+            {/* Bottom extension to seamlessly connect with keyboard */}
+            <View
+              style={{
+                height: 400,
+                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                marginBottom: -400,
+              }}
+            />
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -577,6 +635,95 @@ export function CategorySelector({
         onCancel={handleCancelDelete}
         isLoading={deleteCategory.isPending}
       />
+
+      {/* Create Category Modal */}
+      <Modal
+        visible={isCreateModalOpen}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={closeCreateModal}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.createModalContainer}
+          pointerEvents={isCreateModalOpen ? 'auto' : 'none'}
+        >
+          {/* Backdrop - only render when modal is open */}
+          {isCreateModalOpen && (
+            <TouchableOpacity
+              style={styles.createModalBackdrop}
+              activeOpacity={1}
+              onPress={closeCreateModal}
+            />
+          )}
+          <View
+            style={[
+              styles.createModalContent,
+              { backgroundColor: isDark ? '#1e293b' : '#ffffff' },
+            ]}
+            pointerEvents={isCreateModalOpen ? 'auto' : 'none'}
+          >
+            <Text
+              className="font-sans-semibold text-lg mb-4"
+              style={{ color: isDark ? '#f8fafc' : '#0f172a' }}
+            >
+              New Category
+            </Text>
+            <TextInput
+              ref={createInputRef}
+              value={newCategoryName}
+              onChangeText={setNewCategoryName}
+              placeholder="Category name"
+              placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
+              className="font-sans"
+              style={[
+                styles.createModalInput,
+                {
+                  backgroundColor: isDark ? '#0f172a' : '#f1f5f9',
+                  color: isDark ? '#f8fafc' : '#0f172a',
+                  borderColor: newCategoryName.trim() ? purpleColor : 'transparent',
+                },
+              ]}
+              autoCapitalize="words"
+              autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={handleCreateFromModal}
+            />
+            <View className="flex-row mt-4" style={{ gap: 12 }}>
+              <TouchableOpacity
+                onPress={closeCreateModal}
+                style={[
+                  styles.createModalButton,
+                  { backgroundColor: isDark ? '#334155' : '#e2e8f0' },
+                ]}
+              >
+                <Text
+                  className="font-sans-medium"
+                  style={{ color: isDark ? '#e2e8f0' : '#475569' }}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleCreateFromModal}
+                disabled={!newCategoryName.trim() || createCategory.isPending}
+                style={[
+                  styles.createModalButton,
+                  {
+                    backgroundColor: purpleColor,
+                    opacity: !newCategoryName.trim() || createCategory.isPending ? 0.5 : 1,
+                    flex: 1,
+                  },
+                ]}
+              >
+                <Text className="font-sans-medium text-white">
+                  {createCategory.isPending ? 'Creating...' : 'Create'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   )
 }
@@ -620,7 +767,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'transparent',
   },
   sheetContent: {
     maxHeight: '70%',
@@ -646,5 +793,40 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderStyle: 'dashed',
     marginBottom: 4,
+  },
+  // Create category modal styles
+  createModalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  createModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  createModalContent: {
+    width: '85%',
+    maxWidth: 340,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  createModalInput: {
+    fontSize: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  createModalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 })
