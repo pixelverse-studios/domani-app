@@ -57,9 +57,7 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
       // Edge case: Only MIT task (no other tasks to determine theme)
       const hasOtherTasks = totalTasks > 1 || (totalTasks === 1 && !mitTask)
       const themePhrase = THEME_FOCUS_PHRASES[dayTheme.theme] ?? 'your day'
-      const themeSuffix = hasOtherTasks
-        ? `, then focus on ${themePhrase}`
-        : ''
+      const themeSuffix = hasOtherTasks ? `, then focus on ${themePhrase}` : ''
 
       // If MIT is the only task, show simpler message
       if (!hasOtherTasks || dayTheme.theme === 'balanced') {

@@ -503,10 +503,7 @@ export function CategorySelector({
           style={styles.modalContainer}
         >
           {/* Backdrop with semi-transparent background for touch handling */}
-          <Pressable
-            style={styles.backdrop}
-            onPress={closeSheet}
-          />
+          <Pressable style={styles.backdrop} onPress={closeSheet} />
 
           {/* Sheet Content - Single ScrollView for proper keyboard tap handling */}
           <View

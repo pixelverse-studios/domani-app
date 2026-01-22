@@ -12,7 +12,6 @@ const isNotificationsSupported = !(isExpoGo && Platform.OS === 'android')
 let Notifications: typeof import('expo-notifications') | null = null
 
 if (isNotificationsSupported) {
-   
   Notifications = require('expo-notifications')
 
   // Configure how notifications appear when app is foregrounded

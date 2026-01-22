@@ -207,7 +207,11 @@ export function TaskCard({
             <View
               style={[
                 styles.priorityBadge,
-                { backgroundColor: priorityConfig.badge.bg, flexDirection: 'row', alignItems: 'center' },
+                {
+                  backgroundColor: priorityConfig.badge.bg,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                },
               ]}
             >
               {priority === 'top' && (

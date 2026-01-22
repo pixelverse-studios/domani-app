@@ -66,7 +66,9 @@ export function PrioritySelector({
   const amberColor = '#f59e0b'
 
   // Track positions of each option for pill animation
-  const [optionPositions, setOptionPositions] = useState<Record<Priority, { x: number; width: number }>>({
+  const [optionPositions, setOptionPositions] = useState<
+    Record<Priority, { x: number; width: number }>
+  >({
     top: { x: 0, width: 0 },
     high: { x: 0, width: 0 },
     medium: { x: 0, width: 0 },
@@ -81,7 +83,7 @@ export function PrioritySelector({
   // Handle layout measurement for each option
   const handleOptionLayout = useCallback((priority: Priority, event: LayoutChangeEvent) => {
     const { x, width } = event.nativeEvent.layout
-    setOptionPositions(prev => ({
+    setOptionPositions((prev) => ({
       ...prev,
       [priority]: { x, width },
     }))
@@ -97,7 +99,7 @@ export function PrioritySelector({
       pillWidth.value = withSpring(position.width, PILL_SPRING)
 
       // Map priority to color index
-      const colorIndex = PRIORITIES.findIndex(p => p.key === selectedPriority)
+      const colorIndex = PRIORITIES.findIndex((p) => p.key === selectedPriority)
       colorProgress.value = withTiming(colorIndex, { duration: 200 })
     }
   }, [selectedPriority, optionPositions, pillX, pillWidth, colorProgress])
@@ -127,9 +129,7 @@ export function PrioritySelector({
       {/* Priority Label */}
       <View className="flex-row items-center mb-3">
         <Triangle size={16} color={labelColor} />
-        <Text className="font-sans-medium text-slate-900 dark:text-white ml-2">
-          Priority
-        </Text>
+        <Text className="font-sans-medium text-slate-900 dark:text-white ml-2">Priority</Text>
       </View>
 
       {/* Priority Selector Container */}
@@ -160,9 +160,8 @@ export function PrioritySelector({
           {PRIORITIES.map(({ key, label }) => {
             const isSelected = selectedPriority === key
             const textColor = isSelected ? '#ffffff' : unselectedTextColor
-            const iconColor = key === 'top'
-              ? (isSelected ? '#ffffff' : PRIORITY_COLORS.top)
-              : textColor
+            const iconColor =
+              key === 'top' ? (isSelected ? '#ffffff' : PRIORITY_COLORS.top) : textColor
 
             return (
               <TouchableOpacity
@@ -176,17 +175,8 @@ export function PrioritySelector({
                 accessibilityState={{ selected: isSelected }}
                 accessibilityLabel={`${label} priority`}
               >
-                {key === 'top' && (
-                  <Crown
-                    size={14}
-                    color={iconColor}
-                    style={{ marginRight: 4 }}
-                  />
-                )}
-                <Text
-                  className="font-sans-semibold text-sm"
-                  style={{ color: textColor }}
-                >
+                {key === 'top' && <Crown size={14} color={iconColor} style={{ marginRight: 4 }} />}
+                <Text className="font-sans-semibold text-sm" style={{ color: textColor }}>
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -208,10 +198,7 @@ export function PrioritySelector({
           }}
         >
           <Crown size={14} color={PRIORITY_COLORS.top} />
-          <Text
-            className="font-sans text-sm ml-2"
-            style={{ color: PRIORITY_COLORS.top }}
-          >
+          <Text className="font-sans text-sm ml-2" style={{ color: PRIORITY_COLORS.top }}>
             This will be your top priority task
           </Text>
         </Animated.View>
