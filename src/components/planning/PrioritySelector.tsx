@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { View, TouchableOpacity, LayoutChangeEvent } from 'react-native'
-import { Crown } from 'lucide-react-native'
+import { Crown, Triangle } from 'lucide-react-native'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -114,9 +114,21 @@ export function PrioritySelector({
 
   const containerBg = isDark ? '#1e293b' : '#f1f5f9'
   const unselectedTextColor = isDark ? '#94a3b8' : '#64748b'
+  const labelColor = isDark ? '#94a3b8' : '#64748b'
 
   return (
     <View>
+      {/* Priority Label */}
+      <View className="flex-row items-center mb-3">
+        <Triangle size={14} color={labelColor} style={{ marginRight: 6 }} />
+        <Text
+          className="font-sans-medium text-sm"
+          style={{ color: labelColor }}
+        >
+          Priority
+        </Text>
+      </View>
+
       {/* Priority Selector Container */}
       <View
         className="rounded-full overflow-hidden"
@@ -183,11 +195,16 @@ export function PrioritySelector({
       {/* MIT Message - First Time TOP */}
       {showMitFirstTimeMessage && (
         <View
-          className="flex-row items-center mt-2.5 px-1"
+          className="flex-row items-center mt-3 px-3 py-2.5 rounded-lg"
+          style={{
+            borderWidth: 1,
+            borderColor: isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.4)',
+            backgroundColor: isDark ? 'rgba(139, 92, 246, 0.08)' : 'rgba(139, 92, 246, 0.05)',
+          }}
         >
           <Crown size={14} color={PRIORITY_COLORS.top} />
           <Text
-            className="font-sans text-sm ml-1.5"
+            className="font-sans text-sm ml-2"
             style={{ color: PRIORITY_COLORS.top }}
           >
             This will be your top priority task
