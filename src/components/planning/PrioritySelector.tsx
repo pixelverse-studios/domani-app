@@ -7,8 +7,8 @@ import Animated, {
   withSpring,
   withTiming,
   interpolateColor,
-  FadeInDown,
-  FadeOutUp,
+  FadeIn,
+  FadeOut,
 } from 'react-native-reanimated'
 
 import { Text } from '~/components/ui'
@@ -194,8 +194,8 @@ export function PrioritySelector({
       {/* MIT Message - First Time TOP */}
       {showMitFirstTimeMessage && (
         <Animated.View
-          entering={FadeInDown.duration(250).springify().damping(18)}
-          exiting={FadeOutUp.duration(200)}
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(150)}
           className="flex-row items-center mt-3 px-3 py-2.5 rounded-lg"
           style={{
             borderWidth: 1,
