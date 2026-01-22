@@ -47,6 +47,7 @@ interface TaskFormData {
   priority: Priority
   notes?: string | null
   plannedFor?: 'today' | 'tomorrow'
+  reminderAt?: string | null
 }
 
 export default function PlanningScreen() {
@@ -236,6 +237,7 @@ export default function PlanningScreen() {
           system_category_id: systemCategoryId || null,
           user_category_id: !isSystemCategory ? task.category : null,
           notes: task.notes ?? null,
+          reminder_at: task.reminderAt ?? null,
         }
 
         // If day changed, add plan_id to updates
@@ -264,6 +266,7 @@ export default function PlanningScreen() {
           systemCategoryId: systemCategoryId,
           userCategoryId: !isSystemCategory ? task.category : undefined,
           notes: task.notes,
+          reminderAt: task.reminderAt,
         })
       }
       // Close form after successful submission
@@ -324,6 +327,7 @@ export default function PlanningScreen() {
       priority: editingTask.priority as Priority,
       notes: editingTask.notes,
       plannedFor,
+      reminderAt: editingTask.reminder_at,
     }
   }, [editingTask, todayPlan?.id])
 

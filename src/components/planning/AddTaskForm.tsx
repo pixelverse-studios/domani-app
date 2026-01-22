@@ -26,9 +26,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 import { Text } from '~/components/ui'
-// DEV: Using CategorySelectorSwitcher for A/B testing variants
-// TODO: Replace with chosen variant before production
-import { CategorySelectorSwitcher } from './CategorySelectorSwitcher'
+import { CategorySelector } from './CategorySelector'
 import { PrioritySelector, type Priority } from './PrioritySelector'
 import { DayToggle, type PlanningTarget } from './DayToggle'
 import { ReminderSection } from './ReminderSection'
@@ -302,8 +300,8 @@ export function AddTaskForm({
         ]}
       />
 
-      {/* Category Section - DEV: Using switcher for A/B testing */}
-      <CategorySelectorSwitcher
+      {/* Category Section */}
+      <CategorySelector
         selectedCategory={selectedCategory}
         selectedCategoryLabel={selectedCategoryLabel}
         onSelectCategory={handleSelectCategory}

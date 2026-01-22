@@ -9,9 +9,4 @@ export { TaskList } from './TaskList'
 export { TasksRecap } from './TasksRecap'
 export { ReminderSection } from './ReminderSection'
 
-// Category selector variants for A/B testing
 export { CategorySelector } from './CategorySelector'
-export { CategorySelectorOptionA } from './CategorySelectorOptionA'
-export { CategorySelectorOptionB } from './CategorySelectorOptionB'
-export { CategorySelectorOptionC } from './CategorySelectorOptionC'
-export { CategorySelectorSwitcher } from './CategorySelectorSwitcher'

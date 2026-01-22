@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   View,
   TouchableOpacity,
@@ -20,7 +20,9 @@ import {
   ChevronUp,
   Circle,
   CheckCircle,
+  Bell,
 } from 'lucide-react-native'
+import { format, parseISO, isFuture } from 'date-fns'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
@@ -81,6 +83,21 @@ function getCategoryIcon(category: { name: string; icon?: string } | null, color
   }
 }
 
+/**
+ * Format a reminder time for display.
+ * Returns a compact format like "9 AM" or "1:30 PM"
+ */
+function formatReminderTime(reminderAt: string): string {
+  const date = parseISO(reminderAt)
+  const minutes = date.getMinutes()
+
+  // Use format without minutes if on the hour
+  if (minutes === 0) {
+    return format(date, 'h a') // "9 AM"
+  }
+  return format(date, 'h:mm a') // "1:30 PM"
+}
+
 export function TaskCard({
   task,
   onEdit,
@@ -103,6 +120,22 @@ export function TaskCard({
 
   const hasNotes = !!task.notes?.trim()
 
+  // Check if task has a future reminder
+  const reminderInfo = useMemo(() => {
+    if (!task.reminder_at) return null
+
+    try {
+      const reminderDate = parseISO(task.reminder_at)
+      if (!isFuture(reminderDate)) return null
+
+      return {
+        time: formatReminderTime(task.reminder_at),
+      }
+    } catch {
+      return null
+    }
+  }, [task.reminder_at])
+
   const handleToggleNotes = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setIsNotesExpanded((prev) => !prev)
@@ -114,6 +147,7 @@ export function TaskCard({
   const dividerColor = isDark ? 'rgba(148, 163, 184, 0.2)' : 'rgba(148, 163, 184, 0.2)'
   const checkboxColor = '#a855f7' // purple-500
   const uncheckedColor = isDark ? '#6b7280' : '#9ca3af'
+  const reminderColor = '#a855f7' // purple-500 to match app accent
 
   const handleToggleComplete = () => {
     onToggleComplete?.(task.id, !isCompleted)
@@ -178,20 +212,37 @@ export function TaskCard({
           {/* Horizontal Divider */}
           <View style={[styles.divider, { backgroundColor: dividerColor }]} />
 
-          {/* Bottom Row: Category (LEFT) + Action Buttons (RIGHT) */}
+          {/* Bottom Row: Category + Reminder (LEFT) + Action Buttons (RIGHT) */}
           <View style={styles.bottomRow}>
-            {/* Category Icon + Name */}
-            <View style={styles.categoryContainer}>
-              {getCategoryIcon(
-                category ? { name: categoryName, icon: category.icon || undefined } : null,
-                isUserCategory ? '#a78bfa' : iconColor,
+            {/* Category and Reminder Info */}
+            <View style={styles.metadataContainer}>
+              {/* Category Icon + Name */}
+              <View style={styles.categoryContainer}>
+                {getCategoryIcon(
+                  category ? { name: categoryName, icon: category.icon || undefined } : null,
+                  isUserCategory ? '#a78bfa' : iconColor,
+                )}
+                <Text
+                  className="font-sans text-sm text-slate-500 dark:text-slate-400 ml-1.5"
+                  numberOfLines={1}
+                >
+                  {categoryName}
+                </Text>
+              </View>
+
+              {/* Reminder Indicator */}
+              {reminderInfo && (
+                <View style={styles.reminderContainer}>
+                  <Bell size={12} color={reminderColor} />
+                  <Text
+                    className="font-sans text-xs ml-1"
+                    style={{ color: reminderColor }}
+                    numberOfLines={1}
+                  >
+                    {reminderInfo.time}
+                  </Text>
+                </View>
               )}
-              <Text
-                className="font-sans text-sm text-slate-500 dark:text-slate-400 ml-1.5"
-                numberOfLines={1}
-              >
-                {categoryName}
-              </Text>
             </View>
 
             {/* Action Buttons: Notes Toggle + Edit + Delete */}
@@ -305,11 +356,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  categoryContainer: {
+  metadataContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     marginRight: 12,
+    gap: 12,
+  },
+  categoryContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+  },
+  reminderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 0,
   },
   actionsRow: {
     flexDirection: 'row',
