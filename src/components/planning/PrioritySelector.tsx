@@ -117,14 +117,11 @@ export function PrioritySelector({
   const labelColor = isDark ? '#94a3b8' : '#64748b'
 
   return (
-    <View>
+    <View className="mt-5">
       {/* Priority Label */}
       <View className="flex-row items-center mb-3">
-        <Triangle size={14} color={labelColor} style={{ marginRight: 6 }} />
-        <Text
-          className="font-sans-medium text-sm"
-          style={{ color: labelColor }}
-        >
+        <Triangle size={16} color={labelColor} />
+        <Text className="font-sans-medium text-slate-900 dark:text-white ml-2">
           Priority
         </Text>
       </View>
