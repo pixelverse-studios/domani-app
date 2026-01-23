@@ -650,21 +650,20 @@ export function CategorySelector({
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.createModalContainer}
         >
-          {/* Backdrop with Pressable for reliable touch handling when keyboard is open */}
+          {/* Backdrop */}
           <Pressable style={styles.createModalBackdrop} onPress={closeCreateModal} />
 
-          {/* Modal Content - ScrollView for proper keyboard tap handling */}
-          <ScrollView
-            contentContainerStyle={styles.createModalScrollContent}
-            keyboardShouldPersistTaps="handled"
-            bounces={false}
-            scrollEnabled={false}
+          {/* Modal Content - ScrollView wraps EVERYTHING for keyboard tap handling */}
+          <View
+            style={[
+              styles.createModalContent,
+              { backgroundColor: isDark ? '#1e293b' : '#ffffff' },
+            ]}
           >
-            <View
-              style={[
-                styles.createModalContent,
-                { backgroundColor: isDark ? '#1e293b' : '#ffffff' },
-              ]}
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              bounces={false}
+              showsVerticalScrollIndicator={false}
             >
               <Text
                 className="font-sans-semibold text-lg mb-4"
@@ -692,7 +691,7 @@ export function CategorySelector({
                 returnKeyType="done"
                 onSubmitEditing={handleCreateFromModal}
               />
-              <View className="flex-row mt-4" style={{ gap: 12 }}>
+              <View style={styles.createModalButtonRow}>
                 <TouchableOpacity
                   onPress={closeCreateModal}
                   style={[
@@ -724,8 +723,8 @@ export function CategorySelector({
                   </Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          </ScrollView>
+            </ScrollView>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
     </View>
@@ -832,14 +831,8 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  createModalScrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   createModalContent: {
-    width: '85%',
-    maxWidth: 340,
+    width: 320,
     borderRadius: 20,
     padding: 24,
     shadowColor: '#000',
@@ -854,6 +847,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
+  },
+  createModalButtonRow: {
+    flexDirection: 'row',
+    marginTop: 16,
+    gap: 12,
   },
   createModalButton: {
     flex: 1,

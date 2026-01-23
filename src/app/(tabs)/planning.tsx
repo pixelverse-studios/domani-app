@@ -348,6 +348,7 @@ export default function PlanningScreen() {
         className="flex-1"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
+        keyboardShouldPersistTaps="handled"
       >
         <PlanningHeader selectedTarget={selectedTarget} onTargetChange={setSelectedTarget} />
 
