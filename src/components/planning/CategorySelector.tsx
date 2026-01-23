@@ -649,79 +649,83 @@ export function CategorySelector({
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.createModalContainer}
-          pointerEvents={isCreateModalOpen ? 'auto' : 'none'}
         >
-          {/* Backdrop - only render when modal is open */}
-          {isCreateModalOpen && (
-            <TouchableOpacity
-              style={styles.createModalBackdrop}
-              activeOpacity={1}
-              onPress={closeCreateModal}
-            />
-          )}
-          <View
-            style={[styles.createModalContent, { backgroundColor: isDark ? '#1e293b' : '#ffffff' }]}
-            pointerEvents={isCreateModalOpen ? 'auto' : 'none'}
+          {/* Backdrop with Pressable for reliable touch handling when keyboard is open */}
+          <Pressable style={styles.createModalBackdrop} onPress={closeCreateModal} />
+
+          {/* Modal Content - ScrollView for proper keyboard tap handling */}
+          <ScrollView
+            contentContainerStyle={styles.createModalScrollContent}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+            scrollEnabled={false}
           >
-            <Text
-              className="font-sans-semibold text-lg mb-4"
-              style={{ color: isDark ? '#f8fafc' : '#0f172a' }}
-            >
-              New Category
-            </Text>
-            <TextInput
-              ref={createInputRef}
-              value={newCategoryName}
-              onChangeText={setNewCategoryName}
-              placeholder="Category name"
-              placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
-              className="font-sans"
+            <View
               style={[
-                styles.createModalInput,
-                {
-                  backgroundColor: isDark ? '#0f172a' : '#f1f5f9',
-                  color: isDark ? '#f8fafc' : '#0f172a',
-                  borderColor: newCategoryName.trim() ? purpleColor : 'transparent',
-                },
+                styles.createModalContent,
+                { backgroundColor: isDark ? '#1e293b' : '#ffffff' },
               ]}
-              autoCapitalize="words"
-              autoCorrect={false}
-              returnKeyType="done"
-              onSubmitEditing={handleCreateFromModal}
-            />
-            <View className="flex-row mt-4" style={{ gap: 12 }}>
-              <TouchableOpacity
-                onPress={closeCreateModal}
-                style={[
-                  styles.createModalButton,
-                  { backgroundColor: isDark ? '#334155' : '#e2e8f0' },
-                ]}
+            >
+              <Text
+                className="font-sans-semibold text-lg mb-4"
+                style={{ color: isDark ? '#f8fafc' : '#0f172a' }}
               >
-                <Text
-                  className="font-sans-medium"
-                  style={{ color: isDark ? '#e2e8f0' : '#475569' }}
-                >
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleCreateFromModal}
-                disabled={!newCategoryName.trim() || createCategory.isPending}
+                New Category
+              </Text>
+              <TextInput
+                ref={createInputRef}
+                value={newCategoryName}
+                onChangeText={setNewCategoryName}
+                placeholder="Category name"
+                placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
+                className="font-sans"
                 style={[
-                  styles.createModalButton,
+                  styles.createModalInput,
                   {
-                    backgroundColor: purpleColor,
-                    opacity: !newCategoryName.trim() || createCategory.isPending ? 0.5 : 1,
-                    flex: 1,
+                    backgroundColor: isDark ? '#0f172a' : '#f1f5f9',
+                    color: isDark ? '#f8fafc' : '#0f172a',
+                    borderColor: newCategoryName.trim() ? purpleColor : 'transparent',
                   },
                 ]}
-              >
-                <Text className="font-sans-medium text-white">
-                  {createCategory.isPending ? 'Creating...' : 'Create'}
-                </Text>
-              </TouchableOpacity>
+                autoCapitalize="words"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={handleCreateFromModal}
+              />
+              <View className="flex-row mt-4" style={{ gap: 12 }}>
+                <TouchableOpacity
+                  onPress={closeCreateModal}
+                  style={[
+                    styles.createModalButton,
+                    { backgroundColor: isDark ? '#334155' : '#e2e8f0' },
+                  ]}
+                >
+                  <Text
+                    className="font-sans-medium"
+                    style={{ color: isDark ? '#e2e8f0' : '#475569' }}
+                  >
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleCreateFromModal}
+                  disabled={!newCategoryName.trim() || createCategory.isPending}
+                  style={[
+                    styles.createModalButton,
+                    {
+                      backgroundColor: purpleColor,
+                      opacity: !newCategoryName.trim() || createCategory.isPending ? 0.5 : 1,
+                      flex: 1,
+                    },
+                  ]}
+                >
+                  <Text className="font-sans-medium text-white">
+                    {createCategory.isPending ? 'Creating...' : 'Create'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
     </View>
@@ -827,6 +831,11 @@ const styles = StyleSheet.create({
   createModalBackdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  createModalScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   createModalContent: {
     width: '85%',
