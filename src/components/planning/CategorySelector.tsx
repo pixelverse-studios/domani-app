@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  Alert,
 } from 'react-native'
 import {
   Tag,
@@ -217,8 +218,9 @@ export function CategorySelector({
       const newCategory = await createCategory.mutateAsync({ name: trimmedName })
       onSelectCategory(newCategory.id, newCategory.name)
       closeCreateModal()
-    } catch (_error) {
-      // Silently fail - user can retry
+    } catch (error) {
+      console.error('Failed to create category:', error)
+      Alert.alert('Failed to create category', 'Please try again.')
     }
   }
 
@@ -238,8 +240,9 @@ export function CategorySelector({
         const newCategory = await createCategory.mutateAsync({ name: newCategoryName })
         onSelectCategory(newCategory.id, newCategory.name)
         closeSheet()
-      } catch (_error) {
-        // Silently fail - user can retry
+      } catch (error) {
+        console.error('Failed to create category:', error)
+        Alert.alert('Failed to create category', 'Please try again.')
       }
     } else {
       // Empty search - focus input so user knows to type a name
@@ -275,8 +278,11 @@ export function CategorySelector({
       }
       setShowDeleteModal(false)
       setCategoryToDelete(null)
-    } catch (_error) {
-      // Silently fail - user can retry
+    } catch (error) {
+      console.error('Failed to delete category:', error)
+      setShowDeleteModal(false)
+      setCategoryToDelete(null)
+      Alert.alert('Failed to delete category', 'Please try again.')
     }
   }
 
