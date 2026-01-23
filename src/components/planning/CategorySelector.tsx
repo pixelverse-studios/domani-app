@@ -241,6 +241,9 @@ export function CategorySelector({
       } catch (_error) {
         // Silently fail - user can retry
       }
+    } else {
+      // Empty search - focus input so user knows to type a name
+      searchInputRef.current?.focus()
     }
   }
 
