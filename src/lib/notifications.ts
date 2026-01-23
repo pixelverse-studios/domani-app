@@ -1,5 +1,5 @@
 import { Platform } from 'react-native'
-import { addDays, format } from 'date-fns'
+import { addDays, format, parseISO } from 'date-fns'
 import Constants from 'expo-constants'
 
 import { supabase } from './supabase'
@@ -303,7 +303,10 @@ export const NotificationService = {
     if (!Notifications) return null
 
     try {
-      const reminderDate = new Date(task.reminder_at)
+      // Use parseISO to correctly handle Postgres timestamp format
+      // Postgres returns "2026-01-23 14:06:23.592+00" which iOS JavaScriptCore
+      // may misinterpret as local time. parseISO handles this correctly.
+      const reminderDate = parseISO(task.reminder_at)
 
       // Don't schedule if reminder is in the past
       if (reminderDate <= new Date()) {
