@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import {
   View,
   ScrollView,
@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import {
   Sun,
   Moon,
@@ -30,6 +30,8 @@ import {
   HelpCircle,
   LogOut,
   ClipboardClock,
+  Bell,
+  BellOff,
 } from 'lucide-react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { format } from 'date-fns'
@@ -222,9 +224,18 @@ export default function SettingsScreen() {
   const { profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const subscription = useSubscription()
-  const { schedulePlanningReminder, permissionStatus } = useNotifications()
+  const { schedulePlanningReminder, permissionStatus, getPermissionStatus, openSettings } =
+    useNotifications()
   const accountDeletion = useAccountDeletion()
   const { phase } = useAppConfig()
+
+  // Refresh permission status when screen comes into focus
+  // This handles the case where user goes to iOS Settings and comes back
+  useFocusEffect(
+    useCallback(() => {
+      getPermissionStatus()
+    }, [getPermissionStatus])
+  )
 
   // Modal states
   const [showNameModal, setShowNameModal] = useState(false)
@@ -612,6 +623,31 @@ export default function SettingsScreen() {
               onPress={openPlanningTimeModal}
               icon={ClipboardClock}
             />
+
+            {/* Notification Status Row */}
+            {permissionStatus !== 'granted' && (
+              <TouchableOpacity
+                onPress={openSettings}
+                activeOpacity={0.7}
+                className="flex-row items-center justify-between py-3.5 px-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl mb-2 border border-amber-200 dark:border-amber-700/50"
+              >
+                <View className="flex-row items-center flex-1">
+                  <View className="mr-3">
+                    <BellOff size={20} color="#f59e0b" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-base text-slate-900 dark:text-slate-100">
+                      Notifications Disabled
+                    </Text>
+                    <Text className="text-xs text-slate-600 dark:text-slate-400">
+                      Tap to enable in Settings
+                    </Text>
+                  </View>
+                </View>
+                <ChevronRight size={18} color="#f59e0b" />
+              </TouchableOpacity>
+            )}
+
             <View className="mt-2">
               <ReminderShortcutsSection />
             </View>

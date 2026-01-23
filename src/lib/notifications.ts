@@ -1,5 +1,5 @@
-import { Platform } from 'react-native'
-import { addDays, format } from 'date-fns'
+import { Platform, Linking } from 'react-native'
+import { addDays, format, parseISO } from 'date-fns'
 import Constants from 'expo-constants'
 
 import { supabase } from './supabase'
@@ -75,6 +75,55 @@ export const NotificationService = {
     return (
       settings.granted || settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
     )
+  },
+
+  /**
+   * Get detailed permission status for verification and display
+   * Returns 'granted', 'denied', or 'undetermined'
+   */
+  async getPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
+    if (!Notifications) return 'denied'
+
+    const settings = await Notifications.getPermissionsAsync()
+
+    if (settings.granted) {
+      return 'granted'
+    }
+
+    // Check iOS-specific statuses
+    if (Platform.OS === 'ios' && settings.ios) {
+      const iosStatus = settings.ios.status
+      if (iosStatus === Notifications.IosAuthorizationStatus.PROVISIONAL) {
+        return 'granted'
+      }
+      if (iosStatus === Notifications.IosAuthorizationStatus.DENIED) {
+        return 'denied'
+      }
+      if (iosStatus === Notifications.IosAuthorizationStatus.NOT_DETERMINED) {
+        return 'undetermined'
+      }
+    }
+
+    // For Android or fallback
+    if (settings.canAskAgain) {
+      return 'undetermined'
+    }
+
+    return 'denied'
+  },
+
+  /**
+   * Open device settings so user can enable notifications
+   * On iOS, opens the app-specific notification settings
+   * On Android, opens the app settings page
+   */
+  async openSettings(): Promise<void> {
+    if (Platform.OS === 'ios') {
+      await Linking.openSettings()
+    } else {
+      // On Android, openSettings opens the app info page where notifications can be enabled
+      await Linking.openSettings()
+    }
   },
 
   /**
@@ -303,7 +352,10 @@ export const NotificationService = {
     if (!Notifications) return null
 
     try {
-      const reminderDate = new Date(task.reminder_at)
+      // Use parseISO to correctly handle Postgres timestamp format
+      // Postgres returns "2026-01-23 14:06:23.592+00" which iOS JavaScriptCore
+      // may misinterpret as local time. parseISO handles this correctly.
+      const reminderDate = parseISO(task.reminder_at)
 
       // Don't schedule if reminder is in the past
       if (reminderDate <= new Date()) {
