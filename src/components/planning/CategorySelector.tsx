@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  Alert,
 } from 'react-native'
 import {
   Tag,
@@ -33,6 +34,14 @@ import {
   useSortedCategories,
   useFavoriteCategories,
 } from '~/hooks/useCategories'
+
+// Check if error is a duplicate name constraint violation (Postgres error code 23505)
+function isDuplicateNameError(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'code' in error) {
+    return (error as { code: string }).code === '23505'
+  }
+  return false
+}
 
 // Map system category names (from database) to form IDs
 const SYSTEM_NAME_TO_FORM_ID: Record<string, string> = {
@@ -217,8 +226,13 @@ export function CategorySelector({
       const newCategory = await createCategory.mutateAsync({ name: trimmedName })
       onSelectCategory(newCategory.id, newCategory.name)
       closeCreateModal()
-    } catch (_error) {
-      // Silently fail - user can retry
+    } catch (error) {
+      console.error('Failed to create category:', error)
+      if (isDuplicateNameError(error)) {
+        Alert.alert('Category already exists', 'A category with this name already exists.')
+      } else {
+        Alert.alert('Failed to create category', 'Please try again.')
+      }
     }
   }
 
@@ -238,9 +252,17 @@ export function CategorySelector({
         const newCategory = await createCategory.mutateAsync({ name: newCategoryName })
         onSelectCategory(newCategory.id, newCategory.name)
         closeSheet()
-      } catch (_error) {
-        // Silently fail - user can retry
+      } catch (error) {
+        console.error('Failed to create category:', error)
+        if (isDuplicateNameError(error)) {
+          Alert.alert('Category already exists', 'A category with this name already exists.')
+        } else {
+          Alert.alert('Failed to create category', 'Please try again.')
+        }
       }
+    } else {
+      // Empty search - focus input so user knows to type a name
+      searchInputRef.current?.focus()
     }
   }
 
@@ -272,8 +294,11 @@ export function CategorySelector({
       }
       setShowDeleteModal(false)
       setCategoryToDelete(null)
-    } catch (_error) {
-      // Silently fail - user can retry
+    } catch (error) {
+      console.error('Failed to delete category:', error)
+      setShowDeleteModal(false)
+      setCategoryToDelete(null)
+      Alert.alert('Failed to delete category', 'Please try again.')
     }
   }
 
@@ -653,7 +678,7 @@ export function CategorySelector({
           {/* Backdrop */}
           <Pressable style={styles.createModalBackdrop} onPress={closeCreateModal} />
 
-          {/* Modal Content - ScrollView wraps EVERYTHING for keyboard tap handling */}
+          {/* Modal Content */}
           <View
             style={[
               styles.createModalContent,
