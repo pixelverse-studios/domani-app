@@ -142,10 +142,12 @@ export function useNotificationObserver() {
 
         console.log('[Notifications] Starting planning reminder reschedule...')
 
-        // First, verify permissions are still granted (user may have revoked in settings)
-        const hasPermissions = await NotificationService.hasPermissions()
-        console.log(`[Notifications] Permission check: ${hasPermissions ? 'granted' : 'denied'}`)
-        store.setPermissionStatus(hasPermissions ? 'granted' : 'denied')
+        // Verify actual permission status (user may have revoked in iOS/Android settings)
+        const permissionStatus = await NotificationService.getPermissionStatus()
+        console.log(`[Notifications] Permission check: ${permissionStatus}`)
+        store.setPermissionStatus(permissionStatus)
+
+        const hasPermissions = permissionStatus === 'granted'
 
         if (!hasPermissions) {
           console.log('[Notifications] Permissions not granted, skipping schedule')
@@ -432,9 +434,25 @@ export function useNotifications() {
   }
 
   const checkPermissions = async () => {
-    const hasPermissions = await NotificationService.hasPermissions()
-    store.setPermissionStatus(hasPermissions ? 'granted' : 'denied')
-    return hasPermissions
+    const status = await NotificationService.getPermissionStatus()
+    store.setPermissionStatus(status)
+    return status === 'granted'
+  }
+
+  /**
+   * Get detailed permission status (granted, denied, undetermined)
+   */
+  const getPermissionStatus = async () => {
+    const status = await NotificationService.getPermissionStatus()
+    store.setPermissionStatus(status)
+    return status
+  }
+
+  /**
+   * Open device settings so user can enable notifications
+   */
+  const openSettings = async () => {
+    await NotificationService.openSettings()
   }
 
   return {
@@ -444,5 +462,7 @@ export function useNotifications() {
     cancelPlanningReminder,
     requestPermissions,
     checkPermissions,
+    getPermissionStatus,
+    openSettings,
   }
 }

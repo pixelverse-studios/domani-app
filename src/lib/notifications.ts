@@ -1,4 +1,4 @@
-import { Platform } from 'react-native'
+import { Platform, Linking } from 'react-native'
 import { addDays, format, parseISO } from 'date-fns'
 import Constants from 'expo-constants'
 
@@ -75,6 +75,55 @@ export const NotificationService = {
     return (
       settings.granted || settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
     )
+  },
+
+  /**
+   * Get detailed permission status for verification and display
+   * Returns 'granted', 'denied', or 'undetermined'
+   */
+  async getPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
+    if (!Notifications) return 'denied'
+
+    const settings = await Notifications.getPermissionsAsync()
+
+    if (settings.granted) {
+      return 'granted'
+    }
+
+    // Check iOS-specific statuses
+    if (Platform.OS === 'ios' && settings.ios) {
+      const iosStatus = settings.ios.status
+      if (iosStatus === Notifications.IosAuthorizationStatus.PROVISIONAL) {
+        return 'granted'
+      }
+      if (iosStatus === Notifications.IosAuthorizationStatus.DENIED) {
+        return 'denied'
+      }
+      if (iosStatus === Notifications.IosAuthorizationStatus.NOT_DETERMINED) {
+        return 'undetermined'
+      }
+    }
+
+    // For Android or fallback
+    if (settings.canAskAgain) {
+      return 'undetermined'
+    }
+
+    return 'denied'
+  },
+
+  /**
+   * Open device settings so user can enable notifications
+   * On iOS, opens the app-specific notification settings
+   * On Android, opens the app settings page
+   */
+  async openSettings(): Promise<void> {
+    if (Platform.OS === 'ios') {
+      await Linking.openSettings()
+    } else {
+      // On Android, openSettings opens the app info page where notifications can be enabled
+      await Linking.openSettings()
+    }
   },
 
   /**
