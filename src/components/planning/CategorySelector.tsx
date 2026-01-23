@@ -35,6 +35,14 @@ import {
   useFavoriteCategories,
 } from '~/hooks/useCategories'
 
+// Check if error is a duplicate name constraint violation (Postgres error code 23505)
+function isDuplicateNameError(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'code' in error) {
+    return (error as { code: string }).code === '23505'
+  }
+  return false
+}
+
 // Map system category names (from database) to form IDs
 const SYSTEM_NAME_TO_FORM_ID: Record<string, string> = {
   Work: 'work',
@@ -220,7 +228,11 @@ export function CategorySelector({
       closeCreateModal()
     } catch (error) {
       console.error('Failed to create category:', error)
-      Alert.alert('Failed to create category', 'Please try again.')
+      if (isDuplicateNameError(error)) {
+        Alert.alert('Category already exists', 'A category with this name already exists.')
+      } else {
+        Alert.alert('Failed to create category', 'Please try again.')
+      }
     }
   }
 
@@ -242,7 +254,11 @@ export function CategorySelector({
         closeSheet()
       } catch (error) {
         console.error('Failed to create category:', error)
-        Alert.alert('Failed to create category', 'Please try again.')
+        if (isDuplicateNameError(error)) {
+          Alert.alert('Category already exists', 'A category with this name already exists.')
+        } else {
+          Alert.alert('Failed to create category', 'Please try again.')
+        }
       }
     } else {
       // Empty search - focus input so user knows to type a name
