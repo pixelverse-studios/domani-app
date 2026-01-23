@@ -76,7 +76,12 @@ const ZONE_COLORS = {
  * - Afternoon: 12 PM - 4:59 PM (violet)
  * - Evening: 5 PM - 4:59 AM (indigo)
  */
-function getTimeZoneColor(hour: number): { light: string; dark: string; bg: string; bgDark: string } {
+function getTimeZoneColor(hour: number): {
+  light: string
+  dark: string
+  bg: string
+  bgDark: string
+} {
   if (hour >= 5 && hour < 12) {
     return ZONE_COLORS.morning
   }
@@ -184,7 +189,11 @@ export function ReminderShortcutsSection() {
       style={[styles.container, { backgroundColor: isDark ? 'rgba(30, 41, 59, 0.5)' : '#f8fafc' }]}
     >
       {/* Header Section - Always Visible */}
-      <TouchableOpacity onPress={handleToggleExpand} activeOpacity={0.7} style={styles.headerSection}>
+      <TouchableOpacity
+        onPress={handleToggleExpand}
+        activeOpacity={0.7}
+        style={styles.headerSection}
+      >
         {/* Top Row: Title and Chevron */}
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
@@ -252,12 +261,7 @@ export function ReminderShortcutsSection() {
                   ]}
                 >
                   <View style={styles.shortcutLabelRow}>
-                    <View
-                      style={[
-                        styles.shortcutDot,
-                        { backgroundColor: accentColor },
-                      ]}
-                    />
+                    <View style={[styles.shortcutDot, { backgroundColor: accentColor }]} />
                     <Text className={`text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
                       {SHORTCUT_LABELS[index] || `Shortcut ${index + 1}`}
                     </Text>

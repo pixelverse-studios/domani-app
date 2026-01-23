@@ -293,7 +293,7 @@ export async function fetchPlanningStreak(userId: string): Promise<number | null
 
   // Calculate streak - count consecutive days with plans
   let streak = 0
-  let checkDate = new Date(today)
+  const checkDate = new Date(today)
 
   while (true) {
     const checkDateStr = checkDate.toISOString().split('T')[0]
@@ -348,7 +348,7 @@ export async function fetchExecutionStreak(userId: string): Promise<number | nul
 
   // Calculate streak - count consecutive perfect days
   let streak = 0
-  let expectedDate = new Date(today)
+  const expectedDate = new Date(today)
   expectedDate.setDate(expectedDate.getDate() - 1) // Start from yesterday
 
   for (const plan of plans) {

@@ -24,7 +24,7 @@ import type { TaskWithCategory } from '~/types'
 const FREE_TIER_TASK_LIMIT = 3
 
 type PlanningTarget = 'today' | 'tomorrow'
-type Priority = 'high' | 'medium' | 'low'
+type Priority = 'top' | 'high' | 'medium' | 'low'
 
 // Map form category IDs to database category names
 const FORM_TO_DB_CATEGORY: Record<string, string> = {
@@ -292,13 +292,13 @@ export default function PlanningScreen() {
     }
   }
 
-  // Find the existing HIGH priority task (excluding self if editing)
-  const existingHighPriorityTask = useMemo(() => {
-    const highTask = tasks.find(
-      (t) => t.priority === 'high' && (!editingTask || t.id !== editingTask.id),
+  // Find the existing TOP priority task (excluding self if editing)
+  const existingTopPriorityTask = useMemo(() => {
+    const topTask = tasks.find(
+      (t) => t.priority === 'top' && (!editingTask || t.id !== editingTask.id),
     )
-    if (!highTask) return null
-    return { id: highTask.id, title: highTask.title }
+    if (!topTask) return null
+    return { id: topTask.id, title: topTask.title }
   }, [tasks, editingTask])
 
   // Get initial form values when editing
@@ -348,6 +348,7 @@ export default function PlanningScreen() {
         className="flex-1"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
+        keyboardShouldPersistTaps="handled"
       >
         <PlanningHeader selectedTarget={selectedTarget} onTargetChange={setSelectedTarget} />
 
@@ -361,7 +362,7 @@ export default function PlanningScreen() {
             onSubmit={handleSubmitTask}
             initialValues={getEditingFormValues()}
             isEditing={!!editingTask}
-            existingHighPriorityTask={existingHighPriorityTask}
+            existingTopPriorityTask={existingTopPriorityTask}
             editingTaskId={editingTask?.id}
             selectedTarget={formSelectedDay}
             onTargetChange={setFormSelectedDay}

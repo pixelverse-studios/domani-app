@@ -5,14 +5,12 @@ let Device: typeof import('expo-device') | null = null
 let Application: typeof import('expo-application') | null = null
 
 try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   Device = require('expo-device')
 } catch {
   // expo-device not available (e.g., Expo Go)
 }
 
 try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   Application = require('expo-application')
 } catch {
   // expo-application not available (e.g., Expo Go)

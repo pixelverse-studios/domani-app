@@ -15,7 +15,7 @@ const THEME_FOCUS_PHRASES: Record<DayTheme, string> = {
 }
 
 interface FocusCardProps {
-  /** The MIT (Most Important Task) - high priority incomplete task */
+  /** The MIT (Most Important Task) - top priority incomplete task */
   mitTask?: TaskWithCategory | null
   /** The inferred day theme based on remaining tasks */
   dayTheme: DayType
@@ -56,9 +56,8 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
     if (mitTask) {
       // Edge case: Only MIT task (no other tasks to determine theme)
       const hasOtherTasks = totalTasks > 1 || (totalTasks === 1 && !mitTask)
-      const themeSuffix = hasOtherTasks
-        ? `, then focus on ${THEME_FOCUS_PHRASES[dayTheme.theme]}`
-        : ''
+      const themePhrase = THEME_FOCUS_PHRASES[dayTheme.theme] ?? 'your day'
+      const themeSuffix = hasOtherTasks ? `, then focus on ${themePhrase}` : ''
 
       // If MIT is the only task, show simpler message
       if (!hasOtherTasks || dayTheme.theme === 'balanced') {

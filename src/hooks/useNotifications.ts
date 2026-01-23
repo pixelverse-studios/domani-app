@@ -12,10 +12,7 @@ const isExpoGo = Constants.appOwnership === 'expo'
 const isNotificationsSupported = !(isExpoGo && Platform.OS === 'android')
 
 // Conditionally get the notifications module
-const Notifications = isNotificationsSupported
-  ? // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('expo-notifications')
-  : null
+const Notifications = isNotificationsSupported ? require('expo-notifications') : null
 
 // Retry configuration for push token registration
 const MAX_RETRY_ATTEMPTS = 3

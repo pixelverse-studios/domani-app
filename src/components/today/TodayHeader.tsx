@@ -46,8 +46,8 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
   const { profile } = useProfile()
   const { phase, showBadge } = useAppConfig()
 
-  // Get badge display info for current phase
-  const phaseDisplay = PHASE_DISPLAY[phase]
+  // Get badge display info for current phase (with fallback for safety)
+  const phaseDisplay = PHASE_DISPLAY[phase] ?? { label: '', variant: 'default' as const }
 
   const today = new Date()
   const dayOfWeek = format(today, 'EEEE')

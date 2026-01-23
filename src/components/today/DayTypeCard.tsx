@@ -28,11 +28,15 @@ const ICON_BG_COLORS: Record<DayType['iconName'], string> = {
   Scale: 'bg-purple-500/20',
 }
 
+// Default fallback values for safety
+const DEFAULT_ICON = Briefcase
+const DEFAULT_ICON_BG = 'bg-slate-500/20'
+
 export function DayTypeCard({ tasks }: DayTypeCardProps) {
   const dayType = useMemo(() => inferDayType(tasks), [tasks])
 
-  const IconComponent = ICON_MAP[dayType.iconName]
-  const iconBgClass = ICON_BG_COLORS[dayType.iconName]
+  const IconComponent = ICON_MAP[dayType.iconName] || DEFAULT_ICON
+  const iconBgClass = ICON_BG_COLORS[dayType.iconName] || DEFAULT_ICON_BG
 
   return (
     <View className="bg-slate-100 dark:bg-[#1A1A1F] rounded-2xl p-6 mx-5 border border-slate-200/50 dark:border-slate-800/80 min-h-[132px] justify-center">
