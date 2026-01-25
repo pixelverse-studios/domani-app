@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { View, Modal, Animated, StyleSheet, TouchableOpacity } from 'react-native'
 import { Sparkles } from 'lucide-react-native'
+import { router } from 'expo-router'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
@@ -53,6 +54,8 @@ export function WelcomeOverlay() {
       useNativeDriver: true,
     }).start(() => {
       nextStep('add_task_button')
+      // Navigate to Planning screen where the tutorial continues
+      router.replace('/planning')
     })
   }
 
