@@ -20,12 +20,29 @@ export type TutorialStep =
   | 'cleanup'
   | 'completion'
 
+/**
+ * Position and dimensions of a tutorial target element
+ */
+export interface TutorialTargetMeasurement {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 interface TutorialStore {
   // State
   isActive: boolean
   currentStep: TutorialStep | null
   hasCompletedTutorial: boolean
   isLoading: boolean
+
+  // Tutorial data created during the flow
+  tutorialCategoryId: string | null
+  tutorialTaskId: string | null
+
+  // Target element measurements for spotlight positioning
+  targetMeasurements: Record<TutorialStep, TutorialTargetMeasurement | null>
 
   // Actions
   initializeTutorialState: (userId: string) => Promise<void>
@@ -34,6 +51,14 @@ interface TutorialStore {
   skipTutorial: () => void
   completeTutorial: () => void
   resetTutorial: () => void
+
+  // Tutorial data actions
+  setTutorialCategoryId: (id: string) => void
+  setTutorialTaskId: (id: string) => void
+  clearTutorialData: () => void
+
+  // Target measurement actions
+  setTargetMeasurement: (step: TutorialStep, measurement: TutorialTargetMeasurement | null) => void
 }
 
 /**
@@ -72,6 +97,22 @@ export const useTutorialStore = create<TutorialStore>()((set) => ({
   currentStep: null,
   hasCompletedTutorial: false,
   isLoading: true,
+  tutorialCategoryId: null,
+  tutorialTaskId: null,
+  targetMeasurements: {
+    welcome: null,
+    add_task_button: null,
+    title_input: null,
+    category_selector: null,
+    create_category: null,
+    priority_selector: null,
+    top_priority: null,
+    day_toggle: null,
+    task_created: null,
+    today_screen: null,
+    cleanup: null,
+    completion: null,
+  },
 
   // Initialize tutorial state from database
   initializeTutorialState: async (userId: string) => {
@@ -158,6 +199,30 @@ export const useTutorialStore = create<TutorialStore>()((set) => ({
       isActive: true,
       currentStep: 'welcome',
       hasCompletedTutorial: false,
+      tutorialCategoryId: null,
+      tutorialTaskId: null,
     })
   },
+
+  // Set the category ID created during tutorial
+  setTutorialCategoryId: (id: string) => set({ tutorialCategoryId: id }),
+
+  // Set the task ID created during tutorial
+  setTutorialTaskId: (id: string) => set({ tutorialTaskId: id }),
+
+  // Clear tutorial data (category/task IDs)
+  clearTutorialData: () =>
+    set({
+      tutorialCategoryId: null,
+      tutorialTaskId: null,
+    }),
+
+  // Set measurement for a target element
+  setTargetMeasurement: (step, measurement) =>
+    set((state) => ({
+      targetMeasurements: {
+        ...state.targetMeasurements,
+        [step]: measurement,
+      },
+    })),
 }))

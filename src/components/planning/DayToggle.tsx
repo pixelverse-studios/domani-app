@@ -8,6 +8,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 
+import { useTutorialTarget } from '~/components/tutorial'
+
 export type PlanningTarget = 'today' | 'tomorrow'
 
 const TOGGLE_PADDING = 4
@@ -69,6 +71,7 @@ function PillDayToggle({
   onTargetChange,
   disabled,
 }: Omit<DayToggleProps, 'variant'>) {
+  const { targetRef, measureTarget } = useTutorialTarget('day_toggle')
   const indicatorPosition = useSharedValue(selectedTarget === 'today' ? 0 : TODAY_WIDTH)
   const indicatorWidth = useSharedValue(selectedTarget === 'today' ? TODAY_WIDTH : TOMORROW_WIDTH)
   const scaleY = useSharedValue(1)
@@ -96,6 +99,8 @@ function PillDayToggle({
 
   return (
     <View
+      ref={targetRef}
+      onLayout={measureTarget}
       className="flex-row bg-slate-200 dark:bg-slate-800 rounded-full"
       style={{ padding: TOGGLE_PADDING, opacity: disabled ? 0.5 : 1 }}
     >

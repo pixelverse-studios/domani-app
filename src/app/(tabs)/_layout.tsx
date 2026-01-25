@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useTheme } from '~/hooks/useTheme'
 import { useAuth } from '~/hooks/useAuth'
-import { WelcomeOverlay } from '~/components/tutorial'
+import { WelcomeOverlay, TutorialSpotlight } from '~/components/tutorial'
 import { useTutorialStore } from '~/stores/tutorialStore'
 
 const TAB_BAR_CONTENT_HEIGHT = 56
@@ -108,6 +108,7 @@ export default function TabLayout() {
 
       {/* Tutorial Overlays */}
       <WelcomeOverlay />
+      <TutorialSpotlight />
     </>
   )
 }

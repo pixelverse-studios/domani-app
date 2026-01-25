@@ -26,6 +26,7 @@ import {
 } from 'lucide-react-native'
 
 import { Text, ConfirmationModal } from '~/components/ui'
+import { useTutorialTarget } from '~/components/tutorial'
 import { useTheme } from '~/hooks/useTheme'
 import { useProfile } from '~/hooks/useProfile'
 import {
@@ -108,6 +109,10 @@ export function CategorySelector({
   onClearCategory,
   disabled = false,
 }: CategorySelectorProps) {
+  const { targetRef: categorySelectorRef, measureTarget: measureCategorySelector } =
+    useTutorialTarget('category_selector')
+  const { targetRef: createCategoryRef, measureTarget: measureCreateCategory } =
+    useTutorialTarget('create_category')
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
   const { profile } = useProfile()
@@ -436,7 +441,7 @@ export function CategorySelector({
   }
 
   return (
-    <View className="mt-5">
+    <View className="mt-5" ref={categorySelectorRef} onLayout={measureCategorySelector}>
       {/* Category Header with Selected Badge */}
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-row items-center">
@@ -498,22 +503,24 @@ export function CategorySelector({
         )}
 
         {/* "+ New" button */}
-        <TouchableOpacity
-          onPress={openCreateModal}
-          disabled={disabled}
-          style={[
-            styles.newButton,
-            {
-              backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.1)',
-              borderColor: purpleColor,
-            },
-          ]}
-        >
-          <Plus size={14} color={purpleColor} />
-          <Text className="font-sans-medium ml-1" style={{ color: purpleColor, fontSize: 13 }}>
-            New
-          </Text>
-        </TouchableOpacity>
+        <View ref={createCategoryRef} onLayout={measureCreateCategory}>
+          <TouchableOpacity
+            onPress={openCreateModal}
+            disabled={disabled}
+            style={[
+              styles.newButton,
+              {
+                backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.1)',
+                borderColor: purpleColor,
+              },
+            ]}
+          >
+            <Plus size={14} color={purpleColor} />
+            <Text className="font-sans-medium ml-1" style={{ color: purpleColor, fontSize: 13 }}>
+              New
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Bottom Sheet Modal */}

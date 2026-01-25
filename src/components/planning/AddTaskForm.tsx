@@ -26,6 +26,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 import { Text } from '~/components/ui'
+import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
 import { CategorySelector } from './CategorySelector'
 import { PrioritySelector, type Priority } from './PrioritySelector'
 import { DayToggle, type PlanningTarget } from './DayToggle'
@@ -84,6 +85,10 @@ export function AddTaskForm({
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
   const titleInputRef = useRef<TextInput>(null)
+  const { targetRef: titleTargetRef, measureTarget: measureTitleTarget } =
+    useTutorialTarget('title_input')
+  const { advanceFromTitleInput, advanceFromCategorySelector, advanceFromPrioritySelector } =
+    useTutorialAdvancement()
 
   const [title, setTitle] = useState(initialValues?.title ?? '')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
@@ -183,14 +188,34 @@ export function AddTaskForm({
     setSubmitState('idle')
   }
 
+  // Track if we've already advanced from title input to prevent multiple triggers
+  const hasAdvancedFromTitle = useRef(false)
+
+  const handleTitleChange = (text: string) => {
+    setTitle(text)
+    // Advance tutorial when user starts typing (only once)
+    if (text.length > 0 && !hasAdvancedFromTitle.current) {
+      hasAdvancedFromTitle.current = true
+      advanceFromTitleInput()
+    }
+  }
+
   const handleSelectCategory = (categoryId: string, categoryLabel: string) => {
     setSelectedCategory(categoryId)
     setSelectedCategoryLabel(categoryLabel)
+    // Advance tutorial when category is selected
+    advanceFromCategorySelector()
   }
 
   const handleClearCategory = () => {
     setSelectedCategory(null)
     setSelectedCategoryLabel(null)
+  }
+
+  const handleSelectPriority = (priority: Priority) => {
+    setSelectedPriority(priority)
+    // Advance tutorial when priority is selected
+    advanceFromPrioritySelector(priority)
   }
 
   const handleSubmit = async () => {
@@ -279,26 +304,28 @@ export function AddTaskForm({
       </View>
 
       {/* Task Title Input */}
-      <TextInput
-        ref={titleInputRef}
-        value={title}
-        onChangeText={setTitle}
-        placeholder="What do you want to accomplish?"
-        placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
-        editable={!isFormDisabled}
-        onFocus={() => setIsTitleFocused(true)}
-        onBlur={() => setIsTitleFocused(false)}
-        className="font-sans"
-        style={[
-          styles.input,
-          {
-            backgroundColor: isDark ? '#0f172a' : '#ffffff',
-            borderColor: isTitleFocused ? purpleColor : isDark ? '#334155' : '#e2e8f0',
-            borderWidth: isTitleFocused ? 2 : 1,
-            color: isDark ? '#f8fafc' : '#0f172a',
-          },
-        ]}
-      />
+      <View ref={titleTargetRef} onLayout={measureTitleTarget}>
+        <TextInput
+          ref={titleInputRef}
+          value={title}
+          onChangeText={handleTitleChange}
+          placeholder="What do you want to accomplish?"
+          placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+          editable={!isFormDisabled}
+          onFocus={() => setIsTitleFocused(true)}
+          onBlur={() => setIsTitleFocused(false)}
+          className="font-sans"
+          style={[
+            styles.input,
+            {
+              backgroundColor: isDark ? '#0f172a' : '#ffffff',
+              borderColor: isTitleFocused ? purpleColor : isDark ? '#334155' : '#e2e8f0',
+              borderWidth: isTitleFocused ? 2 : 1,
+              color: isDark ? '#f8fafc' : '#0f172a',
+            },
+          ]}
+        />
+      </View>
 
       {/* Category Section */}
       <CategorySelector
@@ -312,7 +339,7 @@ export function AddTaskForm({
       {/* Priority Section */}
       <PrioritySelector
         selectedPriority={selectedPriority}
-        onSelectPriority={setSelectedPriority}
+        onSelectPriority={handleSelectPriority}
         existingTopPriorityTask={existingTopPriorityTask}
         editingTaskId={editingTaskId}
         disabled={isFormDisabled}
