@@ -186,6 +186,8 @@ export function AddTaskForm({
     const baseDate = selectedTarget === 'tomorrow' ? addDays(new Date(), 1) : new Date()
     setReminderDate(setMinutes(setHours(baseDate, 9), 0))
     setSubmitState('idle')
+    // Reset tutorial advancement tracking so it can trigger again for new tasks
+    hasAdvancedFromTitle.current = false
   }
 
   // Track if we've already advanced from title input to prevent multiple triggers

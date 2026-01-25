@@ -26,7 +26,7 @@ import {
 } from 'lucide-react-native'
 
 import { Text, ConfirmationModal } from '~/components/ui'
-import { useTutorialTarget } from '~/components/tutorial'
+import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
 import { useTheme } from '~/hooks/useTheme'
 import { useProfile } from '~/hooks/useProfile'
 import {
@@ -120,6 +120,7 @@ export function CategorySelector({
   const favoriteCategories = useFavoriteCategories(profile?.auto_sort_categories ?? false)
   const createCategory = useCreateUserCategory()
   const deleteCategory = useDeleteUserCategory()
+  const { advanceToCreateCategory, advanceFromCreateCategory } = useTutorialAdvancement()
 
   // Bottom sheet state
   const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -211,6 +212,7 @@ export function CategorySelector({
 
   const openCreateModal = () => {
     if (disabled) return
+    advanceToCreateCategory()
     setIsCreateModalOpen(true)
     setTimeout(() => {
       createInputRef.current?.focus()
@@ -229,6 +231,7 @@ export function CategorySelector({
 
     try {
       const newCategory = await createCategory.mutateAsync({ name: trimmedName })
+      advanceFromCreateCategory()
       onSelectCategory(newCategory.id, newCategory.name)
       closeCreateModal()
     } catch (error) {
@@ -255,6 +258,7 @@ export function CategorySelector({
     if (newCategoryName) {
       try {
         const newCategory = await createCategory.mutateAsync({ name: newCategoryName })
+        advanceFromCreateCategory()
         onSelectCategory(newCategory.id, newCategory.name)
         closeSheet()
       } catch (error) {
