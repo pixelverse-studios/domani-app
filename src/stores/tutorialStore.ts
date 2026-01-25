@@ -63,6 +63,9 @@ async function clearTutorialCompletion(): Promise<void> {
   await supabase.from('profiles').update({ tutorial_completed_at: null }).eq('id', user.id)
 }
 
+// Guard to prevent race conditions during initialization
+const initState = { isInitializing: false }
+
 export const useTutorialStore = create<TutorialStore>()((set) => ({
   // Initial state
   isActive: false,
@@ -72,6 +75,9 @@ export const useTutorialStore = create<TutorialStore>()((set) => ({
 
   // Initialize tutorial state from database
   initializeTutorialState: async (userId: string) => {
+    if (initState.isInitializing) return
+    initState.isInitializing = true
+
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -101,6 +107,8 @@ export const useTutorialStore = create<TutorialStore>()((set) => ({
     } catch (error) {
       console.error('Error initializing tutorial state:', error)
       set({ isLoading: false })
+    } finally {
+      initState.isInitializing = false
     }
   },
 
@@ -119,7 +127,9 @@ export const useTutorialStore = create<TutorialStore>()((set) => ({
 
   // Skip the tutorial entirely
   skipTutorial: () => {
-    markTutorialCompleted()
+    markTutorialCompleted().catch((err) =>
+      console.error('Failed to save tutorial completion:', err)
+    )
     set({
       isActive: false,
       currentStep: null,
@@ -129,7 +139,9 @@ export const useTutorialStore = create<TutorialStore>()((set) => ({
 
   // Complete the tutorial successfully
   completeTutorial: () => {
-    markTutorialCompleted()
+    markTutorialCompleted().catch((err) =>
+      console.error('Failed to save tutorial completion:', err)
+    )
     set({
       isActive: false,
       currentStep: null,
@@ -139,7 +151,9 @@ export const useTutorialStore = create<TutorialStore>()((set) => ({
 
   // Reset tutorial state and start it (for "Replay Tutorial" in Settings)
   resetTutorial: () => {
-    clearTutorialCompletion()
+    clearTutorialCompletion().catch((err) =>
+      console.error('Failed to clear tutorial completion:', err)
+    )
     set({
       isActive: true,
       currentStep: 'welcome',

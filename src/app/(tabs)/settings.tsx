@@ -229,7 +229,7 @@ export default function SettingsScreen() {
     useNotifications()
   const accountDeletion = useAccountDeletion()
   const { phase } = useAppConfig()
-  const { startTutorial } = useTutorialStore()
+  const { resetTutorial } = useTutorialStore()
 
   // Refresh permission status when screen comes into focus
   // This handles the case where user goes to iOS Settings and comes back
@@ -701,7 +701,7 @@ export default function SettingsScreen() {
         <View className="mb-6">
           <SettingsRow
             label="Replay Tutorial"
-            onPress={startTutorial}
+            onPress={resetTutorial}
             icon={Sparkles}
             showChevron={false}
           />
