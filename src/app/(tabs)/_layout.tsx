@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { View, ActivityIndicator } from 'react-native'
 import { Tabs, Redirect } from 'expo-router'
 import { CheckCircle, Calendar, MessageCircle, BarChart3, Settings } from 'lucide-react-native'
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTheme } from '~/hooks/useTheme'
 import { useAuth } from '~/hooks/useAuth'
 import { WelcomeOverlay } from '~/components/tutorial'
+import { useTutorialStore } from '~/stores/tutorialStore'
 
 const TAB_BAR_CONTENT_HEIGHT = 56
 
@@ -15,6 +16,14 @@ export default function TabLayout() {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
   const { user, loading } = useAuth()
+  const initializeTutorialState = useTutorialStore((state) => state.initializeTutorialState)
+
+  // Initialize tutorial state when user is authenticated
+  useEffect(() => {
+    if (user && !loading) {
+      initializeTutorialState(user.id)
+    }
+  }, [user, loading, initializeTutorialState])
 
   // Show loading while checking auth
   if (loading) {

@@ -13,13 +13,14 @@ import { useTutorialStore } from '~/stores/tutorialStore'
 export function WelcomeOverlay() {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
-  const { isActive, currentStep, nextStep, skipTutorial } = useTutorialStore()
+  const { isActive, currentStep, nextStep, skipTutorial, isLoading } = useTutorialStore()
 
   // Animation values
   const [opacity] = useState(() => new Animated.Value(0))
   const [scale] = useState(() => new Animated.Value(0.8))
 
-  const isVisible = isActive && currentStep === 'welcome'
+  // Don't show while loading from database
+  const isVisible = !isLoading && isActive && currentStep === 'welcome'
 
   useEffect(() => {
     if (isVisible) {
