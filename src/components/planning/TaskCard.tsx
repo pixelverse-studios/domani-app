@@ -91,9 +91,9 @@ function getCategoryIcon(category: { name: string; icon?: string } | null, color
 /**
  * Format a reminder time for display.
  * Returns a compact format like "9 AM" or "1:30 PM"
+ * @param date - Already-parsed Date object to avoid inconsistent parsing
  */
-function formatReminderTime(reminderAt: string): string {
-  const date = parseISO(reminderAt)
+function formatReminderTime(date: Date): string {
   const minutes = date.getMinutes()
 
   // Use format without minutes if on the hour
@@ -126,6 +126,9 @@ export function TaskCard({
   const hasNotes = !!task.notes?.trim()
 
   // Check if task has a future reminder
+  // Use parseISO to correctly handle Postgres timestamp format
+  // Postgres returns "2026-01-23 14:06:23.592+00" which iOS JavaScriptCore
+  // may misinterpret as local time. parseISO handles this correctly.
   const reminderInfo = useMemo(() => {
     if (!task.reminder_at) return null
 
@@ -134,7 +137,7 @@ export function TaskCard({
       if (!isFuture(reminderDate)) return null
 
       return {
-        time: formatReminderTime(task.reminder_at),
+        time: formatReminderTime(reminderDate),
       }
     } catch {
       return null
