@@ -137,12 +137,12 @@ export const useTutorialStore = create<TutorialStore>()((set) => ({
     })
   },
 
-  // Reset tutorial state (for "Replay Tutorial" in Settings)
+  // Reset tutorial state and start it (for "Replay Tutorial" in Settings)
   resetTutorial: () => {
     clearTutorialCompletion()
     set({
-      isActive: false,
-      currentStep: null,
+      isActive: true,
+      currentStep: 'welcome',
       hasCompletedTutorial: false,
     })
   },
