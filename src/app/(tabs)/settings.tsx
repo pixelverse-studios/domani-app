@@ -46,6 +46,7 @@ import { useSubscription } from '~/hooks/useSubscription'
 import { useNotifications } from '~/hooks/useNotifications'
 import { useAccountDeletion } from '~/hooks/useAccountDeletion'
 import { useAppConfig } from '~/stores/appConfigStore'
+import { useTutorialStore } from '~/stores/tutorialStore'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import type { ThemeMode } from '~/stores/themeStore'
 import type { SubscriptionStatus } from '~/hooks/useSubscription'
@@ -228,6 +229,7 @@ export default function SettingsScreen() {
     useNotifications()
   const accountDeletion = useAccountDeletion()
   const { phase } = useAppConfig()
+  const { resetTutorial } = useTutorialStore()
 
   // Refresh permission status when screen comes into focus
   // This handles the case where user goes to iOS Settings and comes back
@@ -697,6 +699,12 @@ export default function SettingsScreen() {
         {/* Support Section */}
         <SectionHeader title="Support" />
         <View className="mb-6">
+          <SettingsRow
+            label="Replay Tutorial"
+            onPress={resetTutorial}
+            icon={Sparkles}
+            showChevron={false}
+          />
           <TouchableOpacity
             onPress={() => router.push('/contact-support')}
             activeOpacity={0.7}
