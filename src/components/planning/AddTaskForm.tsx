@@ -69,6 +69,8 @@ interface AddTaskFormProps {
   onTargetChange: (target: PlanningTarget) => void
   /** Auto-focus the title input when form opens (e.g., when editing) */
   autoFocusTitle?: boolean
+  /** Callback to scroll parent when transitioning to category step */
+  onScrollToCategory?: () => void
 }
 
 export function AddTaskForm({
@@ -81,6 +83,7 @@ export function AddTaskForm({
   selectedTarget,
   onTargetChange,
   autoFocusTitle = false,
+  onScrollToCategory,
 }: AddTaskFormProps) {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
@@ -214,6 +217,8 @@ export function AddTaskForm({
       titleDebounceTimer.current = setTimeout(() => {
         if (!hasAdvancedFromTitle.current) {
           hasAdvancedFromTitle.current = true
+          // Scroll to better position the category section
+          onScrollToCategory?.()
           advanceFromTitleInput()
         }
       }, 500)
