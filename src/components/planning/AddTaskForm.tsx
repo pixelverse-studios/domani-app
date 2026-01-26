@@ -188,21 +188,35 @@ export function AddTaskForm({
     setSubmitState('idle')
     // Reset tutorial advancement tracking so it can trigger again for new tasks
     hasAdvancedFromTitle.current = false
+    // Clear any pending debounce timer
+    if (titleDebounceTimer.current) {
+      clearTimeout(titleDebounceTimer.current)
+      titleDebounceTimer.current = null
+    }
   }
 
   // Track if we've already advanced from title input to prevent multiple triggers
   const hasAdvancedFromTitle = useRef(false)
 
+  // Debounce timer for tutorial advancement (500ms after last keystroke)
+  const titleDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const handleTitleChange = (text: string) => {
     setTitle(text)
-  }
 
-  const handleTitleBlur = () => {
-    setIsTitleFocused(false)
-    // Advance tutorial when user finishes typing (has content and leaves field)
-    if (title.trim().length > 0 && !hasAdvancedFromTitle.current) {
-      hasAdvancedFromTitle.current = true
-      advanceFromTitleInput()
+    // Debounce tutorial advancement - wait 500ms after last keystroke
+    if (text.trim().length > 0 && !hasAdvancedFromTitle.current) {
+      // Clear existing timer
+      if (titleDebounceTimer.current) {
+        clearTimeout(titleDebounceTimer.current)
+      }
+      // Set new timer - only advance after 500ms of no typing
+      titleDebounceTimer.current = setTimeout(() => {
+        if (!hasAdvancedFromTitle.current) {
+          hasAdvancedFromTitle.current = true
+          advanceFromTitleInput()
+        }
+      }, 500)
     }
   }
 
@@ -319,7 +333,7 @@ export function AddTaskForm({
           placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
           editable={!isFormDisabled}
           onFocus={() => setIsTitleFocused(true)}
-          onBlur={handleTitleBlur}
+          onBlur={() => setIsTitleFocused(false)}
           className="font-sans"
           style={[
             styles.input,
