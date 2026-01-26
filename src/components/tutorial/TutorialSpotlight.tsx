@@ -244,9 +244,14 @@ export function TutorialSpotlight() {
 
   return (
     <Modal visible transparent animationType="none" statusBarTranslucent>
-      <Animated.View style={[styles.container, overlayAnimatedStyle]}>
-        {/* Dark overlay with spotlight cutout */}
-        <Svg width={screenWidth} height={screenHeight} style={StyleSheet.absoluteFill}>
+      <Animated.View style={[styles.container, overlayAnimatedStyle]} pointerEvents="box-none">
+        {/* Dark overlay with spotlight cutout - doesn't block touches */}
+        <Svg
+          width={screenWidth}
+          height={screenHeight}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        >
           <Defs>
             <Mask id="spotlight-mask">
               <Rect width={screenWidth} height={screenHeight} fill="white" />
@@ -269,8 +274,9 @@ export function TutorialSpotlight() {
           />
         </Svg>
 
-        {/* Pulse ring around target */}
+        {/* Pulse ring around target - doesn't block touches */}
         <Animated.View
+          pointerEvents="none"
           style={[
             styles.pulseRing,
             pulseAnimatedStyle,
