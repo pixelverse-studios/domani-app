@@ -36,6 +36,7 @@ interface TutorialStore {
   currentStep: TutorialStep | null
   hasCompletedTutorial: boolean
   isLoading: boolean
+  isOverlayHidden: boolean
 
   // Tutorial data created during the flow
   tutorialCategoryId: string | null
@@ -51,6 +52,10 @@ interface TutorialStore {
   skipTutorial: () => void
   completeTutorial: () => void
   resetTutorial: () => void
+
+  // Overlay visibility actions
+  hideOverlay: () => void
+  showOverlay: () => void
 
   // Tutorial data actions
   setTutorialCategoryId: (id: string) => void
@@ -97,6 +102,7 @@ export const useTutorialStore = create<TutorialStore>()((set) => ({
   currentStep: null,
   hasCompletedTutorial: false,
   isLoading: true,
+  isOverlayHidden: false,
   tutorialCategoryId: null,
   tutorialTaskId: null,
   targetMeasurements: {
@@ -164,6 +170,7 @@ export const useTutorialStore = create<TutorialStore>()((set) => ({
   nextStep: (step) =>
     set({
       currentStep: step,
+      isOverlayHidden: false,
     }),
 
   // Skip the tutorial entirely
@@ -199,10 +206,17 @@ export const useTutorialStore = create<TutorialStore>()((set) => ({
       isActive: true,
       currentStep: 'welcome',
       hasCompletedTutorial: false,
+      isOverlayHidden: false,
       tutorialCategoryId: null,
       tutorialTaskId: null,
     })
   },
+
+  // Hide overlay temporarily (while waiting for user interaction)
+  hideOverlay: () => set({ isOverlayHidden: true }),
+
+  // Show overlay again
+  showOverlay: () => set({ isOverlayHidden: false }),
 
   // Set the category ID created during tutorial
   setTutorialCategoryId: (id: string) => set({ tutorialCategoryId: id }),

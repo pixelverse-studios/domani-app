@@ -26,6 +26,7 @@ const STEP_CONFIG: Record<
     showNext?: boolean
     showSkip?: boolean
     stepNumber?: number
+    requiresInteraction?: boolean
   }
 > = {
   welcome: { title: '', description: '', position: 'center' },
@@ -35,6 +36,7 @@ const STEP_CONFIG: Record<
     position: 'above',
     showSkip: true,
     stepNumber: 1,
+    requiresInteraction: true,
   },
   title_input: {
     title: 'Name Your Task',
@@ -42,6 +44,7 @@ const STEP_CONFIG: Record<
     position: 'below',
     showSkip: true,
     stepNumber: 2,
+    requiresInteraction: true,
   },
   category_selector: {
     title: 'Pick a Category',
@@ -49,6 +52,7 @@ const STEP_CONFIG: Record<
     position: 'below',
     showSkip: true,
     stepNumber: 3,
+    requiresInteraction: true,
   },
   create_category: {
     title: 'Create Custom Categories',
@@ -56,6 +60,7 @@ const STEP_CONFIG: Record<
     position: 'below',
     showSkip: true,
     stepNumber: 3,
+    requiresInteraction: true,
   },
   priority_selector: {
     title: 'Set Your Priority',
@@ -63,6 +68,7 @@ const STEP_CONFIG: Record<
     position: 'above',
     showSkip: true,
     stepNumber: 4,
+    requiresInteraction: true,
   },
   top_priority: {
     title: 'Your #1 Priority',
@@ -78,6 +84,7 @@ const STEP_CONFIG: Record<
     position: 'below',
     showSkip: true,
     stepNumber: 5,
+    requiresInteraction: true,
   },
   task_created: {
     title: 'Task Created!',
@@ -116,8 +123,16 @@ export function TutorialSpotlight() {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
 
-  const { isActive, currentStep, targetMeasurements, nextStep, skipTutorial, isLoading } =
-    useTutorialStore()
+  const {
+    isActive,
+    currentStep,
+    targetMeasurements,
+    nextStep,
+    skipTutorial,
+    isLoading,
+    isOverlayHidden,
+    hideOverlay,
+  } = useTutorialStore()
 
   // Animation values
   const overlayOpacity = useSharedValue(0)
@@ -127,7 +142,8 @@ export function TutorialSpotlight() {
   const stepConfig = currentStep ? STEP_CONFIG[currentStep] : null
   const measurement = currentStep ? targetMeasurements[currentStep] : null
   const isSpotlightStep = currentStep && SPOTLIGHT_STEPS.includes(currentStep)
-  const isVisible = !isLoading && isActive && isSpotlightStep && measurement !== null
+  const isVisible =
+    !isLoading && isActive && isSpotlightStep && measurement !== null && !isOverlayHidden
 
   // Trigger haptic feedback when spotlight appears
   useEffect(() => {
@@ -153,7 +169,7 @@ export function TutorialSpotlight() {
     }
   }, [isVisible, currentStep, overlayOpacity, tooltipScale, tooltipTranslateY])
 
-  const handleNext = () => {
+  const handleGotIt = () => {
     if (!currentStep) return
 
     const nextStepMap: Partial<Record<TutorialStep, TutorialStep>> = {
@@ -168,6 +184,12 @@ export function TutorialSpotlight() {
       tooltipScale.value = withTiming(0.9, { duration: 150 })
       setTimeout(() => nextStep(nextStepValue), 150)
     }
+  }
+
+  const handleNextInteraction = () => {
+    overlayOpacity.value = withTiming(0, { duration: 150 })
+    tooltipScale.value = withTiming(0.9, { duration: 150 })
+    setTimeout(() => hideOverlay(), 150)
   }
 
   const handleSkip = () => {
@@ -304,8 +326,18 @@ export function TutorialSpotlight() {
             </TouchableOpacity>
           )}
 
+          {stepConfig.requiresInteraction && (
+            <TouchableOpacity
+              onPress={handleNextInteraction}
+              style={styles.interactionNextButton}
+              activeOpacity={0.8}
+            >
+              <Text className="text-purple-500 font-sans-semibold text-sm">Next</Text>
+            </TouchableOpacity>
+          )}
+
           {stepConfig.showNext && (
-            <TouchableOpacity onPress={handleNext} style={styles.nextButton} activeOpacity={0.8}>
+            <TouchableOpacity onPress={handleGotIt} style={styles.nextButton} activeOpacity={0.8}>
               <Text className="text-white font-sans-semibold text-sm">Got it</Text>
             </TouchableOpacity>
           )}
@@ -397,6 +429,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#a855f7',
     paddingVertical: 12,
     paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  interactionNextButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: '#a855f7',
+    paddingVertical: 11,
+    paddingHorizontal: 22,
     borderRadius: 12,
   },
 })
