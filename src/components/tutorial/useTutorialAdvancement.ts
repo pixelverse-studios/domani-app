@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 
 import { useTutorialStore, TutorialStep } from '~/stores/tutorialStore'
 
@@ -8,9 +8,6 @@ import { useTutorialStore, TutorialStep } from '~/stores/tutorialStore'
  */
 export function useTutorialAdvancement() {
   const { isActive, currentStep, nextStep } = useTutorialStore()
-
-  // Timer ref to prevent rushing between steps
-  const titleAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /**
    * Advance the tutorial when the user taps the "Add Task" button
@@ -22,20 +19,12 @@ export function useTutorialAdvancement() {
   }, [isActive, currentStep, nextStep])
 
   /**
-   * Advance the tutorial when the user enters text in the title input.
-   * Includes a 500ms delay to let users type without rushing them.
+   * Advance the tutorial when the user finishes typing in the title input.
+   * Called on blur (when user taps elsewhere) rather than on every keystroke.
    */
   const advanceFromTitleInput = useCallback(() => {
     if (isActive && currentStep === 'title_input') {
-      // Clear any existing timer
-      if (titleAdvanceTimer.current) {
-        clearTimeout(titleAdvanceTimer.current)
-      }
-      // Delay before showing next step to avoid rushing the user
-      titleAdvanceTimer.current = setTimeout(() => {
-        nextStep('category_selector')
-        titleAdvanceTimer.current = null
-      }, 500)
+      nextStep('category_selector')
     }
   }, [isActive, currentStep, nextStep])
 

@@ -195,8 +195,12 @@ export function AddTaskForm({
 
   const handleTitleChange = (text: string) => {
     setTitle(text)
-    // Advance tutorial when user starts typing (only once)
-    if (text.length > 0 && !hasAdvancedFromTitle.current) {
+  }
+
+  const handleTitleBlur = () => {
+    setIsTitleFocused(false)
+    // Advance tutorial when user finishes typing (has content and leaves field)
+    if (title.trim().length > 0 && !hasAdvancedFromTitle.current) {
       hasAdvancedFromTitle.current = true
       advanceFromTitleInput()
     }
@@ -315,7 +319,7 @@ export function AddTaskForm({
           placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
           editable={!isFormDisabled}
           onFocus={() => setIsTitleFocused(true)}
-          onBlur={() => setIsTitleFocused(false)}
+          onBlur={handleTitleBlur}
           className="font-sans"
           style={[
             styles.input,
