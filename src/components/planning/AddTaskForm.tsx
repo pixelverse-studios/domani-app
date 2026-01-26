@@ -219,7 +219,11 @@ export function AddTaskForm({
           hasAdvancedFromTitle.current = true
           // Scroll to better position the category section
           onScrollToCategory?.()
-          advanceFromTitleInput()
+          // Wait for scroll animation to complete before advancing tutorial
+          // This ensures the category section measurement is accurate
+          setTimeout(() => {
+            advanceFromTitleInput()
+          }, 350)
         }
       }, 500)
     }

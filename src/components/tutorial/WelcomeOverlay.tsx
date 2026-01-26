@@ -14,7 +14,11 @@ import { useTutorialStore } from '~/stores/tutorialStore'
 export function WelcomeOverlay() {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
-  const { isActive, currentStep, nextStep, skipTutorial, isLoading } = useTutorialStore()
+  const { isActive, currentStep, nextStep, skipTutorial, isLoading, abandonCount } =
+    useTutorialStore()
+
+  // Show different messaging after multiple abandons
+  const hasAbandonedMultipleTimes = abandonCount >= 3
 
   // Animation values
   const [opacity] = useState(() => new Animated.Value(0))
@@ -93,12 +97,14 @@ export function WelcomeOverlay() {
 
           {/* Title */}
           <Text className="text-2xl font-sans-bold text-slate-900 dark:text-white text-center mb-2">
-            Welcome to Domani!
+            {hasAbandonedMultipleTimes ? 'Ready to Continue?' : 'Welcome to Domani!'}
           </Text>
 
           {/* Description */}
           <Text className="text-base text-slate-600 dark:text-slate-300 text-center mb-6">
-            {"Let's walk through how to plan your day. This takes about 2 minutes."}
+            {hasAbandonedMultipleTimes
+              ? "No pressure! You can skip the tour and explore on your own, or we can walk through it together."
+              : "Let's walk through how to plan your day. This takes about 2 minutes."}
           </Text>
 
           {/* Primary Button */}
@@ -107,12 +113,16 @@ export function WelcomeOverlay() {
             style={styles.primaryButton}
             activeOpacity={0.8}
           >
-            <Text className="text-white font-sans-semibold text-base">{"Let's Go"}</Text>
+            <Text className="text-white font-sans-semibold text-base">
+              {hasAbandonedMultipleTimes ? 'Show Me Around' : "Let's Go"}
+            </Text>
           </TouchableOpacity>
 
           {/* Skip Link */}
           <TouchableOpacity onPress={handleSkip} style={styles.skipButton} activeOpacity={0.6}>
-            <Text className="text-slate-500 dark:text-slate-400 text-sm">Skip Tutorial</Text>
+            <Text className="text-slate-500 dark:text-slate-400 text-sm">
+              {hasAbandonedMultipleTimes ? "I'll Explore on My Own" : 'Skip Tutorial'}
+            </Text>
           </TouchableOpacity>
         </Animated.View>
       </Animated.View>

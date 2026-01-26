@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useTheme } from '~/hooks/useTheme'
 import { useAuth } from '~/hooks/useAuth'
-import { WelcomeOverlay, TutorialSpotlight } from '~/components/tutorial'
+import { WelcomeOverlay, TutorialSpotlight, useTutorialLifecycle } from '~/components/tutorial'
 import { useTutorialStore } from '~/stores/tutorialStore'
 
 const TAB_BAR_CONTENT_HEIGHT = 56
@@ -24,6 +24,9 @@ export default function TabLayout() {
       initializeTutorialState(user.id)
     }
   }, [user, loading, initializeTutorialState])
+
+  // Handle tutorial pause/resume on app lifecycle and navigation changes
+  useTutorialLifecycle()
 
   // Show loading while checking auth
   if (loading) {

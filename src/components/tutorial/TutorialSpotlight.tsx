@@ -49,7 +49,7 @@ const STEP_CONFIG: Record<
   category_selector: {
     title: 'Pick a Category',
     description: 'Organize tasks by area of life.',
-    position: 'below',
+    position: 'above',
     showSkip: true,
     stepNumber: 3,
     requiresInteraction: true,

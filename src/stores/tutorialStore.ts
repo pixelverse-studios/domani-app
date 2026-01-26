@@ -30,6 +30,18 @@ export interface TutorialTargetMeasurement {
   height: number
 }
 
+/**
+ * Timeout threshold for soft resume (in milliseconds)
+ * Under this: resume from current step
+ * Over this: restart from welcome
+ */
+const SOFT_TIMEOUT_MS = 30_000 // 30 seconds
+
+/**
+ * Number of abandons before showing "want to skip?" prompt
+ */
+const MAX_ABANDON_COUNT = 3
+
 interface TutorialStore {
   // State
   isActive: boolean
@@ -37,6 +49,11 @@ interface TutorialStore {
   hasCompletedTutorial: boolean
   isLoading: boolean
   isOverlayHidden: boolean
+
+  // Soft timeout state
+  pausedAt: number | null // Timestamp when user left tutorial context
+  pausedStep: TutorialStep | null // Step they were on when paused
+  abandonCount: number // How many times they've abandoned and restarted
 
   // Tutorial data created during the flow
   tutorialCategoryId: string | null
@@ -52,6 +69,10 @@ interface TutorialStore {
   skipTutorial: () => void
   completeTutorial: () => void
   resetTutorial: () => void
+
+  // Soft timeout actions
+  pauseTutorial: () => void
+  resumeOrRestart: () => void
 
   // Overlay visibility actions
   hideOverlay: () => void
@@ -96,13 +117,19 @@ async function clearTutorialCompletion(): Promise<void> {
 // Guard to prevent race conditions during initialization
 const initState = { isInitializing: false }
 
-export const useTutorialStore = create<TutorialStore>()((set) => ({
+export const useTutorialStore = create<TutorialStore>()((set, get) => ({
   // Initial state
   isActive: false,
   currentStep: null,
   hasCompletedTutorial: false,
   isLoading: true,
   isOverlayHidden: false,
+
+  // Soft timeout state
+  pausedAt: null,
+  pausedStep: null,
+  abandonCount: 0,
+
   tutorialCategoryId: null,
   tutorialTaskId: null,
   targetMeasurements: {
@@ -209,7 +236,68 @@ export const useTutorialStore = create<TutorialStore>()((set) => ({
       isOverlayHidden: false,
       tutorialCategoryId: null,
       tutorialTaskId: null,
+      pausedAt: null,
+      pausedStep: null,
+      abandonCount: 0,
     })
+  },
+
+  // Pause tutorial when user leaves context (navigates away, app backgrounds)
+  pauseTutorial: () => {
+    const { isActive, currentStep, hasCompletedTutorial } = get()
+
+    // Only pause if tutorial is actively in progress
+    if (!isActive || !currentStep || hasCompletedTutorial) return
+
+    // Don't pause if already on welcome (nothing to resume to)
+    if (currentStep === 'welcome') return
+
+    set({
+      isActive: false,
+      pausedAt: Date.now(),
+      pausedStep: currentStep,
+    })
+  },
+
+  // Resume or restart tutorial based on time elapsed
+  resumeOrRestart: () => {
+    const { pausedAt, pausedStep, hasCompletedTutorial, abandonCount } = get()
+
+    // Already completed = do nothing
+    if (hasCompletedTutorial) return
+
+    // Never paused or no step to resume = nothing to do
+    // (initializeTutorialState handles fresh starts)
+    if (!pausedAt || !pausedStep) return
+
+    const elapsedMs = Date.now() - pausedAt
+
+    if (elapsedMs < SOFT_TIMEOUT_MS) {
+      // Resume where they left off
+      set({
+        isActive: true,
+        currentStep: pausedStep,
+        pausedAt: null,
+        pausedStep: null,
+        isOverlayHidden: false,
+      })
+    } else {
+      // Too long - restart fresh, increment abandon count
+      const newAbandonCount = abandonCount + 1
+      set({
+        isActive: true,
+        currentStep: 'welcome',
+        pausedAt: null,
+        pausedStep: null,
+        isOverlayHidden: false,
+        abandonCount: newAbandonCount,
+      })
+
+      // Log if they're frequently abandoning (could show different UI)
+      if (newAbandonCount >= MAX_ABANDON_COUNT) {
+        console.log('User has abandoned tutorial multiple times')
+      }
+    }
   },
 
   // Hide overlay temporarily (while waiting for user interaction)
