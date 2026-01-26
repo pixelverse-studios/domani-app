@@ -1,21 +1,11 @@
 import React, { useEffect } from 'react'
-import {
-  View,
-  Modal,
-  StyleSheet,
-  TouchableOpacity,
-  useWindowDimensions,
-  Platform,
-} from 'react-native'
+import { View, StyleSheet, TouchableOpacity, useWindowDimensions, Platform } from 'react-native'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
   withTiming,
-  withRepeat,
-  withSequence,
   interpolate,
-  Easing,
 } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import Svg, { Defs, Rect, Mask } from 'react-native-svg'
@@ -119,6 +109,7 @@ const TOTAL_STEPS = 5
 
 /**
  * Premium spotlight overlay for tutorial guidance.
+ * Uses absolute positioning instead of Modal to allow touch pass-through.
  */
 export function TutorialSpotlight() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions()
@@ -132,8 +123,6 @@ export function TutorialSpotlight() {
   const overlayOpacity = useSharedValue(0)
   const tooltipScale = useSharedValue(0.9)
   const tooltipTranslateY = useSharedValue(20)
-  const pulseScale = useSharedValue(1)
-  const pulseOpacity = useSharedValue(0.6)
 
   const stepConfig = currentStep ? STEP_CONFIG[currentStep] : null
   const measurement = currentStep ? targetMeasurements[currentStep] : null
@@ -161,34 +150,8 @@ export function TutorialSpotlight() {
       // Animate tooltip with spring
       tooltipScale.value = withSpring(1, { damping: 15, stiffness: 150 })
       tooltipTranslateY.value = withSpring(0, { damping: 15, stiffness: 150 })
-
-      // Start pulse animation
-      pulseScale.value = withRepeat(
-        withSequence(
-          withTiming(1.15, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1,
-        false
-      )
-      pulseOpacity.value = withRepeat(
-        withSequence(
-          withTiming(0.3, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.6, { duration: 1000, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1,
-        false
-      )
     }
-  }, [
-    isVisible,
-    currentStep,
-    overlayOpacity,
-    tooltipScale,
-    tooltipTranslateY,
-    pulseScale,
-    pulseOpacity,
-  ])
+  }, [isVisible, currentStep, overlayOpacity, tooltipScale, tooltipTranslateY])
 
   const handleNext = () => {
     if (!currentStep) return
@@ -222,14 +185,10 @@ export function TutorialSpotlight() {
     opacity: interpolate(tooltipScale.value, [0.9, 1], [0, 1]),
   }))
 
-  const pulseAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulseScale.value }],
-    opacity: pulseOpacity.value,
-  }))
-
   if (!isVisible || !stepConfig || !measurement) return null
 
-  const PADDING = 12
+  // Tighter padding around the highlighted element
+  const PADDING = 6
   const holeX = measurement.x - PADDING
   const holeY = measurement.y - PADDING
   const holeWidth = measurement.width + PADDING * 2
@@ -243,121 +202,116 @@ export function TutorialSpotlight() {
   )
 
   return (
-    <Modal visible transparent animationType="none" statusBarTranslucent>
-      <Animated.View style={[styles.container, overlayAnimatedStyle]} pointerEvents="box-none">
-        {/* Dark overlay with spotlight cutout - doesn't block touches */}
-        <Svg
+    <Animated.View style={[styles.fullScreenOverlay, overlayAnimatedStyle]} pointerEvents="box-none">
+      {/* Dark overlay with spotlight cutout - doesn't block touches */}
+      <Svg
+        width={screenWidth}
+        height={screenHeight}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      >
+        <Defs>
+          <Mask id="spotlight-mask">
+            <Rect width={screenWidth} height={screenHeight} fill="white" />
+            <Rect
+              x={holeX}
+              y={holeY}
+              width={holeWidth}
+              height={holeHeight}
+              rx={14}
+              ry={14}
+              fill="black"
+            />
+          </Mask>
+        </Defs>
+        <Rect
           width={screenWidth}
           height={screenHeight}
-          style={StyleSheet.absoluteFill}
-          pointerEvents="none"
-        >
-          <Defs>
-            <Mask id="spotlight-mask">
-              <Rect width={screenWidth} height={screenHeight} fill="white" />
-              <Rect
-                x={holeX}
-                y={holeY}
-                width={holeWidth}
-                height={holeHeight}
-                rx={16}
-                ry={16}
-                fill="black"
-              />
-            </Mask>
-          </Defs>
-          <Rect
-            width={screenWidth}
-            height={screenHeight}
-            fill={isDark ? 'rgba(0, 0, 0, 0.75)' : 'rgba(0, 0, 0, 0.6)'}
-            mask="url(#spotlight-mask)"
-          />
-        </Svg>
-
-        {/* Pulse ring around target - doesn't block touches */}
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.pulseRing,
-            pulseAnimatedStyle,
-            {
-              left: holeX - 4,
-              top: holeY - 4,
-              width: holeWidth + 8,
-              height: holeHeight + 8,
-              borderRadius: 16,
-              borderColor: '#a855f7',
-            },
-          ]}
+          fill={isDark ? 'rgba(0, 0, 0, 0.75)' : 'rgba(0, 0, 0, 0.6)'}
+          mask="url(#spotlight-mask)"
         />
+      </Svg>
 
-        {/* Tooltip */}
-        <Animated.View
-          style={[
-            styles.tooltip,
-            tooltipAnimatedStyle,
-            {
-              backgroundColor: isDark ? '#1e293b' : '#ffffff',
-              ...tooltipStyle,
-            },
-          ]}
-        >
-          {/* Progress indicator */}
-          {stepConfig.stepNumber && (
-            <View style={styles.progressContainer}>
-              {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.progressDot,
-                    {
-                      backgroundColor:
-                        i + 1 <= (stepConfig.stepNumber || 0)
-                          ? '#a855f7'
-                          : isDark
-                            ? '#475569'
-                            : '#cbd5e1',
-                    },
-                  ]}
-                />
-              ))}
-              <Text className="text-xs ml-2" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
-                {stepConfig.stepNumber} of {TOTAL_STEPS}
-              </Text>
-            </View>
-          )}
+      {/* Soft glow around target - doesn't block touches */}
+      <View
+        pointerEvents="none"
+        style={[
+          styles.spotlightGlow,
+          {
+            left: holeX - 4,
+            top: holeY - 4,
+            width: holeWidth + 8,
+            height: holeHeight + 8,
+          },
+        ]}
+      />
 
-          {stepConfig.title && (
-            <Text
-              className="text-lg font-sans-bold text-slate-900 dark:text-white"
-              style={{ marginTop: stepConfig.stepNumber ? 12 : 0 }}
-            >
-              {stepConfig.title}
+      {/* Tooltip */}
+      <Animated.View
+        style={[
+          styles.tooltip,
+          tooltipAnimatedStyle,
+          {
+            backgroundColor: isDark ? '#1e293b' : '#ffffff',
+            ...tooltipStyle,
+          },
+        ]}
+      >
+        {/* Progress indicator */}
+        {stepConfig.stepNumber && (
+          <View style={styles.progressContainer}>
+            {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.progressDot,
+                  {
+                    backgroundColor:
+                      i + 1 <= (stepConfig.stepNumber || 0)
+                        ? '#a855f7'
+                        : isDark
+                          ? '#475569'
+                          : '#cbd5e1',
+                  },
+                ]}
+              />
+            ))}
+            <Text className="text-xs ml-2" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
+              {stepConfig.stepNumber} of {TOTAL_STEPS}
             </Text>
-          )}
-          <Text
-            className="text-sm text-slate-600 dark:text-slate-300"
-            style={{ marginTop: 4, lineHeight: 20 }}
-          >
-            {stepConfig.description}
-          </Text>
-
-          <View style={styles.buttonRow}>
-            {stepConfig.showSkip && (
-              <TouchableOpacity onPress={handleSkip} style={styles.skipButton} activeOpacity={0.6}>
-                <Text className="text-slate-500 dark:text-slate-400 text-sm">Skip tour</Text>
-              </TouchableOpacity>
-            )}
-
-            {stepConfig.showNext && (
-              <TouchableOpacity onPress={handleNext} style={styles.nextButton} activeOpacity={0.8}>
-                <Text className="text-white font-sans-semibold text-sm">Got it</Text>
-              </TouchableOpacity>
-            )}
           </View>
-        </Animated.View>
+        )}
+
+        {stepConfig.title && (
+          <Text
+            className="text-lg font-sans-bold text-slate-900 dark:text-white"
+            style={{ marginTop: stepConfig.stepNumber ? 12 : 0 }}
+          >
+            {stepConfig.title}
+          </Text>
+        )}
+        <Text
+          className="text-sm text-slate-600 dark:text-slate-300"
+          style={{ marginTop: 4, lineHeight: 20 }}
+        >
+          {stepConfig.description}
+        </Text>
+
+        <View style={styles.buttonRow}>
+          {stepConfig.showSkip && (
+            <TouchableOpacity onPress={handleSkip} style={styles.skipButton} activeOpacity={0.6}>
+              <Text className="text-slate-500 dark:text-slate-400 text-sm">Skip tour</Text>
+            </TouchableOpacity>
+          )}
+
+          {stepConfig.showNext && (
+            <TouchableOpacity onPress={handleNext} style={styles.nextButton} activeOpacity={0.8}>
+              <Text className="text-white font-sans-semibold text-sm">Got it</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </Animated.View>
-    </Modal>
+    </Animated.View>
   )
 }
 
@@ -368,7 +322,7 @@ function calculateTooltipPosition(
   screenHeight: number
 ): { top?: number; bottom?: number; left: number; right: number } {
   const MARGIN = 20
-  const TOOLTIP_OFFSET = 24
+  const TOOLTIP_OFFSET = 20
 
   if (position === 'above') {
     return {
@@ -394,13 +348,19 @@ function calculateTooltipPosition(
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  fullScreenOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9999,
   },
-  pulseRing: {
+  spotlightGlow: {
     position: 'absolute',
-    borderWidth: 2,
+    borderRadius: 18,
     backgroundColor: 'transparent',
+    shadowColor: '#a855f7',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 0, // Android doesn't support colored shadows well
   },
   tooltip: {
     position: 'absolute',
