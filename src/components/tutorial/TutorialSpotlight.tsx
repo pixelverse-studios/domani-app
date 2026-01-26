@@ -16,21 +16,13 @@ import Animated, {
   withSequence,
   interpolate,
   Easing,
-  FadeIn,
-  FadeOut,
 } from 'react-native-reanimated'
-import { BlurView } from 'expo-blur'
 import * as Haptics from 'expo-haptics'
-import Svg, { Defs, Rect, Mask, Circle, RadialGradient, Stop } from 'react-native-svg'
+import Svg, { Defs, Rect, Mask } from 'react-native-svg'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
-import {
-  useTutorialStore,
-  TutorialStep,
-  TutorialTargetMeasurement,
-  SpotlightVariant,
-} from '~/stores/tutorialStore'
+import { useTutorialStore, TutorialStep, TutorialTargetMeasurement } from '~/stores/tutorialStore'
 
 /**
  * Configuration for each tutorial step
@@ -126,22 +118,15 @@ const SPOTLIGHT_STEPS: TutorialStep[] = [
 const TOTAL_STEPS = 5
 
 /**
- * Premium spotlight overlay with two variant styles.
+ * Premium spotlight overlay for tutorial guidance.
  */
 export function TutorialSpotlight() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions()
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
 
-  const {
-    isActive,
-    currentStep,
-    targetMeasurements,
-    nextStep,
-    skipTutorial,
-    isLoading,
-    spotlightVariant,
-  } = useTutorialStore()
+  const { isActive, currentStep, targetMeasurements, nextStep, skipTutorial, isLoading } =
+    useTutorialStore()
 
   // Animation values
   const overlayOpacity = useSharedValue(0)
@@ -195,7 +180,15 @@ export function TutorialSpotlight() {
         false
       )
     }
-  }, [isVisible, currentStep, overlayOpacity, tooltipScale, tooltipTranslateY, pulseScale, pulseOpacity])
+  }, [
+    isVisible,
+    currentStep,
+    overlayOpacity,
+    tooltipScale,
+    tooltipTranslateY,
+    pulseScale,
+    pulseOpacity,
+  ])
 
   const handleNext = () => {
     if (!currentStep) return
@@ -225,10 +218,7 @@ export function TutorialSpotlight() {
   }))
 
   const tooltipAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: tooltipScale.value },
-      { translateY: tooltipTranslateY.value },
-    ],
+    transform: [{ scale: tooltipScale.value }, { translateY: tooltipTranslateY.value }],
     opacity: interpolate(tooltipScale.value, [0.9, 1], [0, 1]),
   }))
 
@@ -244,9 +234,6 @@ export function TutorialSpotlight() {
   const holeY = measurement.y - PADDING
   const holeWidth = measurement.width + PADDING * 2
   const holeHeight = measurement.height + PADDING * 2
-  const holeCenterX = holeX + holeWidth / 2
-  const holeCenterY = holeY + holeHeight / 2
-  const holeRadius = Math.max(holeWidth, holeHeight) / 2
 
   const tooltipStyle = calculateTooltipPosition(
     stepConfig.position,
@@ -258,30 +245,29 @@ export function TutorialSpotlight() {
   return (
     <Modal visible transparent animationType="none" statusBarTranslucent>
       <Animated.View style={[styles.container, overlayAnimatedStyle]}>
-        {spotlightVariant === 'glass' ? (
-          <GlassOverlay
-            screenWidth={screenWidth}
-            screenHeight={screenHeight}
-            holeCenterX={holeCenterX}
-            holeCenterY={holeCenterY}
-            holeRadius={holeRadius}
-            holeWidth={holeWidth}
-            holeHeight={holeHeight}
-            holeX={holeX}
-            holeY={holeY}
-            isDark={isDark}
+        {/* Dark overlay with spotlight cutout */}
+        <Svg width={screenWidth} height={screenHeight} style={StyleSheet.absoluteFill}>
+          <Defs>
+            <Mask id="spotlight-mask">
+              <Rect width={screenWidth} height={screenHeight} fill="white" />
+              <Rect
+                x={holeX}
+                y={holeY}
+                width={holeWidth}
+                height={holeHeight}
+                rx={16}
+                ry={16}
+                fill="black"
+              />
+            </Mask>
+          </Defs>
+          <Rect
+            width={screenWidth}
+            height={screenHeight}
+            fill={isDark ? 'rgba(0, 0, 0, 0.75)' : 'rgba(0, 0, 0, 0.6)'}
+            mask="url(#spotlight-mask)"
           />
-        ) : (
-          <MinimalOverlay
-            screenWidth={screenWidth}
-            screenHeight={screenHeight}
-            holeX={holeX}
-            holeY={holeY}
-            holeWidth={holeWidth}
-            holeHeight={holeHeight}
-            isDark={isDark}
-          />
-        )}
+        </Svg>
 
         {/* Pulse ring around target */}
         <Animated.View
@@ -302,20 +288,14 @@ export function TutorialSpotlight() {
         {/* Tooltip */}
         <Animated.View
           style={[
-            spotlightVariant === 'glass' ? styles.tooltipGlass : styles.tooltipMinimal,
+            styles.tooltip,
             tooltipAnimatedStyle,
             {
-              backgroundColor: spotlightVariant === 'glass'
-                ? isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)'
-                : isDark ? '#1e293b' : '#ffffff',
+              backgroundColor: isDark ? '#1e293b' : '#ffffff',
               ...tooltipStyle,
             },
           ]}
         >
-          {spotlightVariant === 'glass' && (
-            <View style={styles.tooltipAccent} />
-          )}
-
           {/* Progress indicator */}
           {stepConfig.stepNumber && (
             <View style={styles.progressContainer}>
@@ -328,15 +308,14 @@ export function TutorialSpotlight() {
                       backgroundColor:
                         i + 1 <= (stepConfig.stepNumber || 0)
                           ? '#a855f7'
-                          : isDark ? '#475569' : '#cbd5e1',
+                          : isDark
+                            ? '#475569'
+                            : '#cbd5e1',
                     },
                   ]}
                 />
               ))}
-              <Text
-                className="text-xs ml-2"
-                style={{ color: isDark ? '#94a3b8' : '#64748b' }}
-              >
+              <Text className="text-xs ml-2" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
                 {stepConfig.stepNumber} of {TOTAL_STEPS}
               </Text>
             </View>
@@ -371,187 +350,8 @@ export function TutorialSpotlight() {
             )}
           </View>
         </Animated.View>
-
-        {/* Variant toggle for testing */}
-        <VariantToggle />
       </Animated.View>
     </Modal>
-  )
-}
-
-/**
- * Option A: Polished Minimal - Clean with soft edges
- */
-function MinimalOverlay({
-  screenWidth,
-  screenHeight,
-  holeX,
-  holeY,
-  holeWidth,
-  holeHeight,
-  isDark,
-}: {
-  screenWidth: number
-  screenHeight: number
-  holeX: number
-  holeY: number
-  holeWidth: number
-  holeHeight: number
-  isDark: boolean
-}) {
-  return (
-    <Svg width={screenWidth} height={screenHeight} style={StyleSheet.absoluteFill}>
-      <Defs>
-        <Mask id="spotlight-mask">
-          <Rect width={screenWidth} height={screenHeight} fill="white" />
-          <Rect
-            x={holeX}
-            y={holeY}
-            width={holeWidth}
-            height={holeHeight}
-            rx={16}
-            ry={16}
-            fill="black"
-          />
-        </Mask>
-      </Defs>
-      <Rect
-        width={screenWidth}
-        height={screenHeight}
-        fill={isDark ? 'rgba(0, 0, 0, 0.75)' : 'rgba(0, 0, 0, 0.6)'}
-        mask="url(#spotlight-mask)"
-      />
-    </Svg>
-  )
-}
-
-/**
- * Option B: Glassmorphism - Premium with blur and glow
- */
-function GlassOverlay({
-  screenWidth,
-  screenHeight,
-  holeCenterX,
-  holeCenterY,
-  holeRadius,
-  holeWidth,
-  holeHeight,
-  holeX,
-  holeY,
-  isDark,
-}: {
-  screenWidth: number
-  screenHeight: number
-  holeCenterX: number
-  holeCenterY: number
-  holeRadius: number
-  holeWidth: number
-  holeHeight: number
-  holeX: number
-  holeY: number
-  isDark: boolean
-}) {
-  return (
-    <View style={StyleSheet.absoluteFill}>
-      {/* Blur background */}
-      <Animated.View style={StyleSheet.absoluteFill} entering={FadeIn.duration(300)}>
-        <BlurView
-          intensity={isDark ? 20 : 15}
-          tint={isDark ? 'dark' : 'light'}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
-
-      {/* SVG mask with radial gradient for soft edges */}
-      <Svg width={screenWidth} height={screenHeight} style={StyleSheet.absoluteFill}>
-        <Defs>
-          <RadialGradient
-            id="spotlight-gradient"
-            cx={holeCenterX}
-            cy={holeCenterY}
-            rx={holeRadius * 1.5}
-            ry={holeRadius * 1.5}
-            gradientUnits="userSpaceOnUse"
-          >
-            <Stop offset="0" stopColor="black" stopOpacity="1" />
-            <Stop offset="0.6" stopColor="black" stopOpacity="1" />
-            <Stop offset="1" stopColor="black" stopOpacity="0" />
-          </RadialGradient>
-          <Mask id="glass-mask">
-            <Rect width={screenWidth} height={screenHeight} fill="white" />
-            <Circle
-              cx={holeCenterX}
-              cy={holeCenterY}
-              r={holeRadius * 1.3}
-              fill="url(#spotlight-gradient)"
-            />
-          </Mask>
-        </Defs>
-        <Rect
-          width={screenWidth}
-          height={screenHeight}
-          fill={isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(0, 0, 0, 0.5)'}
-          mask="url(#glass-mask)"
-        />
-      </Svg>
-
-      {/* Glow ring around target */}
-      <View
-        style={[
-          styles.glowRing,
-          {
-            left: holeX - 2,
-            top: holeY - 2,
-            width: holeWidth + 4,
-            height: holeHeight + 4,
-          },
-        ]}
-      />
-    </View>
-  )
-}
-
-/**
- * Floating toggle to switch between variants
- */
-function VariantToggle() {
-  const { spotlightVariant, setSpotlightVariant } = useTutorialStore()
-
-  return (
-    <View style={styles.variantToggle}>
-      <TouchableOpacity
-        onPress={() => setSpotlightVariant('minimal')}
-        style={[
-          styles.variantButton,
-          spotlightVariant === 'minimal' && styles.variantButtonActive,
-        ]}
-      >
-        <Text
-          style={[
-            styles.variantButtonText,
-            spotlightVariant === 'minimal' && styles.variantButtonTextActive,
-          ]}
-        >
-          A
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        onPress={() => setSpotlightVariant('glass')}
-        style={[
-          styles.variantButton,
-          spotlightVariant === 'glass' && styles.variantButtonActive,
-        ]}
-      >
-        <Text
-          style={[
-            styles.variantButtonText,
-            spotlightVariant === 'glass' && styles.variantButtonTextActive,
-          ]}
-        >
-          B
-        </Text>
-      </TouchableOpacity>
-    </View>
   )
 }
 
@@ -596,18 +396,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: 'transparent',
   },
-  glowRing: {
-    position: 'absolute',
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: 'rgba(168, 85, 247, 0.5)',
-    shadowColor: '#a855f7',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 0,
-  },
-  tooltipMinimal: {
+  tooltip: {
     position: 'absolute',
     borderRadius: 20,
     padding: 20,
@@ -616,29 +405,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 24,
     elevation: 12,
-  },
-  tooltipGlass: {
-    position: 'absolute',
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.3)',
-    shadowColor: '#a855f7',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 12,
-    overflow: 'hidden',
-  },
-  tooltipAccent: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: '#a855f7',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
   },
   progressContainer: {
     flexDirection: 'row',
@@ -666,33 +432,5 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,
-  },
-  variantToggle: {
-    position: 'absolute',
-    bottom: 50,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    backgroundColor: 'rgba(30, 41, 59, 0.9)',
-    borderRadius: 20,
-    padding: 4,
-    gap: 4,
-  },
-  variantButton: {
-    width: 40,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  variantButtonActive: {
-    backgroundColor: '#a855f7',
-  },
-  variantButtonText: {
-    color: '#94a3b8',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  variantButtonTextActive: {
-    color: '#ffffff',
   },
 })

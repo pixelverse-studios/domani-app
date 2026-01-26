@@ -30,17 +30,12 @@ export interface TutorialTargetMeasurement {
   height: number
 }
 
-export type SpotlightVariant = 'minimal' | 'glass'
-
 interface TutorialStore {
   // State
   isActive: boolean
   currentStep: TutorialStep | null
   hasCompletedTutorial: boolean
   isLoading: boolean
-
-  // Spotlight variant for A/B testing designs
-  spotlightVariant: SpotlightVariant
 
   // Tutorial data created during the flow
   tutorialCategoryId: string | null
@@ -64,9 +59,6 @@ interface TutorialStore {
 
   // Target measurement actions
   setTargetMeasurement: (step: TutorialStep, measurement: TutorialTargetMeasurement | null) => void
-
-  // Spotlight variant actions
-  setSpotlightVariant: (variant: SpotlightVariant) => void
 }
 
 /**
@@ -105,7 +97,6 @@ export const useTutorialStore = create<TutorialStore>()((set) => ({
   currentStep: null,
   hasCompletedTutorial: false,
   isLoading: true,
-  spotlightVariant: 'glass' as SpotlightVariant,
   tutorialCategoryId: null,
   tutorialTaskId: null,
   targetMeasurements: {
@@ -234,7 +225,4 @@ export const useTutorialStore = create<TutorialStore>()((set) => ({
         [step]: measurement,
       },
     })),
-
-  // Set spotlight variant
-  setSpotlightVariant: (variant) => set({ spotlightVariant: variant }),
 }))
