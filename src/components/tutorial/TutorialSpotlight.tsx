@@ -27,6 +27,8 @@ const STEP_CONFIG: Record<
     showSkip?: boolean
     stepNumber?: number
     requiresInteraction?: boolean
+    /** When "Next" is tapped, advance to this step instead of just hiding overlay */
+    nextStepOnNext?: TutorialStep
   }
 > = {
   welcome: { title: '', description: '', position: 'center' },
@@ -47,17 +49,25 @@ const STEP_CONFIG: Record<
     requiresInteraction: true,
   },
   category_selector: {
-    title: 'Pick a Category',
-    description: 'Organize tasks by area of life.',
+    title: 'Organize Your Tasks',
+    description: 'Create a category with "+ New", or choose one below.',
     position: 'above',
     showSkip: true,
     stepNumber: 3,
     requiresInteraction: true,
   },
   create_category: {
-    title: 'Create Custom Categories',
-    description: 'Tap "+ New" for anything you want to track.',
-    position: 'below',
+    title: 'Create Your Own',
+    description: 'Tap "+ New" to add a custom category.',
+    position: 'above',
+    showSkip: true,
+    stepNumber: 3,
+    requiresInteraction: true,
+  },
+  more_categories_button: {
+    title: 'See All Categories',
+    description: 'Tap here to view and manage all your categories.',
+    position: 'above',
     showSkip: true,
     stepNumber: 3,
     requiresInteraction: true,
@@ -106,7 +116,7 @@ const SPOTLIGHT_STEPS: TutorialStep[] = [
   'add_task_button',
   'title_input',
   'category_selector',
-  'create_category',
+  'more_categories_button',
   'priority_selector',
   'top_priority',
   'day_toggle',
@@ -152,6 +162,29 @@ export function TutorialSpotlight() {
     }
   }, [isVisible, currentStep])
 
+  // Auto-skip steps that have no visible target (e.g., "+N more" button when ≤4 categories)
+  useEffect(() => {
+    if (!isLoading && isActive && isSpotlightStep && measurement === null && !isOverlayHidden) {
+      // Give enough time for elements to render and measure (must be longer than
+      // the 400ms delay in advanceFromCreateCategory to avoid race conditions)
+      const timer = setTimeout(() => {
+        // Check again in case measurement arrived
+        const currentMeasurement = targetMeasurements[currentStep!]
+        if (currentMeasurement === null) {
+          // Skip to the fallback step based on current step
+          const skipMap: Partial<Record<TutorialStep, TutorialStep>> = {
+            more_categories_button: 'priority_selector',
+          }
+          const fallbackStep = skipMap[currentStep!]
+          if (fallbackStep) {
+            nextStep(fallbackStep)
+          }
+        }
+      }, 600)
+      return () => clearTimeout(timer)
+    }
+  }, [isLoading, isActive, isSpotlightStep, measurement, isOverlayHidden, currentStep, targetMeasurements, nextStep])
+
   // Animate in when visible
   useEffect(() => {
     if (isVisible) {
@@ -189,7 +222,13 @@ export function TutorialSpotlight() {
   const handleNextInteraction = () => {
     overlayOpacity.value = withTiming(0, { duration: 150 })
     tooltipScale.value = withTiming(0.9, { duration: 150 })
-    setTimeout(() => hideOverlay(), 150)
+
+    // If this step has a specific next step, advance to it instead of just hiding
+    if (stepConfig?.nextStepOnNext) {
+      setTimeout(() => nextStep(stepConfig.nextStepOnNext!), 150)
+    } else {
+      setTimeout(() => hideOverlay(), 150)
+    }
   }
 
   const handleSkip = () => {

@@ -12,6 +12,7 @@ export type TutorialStep =
   | 'title_input'
   | 'category_selector'
   | 'create_category'
+  | 'more_categories_button'
   | 'priority_selector'
   | 'top_priority'
   | 'day_toggle'
@@ -138,6 +139,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
     title_input: null,
     category_selector: null,
     create_category: null,
+    more_categories_button: null,
     priority_selector: null,
     top_priority: null,
     day_toggle: null,

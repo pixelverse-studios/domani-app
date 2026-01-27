@@ -27,6 +27,7 @@ import {
 
 import { Text, ConfirmationModal } from '~/components/ui'
 import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
+import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTheme } from '~/hooks/useTheme'
 import { useProfile } from '~/hooks/useProfile'
 import {
@@ -111,8 +112,8 @@ export function CategorySelector({
 }: CategorySelectorProps) {
   const { targetRef: categorySelectorRef, measureTarget: measureCategorySelector } =
     useTutorialTarget('category_selector')
-  const { targetRef: createCategoryRef, measureTarget: measureCreateCategory } =
-    useTutorialTarget('create_category')
+  const { targetRef: moreCategoriesRef, measureTarget: measureMoreCategories } =
+    useTutorialTarget('more_categories_button')
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
   const { profile } = useProfile()
@@ -120,7 +121,8 @@ export function CategorySelector({
   const favoriteCategories = useFavoriteCategories(profile?.auto_sort_categories ?? false)
   const createCategory = useCreateUserCategory()
   const deleteCategory = useDeleteUserCategory()
-  const { advanceToCreateCategory, advanceFromCreateCategory } = useTutorialAdvancement()
+  const { advanceFromCreateCategory, advanceFromMoreCategoriesButton } = useTutorialAdvancement()
+  const hideOverlay = useTutorialStore((state) => state.hideOverlay)
 
   // Bottom sheet state
   const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -201,6 +203,8 @@ export function CategorySelector({
 
   const openSheet = () => {
     if (disabled) return
+    // Hide spotlight while sheet is open
+    hideOverlay()
     setIsSheetOpen(true)
   }
 
@@ -208,11 +212,14 @@ export function CategorySelector({
     Keyboard.dismiss()
     setCategorySearch('')
     setIsSheetOpen(false)
+    // Advance tutorial when sheet closes (so priority tooltip shows after sheet is gone)
+    advanceFromMoreCategoriesButton()
   }
 
   const openCreateModal = () => {
     if (disabled) return
-    advanceToCreateCategory()
+    // Hide spotlight when modal opens so it doesn't show behind the modal
+    hideOverlay()
     setIsCreateModalOpen(true)
     setTimeout(() => {
       createInputRef.current?.focus()
@@ -231,9 +238,13 @@ export function CategorySelector({
 
     try {
       const newCategory = await createCategory.mutateAsync({ name: trimmedName })
-      advanceFromCreateCategory()
       onSelectCategory(newCategory.id, newCategory.name)
       closeCreateModal()
+      // Delay tutorial advancement until after modal closes and React Query updates
+      // This ensures the "+N more" button is visible before we try to highlight it
+      setTimeout(() => {
+        advanceFromCreateCategory()
+      }, 400)
     } catch (error) {
       console.error('Failed to create category:', error)
       if (isDuplicateNameError(error)) {
@@ -486,45 +497,45 @@ export function CategorySelector({
 
         {/* "+N more" button - opens bottom sheet */}
         {additionalCount > 0 && (
-          <TouchableOpacity
-            onPress={openSheet}
-            disabled={disabled}
-            style={[
-              styles.moreButton,
-              {
-                backgroundColor: isDark ? 'rgba(148, 163, 184, 0.15)' : 'rgba(100, 116, 139, 0.1)',
-                borderColor: isDark ? '#475569' : '#cbd5e1',
-              },
-            ]}
-          >
-            <Text
-              className="font-sans-medium"
-              style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 13 }}
+          <View ref={moreCategoriesRef} onLayout={measureMoreCategories}>
+            <TouchableOpacity
+              onPress={openSheet}
+              disabled={disabled}
+              style={[
+                styles.moreButton,
+                {
+                  backgroundColor: isDark ? 'rgba(148, 163, 184, 0.15)' : 'rgba(100, 116, 139, 0.1)',
+                  borderColor: isDark ? '#475569' : '#cbd5e1',
+                },
+              ]}
             >
-              +{additionalCount} more
-            </Text>
-          </TouchableOpacity>
+              <Text
+                className="font-sans-medium"
+                style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 13 }}
+              >
+                +{additionalCount} more
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* "+ New" button */}
-        <View ref={createCategoryRef} onLayout={measureCreateCategory}>
-          <TouchableOpacity
-            onPress={openCreateModal}
-            disabled={disabled}
-            style={[
-              styles.newButton,
-              {
-                backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.1)',
-                borderColor: purpleColor,
-              },
-            ]}
-          >
-            <Plus size={14} color={purpleColor} />
-            <Text className="font-sans-medium ml-1" style={{ color: purpleColor, fontSize: 13 }}>
-              New
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={openCreateModal}
+          disabled={disabled}
+          style={[
+            styles.newButton,
+            {
+              backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.1)',
+              borderColor: purpleColor,
+            },
+          ]}
+        >
+          <Plus size={14} color={purpleColor} />
+          <Text className="font-sans-medium ml-1" style={{ color: purpleColor, fontSize: 13 }}>
+            New
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Bottom Sheet Modal */}

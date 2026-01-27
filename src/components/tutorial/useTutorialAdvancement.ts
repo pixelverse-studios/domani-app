@@ -29,28 +29,30 @@ export function useTutorialAdvancement() {
   }, [isActive, currentStep, nextStep])
 
   /**
-   * Advance the tutorial when the user selects a category
+   * Advance the tutorial when the user selects any category (existing or newly created).
+   * Goes to more_categories_button to teach users about the category sheet.
    */
   const advanceFromCategorySelector = useCallback(() => {
     if (isActive && currentStep === 'category_selector') {
-      nextStep('priority_selector')
+      nextStep('more_categories_button')
     }
   }, [isActive, currentStep, nextStep])
 
   /**
-   * Advance when user taps the "+ New" category button (shows create_category step)
-   */
-  const advanceToCreateCategory = useCallback(() => {
-    if (isActive && currentStep === 'category_selector') {
-      nextStep('create_category')
-    }
-  }, [isActive, currentStep, nextStep])
-
-  /**
-   * Advance from create category step after user creates a category
+   * Advance from category_selector step after user creates a new category.
+   * Goes to more_categories_button to teach users about the category sheet.
    */
   const advanceFromCreateCategory = useCallback(() => {
-    if (isActive && currentStep === 'create_category') {
+    if (isActive && currentStep === 'category_selector') {
+      nextStep('more_categories_button')
+    }
+  }, [isActive, currentStep, nextStep])
+
+  /**
+   * Advance from more categories button when user opens the category sheet.
+   */
+  const advanceFromMoreCategoriesButton = useCallback(() => {
+    if (isActive && currentStep === 'more_categories_button') {
       nextStep('priority_selector')
     }
   }, [isActive, currentStep, nextStep])
@@ -115,8 +117,8 @@ export function useTutorialAdvancement() {
     advanceFromAddTaskButton,
     advanceFromTitleInput,
     advanceFromCategorySelector,
-    advanceToCreateCategory,
     advanceFromCreateCategory,
+    advanceFromMoreCategoriesButton,
     advanceFromPrioritySelector,
     advanceFromTopPriority,
     advanceFromDayToggle,
