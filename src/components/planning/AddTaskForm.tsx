@@ -253,6 +253,11 @@ export function AddTaskForm({
     advanceFromPrioritySelector(priority)
     // Scroll to show Add Task button for complete_form tutorial step
     onScrollToBottom?.()
+    // Re-measure the complete_form target after scroll animation completes
+    // This ensures the spotlight highlights the button's final position
+    setTimeout(() => {
+      measureCompleteForm()
+    }, 450)
   }
 
   const handleSubmit = async () => {
