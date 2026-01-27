@@ -71,6 +71,8 @@ interface AddTaskFormProps {
   autoFocusTitle?: boolean
   /** Callback to scroll parent when transitioning to category step */
   onScrollToCategory?: () => void
+  /** Callback to scroll parent when transitioning to complete_form step */
+  onScrollToBottom?: () => void
 }
 
 export function AddTaskForm({
@@ -84,6 +86,7 @@ export function AddTaskForm({
   onTargetChange,
   autoFocusTitle = false,
   onScrollToCategory,
+  onScrollToBottom,
 }: AddTaskFormProps) {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
@@ -248,6 +251,8 @@ export function AddTaskForm({
     setSelectedPriority(priority)
     // Advance tutorial when priority is selected
     advanceFromPrioritySelector(priority)
+    // Scroll to show Add Task button for complete_form tutorial step
+    onScrollToBottom?.()
   }
 
   const handleSubmit = async () => {

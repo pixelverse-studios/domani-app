@@ -371,6 +371,10 @@ export default function PlanningScreen() {
               // Scroll down to position category section better during tutorial
               scrollViewRef.current?.scrollTo({ y: 120, animated: true })
             }}
+            onScrollToBottom={() => {
+              // Scroll to bottom to show Add Task button during complete_form tutorial step
+              scrollViewRef.current?.scrollToEnd({ animated: true })
+            }}
           />
         ) : (
           <AddTaskPlaceholder
