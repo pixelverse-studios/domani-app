@@ -90,11 +90,21 @@ export function useTutorialAdvancement() {
   }, [isActive, currentStep, nextStep])
 
   /**
-   * Advance from complete_form step when user taps "Got it" or submits the form
+   * Advance from complete_form step when user submits the form (creates task)
+   * Goes to task_created to highlight the newly created task
    */
   const advanceFromCompleteForm = useCallback(() => {
     if (isActive && currentStep === 'complete_form') {
-      nextStep('cleanup')
+      nextStep('task_created')
+    }
+  }, [isActive, currentStep, nextStep])
+
+  /**
+   * Advance from task_created step to navigate to Today screen
+   */
+  const advanceFromTaskCreated = useCallback(() => {
+    if (isActive && currentStep === 'task_created') {
+      nextStep('today_screen')
     }
   }, [isActive, currentStep, nextStep])
 
@@ -130,6 +140,7 @@ export function useTutorialAdvancement() {
     advanceFromPrioritySelector,
     advanceFromTopPriority,
     advanceFromCompleteForm,
+    advanceFromTaskCreated,
     advanceFromDayToggle,
   }
 }

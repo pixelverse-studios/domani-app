@@ -18,6 +18,8 @@ import { useCreateTask, useTasks, useDeleteTask, useUpdateTask } from '~/hooks/u
 import { useSystemCategories } from '~/hooks/useCategories'
 import { useSubscription } from '~/hooks/useSubscription'
 import { useAppConfig } from '~/stores/appConfigStore'
+import { useTutorialStore } from '~/stores/tutorialStore'
+import { useTutorialAdvancement } from '~/components/tutorial'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import type { TaskWithCategory } from '~/types'
 
@@ -110,6 +112,8 @@ export default function PlanningScreen() {
   const deleteTask = useDeleteTask()
   const { status: subscriptionStatus } = useSubscription()
   const { phase } = useAppConfig()
+  const { setTutorialTaskId } = useTutorialStore()
+  const { isActive: isTutorialActive, currentStep, advanceFromCompleteForm } = useTutorialAdvancement()
 
   // Handle editTaskId param - open edit form when navigating from Today page
   useEffect(() => {
@@ -261,7 +265,7 @@ export default function PlanningScreen() {
           return
         }
 
-        await createTask.mutateAsync({
+        const newTask = await createTask.mutateAsync({
           planId: targetPlanId,
           title: task.title,
           priority: task.priority,
@@ -270,6 +274,15 @@ export default function PlanningScreen() {
           notes: task.notes,
           reminderAt: task.reminderAt,
         })
+
+        // If tutorial is active at complete_form step, store task ID and advance
+        if (isTutorialActive && currentStep === 'complete_form') {
+          setTutorialTaskId(newTask.id)
+          // Delay advancement to allow task to appear in list
+          setTimeout(() => {
+            advanceFromCompleteForm()
+          }, 500)
+        }
       }
       // Close form after successful submission
       handleCloseForm()
