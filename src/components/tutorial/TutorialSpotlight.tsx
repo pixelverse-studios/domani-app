@@ -96,6 +96,14 @@ const STEP_CONFIG: Record<
     stepNumber: 5,
     requiresInteraction: true,
   },
+  complete_form: {
+    title: 'Finish Up',
+    description: 'Notes and reminders are optional. Tap "Add Task" to create your first task!',
+    position: 'above',
+    showNext: true,
+    showSkip: true,
+    stepNumber: 5,
+  },
   task_created: {
     title: 'Task Created!',
     description: 'Tap the checkbox to complete it.',
@@ -120,6 +128,7 @@ const SPOTLIGHT_STEPS: TutorialStep[] = [
   'priority_selector',
   'top_priority',
   'day_toggle',
+  'complete_form',
 ]
 
 const TOTAL_STEPS = 5
@@ -206,7 +215,8 @@ export function TutorialSpotlight() {
     if (!currentStep) return
 
     const nextStepMap: Partial<Record<TutorialStep, TutorialStep>> = {
-      top_priority: 'cleanup',
+      top_priority: 'complete_form',
+      complete_form: 'cleanup',
       task_created: 'today_screen',
       today_screen: 'completion',
     }

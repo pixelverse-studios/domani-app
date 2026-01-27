@@ -60,7 +60,7 @@ export function useTutorialAdvancement() {
   /**
    * Advance the tutorial when the user selects a priority
    * If they select TOP, show the top_priority info step first
-   * Otherwise, dismiss the spotlight so user can complete the form
+   * Otherwise, go to complete_form to prompt user to finish
    */
   const advanceFromPrioritySelector = useCallback(
     (priority: string) => {
@@ -71,9 +71,8 @@ export function useTutorialAdvancement() {
           // Show extra info about MIT (Most Important Task)
           nextStep('top_priority')
         } else {
-          // Dismiss spotlight - tutorial continues passively until form is submitted
-          // The day_toggle step is optional, user can proceed to submit
-          nextStep('cleanup')
+          // Go to complete_form step to prompt user to finish the task
+          nextStep('complete_form')
         }
       }
     },
@@ -85,7 +84,16 @@ export function useTutorialAdvancement() {
    */
   const advanceFromTopPriority = useCallback(() => {
     if (isActive && currentStep === 'top_priority') {
-      // Dismiss spotlight - tutorial continues passively until form is submitted
+      // Go to complete_form step to prompt user to finish the task
+      nextStep('complete_form')
+    }
+  }, [isActive, currentStep, nextStep])
+
+  /**
+   * Advance from complete_form step when user taps "Got it" or submits the form
+   */
+  const advanceFromCompleteForm = useCallback(() => {
+    if (isActive && currentStep === 'complete_form') {
       nextStep('cleanup')
     }
   }, [isActive, currentStep, nextStep])
@@ -121,6 +129,7 @@ export function useTutorialAdvancement() {
     advanceFromMoreCategoriesButton,
     advanceFromPrioritySelector,
     advanceFromTopPriority,
+    advanceFromCompleteForm,
     advanceFromDayToggle,
   }
 }

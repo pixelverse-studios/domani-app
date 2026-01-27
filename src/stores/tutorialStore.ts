@@ -16,6 +16,7 @@ export type TutorialStep =
   | 'priority_selector'
   | 'top_priority'
   | 'day_toggle'
+  | 'complete_form'
   | 'task_created'
   | 'today_screen'
   | 'cleanup'
@@ -143,6 +144,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
     priority_selector: null,
     top_priority: null,
     day_toggle: null,
+    complete_form: null,
     task_created: null,
     today_screen: null,
     cleanup: null,

@@ -90,8 +90,14 @@ export function AddTaskForm({
   const titleInputRef = useRef<TextInput>(null)
   const { targetRef: titleTargetRef, measureTarget: measureTitleTarget } =
     useTutorialTarget('title_input')
-  const { advanceFromTitleInput, advanceFromCategorySelector, advanceFromPrioritySelector } =
-    useTutorialAdvancement()
+  const { targetRef: completeFormRef, measureTarget: measureCompleteForm } =
+    useTutorialTarget('complete_form')
+  const {
+    advanceFromTitleInput,
+    advanceFromCategorySelector,
+    advanceFromPrioritySelector,
+    advanceFromCompleteForm,
+  } = useTutorialAdvancement()
 
   const [title, setTitle] = useState(initialValues?.title ?? '')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
@@ -374,8 +380,10 @@ export function AddTaskForm({
         disabled={isFormDisabled}
       />
 
-      {/* Notes Section - Collapsible */}
-      <View className="mt-4">
+      {/* Notes, Reminders, and Action Buttons - Tutorial target for complete_form step */}
+      <View ref={completeFormRef} onLayout={measureCompleteForm}>
+        {/* Notes Section - Collapsible */}
+        <View className="mt-4">
         <TouchableOpacity
           onPress={handleToggleNotes}
           disabled={isFormDisabled}
@@ -489,6 +497,7 @@ export function AddTaskForm({
             </Text>
           </View>
         )}
+      </View>
       </View>
     </View>
   )
