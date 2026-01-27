@@ -94,7 +94,6 @@ export function AddTaskForm({
     useTutorialTarget('complete_form')
   const {
     advanceFromTitleInput,
-    advanceFromCategorySelector,
     advanceFromPrioritySelector,
     advanceFromCompleteForm,
   } = useTutorialAdvancement()
@@ -238,8 +237,6 @@ export function AddTaskForm({
   const handleSelectCategory = (categoryId: string, categoryLabel: string) => {
     setSelectedCategory(categoryId)
     setSelectedCategoryLabel(categoryLabel)
-    // Advance tutorial when category is selected
-    advanceFromCategorySelector()
   }
 
   const handleClearCategory = () => {

@@ -49,8 +49,8 @@ const STEP_CONFIG: Record<
     requiresInteraction: true,
   },
   category_selector: {
-    title: 'Organize Your Tasks',
-    description: 'Create a category with "+ New", or choose one below.',
+    title: 'Create a Custom Category',
+    description: 'Tap "+ New" to create your first custom category.',
     position: 'above',
     showSkip: true,
     stepNumber: 3,

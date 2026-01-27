@@ -121,7 +121,8 @@ export function CategorySelector({
   const favoriteCategories = useFavoriteCategories(profile?.auto_sort_categories ?? false)
   const createCategory = useCreateUserCategory()
   const deleteCategory = useDeleteUserCategory()
-  const { advanceFromCreateCategory, advanceFromMoreCategoriesButton } = useTutorialAdvancement()
+  const { advanceFromCategorySelector, advanceFromCreateCategory, advanceFromMoreCategoriesButton } =
+    useTutorialAdvancement()
   const hideOverlay = useTutorialStore((state) => state.hideOverlay)
 
   // Bottom sheet state
@@ -257,10 +258,20 @@ export function CategorySelector({
 
   const handleSelectCategory = (category: CategoryOption) => {
     onSelectCategory(category.id, category.label)
+    // Only advance tutorial if user has more than 4 categories (they've created custom ones)
+    // If they only have defaults, they must create a category first
+    if (allCategories.length > 4) {
+      advanceFromCategorySelector()
+    }
   }
 
   const handleSelectCategoryAndClose = (category: CategoryOption) => {
     onSelectCategory(category.id, category.label)
+    // Only advance tutorial if user has more than 4 categories (they've created custom ones)
+    // If they only have defaults, they must create a category first
+    if (allCategories.length > 4) {
+      advanceFromCategorySelector()
+    }
     closeSheet()
   }
 
