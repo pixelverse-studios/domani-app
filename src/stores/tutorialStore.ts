@@ -298,7 +298,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
       })
 
       // Log if they're frequently abandoning (could show different UI)
-      if (newAbandonCount >= MAX_ABANDON_COUNT) {
+      if (__DEV__ && newAbandonCount >= MAX_ABANDON_COUNT) {
         console.log('User has abandoned tutorial multiple times')
       }
     }
