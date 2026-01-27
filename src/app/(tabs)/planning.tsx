@@ -197,6 +197,13 @@ export default function PlanningScreen() {
     setShouldAutoFocusTitle(false)
   }
 
+  // Reset form when tutorial is replayed (user clicks "Replay Tutorial" from Settings)
+  useEffect(() => {
+    if (isTutorialActive && currentStep === 'welcome' && isFormVisible) {
+      handleCloseForm()
+    }
+  }, [isTutorialActive, currentStep, isFormVisible, handleCloseForm])
+
   const handleEditTask = (taskId: string) => {
     const task = tasks.find((t) => t.id === taskId)
     if (task) {
