@@ -26,6 +26,8 @@ import {
 } from 'lucide-react-native'
 
 import { Text, ConfirmationModal } from '~/components/ui'
+import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
+import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTheme } from '~/hooks/useTheme'
 import { useProfile } from '~/hooks/useProfile'
 import {
@@ -108,6 +110,10 @@ export function CategorySelector({
   onClearCategory,
   disabled = false,
 }: CategorySelectorProps) {
+  const { targetRef: categorySelectorRef, measureTarget: measureCategorySelector } =
+    useTutorialTarget('category_selector')
+  const { targetRef: moreCategoriesRef, measureTarget: measureMoreCategories } =
+    useTutorialTarget('more_categories_button')
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
   const { profile } = useProfile()
@@ -115,6 +121,9 @@ export function CategorySelector({
   const favoriteCategories = useFavoriteCategories(profile?.auto_sort_categories ?? false)
   const createCategory = useCreateUserCategory()
   const deleteCategory = useDeleteUserCategory()
+  const { advanceFromCategorySelector, advanceFromCreateCategory, advanceFromMoreCategoriesButton } =
+    useTutorialAdvancement()
+  const hideOverlay = useTutorialStore((state) => state.hideOverlay)
 
   // Bottom sheet state
   const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -195,6 +204,8 @@ export function CategorySelector({
 
   const openSheet = () => {
     if (disabled) return
+    // Hide spotlight while sheet is open
+    hideOverlay()
     setIsSheetOpen(true)
   }
 
@@ -202,10 +213,14 @@ export function CategorySelector({
     Keyboard.dismiss()
     setCategorySearch('')
     setIsSheetOpen(false)
+    // Advance tutorial when sheet closes (so priority tooltip shows after sheet is gone)
+    advanceFromMoreCategoriesButton()
   }
 
   const openCreateModal = () => {
     if (disabled) return
+    // Hide spotlight when modal opens so it doesn't show behind the modal
+    hideOverlay()
     setIsCreateModalOpen(true)
     setTimeout(() => {
       createInputRef.current?.focus()
@@ -226,6 +241,11 @@ export function CategorySelector({
       const newCategory = await createCategory.mutateAsync({ name: trimmedName })
       onSelectCategory(newCategory.id, newCategory.name)
       closeCreateModal()
+      // Delay tutorial advancement until after modal closes and React Query updates
+      // This ensures the "+N more" button is visible before we try to highlight it
+      setTimeout(() => {
+        advanceFromCreateCategory()
+      }, 400)
     } catch (error) {
       console.error('Failed to create category:', error)
       if (isDuplicateNameError(error)) {
@@ -238,10 +258,20 @@ export function CategorySelector({
 
   const handleSelectCategory = (category: CategoryOption) => {
     onSelectCategory(category.id, category.label)
+    // Only advance tutorial if user has more than 4 categories (they've created custom ones)
+    // If they only have defaults, they must create a category first
+    if (allCategories.length > 4) {
+      advanceFromCategorySelector()
+    }
   }
 
   const handleSelectCategoryAndClose = (category: CategoryOption) => {
     onSelectCategory(category.id, category.label)
+    // Only advance tutorial if user has more than 4 categories (they've created custom ones)
+    // If they only have defaults, they must create a category first
+    if (allCategories.length > 4) {
+      advanceFromCategorySelector()
+    }
     closeSheet()
   }
 
@@ -250,6 +280,7 @@ export function CategorySelector({
     if (newCategoryName) {
       try {
         const newCategory = await createCategory.mutateAsync({ name: newCategoryName })
+        advanceFromCreateCategory()
         onSelectCategory(newCategory.id, newCategory.name)
         closeSheet()
       } catch (error) {
@@ -436,7 +467,7 @@ export function CategorySelector({
   }
 
   return (
-    <View className="mt-5">
+    <View className="mt-5" ref={categorySelectorRef} onLayout={measureCategorySelector}>
       {/* Category Header with Selected Badge */}
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-row items-center">
@@ -477,24 +508,26 @@ export function CategorySelector({
 
         {/* "+N more" button - opens bottom sheet */}
         {additionalCount > 0 && (
-          <TouchableOpacity
-            onPress={openSheet}
-            disabled={disabled}
-            style={[
-              styles.moreButton,
-              {
-                backgroundColor: isDark ? 'rgba(148, 163, 184, 0.15)' : 'rgba(100, 116, 139, 0.1)',
-                borderColor: isDark ? '#475569' : '#cbd5e1',
-              },
-            ]}
-          >
-            <Text
-              className="font-sans-medium"
-              style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 13 }}
+          <View ref={moreCategoriesRef} onLayout={measureMoreCategories}>
+            <TouchableOpacity
+              onPress={openSheet}
+              disabled={disabled}
+              style={[
+                styles.moreButton,
+                {
+                  backgroundColor: isDark ? 'rgba(148, 163, 184, 0.15)' : 'rgba(100, 116, 139, 0.1)',
+                  borderColor: isDark ? '#475569' : '#cbd5e1',
+                },
+              ]}
             >
-              +{additionalCount} more
-            </Text>
-          </TouchableOpacity>
+              <Text
+                className="font-sans-medium"
+                style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 13 }}
+              >
+                +{additionalCount} more
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* "+ New" button */}

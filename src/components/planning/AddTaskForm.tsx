@@ -26,6 +26,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 import { Text } from '~/components/ui'
+import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
 import { CategorySelector } from './CategorySelector'
 import { PrioritySelector, type Priority } from './PrioritySelector'
 import { DayToggle, type PlanningTarget } from './DayToggle'
@@ -68,6 +69,10 @@ interface AddTaskFormProps {
   onTargetChange: (target: PlanningTarget) => void
   /** Auto-focus the title input when form opens (e.g., when editing) */
   autoFocusTitle?: boolean
+  /** Callback to scroll parent when transitioning to category step */
+  onScrollToCategory?: () => void
+  /** Callback to scroll parent when transitioning to complete_form step */
+  onScrollToBottom?: () => void
 }
 
 export function AddTaskForm({
@@ -80,10 +85,21 @@ export function AddTaskForm({
   selectedTarget,
   onTargetChange,
   autoFocusTitle = false,
+  onScrollToCategory,
+  onScrollToBottom,
 }: AddTaskFormProps) {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
   const titleInputRef = useRef<TextInput>(null)
+  const { targetRef: titleTargetRef, measureTarget: measureTitleTarget } =
+    useTutorialTarget('title_input')
+  const { targetRef: completeFormRef, measureTarget: measureCompleteForm } =
+    useTutorialTarget('complete_form')
+  const {
+    advanceFromTitleInput,
+    advanceFromPrioritySelector,
+    advanceFromCompleteForm,
+  } = useTutorialAdvancement()
 
   const [title, setTitle] = useState(initialValues?.title ?? '')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
@@ -181,6 +197,44 @@ export function AddTaskForm({
     const baseDate = selectedTarget === 'tomorrow' ? addDays(new Date(), 1) : new Date()
     setReminderDate(setMinutes(setHours(baseDate, 9), 0))
     setSubmitState('idle')
+    // Reset tutorial advancement tracking so it can trigger again for new tasks
+    hasAdvancedFromTitle.current = false
+    // Clear any pending debounce timer
+    if (titleDebounceTimer.current) {
+      clearTimeout(titleDebounceTimer.current)
+      titleDebounceTimer.current = null
+    }
+  }
+
+  // Track if we've already advanced from title input to prevent multiple triggers
+  const hasAdvancedFromTitle = useRef(false)
+
+  // Debounce timer for tutorial advancement (500ms after last keystroke)
+  const titleDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleTitleChange = (text: string) => {
+    setTitle(text)
+
+    // Debounce tutorial advancement - wait 500ms after last keystroke
+    if (text.trim().length > 0 && !hasAdvancedFromTitle.current) {
+      // Clear existing timer
+      if (titleDebounceTimer.current) {
+        clearTimeout(titleDebounceTimer.current)
+      }
+      // Set new timer - only advance after 500ms of no typing
+      titleDebounceTimer.current = setTimeout(() => {
+        if (!hasAdvancedFromTitle.current) {
+          hasAdvancedFromTitle.current = true
+          // Scroll to better position the category section
+          onScrollToCategory?.()
+          // Wait for scroll animation to complete before advancing tutorial
+          // This ensures the category section measurement is accurate
+          setTimeout(() => {
+            advanceFromTitleInput()
+          }, 350)
+        }
+      }, 500)
+    }
   }
 
   const handleSelectCategory = (categoryId: string, categoryLabel: string) => {
@@ -191,6 +245,14 @@ export function AddTaskForm({
   const handleClearCategory = () => {
     setSelectedCategory(null)
     setSelectedCategoryLabel(null)
+  }
+
+  const handleSelectPriority = (priority: Priority) => {
+    setSelectedPriority(priority)
+    // Advance tutorial when priority is selected
+    advanceFromPrioritySelector(priority)
+    // Scroll to show Add Task button for complete_form tutorial step
+    onScrollToBottom?.()
   }
 
   const handleSubmit = async () => {
@@ -279,26 +341,28 @@ export function AddTaskForm({
       </View>
 
       {/* Task Title Input */}
-      <TextInput
-        ref={titleInputRef}
-        value={title}
-        onChangeText={setTitle}
-        placeholder="What do you want to accomplish?"
-        placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
-        editable={!isFormDisabled}
-        onFocus={() => setIsTitleFocused(true)}
-        onBlur={() => setIsTitleFocused(false)}
-        className="font-sans"
-        style={[
-          styles.input,
-          {
-            backgroundColor: isDark ? '#0f172a' : '#ffffff',
-            borderColor: isTitleFocused ? purpleColor : isDark ? '#334155' : '#e2e8f0',
-            borderWidth: isTitleFocused ? 2 : 1,
-            color: isDark ? '#f8fafc' : '#0f172a',
-          },
-        ]}
-      />
+      <View ref={titleTargetRef} onLayout={measureTitleTarget}>
+        <TextInput
+          ref={titleInputRef}
+          value={title}
+          onChangeText={handleTitleChange}
+          placeholder="What do you want to accomplish?"
+          placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+          editable={!isFormDisabled}
+          onFocus={() => setIsTitleFocused(true)}
+          onBlur={() => setIsTitleFocused(false)}
+          className="font-sans"
+          style={[
+            styles.input,
+            {
+              backgroundColor: isDark ? '#0f172a' : '#ffffff',
+              borderColor: isTitleFocused ? purpleColor : isDark ? '#334155' : '#e2e8f0',
+              borderWidth: isTitleFocused ? 2 : 1,
+              color: isDark ? '#f8fafc' : '#0f172a',
+            },
+          ]}
+        />
+      </View>
 
       {/* Category Section */}
       <CategorySelector
@@ -312,7 +376,7 @@ export function AddTaskForm({
       {/* Priority Section */}
       <PrioritySelector
         selectedPriority={selectedPriority}
-        onSelectPriority={setSelectedPriority}
+        onSelectPriority={handleSelectPriority}
         existingTopPriorityTask={existingTopPriorityTask}
         editingTaskId={editingTaskId}
         disabled={isFormDisabled}
@@ -370,8 +434,13 @@ export function AddTaskForm({
         selectedTarget={selectedTarget}
       />
 
-      {/* Action Buttons - above overlay */}
-      <View className="mt-6" style={{ zIndex: 2 }}>
+      {/* Action Buttons - Tutorial target for complete_form step */}
+      <View
+        ref={completeFormRef}
+        onLayout={measureCompleteForm}
+        className="mt-6"
+        style={{ zIndex: 2 }}
+      >
         {submitState === 'idle' && (
           <View className="flex-row" style={{ gap: 12 }}>
             {/* Cancel Button */}
