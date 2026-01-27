@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated'
 
 import { Text } from '~/components/ui'
+import { useTutorialTarget } from '~/components/tutorial'
 import { useTheme } from '~/hooks/useTheme'
 
 export type Priority = 'top' | 'high' | 'medium' | 'low'
@@ -53,6 +54,7 @@ export function PrioritySelector({
   editingTaskId,
   disabled = false,
 }: PrioritySelectorProps) {
+  const { targetRef, measureTarget } = useTutorialTarget('priority_selector')
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
 
@@ -125,7 +127,7 @@ export function PrioritySelector({
   const labelColor = isDark ? '#94a3b8' : '#64748b'
 
   return (
-    <View className="mt-5">
+    <View className="mt-5" ref={targetRef} onLayout={measureTarget}>
       {/* Priority Label */}
       <View className="flex-row items-center mb-3">
         <Triangle size={16} color={labelColor} />

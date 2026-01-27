@@ -367,6 +367,14 @@ export default function PlanningScreen() {
             selectedTarget={formSelectedDay}
             onTargetChange={setFormSelectedDay}
             autoFocusTitle={shouldAutoFocusTitle}
+            onScrollToCategory={() => {
+              // Scroll down to position category section better during tutorial
+              scrollViewRef.current?.scrollTo({ y: 120, animated: true })
+            }}
+            onScrollToBottom={() => {
+              // Scroll to show Add Task button during complete_form tutorial step
+              scrollViewRef.current?.scrollTo({ y: 280, animated: true })
+            }}
           />
         ) : (
           <AddTaskPlaceholder
