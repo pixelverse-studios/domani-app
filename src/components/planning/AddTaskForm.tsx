@@ -382,10 +382,8 @@ export function AddTaskForm({
         disabled={isFormDisabled}
       />
 
-      {/* Notes, Reminders, and Action Buttons - Tutorial target for complete_form step */}
-      <View ref={completeFormRef} onLayout={measureCompleteForm}>
-        {/* Notes Section - Collapsible */}
-        <View className="mt-4">
+      {/* Notes Section - Collapsible */}
+      <View className="mt-4">
         <TouchableOpacity
           onPress={handleToggleNotes}
           disabled={isFormDisabled}
@@ -436,8 +434,13 @@ export function AddTaskForm({
         selectedTarget={selectedTarget}
       />
 
-      {/* Action Buttons - above overlay */}
-      <View className="mt-6" style={{ zIndex: 2 }}>
+      {/* Action Buttons - Tutorial target for complete_form step */}
+      <View
+        ref={completeFormRef}
+        onLayout={measureCompleteForm}
+        className="mt-6"
+        style={{ zIndex: 2 }}
+      >
         {submitState === 'idle' && (
           <View className="flex-row" style={{ gap: 12 }}>
             {/* Cancel Button */}
@@ -499,7 +502,6 @@ export function AddTaskForm({
             </Text>
           </View>
         )}
-      </View>
       </View>
     </View>
   )
