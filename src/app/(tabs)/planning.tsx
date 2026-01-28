@@ -25,6 +25,9 @@ import type { TaskWithCategory } from '~/types'
 
 const FREE_TIER_TASK_LIMIT = 3
 
+// Tutorial timing constants
+const TUTORIAL_TASK_RENDER_DELAY = 500 // Delay for task to appear in list before advancing
+
 type PlanningTarget = 'today' | 'tomorrow'
 type Priority = 'top' | 'high' | 'medium' | 'low'
 
@@ -291,18 +294,22 @@ export default function PlanningScreen() {
         })
 
         // If tutorial is active at complete_form step, store task ID and advance
-        if (isTutorialActive && currentStep === 'complete_form' && newTask?.id) {
-          setTutorialTaskId(newTask.id)
-          // Delay advancement to allow task to appear in list
-          setTimeout(() => {
-            if (isMountedRef.current) {
-              try {
-                advanceFromCompleteForm()
-              } catch (error) {
-                console.error('Failed to advance tutorial from complete_form:', error)
+        if (isTutorialActive && currentStep === 'complete_form') {
+          if (!newTask?.id) {
+            console.warn('Tutorial: Task created but missing ID, cannot advance')
+          } else {
+            setTutorialTaskId(newTask.id)
+            // Delay advancement to allow task to appear in list
+            setTimeout(() => {
+              if (isMountedRef.current) {
+                try {
+                  advanceFromCompleteForm()
+                } catch (error) {
+                  console.error('Failed to advance tutorial from complete_form:', error)
+                }
               }
-            }
-          }, 500)
+            }, TUTORIAL_TASK_RENDER_DELAY)
+          }
         }
       }
       // Close form after successful submission
