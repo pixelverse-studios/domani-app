@@ -393,8 +393,7 @@ export default function PlanningScreen() {
             }}
             onScrollToBottom={() => {
               // Scroll to show Add Task button during complete_form tutorial step
-              // Use a moderate scroll to keep the action buttons visible at bottom of screen
-              scrollViewRef.current?.scrollTo({ y: 180, animated: true })
+              scrollViewRef.current?.scrollToEnd({ animated: true })
             }}
           />
         ) : (

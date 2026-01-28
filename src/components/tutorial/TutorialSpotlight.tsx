@@ -223,16 +223,19 @@ export function TutorialSpotlight() {
     }
 
     const nextStepValue = nextStepMap[currentStep]
-    if (nextStepValue) {
-      overlayOpacity.value = withTiming(0, { duration: 150 })
-      tooltipScale.value = withTiming(0.9, { duration: 150 })
+    overlayOpacity.value = withTiming(0, { duration: 150 })
+    tooltipScale.value = withTiming(0.9, { duration: 150 })
 
+    if (nextStepValue) {
       // Navigate to Today tab when advancing from task_created
       if (currentStep === 'task_created') {
-        router.replace('/(tabs)/today')
+        router.replace('/(tabs)/')
       }
 
       setTimeout(() => nextStep(nextStepValue), 150)
+    } else {
+      // No specific next step - just hide the overlay so user can interact
+      setTimeout(() => hideOverlay(), 150)
     }
   }
 

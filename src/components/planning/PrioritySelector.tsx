@@ -54,7 +54,28 @@ export function PrioritySelector({
   editingTaskId,
   disabled = false,
 }: PrioritySelectorProps) {
-  const { targetRef, measureTarget } = useTutorialTarget('priority_selector')
+  // Register as target for both priority_selector and top_priority tutorial steps
+  const { targetRef: prioritySelectorRef, measureTarget: measurePrioritySelector } =
+    useTutorialTarget('priority_selector')
+  const { targetRef: topPriorityRef, measureTarget: measureTopPriority } =
+    useTutorialTarget('top_priority')
+
+  // Callback ref that assigns to both tutorial target refs
+  const combinedRef = useCallback(
+    (node: View | null) => {
+      // Assign to both refs (they expect View | null)
+      ;(prioritySelectorRef as React.MutableRefObject<View | null>).current = node
+      ;(topPriorityRef as React.MutableRefObject<View | null>).current = node
+    },
+    [prioritySelectorRef, topPriorityRef],
+  )
+
+  // Combined layout handler that measures for both tutorial steps
+  const handleLayout = useCallback(() => {
+    measurePrioritySelector()
+    measureTopPriority()
+  }, [measurePrioritySelector, measureTopPriority])
+
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
 
@@ -127,7 +148,7 @@ export function PrioritySelector({
   const labelColor = isDark ? '#94a3b8' : '#64748b'
 
   return (
-    <View className="mt-5" ref={targetRef} onLayout={measureTarget}>
+    <View className="mt-5" ref={combinedRef} onLayout={handleLayout}>
       {/* Priority Label */}
       <View className="flex-row items-center mb-3">
         <Triangle size={16} color={labelColor} />

@@ -27,6 +27,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 import { Text } from '~/components/ui'
 import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
+import { useTutorialStore } from '~/stores/tutorialStore'
 import { CategorySelector } from './CategorySelector'
 import { PrioritySelector, type Priority } from './PrioritySelector'
 import { DayToggle, type PlanningTarget } from './DayToggle'
@@ -100,6 +101,7 @@ export function AddTaskForm({
     advanceFromPrioritySelector,
     advanceFromCompleteForm,
   } = useTutorialAdvancement()
+  const { isActive: isTutorialActive, currentStep: tutorialStep } = useTutorialStore()
 
   const [title, setTitle] = useState(initialValues?.title ?? '')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
@@ -158,6 +160,19 @@ export function AddTaskForm({
       return () => clearTimeout(timer)
     }
   }, [autoFocusTitle])
+
+  // Scroll to show Add Task button when tutorial enters complete_form step
+  // This handles the case when coming from top_priority step (via "Got it" button)
+  useEffect(() => {
+    if (isTutorialActive && tutorialStep === 'complete_form') {
+      onScrollToBottom?.()
+      // Re-measure after scroll completes
+      const timer = setTimeout(() => {
+        measureCompleteForm()
+      }, 450)
+      return () => clearTimeout(timer)
+    }
+  }, [isTutorialActive, tutorialStep, onScrollToBottom, measureCompleteForm])
 
   const handleToggleNotes = useCallback(() => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
@@ -251,13 +266,15 @@ export function AddTaskForm({
     setSelectedPriority(priority)
     // Advance tutorial when priority is selected
     advanceFromPrioritySelector(priority)
-    // Scroll to show Add Task button for complete_form tutorial step
-    onScrollToBottom?.()
-    // Re-measure the complete_form target after scroll animation completes
-    // This ensures the spotlight highlights the button's final position
-    setTimeout(() => {
-      measureCompleteForm()
-    }, 450)
+    // Only scroll to bottom if going directly to complete_form (non-top priorities)
+    // Top priority shows top_priority step first, scroll happens later
+    if (priority !== 'top') {
+      onScrollToBottom?.()
+      // Re-measure the complete_form target after scroll animation completes
+      setTimeout(() => {
+        measureCompleteForm()
+      }, 450)
+    }
   }
 
   const handleSubmit = async () => {
