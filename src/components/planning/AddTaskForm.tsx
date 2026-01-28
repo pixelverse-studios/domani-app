@@ -38,6 +38,11 @@ import { colors } from '~/theme'
 type Category = 'work' | 'wellness' | 'personal' | 'education' | string
 type SubmitState = 'idle' | 'submitting' | 'success'
 
+// Tutorial timing constants
+const TUTORIAL_FOCUS_DELAY = 350 // Delay for input focus after scroll
+const TUTORIAL_SCROLL_DELAY = 450 // Delay for measurement after scroll animation
+const TUTORIAL_DEBOUNCE_DELAY = 500 // Debounce for title input tutorial advancement
+
 interface InitialFormValues {
   title: string
   categoryId?: string
@@ -94,10 +99,17 @@ export function AddTaskForm({
   const titleInputRef = useRef<TextInput>(null)
   const isMountedRef = useRef(true)
 
-  // Track mounted state to prevent setTimeout callbacks after unmount
+  // Track mounted state and cleanup timers on unmount
   useEffect(() => {
     return () => {
       isMountedRef.current = false
+      // Clear any pending timers
+      if (titleDebounceTimer.current) {
+        clearTimeout(titleDebounceTimer.current)
+      }
+      if (priorityScrollTimer.current) {
+        clearTimeout(priorityScrollTimer.current)
+      }
     }
   }, [])
   const { targetRef: titleTargetRef, measureTarget: measureTitleTarget } =
@@ -164,7 +176,7 @@ export function AddTaskForm({
       // Delay focus to allow scroll animation to complete
       const timer = setTimeout(() => {
         titleInputRef.current?.focus()
-      }, 350)
+      }, TUTORIAL_FOCUS_DELAY)
       return () => clearTimeout(timer)
     }
   }, [autoFocusTitle])
@@ -177,7 +189,7 @@ export function AddTaskForm({
       // Re-measure after scroll completes
       const timer = setTimeout(() => {
         measureCompleteForm()
-      }, 450)
+      }, TUTORIAL_SCROLL_DELAY)
       return () => clearTimeout(timer)
     }
   }, [isTutorialActive, tutorialStep, onScrollToBottom, measureCompleteForm])
@@ -232,19 +244,21 @@ export function AddTaskForm({
   // Track if we've already advanced from title input to prevent multiple triggers
   const hasAdvancedFromTitle = useRef(false)
 
-  // Debounce timer for tutorial advancement (500ms after last keystroke)
+  // Debounce timer for tutorial advancement (after last keystroke)
   const titleDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Timer for priority selection scroll measurement
+  const priorityScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleTitleChange = (text: string) => {
     setTitle(text)
 
-    // Debounce tutorial advancement - wait 500ms after last keystroke
+    // Debounce tutorial advancement - wait for pause in typing
     if (text.trim().length > 0 && !hasAdvancedFromTitle.current) {
       // Clear existing timer
       if (titleDebounceTimer.current) {
         clearTimeout(titleDebounceTimer.current)
       }
-      // Set new timer - only advance after 500ms of no typing
+      // Set new timer - only advance after debounce delay with no typing
       titleDebounceTimer.current = setTimeout(() => {
         if (!hasAdvancedFromTitle.current) {
           hasAdvancedFromTitle.current = true
@@ -253,10 +267,14 @@ export function AddTaskForm({
           // Wait for scroll animation to complete before advancing tutorial
           // This ensures the category section measurement is accurate
           setTimeout(() => {
-            advanceFromTitleInput()
-          }, 350)
+            try {
+              advanceFromTitleInput()
+            } catch (error) {
+              console.error('Failed to advance tutorial from title input:', error)
+            }
+          }, TUTORIAL_FOCUS_DELAY)
         }
-      }, 500)
+      }, TUTORIAL_DEBOUNCE_DELAY)
     }
   }
 
@@ -278,8 +296,12 @@ export function AddTaskForm({
     // Top priority shows top_priority step first, scroll happens later
     if (priority !== 'top') {
       onScrollToBottom?.()
+      // Clear any existing timer before setting a new one
+      if (priorityScrollTimer.current) {
+        clearTimeout(priorityScrollTimer.current)
+      }
       // Re-measure the complete_form target after scroll animation completes
-      setTimeout(() => {
+      priorityScrollTimer.current = setTimeout(() => {
         if (isMountedRef.current) {
           try {
             measureCompleteForm()
@@ -287,7 +309,7 @@ export function AddTaskForm({
             console.error('Failed to measure complete form:', error)
           }
         }
-      }, 450)
+      }, TUTORIAL_SCROLL_DELAY)
     }
   }
 
