@@ -5,13 +5,17 @@ import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 
 import { Text } from '~/components/ui'
+import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
 import { colors } from '~/theme'
 
 export function EmptyState() {
   const router = useRouter()
   const iconColor = '#a855f7' // purple-500
+  const { targetRef, measureTarget } = useTutorialTarget('plan_today_button')
+  const { advanceFromTodayButton } = useTutorialAdvancement()
 
   const handlePlanToday = () => {
+    advanceFromTodayButton()
     router.push('/(tabs)/planning?defaultPlanningFor=today&openForm=true')
   }
 
@@ -28,11 +32,12 @@ export function EmptyState() {
       </Text>
 
       {/* CTA Button - gradient background */}
-      <TouchableOpacity
-        onPress={handlePlanToday}
-        activeOpacity={0.8}
-        style={styles.buttonContainer}
-      >
+      <View ref={targetRef} onLayout={measureTarget}>
+        <TouchableOpacity
+          onPress={handlePlanToday}
+          activeOpacity={0.8}
+          style={styles.buttonContainer}
+        >
         <LinearGradient
           colors={[colors.brand.pink, colors.brand.pink, colors.brand.purple] as const}
           locations={[0, 0.6, 1]}
@@ -43,7 +48,8 @@ export function EmptyState() {
           <Plus size={20} color="#ffffff" />
           <Text className="text-white font-semibold text-base ml-2">Plan Today</Text>
         </LinearGradient>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
     </View>
   )
 }

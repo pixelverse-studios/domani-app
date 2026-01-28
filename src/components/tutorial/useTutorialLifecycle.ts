@@ -5,13 +5,25 @@ import { usePathname } from 'expo-router'
 import { useTutorialStore } from '~/stores/tutorialStore'
 
 /**
+ * Tutorial can run on these screens
+ */
+const TUTORIAL_SCREENS = ['/', '/planning']
+
+/**
+ * Check if a pathname is a tutorial-enabled screen
+ */
+function isTutorialScreen(pathname: string): boolean {
+  return TUTORIAL_SCREENS.includes(pathname)
+}
+
+/**
  * Hook to manage tutorial pause/resume based on app lifecycle and navigation.
  *
  * Call this once in a high-level component (e.g., root layout) to:
  * - Pause tutorial when app goes to background
  * - Resume/restart tutorial when app comes back to foreground
- * - Pause tutorial when user navigates away from the Planning screen
- * - Resume/restart tutorial when user returns to Planning screen
+ * - Pause tutorial when user navigates away from tutorial screens (Today or Planning)
+ * - Resume/restart tutorial when user returns to a tutorial screen
  */
 export function useTutorialLifecycle() {
   const pathname = usePathname()
@@ -21,8 +33,8 @@ export function useTutorialLifecycle() {
   // Track previous app state to detect transitions
   const appStateRef = useRef<AppStateStatus>(AppState.currentState)
 
-  // Track if we were on the planning screen
-  const wasOnPlanningRef = useRef(pathname === '/planning')
+  // Track if we were on a tutorial screen
+  const wasOnTutorialScreenRef = useRef(isTutorialScreen(pathname))
 
   // Listen for app state changes (background/foreground)
   useEffect(() => {
@@ -36,8 +48,8 @@ export function useTutorialLifecycle() {
 
       // App coming back to foreground
       if (prevState.match(/inactive|background/) && nextAppState === 'active') {
-        // Only resume if we're on the planning screen
-        if (pathname === '/planning') {
+        // Only resume if we're on a tutorial screen
+        if (isTutorialScreen(pathname)) {
           resumeOrRestart()
         }
       }
@@ -50,19 +62,19 @@ export function useTutorialLifecycle() {
 
   // Listen for navigation changes
   useEffect(() => {
-    const isOnPlanning = pathname === '/planning'
-    const wasOnPlanning = wasOnPlanningRef.current
+    const isOnTutorialScreen = isTutorialScreen(pathname)
+    const wasOnTutorialScreen = wasOnTutorialScreenRef.current
 
-    // Navigated away from Planning screen while tutorial was active
-    if (wasOnPlanning && !isOnPlanning && isActive) {
+    // Navigated away from tutorial screens while tutorial was active
+    if (wasOnTutorialScreen && !isOnTutorialScreen && isActive) {
       pauseTutorial()
     }
 
-    // Navigated back to Planning screen while tutorial was paused
-    if (!wasOnPlanning && isOnPlanning && pausedStep && !hasCompletedTutorial) {
+    // Navigated back to a tutorial screen while tutorial was paused
+    if (!wasOnTutorialScreen && isOnTutorialScreen && pausedStep && !hasCompletedTutorial) {
       resumeOrRestart()
     }
 
-    wasOnPlanningRef.current = isOnPlanning
+    wasOnTutorialScreenRef.current = isOnTutorialScreen
   }, [pathname, isActive, pausedStep, hasCompletedTutorial, pauseTutorial, resumeOrRestart])
 }

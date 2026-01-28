@@ -33,9 +33,17 @@ const STEP_CONFIG: Record<
   }
 > = {
   welcome: { title: '', description: '', position: 'center' },
-  add_task_button: {
-    title: 'Create Your First Task',
-    description: 'Tap here to start planning your day.',
+  plan_today_button: {
+    title: 'Plan Your Day',
+    description: "Tap here to add your first task for today.",
+    position: 'above',
+    showSkip: true,
+    stepNumber: 1,
+    requiresInteraction: true,
+  },
+  today_add_task_button: {
+    title: 'Add More Tasks',
+    description: "This is your Today view with existing tasks. Tap here to add another task.",
     position: 'above',
     showSkip: true,
     stepNumber: 1,
@@ -122,7 +130,8 @@ const STEP_CONFIG: Record<
 }
 
 const SPOTLIGHT_STEPS: TutorialStep[] = [
-  'add_task_button',
+  'plan_today_button',
+  'today_add_task_button',
   'title_input',
   'category_selector',
   'more_categories_button',
@@ -184,6 +193,7 @@ export function TutorialSpotlight() {
         if (currentMeasurement === null) {
           // Skip to the fallback step based on current step
           const skipMap: Partial<Record<TutorialStep, TutorialStep>> = {
+            plan_today_button: 'today_add_task_button',
             more_categories_button: 'priority_selector',
           }
           const fallbackStep = skipMap[currentStep!]
