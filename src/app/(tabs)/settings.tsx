@@ -252,6 +252,11 @@ export default function SettingsScreen() {
   const [editName, setEditName] = useState('')
   const [selectedTime, setSelectedTime] = useState(new Date())
 
+  const handleReplayTutorial = () => {
+    resetTutorial()
+    router.push('/(tabs)/')
+  }
+
   const handleSignOut = async () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
@@ -701,7 +706,7 @@ export default function SettingsScreen() {
         <View className="mb-6">
           <SettingsRow
             label="Replay Tutorial"
-            onPress={resetTutorial}
+            onPress={handleReplayTutorial}
             icon={Sparkles}
             showChevron={false}
           />
