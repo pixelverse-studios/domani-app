@@ -414,7 +414,8 @@ export default function PlanningScreen() {
             }}
             onScrollToBottom={() => {
               // Scroll to show Add Task button during complete_form tutorial step
-              scrollViewRef.current?.scrollToEnd({ animated: true })
+              // Use fixed position instead of scrollToEnd to leave room for tooltip above
+              scrollViewRef.current?.scrollTo({ y: 340, animated: true })
             }}
           />
         ) : (
