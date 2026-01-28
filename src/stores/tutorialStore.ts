@@ -8,7 +8,8 @@ import { supabase } from '~/lib/supabase'
  */
 export type TutorialStep =
   | 'welcome'
-  | 'add_task_button'
+  | 'plan_today_button'
+  | 'today_add_task_button'
   | 'title_input'
   | 'category_selector'
   | 'create_category'
@@ -136,7 +137,8 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
   tutorialTaskId: null,
   targetMeasurements: {
     welcome: null,
-    add_task_button: null,
+    plan_today_button: null,
+    today_add_task_button: null,
     title_input: null,
     category_selector: null,
     create_category: null,

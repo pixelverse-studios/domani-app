@@ -10,10 +10,10 @@ export function useTutorialAdvancement() {
   const { isActive, currentStep, nextStep } = useTutorialStore()
 
   /**
-   * Advance the tutorial when the user taps the "Add Task" button
+   * Advance the tutorial when the user taps "Plan Today" or "Add More Tasks" button on Today screen
    */
-  const advanceFromAddTaskButton = useCallback(() => {
-    if (isActive && currentStep === 'add_task_button') {
+  const advanceFromTodayButton = useCallback(() => {
+    if (isActive && (currentStep === 'plan_today_button' || currentStep === 'today_add_task_button')) {
       nextStep('title_input')
     }
   }, [isActive, currentStep, nextStep])
@@ -132,7 +132,7 @@ export function useTutorialAdvancement() {
     isActive,
     currentStep,
     shouldHighlight,
-    advanceFromAddTaskButton,
+    advanceFromTodayButton,
     advanceFromTitleInput,
     advanceFromCategorySelector,
     advanceFromCreateCategory,

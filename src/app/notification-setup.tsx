@@ -11,6 +11,7 @@ import { useTheme } from '~/hooks/useTheme'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { NotificationService } from '~/lib/notifications'
 import { useNotificationStore } from '~/stores/notificationStore'
+import { useTutorialStore } from '~/stores/tutorialStore'
 import { useUpdateProfile } from '~/hooks/useProfile'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 
@@ -41,6 +42,7 @@ export default function NotificationSetupScreen() {
   const { track } = useAnalytics()
 
   const { setPlanningReminderId, setPermissionStatus } = useNotificationStore()
+  const { startTutorial, hasCompletedTutorial } = useTutorialStore()
 
   // Default Plan Reminder: 9:00 PM
   const defaultPlanTime = useMemo(() => {
@@ -101,6 +103,11 @@ export default function NotificationSetupScreen() {
           timezone: detectedTimezone,
         })
         console.log('[NotificationSetup] Saved timezone (permissions denied):', detectedTimezone)
+      }
+
+      // Start tutorial for new users who haven't completed it yet
+      if (!hasCompletedTutorial) {
+        startTutorial()
       }
 
       router.replace('/(tabs)')
