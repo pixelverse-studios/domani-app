@@ -229,7 +229,11 @@ export function TutorialSpotlight() {
     if (nextStepValue) {
       // Navigate to Today tab when advancing from task_created
       if (currentStep === 'task_created') {
-        router.replace('/(tabs)/')
+        try {
+          router.replace('/(tabs)/')
+        } catch (error) {
+          console.error('Failed to navigate to Today tab:', error)
+        }
       }
 
       setTimeout(() => nextStep(nextStepValue), 150)

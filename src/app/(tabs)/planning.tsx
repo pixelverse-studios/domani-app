@@ -57,6 +57,14 @@ export default function PlanningScreen() {
   useScreenTracking('planning')
   const router = useRouter()
   const scrollViewRef = useRef<ScrollView>(null)
+  const isMountedRef = useRef(true)
+
+  // Track mounted state to prevent setTimeout callbacks after unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
   const { defaultPlanningFor, editTaskId, openForm } = useLocalSearchParams<{
     defaultPlanningFor?: 'today' | 'tomorrow'
     editTaskId?: string
@@ -283,11 +291,17 @@ export default function PlanningScreen() {
         })
 
         // If tutorial is active at complete_form step, store task ID and advance
-        if (isTutorialActive && currentStep === 'complete_form') {
+        if (isTutorialActive && currentStep === 'complete_form' && newTask?.id) {
           setTutorialTaskId(newTask.id)
           // Delay advancement to allow task to appear in list
           setTimeout(() => {
-            advanceFromCompleteForm()
+            if (isMountedRef.current) {
+              try {
+                advanceFromCompleteForm()
+              } catch (error) {
+                console.error('Failed to advance tutorial from complete_form:', error)
+              }
+            }
           }, 500)
         }
       }

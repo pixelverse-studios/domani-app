@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { View, TouchableOpacity, LayoutChangeEvent } from 'react-native'
 import { Crown, Triangle, AlertTriangle } from 'lucide-react-native'
 import Animated, {
@@ -60,15 +60,23 @@ export function PrioritySelector({
   const { targetRef: topPriorityRef, measureTarget: measureTopPriority } =
     useTutorialTarget('top_priority')
 
-  // Callback ref that assigns to both tutorial target refs
-  const combinedRef = useCallback(
-    (node: View | null) => {
-      // Assign to both refs (they expect View | null)
+  // Store refs in a stable container to avoid recreating combinedRef on every render
+  // (useTutorialTarget returns new ref objects each render)
+  const refsContainer = useRef({ prioritySelectorRef, topPriorityRef })
+  useEffect(() => {
+    refsContainer.current = { prioritySelectorRef, topPriorityRef }
+  }, [prioritySelectorRef, topPriorityRef])
+
+  // Callback ref that assigns to both tutorial target refs (now stable with no dependencies)
+  const combinedRef = useCallback((node: View | null) => {
+    const { prioritySelectorRef, topPriorityRef } = refsContainer.current
+    if (prioritySelectorRef) {
       ;(prioritySelectorRef as React.MutableRefObject<View | null>).current = node
+    }
+    if (topPriorityRef) {
       ;(topPriorityRef as React.MutableRefObject<View | null>).current = node
-    },
-    [prioritySelectorRef, topPriorityRef],
-  )
+    }
+  }, [])
 
   // Combined layout handler that measures for both tutorial steps
   const handleLayout = useCallback(() => {

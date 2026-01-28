@@ -81,17 +81,15 @@ export function TaskList({
       {sortedTasks.map((task) => {
         const isTutorialTask = isTutorialTaskStep && task.id === tutorialTaskId
 
-        if (isTutorialTask) {
-          // Wrap tutorial task with ref for spotlight measurement
-          return (
-            <View key={task.id} ref={taskCreatedRef} onLayout={measureTaskCreated}>
-              <TaskCard task={task} onEdit={onEditTask} onDelete={handleDeletePress} />
-            </View>
-          )
-        }
-
+        // Always wrap in View for consistent JSX structure to prevent React re-mounts
         return (
-          <TaskCard key={task.id} task={task} onEdit={onEditTask} onDelete={handleDeletePress} />
+          <View
+            key={task.id}
+            ref={isTutorialTask ? taskCreatedRef : undefined}
+            onLayout={isTutorialTask ? measureTaskCreated : undefined}
+          >
+            <TaskCard task={task} onEdit={onEditTask} onDelete={handleDeletePress} />
+          </View>
         )
       })}
 

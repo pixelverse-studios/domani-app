@@ -92,6 +92,14 @@ export function AddTaskForm({
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
   const titleInputRef = useRef<TextInput>(null)
+  const isMountedRef = useRef(true)
+
+  // Track mounted state to prevent setTimeout callbacks after unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
   const { targetRef: titleTargetRef, measureTarget: measureTitleTarget } =
     useTutorialTarget('title_input')
   const { targetRef: completeFormRef, measureTarget: measureCompleteForm } =
@@ -272,7 +280,13 @@ export function AddTaskForm({
       onScrollToBottom?.()
       // Re-measure the complete_form target after scroll animation completes
       setTimeout(() => {
-        measureCompleteForm()
+        if (isMountedRef.current) {
+          try {
+            measureCompleteForm()
+          } catch (error) {
+            console.error('Failed to measure complete form:', error)
+          }
+        }
       }, 450)
     }
   }
