@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import Svg, { Defs, Rect, Mask } from 'react-native-svg'
+import { router } from 'expo-router'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
@@ -106,8 +107,8 @@ const STEP_CONFIG: Record<
   },
   task_created: {
     title: 'Task Created!',
-    description: 'Tap the checkbox to complete it.',
-    position: 'center',
+    description: "Here's your task! Notice the category and priority. Let's see it on your Today screen.",
+    position: 'above',
     showNext: true,
   },
   today_screen: {
@@ -129,6 +130,7 @@ const SPOTLIGHT_STEPS: TutorialStep[] = [
   'top_priority',
   'day_toggle',
   'complete_form',
+  'task_created',
 ]
 
 const TOTAL_STEPS = 5
@@ -216,16 +218,28 @@ export function TutorialSpotlight() {
 
     const nextStepMap: Partial<Record<TutorialStep, TutorialStep>> = {
       top_priority: 'complete_form',
-      complete_form: 'cleanup',
       task_created: 'today_screen',
       today_screen: 'completion',
     }
 
     const nextStepValue = nextStepMap[currentStep]
+    overlayOpacity.value = withTiming(0, { duration: 150 })
+    tooltipScale.value = withTiming(0.9, { duration: 150 })
+
     if (nextStepValue) {
-      overlayOpacity.value = withTiming(0, { duration: 150 })
-      tooltipScale.value = withTiming(0.9, { duration: 150 })
+      // Navigate to Today tab when advancing from task_created
+      if (currentStep === 'task_created') {
+        try {
+          router.replace('/(tabs)/')
+        } catch (error) {
+          console.error('Failed to navigate to Today tab:', error)
+        }
+      }
+
       setTimeout(() => nextStep(nextStepValue), 150)
+    } else {
+      // No specific next step - just hide the overlay so user can interact
+      setTimeout(() => hideOverlay(), 150)
     }
   }
 

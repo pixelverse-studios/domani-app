@@ -18,6 +18,8 @@ import { useCreateTask, useTasks, useDeleteTask, useUpdateTask } from '~/hooks/u
 import { useSystemCategories } from '~/hooks/useCategories'
 import { useSubscription } from '~/hooks/useSubscription'
 import { useAppConfig } from '~/stores/appConfigStore'
+import { useTutorialStore } from '~/stores/tutorialStore'
+import { useTutorialAdvancement } from '~/components/tutorial'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import type { TaskWithCategory } from '~/types'
 
@@ -55,6 +57,14 @@ export default function PlanningScreen() {
   useScreenTracking('planning')
   const router = useRouter()
   const scrollViewRef = useRef<ScrollView>(null)
+  const isMountedRef = useRef(true)
+
+  // Track mounted state to prevent setTimeout callbacks after unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
   const { defaultPlanningFor, editTaskId, openForm } = useLocalSearchParams<{
     defaultPlanningFor?: 'today' | 'tomorrow'
     editTaskId?: string
@@ -110,6 +120,8 @@ export default function PlanningScreen() {
   const deleteTask = useDeleteTask()
   const { status: subscriptionStatus } = useSubscription()
   const { phase } = useAppConfig()
+  const { setTutorialTaskId } = useTutorialStore()
+  const { isActive: isTutorialActive, currentStep, advanceFromCompleteForm } = useTutorialAdvancement()
 
   // Handle editTaskId param - open edit form when navigating from Today page
   useEffect(() => {
@@ -193,6 +205,13 @@ export default function PlanningScreen() {
     setShouldAutoFocusTitle(false)
   }
 
+  // Reset form when tutorial is replayed (user clicks "Replay Tutorial" from Settings)
+  useEffect(() => {
+    if (isTutorialActive && currentStep === 'welcome' && isFormVisible) {
+      handleCloseForm()
+    }
+  }, [isTutorialActive, currentStep, isFormVisible, handleCloseForm])
+
   const handleEditTask = (taskId: string) => {
     const task = tasks.find((t) => t.id === taskId)
     if (task) {
@@ -261,7 +280,7 @@ export default function PlanningScreen() {
           return
         }
 
-        await createTask.mutateAsync({
+        const newTask = await createTask.mutateAsync({
           planId: targetPlanId,
           title: task.title,
           priority: task.priority,
@@ -270,6 +289,21 @@ export default function PlanningScreen() {
           notes: task.notes,
           reminderAt: task.reminderAt,
         })
+
+        // If tutorial is active at complete_form step, store task ID and advance
+        if (isTutorialActive && currentStep === 'complete_form' && newTask?.id) {
+          setTutorialTaskId(newTask.id)
+          // Delay advancement to allow task to appear in list
+          setTimeout(() => {
+            if (isMountedRef.current) {
+              try {
+                advanceFromCompleteForm()
+              } catch (error) {
+                console.error('Failed to advance tutorial from complete_form:', error)
+              }
+            }
+          }, 500)
+        }
       }
       // Close form after successful submission
       handleCloseForm()
@@ -373,7 +407,7 @@ export default function PlanningScreen() {
             }}
             onScrollToBottom={() => {
               // Scroll to show Add Task button during complete_form tutorial step
-              scrollViewRef.current?.scrollTo({ y: 280, animated: true })
+              scrollViewRef.current?.scrollToEnd({ animated: true })
             }}
           />
         ) : (

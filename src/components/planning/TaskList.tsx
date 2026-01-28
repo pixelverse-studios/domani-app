@@ -2,6 +2,8 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { View } from 'react-native'
 
 import { Text, ConfirmationModal } from '~/components/ui'
+import { useTutorialTarget } from '~/components/tutorial'
+import { useTutorialStore } from '~/stores/tutorialStore'
 import { TaskCard } from './TaskCard'
 import { sortTasksByPriority } from '~/utils/sortTasks'
 import type { TaskWithCategory } from '~/types'
@@ -23,6 +25,11 @@ export function TaskList({
 }: TaskListProps) {
   const [taskToDelete, setTaskToDelete] = useState<TaskWithCategory | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Tutorial state for highlighting the created task
+  const { targetRef: taskCreatedRef, measureTarget: measureTaskCreated } =
+    useTutorialTarget('task_created')
+  const { tutorialTaskId, currentStep, isActive } = useTutorialStore()
 
   // Sort tasks by priority (high → medium → low), then alphabetically
   const sortedTasks = useMemo(() => sortTasksByPriority(tasks), [tasks])
@@ -60,6 +67,9 @@ export function TaskList({
     setTaskToDelete(null)
   }
 
+  // Check if we should highlight a task for tutorial
+  const isTutorialTaskStep = isActive && currentStep === 'task_created' && tutorialTaskId
+
   return (
     <View className="mx-5 mt-6">
       {/* Header */}
@@ -68,9 +78,20 @@ export function TaskList({
       </Text>
 
       {/* Task Cards */}
-      {sortedTasks.map((task) => (
-        <TaskCard key={task.id} task={task} onEdit={onEditTask} onDelete={handleDeletePress} />
-      ))}
+      {sortedTasks.map((task) => {
+        const isTutorialTask = isTutorialTaskStep && task.id === tutorialTaskId
+
+        // Always wrap in View for consistent JSX structure to prevent React re-mounts
+        return (
+          <View
+            key={task.id}
+            ref={isTutorialTask ? taskCreatedRef : undefined}
+            onLayout={isTutorialTask ? measureTaskCreated : undefined}
+          >
+            <TaskCard task={task} onEdit={onEditTask} onDelete={handleDeletePress} />
+          </View>
+        )
+      })}
 
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
