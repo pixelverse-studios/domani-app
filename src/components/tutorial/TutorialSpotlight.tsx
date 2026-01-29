@@ -121,9 +121,10 @@ const STEP_CONFIG: Record<
   },
   today_screen: {
     title: 'Your Focus View',
-    description: 'This is where you execute your plan.',
-    position: 'center',
+    description: 'Your most important task and daily progress live here. Swipe to see both cards.',
+    position: 'below',
     showNext: true,
+    stepNumber: 5,
   },
   cleanup: { title: '', description: '', position: 'center' },
   completion: { title: '', description: '', position: 'center' },
@@ -140,6 +141,7 @@ const SPOTLIGHT_STEPS: TutorialStep[] = [
   'day_toggle',
   'complete_form',
   'task_created',
+  'today_screen',
 ]
 
 const TOTAL_STEPS = 5

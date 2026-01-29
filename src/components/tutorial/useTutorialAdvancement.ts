@@ -109,6 +109,16 @@ export function useTutorialAdvancement() {
   }, [isActive, currentStep, nextStep])
 
   /**
+   * Advance from today_screen step to completion
+   * Called when user taps "Got it" on the Today screen focus card highlight
+   */
+  const advanceFromTodayScreen = useCallback(() => {
+    if (isActive && currentStep === 'today_screen') {
+      nextStep('completion')
+    }
+  }, [isActive, currentStep, nextStep])
+
+  /**
    * Advance the tutorial when the user interacts with the day toggle
    * (This is optional - user may skip this)
    */
@@ -141,6 +151,7 @@ export function useTutorialAdvancement() {
     advanceFromTopPriority,
     advanceFromCompleteForm,
     advanceFromTaskCreated,
+    advanceFromTodayScreen,
     advanceFromDayToggle,
   }
 }
