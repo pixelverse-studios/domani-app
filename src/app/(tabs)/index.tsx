@@ -32,6 +32,7 @@ import { useTodayPlan } from '~/hooks/usePlans'
 import { useTasks, useToggleTask, useDeleteTask } from '~/hooks/useTasks'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
+import { useTutorialTarget } from '~/components/tutorial'
 import type { TaskWithCategory } from '~/types'
 
 const NAME_PROMPT_DISMISSED_KEY = 'domani_name_prompt_dismissed'
@@ -47,6 +48,10 @@ export default function TodayScreen() {
   const toggleTask = useToggleTask()
   const deleteTask = useDeleteTask()
   const updateProfile = useUpdateProfile()
+
+  // Tutorial target for the card carousel (Focus Card + Progress Card)
+  const { targetRef: carouselRef, measureTarget: measureCarousel } =
+    useTutorialTarget('today_screen')
 
   // Name prompt modal state
   const [showNameModal, setShowNameModal] = useState(false)
@@ -175,7 +180,7 @@ export default function TodayScreen() {
         <TodayHeader onNotificationPress={handleNotificationPress} />
 
         {/* Progress Section - Show placeholder when no tasks, carousel when tasks exist */}
-        <View className="mt-4">
+        <View ref={carouselRef} onLayout={measureCarousel} className="mt-4">
           {tasks.length === 0 ? (
             <ProgressPlaceholderCard />
           ) : (
