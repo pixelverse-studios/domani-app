@@ -30,7 +30,6 @@ import {
   HelpCircle,
   LogOut,
   ClipboardClock,
-  Bell,
   BellOff,
 } from 'lucide-react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
@@ -126,28 +125,25 @@ function ProfileSkeleton() {
   )
 }
 
-function SubscriptionSkeleton() {
+function CategoriesSkeleton() {
   return (
     <View className="mb-6">
-      <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4">
-        <View className="flex-row items-center justify-between mb-3">
-          <View className="flex-row items-center">
-            <SkeletonBox className="w-5 h-5 rounded mr-2" />
-            <SkeletonBox className="w-24 h-4 rounded" />
-          </View>
-          <SkeletonBox className="w-16 h-6 rounded-full" />
+      <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3 mb-2 flex-row items-center justify-between">
+        <View className="flex-row items-center">
+          <SkeletonBox className="w-5 h-5 rounded mr-3" />
+          <SkeletonBox className="w-32 h-4 rounded" />
         </View>
-        <SkeletonBox className="w-48 h-4 rounded mb-3" />
-        <SkeletonBox className="w-full h-12 rounded-xl" />
+        <SkeletonBox className="w-12 h-7 rounded-full" />
       </View>
+      <SkeletonBox className="w-full h-14 rounded-xl" />
     </View>
   )
 }
 
-function PreferencesSkeleton() {
+function NotificationsSkeleton() {
   return (
     <View className="mb-6">
-      {[1, 2, 3].map((i) => (
+      {[1, 2].map((i) => (
         <View key={i} className="py-3.5 px-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl mb-2">
           <View className="flex-row items-center">
             <SkeletonBox className="w-5 h-5 rounded mr-3" />
@@ -161,17 +157,18 @@ function PreferencesSkeleton() {
   )
 }
 
-function PlanningSkeleton() {
+function PreferencesSkeleton() {
   return (
     <View className="mb-6">
-      <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3 mb-2 flex-row items-center justify-between">
+      <View className="py-3.5 px-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl mb-2">
         <View className="flex-row items-center">
           <SkeletonBox className="w-5 h-5 rounded mr-3" />
-          <SkeletonBox className="w-32 h-4 rounded" />
+          <SkeletonBox className="w-28 h-4 rounded" />
+          <View className="flex-1" />
+          <SkeletonBox className="w-24 h-4 rounded" />
         </View>
-        <SkeletonBox className="w-12 h-7 rounded-full" />
       </View>
-      <SkeletonBox className="w-full h-14 rounded-xl" />
+      <SkeletonBox className="w-full h-20 rounded-xl" />
     </View>
   )
 }
@@ -379,7 +376,7 @@ export default function SettingsScreen() {
           Settings
         </Text>
 
-        {/* Profile Section */}
+        {/* 1. Profile Section */}
         <SectionHeader title="Profile" />
         {isProfileLoading ? (
           <ProfileSkeleton />
@@ -392,61 +389,44 @@ export default function SettingsScreen() {
               icon={User}
             />
             <SettingsRow label="Email" value={profile?.email} icon={User} showChevron={false} />
+
+            {/* Beta Tester Badge - compact inline badge shown during beta phases */}
+            {isBeta && (
+              <View className="flex-row items-center mt-1 px-1">
+                <Sparkles size={14} color="#f59e0b" />
+                <Text className="text-sm text-amber-600 dark:text-amber-400 ml-1.5 font-medium">
+                  Beta Tester
+                </Text>
+                <View className="ml-2 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
+                  <Text className="text-xs text-amber-700 dark:text-amber-300 font-semibold">
+                    Full Access
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
         )}
 
-        {/* Subscription Section */}
-        <SectionHeader title="Subscription" />
-        {isSubscriptionLoading ? (
-          <SubscriptionSkeleton />
-        ) : (
-          <View className="mb-6">
-            {/* Beta Tester Card - shown during closed_beta or open_beta phases */}
-            {isBeta ? (
-              <View className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 mb-2 border border-amber-200 dark:border-amber-700/50">
-                <View className="flex-row items-center justify-between mb-3">
-                  <View className="flex-row items-center">
-                    <Sparkles size={20} color="#f59e0b" />
-                    <Text className="text-base font-medium text-slate-900 dark:text-white ml-2">
-                      Beta Tester
-                    </Text>
+        {/* Production Subscription Section - only shown when NOT in beta */}
+        {!isBeta && (
+          <>
+            <SectionHeader title="Subscription" />
+            {isSubscriptionLoading ? (
+              <View className="mb-6">
+                <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4">
+                  <View className="flex-row items-center justify-between mb-3">
+                    <View className="flex-row items-center">
+                      <SkeletonBox className="w-5 h-5 rounded mr-2" />
+                      <SkeletonBox className="w-24 h-4 rounded" />
+                    </View>
+                    <SkeletonBox className="w-16 h-6 rounded-full" />
                   </View>
-                  <View className="bg-amber-100 dark:bg-amber-900/30 px-3 py-1 rounded-full">
-                    <Text className="text-amber-700 dark:text-amber-300 text-sm font-semibold">
-                      Beta
-                    </Text>
-                  </View>
-                </View>
-
-                <Text className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                  You&apos;re part of our exclusive beta program with full Pro access while we build
-                  Domani together.
-                </Text>
-
-                <View className="gap-2">
-                  <View className="flex-row items-center">
-                    <View className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-2" />
-                    <Text className="text-sm text-slate-700 dark:text-slate-300">
-                      Unlimited tasks per day
-                    </Text>
-                  </View>
-                  <View className="flex-row items-center">
-                    <View className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-2" />
-                    <Text className="text-sm text-slate-700 dark:text-slate-300">
-                      Priority support
-                    </Text>
-                  </View>
-                  <View className="flex-row items-center">
-                    <View className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-2" />
-                    <Text className="text-sm text-slate-700 dark:text-slate-300">
-                      Early access to new features
-                    </Text>
-                  </View>
+                  <SkeletonBox className="w-48 h-4 rounded mb-3" />
+                  <SkeletonBox className="w-full h-12 rounded-xl" />
                 </View>
               </View>
             ) : (
-              /* Production Subscription UI */
-              <>
+              <View className="mb-6">
                 <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 mb-2">
                   <View className="flex-row items-center justify-between mb-3">
                     <View className="flex-row items-center">
@@ -466,7 +446,7 @@ export default function SettingsScreen() {
                   {subscription.status === 'free' && (
                     <>
                       <Text className="text-sm text-slate-600 dark:text-slate-400 mb-3">
-                        3 tasks per day • Basic features
+                        3 tasks per day - Basic features
                       </Text>
                       {subscription.canStartTrial ? (
                         <TouchableOpacity
@@ -507,7 +487,7 @@ export default function SettingsScreen() {
                         </Text>
                       </View>
                       <Text className="text-sm text-slate-600 dark:text-slate-400 mb-3">
-                        Unlimited tasks • All features unlocked
+                        Unlimited tasks - All features unlocked
                       </Text>
                       <TouchableOpacity
                         activeOpacity={0.8}
@@ -521,14 +501,14 @@ export default function SettingsScreen() {
                   {/* Premium/Lifetime - no renewal, lifetime access */}
                   {subscription.status === 'premium' && (
                     <Text className="text-sm text-slate-600 dark:text-slate-400">
-                      Unlimited tasks • All features unlocked forever
+                      Unlimited tasks - All features unlocked forever
                     </Text>
                   )}
 
                   {/* Lifetime */}
                   {subscription.status === 'lifetime' && (
                     <Text className="text-sm text-slate-600 dark:text-slate-400">
-                      Unlimited tasks • All features unlocked forever
+                      Unlimited tasks - All features unlocked forever
                     </Text>
                   )}
                 </View>
@@ -553,15 +533,15 @@ export default function SettingsScreen() {
                     )}
                   </TouchableOpacity>
                 )}
-              </>
+              </View>
             )}
-          </View>
+          </>
         )}
 
-        {/* Planning Section */}
-        <SectionHeader title="Planning" />
+        {/* 2. Categories Section */}
+        <SectionHeader title="Categories" />
         {isProfileLoading ? (
-          <PlanningSkeleton />
+          <CategoriesSkeleton />
         ) : (
           <View className="mb-6">
             {/* Smart Categories Toggle */}
@@ -612,18 +592,12 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        {/* Preferences Section */}
-        <SectionHeader title="Preferences" />
+        {/* 3. Notifications & Reminders Section */}
+        <SectionHeader title="Notifications & Reminders" />
         {isProfileLoading ? (
-          <PreferencesSkeleton />
+          <NotificationsSkeleton />
         ) : (
           <View className="mb-6">
-            <SettingsRow
-              label="Timezone"
-              value={getTimezoneLabel(profile?.timezone || null)}
-              onPress={() => setShowTimezoneModal(true)}
-              icon={Globe}
-            />
             <SettingsRow
               label="Planning Reminder"
               value={formatTimeDisplay(profile?.planning_reminder_time || null)}
@@ -661,47 +635,61 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        {/* Appearance Section */}
-        <SectionHeader title="Appearance" />
-        <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 mb-6">
-          <Text className="text-sm text-slate-600 dark:text-slate-400 mb-3">Theme</Text>
-          <View className="flex-row gap-2">
-            {THEME_OPTIONS.map(({ mode: optionMode, label, icon: Icon }) => {
-              const isSelected = mode === optionMode
-              const iconColor = isSelected
-                ? '#a855f7'
-                : activeTheme === 'dark'
-                  ? '#94a3b8'
-                  : '#64748b'
+        {/* 4. Preferences Section (Timezone + Appearance merged) */}
+        <SectionHeader title="Preferences" />
+        {isProfileLoading ? (
+          <PreferencesSkeleton />
+        ) : (
+          <View className="mb-6">
+            <SettingsRow
+              label="Timezone"
+              value={getTimezoneLabel(profile?.timezone || null)}
+              onPress={() => setShowTimezoneModal(true)}
+              icon={Globe}
+            />
 
-              return (
-                <TouchableOpacity
-                  key={optionMode}
-                  onPress={() => setMode(optionMode)}
-                  activeOpacity={0.7}
-                  className={`flex-1 items-center py-3 rounded-lg border ${
-                    isSelected
-                      ? 'bg-purple-500/10 border-purple-500'
-                      : 'bg-transparent border-transparent'
-                  }`}
-                >
-                  <Icon size={20} color={iconColor} />
-                  <Text
-                    className={`text-sm mt-1 ${
-                      isSelected
-                        ? 'text-purple-500 font-medium'
-                        : 'text-slate-600 dark:text-slate-300'
-                    }`}
-                  >
-                    {label}
-                  </Text>
-                </TouchableOpacity>
-              )
-            })}
+            {/* Theme Selector (merged from Appearance) */}
+            <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4">
+              <Text className="text-sm text-slate-600 dark:text-slate-400 mb-3">Theme</Text>
+              <View className="flex-row gap-2">
+                {THEME_OPTIONS.map(({ mode: optionMode, label, icon: Icon }) => {
+                  const isSelected = mode === optionMode
+                  const iconColor = isSelected
+                    ? '#a855f7'
+                    : activeTheme === 'dark'
+                      ? '#94a3b8'
+                      : '#64748b'
+
+                  return (
+                    <TouchableOpacity
+                      key={optionMode}
+                      onPress={() => setMode(optionMode)}
+                      activeOpacity={0.7}
+                      className={`flex-1 items-center py-3 rounded-lg border ${
+                        isSelected
+                          ? 'bg-purple-500/10 border-purple-500'
+                          : 'bg-transparent border-transparent'
+                      }`}
+                    >
+                      <Icon size={20} color={iconColor} />
+                      <Text
+                        className={`text-sm mt-1 ${
+                          isSelected
+                            ? 'text-purple-500 font-medium'
+                            : 'text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            </View>
           </View>
-        </View>
+        )}
 
-        {/* Support Section */}
+        {/* 5. Support Section */}
         <SectionHeader title="Support" />
         <View className="mb-6">
           <SettingsRow
@@ -730,7 +718,7 @@ export default function SettingsScreen() {
           <Text className="text-slate-600 dark:text-slate-400 font-semibold ml-2">Log Out</Text>
         </TouchableOpacity>
 
-        {/* Danger Zone Section */}
+        {/* 6. Danger Zone Section */}
         <SectionHeader title="Danger Zone" />
         <View className="mb-8 border border-red-500/30 rounded-xl overflow-hidden">
           {accountDeletion.isPendingDeletion ? (
