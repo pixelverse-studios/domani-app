@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { View, ScrollView, TouchableOpacity, Alert } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useFocusEffect } from 'expo-router'
@@ -21,6 +21,7 @@ import {
   DeleteAccountModal,
   SmartCategoriesModal,
 } from '~/components/settings'
+import { TutorialScrollProvider, useTutorialScroll } from '~/components/tutorial'
 import { useAuth } from '~/hooks/useAuth'
 import { useTheme } from '~/hooks/useTheme'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
@@ -35,7 +36,19 @@ import { useScreenTracking } from '~/hooks/useScreenTracking'
 import Constants from 'expo-constants'
 const APP_VERSION = Constants.expoConfig?.version || '1.0.0'
 
+/**
+ * Settings screen wrapped with TutorialScrollProvider to enable
+ * auto-scrolling to tutorial targets.
+ */
 export default function SettingsScreen() {
+  return (
+    <TutorialScrollProvider>
+      <SettingsContent />
+    </TutorialScrollProvider>
+  )
+}
+
+function SettingsContent() {
   useScreenTracking('settings')
   const insets = useSafeAreaInsets()
   const router = useRouter()
@@ -48,7 +61,22 @@ export default function SettingsScreen() {
     useNotifications()
   const accountDeletion = useAccountDeletion()
   const { phase } = useAppConfig()
-  const { resetTutorial } = useTutorialStore()
+  const { resetTutorial, isActive: isTutorialActive, currentStep } = useTutorialStore()
+  const tutorialScroll = useTutorialScroll()
+
+  // Scroll to top when entering Settings during tutorial for settings_categories
+  // This ensures the Categories section (near the top) is visible
+  // The useTutorialTarget hook handles scrolling for settings_reminders
+  useEffect(() => {
+    if (isTutorialActive && currentStep === 'settings_categories' && tutorialScroll) {
+      // Allow screen to fully mount before scrolling
+      // This is important when navigating from another screen
+      const timer = setTimeout(() => {
+        tutorialScroll.scrollToY(0, false) // Instant scroll to top
+      }, 200)
+      return () => clearTimeout(timer)
+    }
+  }, [isTutorialActive, currentStep, tutorialScroll])
 
   // Refresh permission status when screen comes into focus
   // Note: Skip on simulator as Notifications.getPermissionsAsync() can block the event loop
@@ -176,7 +204,11 @@ export default function SettingsScreen() {
 
   return (
     <View className="flex-1 bg-white dark:bg-slate-950" style={{ paddingTop: insets.top }}>
-      <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={tutorialScroll?.scrollViewRef}
+        className="flex-1 px-5"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
         <Text className="text-2xl font-bold text-slate-900 dark:text-white mt-4 mb-6">
           Settings
