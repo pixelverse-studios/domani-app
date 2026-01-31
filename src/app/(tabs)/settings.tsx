@@ -64,17 +64,23 @@ function SettingsContent() {
   const { resetTutorial, isActive: isTutorialActive, currentStep } = useTutorialStore()
   const tutorialScroll = useTutorialScroll()
 
-  // Scroll to top when entering Settings during tutorial for settings_categories
-  // This ensures the Categories section (near the top) is visible
-  // The useTutorialTarget hook handles scrolling for settings_reminders
+  // Scroll to appropriate position for Settings tutorial steps
   useEffect(() => {
-    if (isTutorialActive && currentStep === 'settings_categories' && tutorialScroll) {
-      // Allow screen to fully mount before scrolling
-      // This is important when navigating from another screen
-      const timer = setTimeout(() => {
-        tutorialScroll.scrollToY(0, false) // Instant scroll to top
-      }, 200)
-      return () => clearTimeout(timer)
+    if (isTutorialActive && tutorialScroll) {
+      if (currentStep === 'settings_categories') {
+        // Scroll to top - Categories section is near the top
+        const timer = setTimeout(() => {
+          tutorialScroll.scrollToY(0, false) // Instant scroll to top
+        }, 200)
+        return () => clearTimeout(timer)
+      } else if (currentStep === 'settings_reminders') {
+        // Scroll down so Reminders section is in the lower portion of screen
+        // This leaves room for the tooltip above the target
+        const timer = setTimeout(() => {
+          tutorialScroll.scrollToY(280, true) // Animated scroll
+        }, 100)
+        return () => clearTimeout(timer)
+      }
     }
   }, [isTutorialActive, currentStep, tutorialScroll])
 

@@ -139,7 +139,7 @@ const STEP_CONFIG: Record<
   settings_reminders: {
     title: 'Reminder Shortcuts',
     description: 'Set up quick reminder presets for common times like morning, afternoon, or evening.',
-    position: 'below',
+    position: 'above',
     showNext: true,
   },
 }
