@@ -121,7 +121,7 @@ const STEP_CONFIG: Record<
   },
   today_screen: {
     title: 'Your Focus View',
-    description: 'Your most important task and daily progress live here. Swipe to see both cards.',
+    description: "Your most important task and daily progress live here. Next, let's explore a few helpful Settings.",
     position: 'below',
     showNext: true,
     stepNumber: 5,
@@ -131,7 +131,7 @@ const STEP_CONFIG: Record<
   // Settings tutorial steps
   settings_categories: {
     title: 'Smart Categories',
-    description: 'Smart Categories learns your habits and auto-sorts. Or disable it to manually pick your favorites.',
+    description: "Welcome to Settings! Smart Categories learns your habits and auto-sorts your favorites. You can disable it to pick manually.",
     position: 'below',
     showNext: true,
     showSkip: true,
