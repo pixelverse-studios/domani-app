@@ -4,7 +4,6 @@ import { Plus, Lock } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 
 import { Text } from '~/components/ui'
-import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
 import { colors } from '~/theme'
 
 interface AddTaskPlaceholderProps {
@@ -14,11 +13,7 @@ interface AddTaskPlaceholderProps {
 }
 
 export function AddTaskPlaceholder({ onPress, disabled, atLimit }: AddTaskPlaceholderProps) {
-  const { targetRef, measureTarget } = useTutorialTarget('add_task_button')
-  const { advanceFromAddTaskButton } = useTutorialAdvancement()
-
   const handlePress = () => {
-    advanceFromAddTaskButton()
     onPress?.()
   }
 
@@ -40,7 +35,7 @@ export function AddTaskPlaceholder({ onPress, disabled, atLimit }: AddTaskPlaceh
   }
 
   return (
-    <View ref={targetRef} onLayout={measureTarget}>
+    <View>
       <TouchableOpacity
         onPress={handlePress}
         activeOpacity={0.8}

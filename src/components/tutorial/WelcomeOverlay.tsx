@@ -51,9 +51,9 @@ export function WelcomeOverlay() {
   }, [isVisible, opacity, scale])
 
   const handleLetsGo = () => {
-    // Navigate to Planning screen first, then advance tutorial
+    // Navigate to Today screen first, then advance tutorial
     // This ensures the target elements are mounted before spotlight tries to measure them
-    router.replace('/(tabs)/planning')
+    router.replace('/(tabs)/')
 
     // Animate out and advance step after navigation starts
     Animated.timing(opacity, {
@@ -61,7 +61,7 @@ export function WelcomeOverlay() {
       duration: 200,
       useNativeDriver: true,
     }).start(() => {
-      nextStep('add_task_button')
+      nextStep('plan_today_button')
     })
   }
 

@@ -10,10 +10,10 @@ export function useTutorialAdvancement() {
   const { isActive, currentStep, nextStep } = useTutorialStore()
 
   /**
-   * Advance the tutorial when the user taps the "Add Task" button
+   * Advance the tutorial when the user taps "Plan Today" or "Add More Tasks" button on Today screen
    */
-  const advanceFromAddTaskButton = useCallback(() => {
-    if (isActive && currentStep === 'add_task_button') {
+  const advanceFromTodayButton = useCallback(() => {
+    if (isActive && (currentStep === 'plan_today_button' || currentStep === 'today_add_task_button')) {
       nextStep('title_input')
     }
   }, [isActive, currentStep, nextStep])
@@ -90,11 +90,31 @@ export function useTutorialAdvancement() {
   }, [isActive, currentStep, nextStep])
 
   /**
-   * Advance from complete_form step when user taps "Got it" or submits the form
+   * Advance from complete_form step when user submits the form (creates task)
+   * Goes to task_created to highlight the newly created task
    */
   const advanceFromCompleteForm = useCallback(() => {
     if (isActive && currentStep === 'complete_form') {
-      nextStep('cleanup')
+      nextStep('task_created')
+    }
+  }, [isActive, currentStep, nextStep])
+
+  /**
+   * Advance from task_created step to navigate to Today screen
+   */
+  const advanceFromTaskCreated = useCallback(() => {
+    if (isActive && currentStep === 'task_created') {
+      nextStep('today_screen')
+    }
+  }, [isActive, currentStep, nextStep])
+
+  /**
+   * Advance from today_screen step to completion
+   * Called when user taps "Got it" on the Today screen focus card highlight
+   */
+  const advanceFromTodayScreen = useCallback(() => {
+    if (isActive && currentStep === 'today_screen') {
+      nextStep('completion')
     }
   }, [isActive, currentStep, nextStep])
 
@@ -122,7 +142,7 @@ export function useTutorialAdvancement() {
     isActive,
     currentStep,
     shouldHighlight,
-    advanceFromAddTaskButton,
+    advanceFromTodayButton,
     advanceFromTitleInput,
     advanceFromCategorySelector,
     advanceFromCreateCategory,
@@ -130,6 +150,8 @@ export function useTutorialAdvancement() {
     advanceFromPrioritySelector,
     advanceFromTopPriority,
     advanceFromCompleteForm,
+    advanceFromTaskCreated,
+    advanceFromTodayScreen,
     advanceFromDayToggle,
   }
 }

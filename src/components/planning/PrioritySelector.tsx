@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { View, TouchableOpacity, LayoutChangeEvent } from 'react-native'
 import { Crown, Triangle, AlertTriangle } from 'lucide-react-native'
 import Animated, {
@@ -54,7 +54,36 @@ export function PrioritySelector({
   editingTaskId,
   disabled = false,
 }: PrioritySelectorProps) {
-  const { targetRef, measureTarget } = useTutorialTarget('priority_selector')
+  // Register as target for both priority_selector and top_priority tutorial steps
+  const { targetRef: prioritySelectorRef, measureTarget: measurePrioritySelector } =
+    useTutorialTarget('priority_selector')
+  const { targetRef: topPriorityRef, measureTarget: measureTopPriority } =
+    useTutorialTarget('top_priority')
+
+  // Store refs in a stable container to avoid recreating combinedRef on every render
+  // (useTutorialTarget returns new ref objects each render)
+  const refsContainer = useRef({ prioritySelectorRef, topPriorityRef })
+  useEffect(() => {
+    refsContainer.current = { prioritySelectorRef, topPriorityRef }
+  }, [prioritySelectorRef, topPriorityRef])
+
+  // Callback ref that assigns to both tutorial target refs (now stable with no dependencies)
+  const combinedRef = useCallback((node: View | null) => {
+    const { prioritySelectorRef, topPriorityRef } = refsContainer.current
+    if (prioritySelectorRef) {
+      ;(prioritySelectorRef as React.MutableRefObject<View | null>).current = node
+    }
+    if (topPriorityRef) {
+      ;(topPriorityRef as React.MutableRefObject<View | null>).current = node
+    }
+  }, [])
+
+  // Combined layout handler that measures for both tutorial steps
+  const handleLayout = useCallback(() => {
+    measurePrioritySelector()
+    measureTopPriority()
+  }, [measurePrioritySelector, measureTopPriority])
+
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
 
@@ -127,7 +156,7 @@ export function PrioritySelector({
   const labelColor = isDark ? '#94a3b8' : '#64748b'
 
   return (
-    <View className="mt-5" ref={targetRef} onLayout={measureTarget}>
+    <View className="mt-5" ref={combinedRef} onLayout={handleLayout}>
       {/* Priority Label */}
       <View className="flex-row items-center mb-3">
         <Triangle size={16} color={labelColor} />

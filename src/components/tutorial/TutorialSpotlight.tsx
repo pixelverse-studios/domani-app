@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import Svg, { Defs, Rect, Mask } from 'react-native-svg'
+import { router } from 'expo-router'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
@@ -32,9 +33,17 @@ const STEP_CONFIG: Record<
   }
 > = {
   welcome: { title: '', description: '', position: 'center' },
-  add_task_button: {
-    title: 'Create Your First Task',
-    description: 'Tap here to start planning your day.',
+  plan_today_button: {
+    title: 'Plan Your Day',
+    description: "Tap here to add your first task for today.",
+    position: 'above',
+    showSkip: true,
+    stepNumber: 1,
+    requiresInteraction: true,
+  },
+  today_add_task_button: {
+    title: 'Add More Tasks',
+    description: "This is your Today view with existing tasks. Tap here to add another task.",
     position: 'above',
     showSkip: true,
     stepNumber: 1,
@@ -106,22 +115,24 @@ const STEP_CONFIG: Record<
   },
   task_created: {
     title: 'Task Created!',
-    description: 'Tap the checkbox to complete it.',
-    position: 'center',
+    description: "Here's your task! Notice the category and priority. Let's see it on your Today screen.",
+    position: 'above',
     showNext: true,
   },
   today_screen: {
     title: 'Your Focus View',
-    description: 'This is where you execute your plan.',
-    position: 'center',
+    description: 'Your most important task and daily progress live here. Swipe to see both cards.',
+    position: 'below',
     showNext: true,
+    stepNumber: 5,
   },
   cleanup: { title: '', description: '', position: 'center' },
   completion: { title: '', description: '', position: 'center' },
 }
 
 const SPOTLIGHT_STEPS: TutorialStep[] = [
-  'add_task_button',
+  'plan_today_button',
+  'today_add_task_button',
   'title_input',
   'category_selector',
   'more_categories_button',
@@ -129,6 +140,8 @@ const SPOTLIGHT_STEPS: TutorialStep[] = [
   'top_priority',
   'day_toggle',
   'complete_form',
+  'task_created',
+  'today_screen',
 ]
 
 const TOTAL_STEPS = 5
@@ -182,6 +195,7 @@ export function TutorialSpotlight() {
         if (currentMeasurement === null) {
           // Skip to the fallback step based on current step
           const skipMap: Partial<Record<TutorialStep, TutorialStep>> = {
+            plan_today_button: 'today_add_task_button',
             more_categories_button: 'priority_selector',
           }
           const fallbackStep = skipMap[currentStep!]
@@ -216,16 +230,28 @@ export function TutorialSpotlight() {
 
     const nextStepMap: Partial<Record<TutorialStep, TutorialStep>> = {
       top_priority: 'complete_form',
-      complete_form: 'cleanup',
       task_created: 'today_screen',
       today_screen: 'completion',
     }
 
     const nextStepValue = nextStepMap[currentStep]
+    overlayOpacity.value = withTiming(0, { duration: 150 })
+    tooltipScale.value = withTiming(0.9, { duration: 150 })
+
     if (nextStepValue) {
-      overlayOpacity.value = withTiming(0, { duration: 150 })
-      tooltipScale.value = withTiming(0.9, { duration: 150 })
+      // Navigate to Today tab when advancing from task_created
+      if (currentStep === 'task_created') {
+        try {
+          router.replace('/(tabs)/')
+        } catch (error) {
+          console.error('Failed to navigate to Today tab:', error)
+        }
+      }
+
       setTimeout(() => nextStep(nextStepValue), 150)
+    } else {
+      // No specific next step - just hide the overlay so user can interact
+      setTimeout(() => hideOverlay(), 150)
     }
   }
 
