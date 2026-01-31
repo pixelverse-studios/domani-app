@@ -22,6 +22,9 @@ export type TutorialStep =
   | 'today_screen'
   | 'cleanup'
   | 'completion'
+  // Settings tutorial steps (auto-start after main tutorial)
+  | 'settings_categories'
+  | 'settings_reminders'
 
 /**
  * Position and dimensions of a tutorial target element
@@ -151,6 +154,8 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
     today_screen: null,
     cleanup: null,
     completion: null,
+    settings_categories: null,
+    settings_reminders: null,
   },
 
   // Initialize tutorial state from database

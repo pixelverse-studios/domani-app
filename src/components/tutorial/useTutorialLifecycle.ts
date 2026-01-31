@@ -7,7 +7,7 @@ import { useTutorialStore } from '~/stores/tutorialStore'
 /**
  * Tutorial can run on these screens
  */
-const TUTORIAL_SCREENS = ['/', '/planning']
+const TUTORIAL_SCREENS = ['/', '/planning', '/settings']
 
 /**
  * Check if a pathname is a tutorial-enabled screen

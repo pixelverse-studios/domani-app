@@ -128,6 +128,20 @@ const STEP_CONFIG: Record<
   },
   cleanup: { title: '', description: '', position: 'center' },
   completion: { title: '', description: '', position: 'center' },
+  // Settings tutorial steps
+  settings_categories: {
+    title: 'Smart Categories',
+    description: 'Smart Categories learns your habits and auto-sorts. Or disable it to manually pick your favorites.',
+    position: 'below',
+    showNext: true,
+    showSkip: true,
+  },
+  settings_reminders: {
+    title: 'Reminder Shortcuts',
+    description: 'Set up quick reminder presets for common times like morning, afternoon, or evening.',
+    position: 'below',
+    showNext: true,
+  },
 }
 
 const SPOTLIGHT_STEPS: TutorialStep[] = [
@@ -142,6 +156,9 @@ const SPOTLIGHT_STEPS: TutorialStep[] = [
   'complete_form',
   'task_created',
   'today_screen',
+  // Settings tutorial steps
+  'settings_categories',
+  'settings_reminders',
 ]
 
 const TOTAL_STEPS = 5
@@ -161,6 +178,7 @@ export function TutorialSpotlight() {
     targetMeasurements,
     nextStep,
     skipTutorial,
+    completeTutorial,
     isLoading,
     isOverlayHidden,
     hideOverlay,
@@ -231,7 +249,8 @@ export function TutorialSpotlight() {
     const nextStepMap: Partial<Record<TutorialStep, TutorialStep>> = {
       top_priority: 'complete_form',
       task_created: 'today_screen',
-      today_screen: 'completion',
+      today_screen: 'settings_categories',
+      settings_categories: 'settings_reminders',
     }
 
     const nextStepValue = nextStepMap[currentStep]
@@ -248,7 +267,19 @@ export function TutorialSpotlight() {
         }
       }
 
+      // Navigate to Settings when advancing from today_screen to settings tutorial
+      if (currentStep === 'today_screen') {
+        try {
+          router.push('/(tabs)/settings')
+        } catch (error) {
+          console.error('Failed to navigate to Settings:', error)
+        }
+      }
+
       setTimeout(() => nextStep(nextStepValue), 150)
+    } else if (currentStep === 'settings_reminders') {
+      // End of Settings tutorial - complete the entire tutorial
+      setTimeout(() => completeTutorial(), 150)
     } else {
       // No specific next step - just hide the overlay so user can interact
       setTimeout(() => hideOverlay(), 150)

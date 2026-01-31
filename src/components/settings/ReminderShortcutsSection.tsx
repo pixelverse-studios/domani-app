@@ -21,6 +21,7 @@ import { format, setHours, setMinutes } from 'date-fns'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
+import { useTutorialTarget } from '~/components/tutorial'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
 
 // Enable LayoutAnimation on Android
@@ -96,6 +97,7 @@ export function ReminderShortcutsSection() {
   const isDark = activeTheme === 'dark'
   const { profile } = useProfile()
   const updateProfile = useUpdateProfile()
+  const { targetRef, measureTarget } = useTutorialTarget('settings_reminders')
 
   const [isExpanded, setIsExpanded] = useState(false)
   const [editingShortcut, setEditingShortcut] = useState<{
@@ -186,6 +188,8 @@ export function ReminderShortcutsSection() {
 
   return (
     <View
+      ref={targetRef}
+      onLayout={measureTarget}
       style={[styles.container, { backgroundColor: isDark ? 'rgba(30, 41, 59, 0.5)' : '#f8fafc' }]}
     >
       {/* Header Section - Always Visible */}

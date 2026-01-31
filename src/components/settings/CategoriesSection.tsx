@@ -4,6 +4,7 @@ import { Sparkles, Info } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
+import { useTutorialTarget } from '~/components/tutorial'
 import { SectionHeader } from './SectionHeader'
 import { FavoriteCategoriesAccordion } from './FavoriteCategoriesAccordion'
 import { CategoriesSkeleton } from './SettingsSkeletons'
@@ -23,6 +24,7 @@ export function CategoriesSection({
   onToggleSmartCategories,
 }: CategoriesSectionProps) {
   const { activeTheme } = useTheme()
+  const { targetRef, measureTarget } = useTutorialTarget('settings_categories')
 
   const showSmartCategoriesInfo = () => {
     Alert.alert(
@@ -33,7 +35,7 @@ export function CategoriesSection({
   }
 
   return (
-    <>
+    <View ref={targetRef} onLayout={measureTarget}>
       <SectionHeader title="Categories" />
       {isLoading ? (
         <CategoriesSkeleton />
@@ -80,6 +82,6 @@ export function CategoriesSection({
           <FavoriteCategoriesAccordion />
         </View>
       )}
-    </>
+    </View>
   )
 }
