@@ -51,9 +51,12 @@ export default function SettingsScreen() {
   const { resetTutorial } = useTutorialStore()
 
   // Refresh permission status when screen comes into focus
+  // Note: Skip on simulator as Notifications.getPermissionsAsync() can block the event loop
   useFocusEffect(
     useCallback(() => {
-      getPermissionStatus()
+      if (Constants.isDevice) {
+        getPermissionStatus()
+      }
     }, [getPermissionStatus])
   )
 
