@@ -74,10 +74,10 @@ function SettingsContent() {
         }, 200)
         return () => clearTimeout(timer)
       } else if (currentStep === 'settings_reminders') {
-        // Scroll down so Reminders section is in the lower portion of screen
-        // This leaves room for the tooltip above the target
+        // Scroll down so Reminders section is visible with room for tooltip above
+        // Using a smaller value to keep the full section in view
         const timer = setTimeout(() => {
-          tutorialScroll.scrollToY(280, true) // Animated scroll
+          tutorialScroll.scrollToY(180, true) // Animated scroll
         }, 100)
         return () => clearTimeout(timer)
       }
