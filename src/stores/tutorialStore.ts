@@ -309,6 +309,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
       })
     } else {
       // Too long - restart fresh, increment abandon count
+      // Also reset analytics state so duration tracking starts fresh
       const newAbandonCount = abandonCount + 1
       set({
         isActive: true,
@@ -317,6 +318,8 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
         pausedStep: null,
         isOverlayHidden: false,
         abandonCount: newAbandonCount,
+        analyticsStartTime: null,
+        analyticsViewedSteps: new Set(),
       })
 
       // Log if they're frequently abandoning (could show different UI)
