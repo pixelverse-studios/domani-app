@@ -366,7 +366,7 @@ export const NotificationService = {
       const identifier = await Notifications.scheduleNotificationAsync({
         content: {
           title: task.title,
-          body: task.is_mit ? 'Your Most Important Task' : 'Time to work on this task',
+          body: task.is_mit ? 'Your top priority is ready when you are' : 'Ready when you are',
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
           data: {

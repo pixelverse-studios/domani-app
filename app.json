@@ -2,7 +2,7 @@
   "expo": {
     "name": "Domani",
     "slug": "domani-app",
-    "version": "1.0.17",
+    "version": "1.0.18",
     "orientation": "portrait",
     "scheme": "domani",
     "icon": "./assets/icon-dark.png",
