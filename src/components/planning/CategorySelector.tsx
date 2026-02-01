@@ -247,7 +247,7 @@ export function CategorySelector({
       const newCategory = await createCategory.mutateAsync({ name: trimmedName })
       // Track category creation during tutorial
       if (isTutorialActive) {
-        trackTutorialCategoryCreated(newCategory.id)
+        trackTutorialCategoryCreated()
       }
       onSelectCategory(newCategory.id, newCategory.name)
       closeCreateModal()
@@ -292,7 +292,7 @@ export function CategorySelector({
         const newCategory = await createCategory.mutateAsync({ name: newCategoryName })
         // Track category creation during tutorial
         if (isTutorialActive) {
-          trackTutorialCategoryCreated(newCategory.id)
+          trackTutorialCategoryCreated()
         }
         advanceFromCreateCategory()
         onSelectCategory(newCategory.id, newCategory.name)

@@ -53,7 +53,8 @@ export function WelcomeOverlay() {
   }, [isVisible, opacity, scale])
 
   const handleLetsGo = () => {
-    // Track tutorial start
+    // Track tutorial start - intentionally here (not in initializeTutorialState) to capture
+    // explicit user engagement rather than passive welcome screen exposure
     trackTutorialStarted('onboarding')
 
     // Navigate to Today screen first, then advance tutorial

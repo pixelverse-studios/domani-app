@@ -302,7 +302,7 @@ export default function PlanningScreen() {
           } else {
             setTutorialTaskId(newTask.id)
             // Track tutorial task creation for analytics
-            trackTutorialTaskCreated(newTask.id)
+            trackTutorialTaskCreated()
             // Delay advancement to allow task to appear in list
             setTimeout(() => {
               if (isMountedRef.current) {

@@ -1,7 +1,7 @@
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 
 import { useAnalytics } from '~/providers/AnalyticsProvider'
-import { TutorialStep } from '~/stores/tutorialStore'
+import { TutorialStep, useTutorialStore } from '~/stores/tutorialStore'
 
 /**
  * Step number mapping for analytics
@@ -34,22 +34,23 @@ const STEP_NUMBERS: Record<TutorialStep, number> = {
 export function useTutorialAnalytics() {
   const { track } = useAnalytics()
 
-  // Track tutorial start time for duration calculation
-  const startTimeRef = useRef<number | null>(null)
-
-  // Track which steps have been viewed to avoid duplicate events
-  const viewedStepsRef = useRef<Set<TutorialStep>>(new Set())
+  // Get analytics state and actions from store (shared across components)
+  const analyticsStartTime = useTutorialStore((state) => state.analyticsStartTime)
+  const setAnalyticsStartTime = useTutorialStore((state) => state.setAnalyticsStartTime)
+  const addAnalyticsViewedStep = useTutorialStore((state) => state.addAnalyticsViewedStep)
+  const resetAnalyticsState = useTutorialStore((state) => state.resetAnalyticsState)
 
   /**
-   * Track tutorial start event
+   * Track tutorial start event.
+   * Called when user explicitly starts the tutorial (clicks "Let's Go" or replays from Settings),
+   * not on passive auto-start when welcome screen appears.
    */
   const trackTutorialStarted = useCallback(
     (source: 'onboarding' | 'settings') => {
-      startTimeRef.current = Date.now()
-      viewedStepsRef.current.clear()
+      setAnalyticsStartTime(Date.now())
       track('tutorial_started', { source })
     },
-    [track]
+    [setAnalyticsStartTime, track]
   )
 
   /**
@@ -57,16 +58,16 @@ export function useTutorialAnalytics() {
    */
   const trackStepViewed = useCallback(
     (step: TutorialStep) => {
-      // Skip if already tracked this step in this session
-      if (viewedStepsRef.current.has(step)) return
+      // addAnalyticsViewedStep returns false if already tracked
+      const isNewStep = addAnalyticsViewedStep(step)
+      if (!isNewStep) return
 
-      viewedStepsRef.current.add(step)
       track('tutorial_step_viewed', {
         step,
         step_number: STEP_NUMBERS[step],
       })
     },
-    [track]
+    [addAnalyticsViewedStep, track]
   )
 
   /**
@@ -79,54 +80,46 @@ export function useTutorialAnalytics() {
         step_number: STEP_NUMBERS[lastStep],
       })
 
-      // Reset refs
-      startTimeRef.current = null
-      viewedStepsRef.current.clear()
+      // Reset analytics state
+      resetAnalyticsState()
     },
-    [track]
+    [resetAnalyticsState, track]
   )
 
   /**
    * Track tutorial completion event with duration
    */
   const trackTutorialCompleted = useCallback(() => {
-    const startTime = startTimeRef.current
-    const durationSeconds = startTime ? Math.round((Date.now() - startTime) / 1000) : 0
+    const durationSeconds = analyticsStartTime
+      ? Math.round((Date.now() - analyticsStartTime) / 1000)
+      : 0
 
     track('tutorial_completed', { duration_seconds: durationSeconds })
 
-    // Reset refs
-    startTimeRef.current = null
-    viewedStepsRef.current.clear()
-  }, [track])
+    // Reset analytics state
+    resetAnalyticsState()
+  }, [analyticsStartTime, resetAnalyticsState, track])
 
   /**
    * Track tutorial task creation
    */
-  const trackTutorialTaskCreated = useCallback(
-    (taskId: string) => {
-      track('tutorial_task_created', { task_id: taskId })
-    },
-    [track]
-  )
+  const trackTutorialTaskCreated = useCallback(() => {
+    track('tutorial_task_created')
+  }, [track])
 
   /**
    * Track tutorial category creation
    */
-  const trackTutorialCategoryCreated = useCallback(
-    (categoryId: string) => {
-      track('tutorial_category_created', { category_id: categoryId })
-    },
-    [track]
-  )
+  const trackTutorialCategoryCreated = useCallback(() => {
+    track('tutorial_category_created')
+  }, [track])
 
   /**
    * Reset tracking state (called when replaying tutorial)
    */
   const resetTracking = useCallback(() => {
-    startTimeRef.current = null
-    viewedStepsRef.current.clear()
-  }, [])
+    resetAnalyticsState()
+  }, [resetAnalyticsState])
 
   return {
     trackTutorialStarted,

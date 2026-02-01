@@ -42,8 +42,8 @@ export type AnalyticsEvent =
   | { name: 'tutorial_step_viewed'; properties: { step: string; step_number: number } }
   | { name: 'tutorial_skipped'; properties: { last_step: string; step_number: number } }
   | { name: 'tutorial_completed'; properties: { duration_seconds: number } }
-  | { name: 'tutorial_task_created'; properties: { task_id: string } }
-  | { name: 'tutorial_category_created'; properties: { category_id: string } }
+  | { name: 'tutorial_task_created'; properties?: Record<string, never> }
+  | { name: 'tutorial_category_created'; properties?: Record<string, never> }
 
 interface AnalyticsContextValue {
   track: <T extends AnalyticsEvent>(eventName: T['name'], properties?: T['properties']) => void
