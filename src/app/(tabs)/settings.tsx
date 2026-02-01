@@ -30,6 +30,7 @@ import { useNotifications } from '~/hooks/useNotifications'
 import { useAccountDeletion } from '~/hooks/useAccountDeletion'
 import { useAppConfig } from '~/stores/appConfigStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
+import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 
 // Get app version from app.json (Expo handles this)
@@ -62,6 +63,7 @@ function SettingsContent() {
   const accountDeletion = useAccountDeletion()
   const { phase } = useAppConfig()
   const { resetTutorial, isActive: isTutorialActive, currentStep } = useTutorialStore()
+  const { trackTutorialStarted, resetTracking } = useTutorialAnalytics()
   const tutorialScroll = useTutorialScroll()
 
   // Scroll to appropriate position for Settings tutorial steps
@@ -115,6 +117,9 @@ function SettingsContent() {
   // ===========================================================================
 
   const handleReplayTutorial = () => {
+    // Reset tracking state and track new tutorial start from settings
+    resetTracking()
+    trackTutorialStarted('settings')
     resetTutorial()
     router.push('/(tabs)/')
   }

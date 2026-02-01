@@ -28,6 +28,7 @@ import {
 import { Text, ConfirmationModal } from '~/components/ui'
 import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
 import { useTutorialStore } from '~/stores/tutorialStore'
+import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useTheme } from '~/hooks/useTheme'
 import { useProfile } from '~/hooks/useProfile'
 import {
@@ -121,9 +122,14 @@ export function CategorySelector({
   const favoriteCategories = useFavoriteCategories(profile?.auto_sort_categories ?? false)
   const createCategory = useCreateUserCategory()
   const deleteCategory = useDeleteUserCategory()
-  const { advanceFromCategorySelector, advanceFromCreateCategory, advanceFromMoreCategoriesButton } =
-    useTutorialAdvancement()
+  const {
+    isActive: isTutorialActive,
+    advanceFromCategorySelector,
+    advanceFromCreateCategory,
+    advanceFromMoreCategoriesButton,
+  } = useTutorialAdvancement()
   const hideOverlay = useTutorialStore((state) => state.hideOverlay)
+  const { trackTutorialCategoryCreated } = useTutorialAnalytics()
 
   // Bottom sheet state
   const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -239,6 +245,10 @@ export function CategorySelector({
 
     try {
       const newCategory = await createCategory.mutateAsync({ name: trimmedName })
+      // Track category creation during tutorial
+      if (isTutorialActive) {
+        trackTutorialCategoryCreated()
+      }
       onSelectCategory(newCategory.id, newCategory.name)
       closeCreateModal()
       // Delay tutorial advancement until after modal closes and React Query updates
@@ -280,6 +290,10 @@ export function CategorySelector({
     if (newCategoryName) {
       try {
         const newCategory = await createCategory.mutateAsync({ name: newCategoryName })
+        // Track category creation during tutorial
+        if (isTutorialActive) {
+          trackTutorialCategoryCreated()
+        }
         advanceFromCreateCategory()
         onSelectCategory(newCategory.id, newCategory.name)
         closeSheet()

@@ -20,6 +20,7 @@ import { useSubscription } from '~/hooks/useSubscription'
 import { useAppConfig } from '~/stores/appConfigStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAdvancement } from '~/components/tutorial'
+import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import type { TaskWithCategory } from '~/types'
 
@@ -125,6 +126,7 @@ export default function PlanningScreen() {
   const { phase } = useAppConfig()
   const { setTutorialTaskId } = useTutorialStore()
   const { isActive: isTutorialActive, currentStep, advanceFromCompleteForm } = useTutorialAdvancement()
+  const { trackTutorialTaskCreated } = useTutorialAnalytics()
 
   // Handle editTaskId param - open edit form when navigating from Today page
   useEffect(() => {
@@ -299,6 +301,8 @@ export default function PlanningScreen() {
             console.warn('Tutorial: Task created but missing ID, cannot advance')
           } else {
             setTutorialTaskId(newTask.id)
+            // Track tutorial task creation for analytics
+            trackTutorialTaskCreated()
             // Delay advancement to allow task to appear in list
             setTimeout(() => {
               if (isMountedRef.current) {

@@ -13,6 +13,7 @@ import { router } from 'expo-router'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
+import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useTutorialStore, TutorialStep, TutorialTargetMeasurement } from '~/stores/tutorialStore'
 
 /**
@@ -183,6 +184,7 @@ export function TutorialSpotlight() {
     isOverlayHidden,
     hideOverlay,
   } = useTutorialStore()
+  const { trackStepViewed, trackTutorialSkipped, trackTutorialCompleted } = useTutorialAnalytics()
 
   // Animation values
   const overlayOpacity = useSharedValue(0)
@@ -195,12 +197,18 @@ export function TutorialSpotlight() {
   const isVisible =
     !isLoading && isActive && isSpotlightStep && measurement !== null && !isOverlayHidden
 
-  // Trigger haptic feedback when spotlight appears
+  // Trigger haptic feedback and track step view when spotlight appears
   useEffect(() => {
-    if (isVisible && Platform.OS === 'ios') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    if (isVisible && currentStep) {
+      // Track step view
+      trackStepViewed(currentStep)
+
+      // Haptic feedback on iOS
+      if (Platform.OS === 'ios') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+      }
     }
-  }, [isVisible, currentStep])
+  }, [isVisible, currentStep, trackStepViewed])
 
   // Auto-skip steps that have no visible target (e.g., "+N more" button when ≤4 categories)
   useEffect(() => {
@@ -278,7 +286,8 @@ export function TutorialSpotlight() {
 
       setTimeout(() => nextStep(nextStepValue), 150)
     } else if (currentStep === 'settings_reminders') {
-      // End of Settings tutorial - complete the entire tutorial
+      // End of Settings tutorial - track completion and complete
+      trackTutorialCompleted()
       setTimeout(() => completeTutorial(), 150)
     } else {
       // No specific next step - just hide the overlay so user can interact
@@ -299,6 +308,11 @@ export function TutorialSpotlight() {
   }
 
   const handleSkip = () => {
+    // Track skip with current step
+    if (currentStep) {
+      trackTutorialSkipped(currentStep)
+    }
+
     overlayOpacity.value = withTiming(0, { duration: 150 })
     tooltipScale.value = withTiming(0.9, { duration: 150 })
     setTimeout(() => skipTutorial(), 150)

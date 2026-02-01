@@ -65,6 +65,10 @@ interface TutorialStore {
   tutorialCategoryId: string | null
   tutorialTaskId: string | null
 
+  // Analytics tracking state (shared across components)
+  analyticsStartTime: number | null
+  analyticsViewedSteps: Set<TutorialStep>
+
   // Target element measurements for spotlight positioning
   targetMeasurements: Record<TutorialStep, TutorialTargetMeasurement | null>
 
@@ -91,6 +95,11 @@ interface TutorialStore {
 
   // Target measurement actions
   setTargetMeasurement: (step: TutorialStep, measurement: TutorialTargetMeasurement | null) => void
+
+  // Analytics tracking actions
+  setAnalyticsStartTime: (time: number | null) => void
+  addAnalyticsViewedStep: (step: TutorialStep) => boolean // Returns false if already viewed
+  resetAnalyticsState: () => void
 }
 
 /**
@@ -138,6 +147,8 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
 
   tutorialCategoryId: null,
   tutorialTaskId: null,
+  analyticsStartTime: null,
+  analyticsViewedSteps: new Set<TutorialStep>(),
   targetMeasurements: {
     welcome: null,
     plan_today_button: null,
@@ -183,6 +194,8 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
       })
 
       // Auto-start tutorial for new users who haven't completed it
+      // Note: Analytics tracking (tutorial_started) happens in WelcomeOverlay when user
+      // clicks "Let's Go", not here. We track explicit engagement, not passive exposure.
       if (!hasCompleted) {
         set({
           isActive: true,
@@ -250,6 +263,8 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
       pausedAt: null,
       pausedStep: null,
       abandonCount: 0,
+      analyticsStartTime: null,
+      analyticsViewedSteps: new Set<TutorialStep>(),
     })
   },
 
@@ -294,6 +309,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
       })
     } else {
       // Too long - restart fresh, increment abandon count
+      // Also reset analytics state so duration tracking starts fresh
       const newAbandonCount = abandonCount + 1
       set({
         isActive: true,
@@ -302,6 +318,8 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
         pausedStep: null,
         isOverlayHidden: false,
         abandonCount: newAbandonCount,
+        analyticsStartTime: null,
+        analyticsViewedSteps: new Set(),
       })
 
       // Log if they're frequently abandoning (could show different UI)
@@ -338,4 +356,26 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
         [step]: measurement,
       },
     })),
+
+  // Set analytics start time
+  setAnalyticsStartTime: (time) => set({ analyticsStartTime: time }),
+
+  // Add a viewed step, returns false if already viewed
+  addAnalyticsViewedStep: (step) => {
+    const { analyticsViewedSteps } = get()
+    if (analyticsViewedSteps.has(step)) {
+      return false
+    }
+    const newSet = new Set(analyticsViewedSteps)
+    newSet.add(step)
+    set({ analyticsViewedSteps: newSet })
+    return true
+  },
+
+  // Reset analytics tracking state
+  resetAnalyticsState: () =>
+    set({
+      analyticsStartTime: null,
+      analyticsViewedSteps: new Set<TutorialStep>(),
+    }),
 }))
