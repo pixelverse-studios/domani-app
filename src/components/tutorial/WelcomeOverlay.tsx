@@ -5,6 +5,7 @@ import { router } from 'expo-router'
 
 import { Text } from '~/components/ui'
 import { useTheme } from '~/hooks/useTheme'
+import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useTutorialStore } from '~/stores/tutorialStore'
 
 /**
@@ -16,6 +17,7 @@ export function WelcomeOverlay() {
   const isDark = activeTheme === 'dark'
   const { isActive, currentStep, nextStep, skipTutorial, isLoading, abandonCount } =
     useTutorialStore()
+  const { trackTutorialStarted, trackTutorialSkipped } = useTutorialAnalytics()
 
   // Show different messaging after multiple abandons
   const hasAbandonedMultipleTimes = abandonCount >= 3
@@ -51,6 +53,9 @@ export function WelcomeOverlay() {
   }, [isVisible, opacity, scale])
 
   const handleLetsGo = () => {
+    // Track tutorial start
+    trackTutorialStarted('onboarding')
+
     // Navigate to Today screen first, then advance tutorial
     // This ensures the target elements are mounted before spotlight tries to measure them
     router.replace('/(tabs)/')
@@ -66,6 +71,9 @@ export function WelcomeOverlay() {
   }
 
   const handleSkip = () => {
+    // Track skip from welcome
+    trackTutorialSkipped('welcome')
+
     // Animate out then skip
     Animated.timing(opacity, {
       toValue: 0,
