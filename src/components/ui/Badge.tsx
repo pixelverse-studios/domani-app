@@ -11,17 +11,17 @@ interface BadgeProps {
 }
 
 const badgeClasses: Record<BadgeVariant, string> = {
-  default: 'bg-purple-100 dark:bg-purple-900/30',
-  outline: 'border border-purple-300 dark:border-purple-700',
-  success: 'bg-green-100 dark:bg-green-900/30',
-  beta: 'bg-amber-100 dark:bg-amber-900/30',
+  default: 'bg-brand-primary/10',
+  outline: 'border border-brand-primary/30',
+  success: 'bg-green-100',
+  beta: 'bg-amber-100',
 }
 
 const textClasses: Record<BadgeVariant, string> = {
-  default: 'text-purple-700 dark:text-purple-300',
-  outline: 'text-purple-700 dark:text-purple-300',
-  success: 'text-green-700 dark:text-green-300',
-  beta: 'text-amber-700 dark:text-amber-300',
+  default: 'text-brand-dark',
+  outline: 'text-brand-dark',
+  success: 'text-green-700',
+  beta: 'text-amber-700',
 }
 
 export const Badge = ({ children, variant = 'default', className }: BadgeProps) => (

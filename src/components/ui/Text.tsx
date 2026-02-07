@@ -9,10 +9,10 @@ interface TypographyProps extends TextProps {
 }
 
 const variantClasses: Record<TextVariant, string> = {
-  title: 'text-3xl font-sans-semibold text-slate-900 dark:text-slate-50',
-  subtitle: 'text-xl font-sans-medium text-slate-700 dark:text-slate-300',
-  body: 'text-base font-sans text-slate-900 dark:text-slate-50',
-  caption: 'text-sm font-sans text-slate-600 dark:text-slate-400',
+  title: 'text-3xl font-sans-semibold text-content-primary',
+  subtitle: 'text-xl font-sans-medium text-content-secondary',
+  body: 'text-base font-sans text-content-primary',
+  caption: 'text-sm font-sans text-content-tertiary',
   none: '',
 }
 

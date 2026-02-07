@@ -1,18 +1,21 @@
 import React from 'react'
 import { TextInput, TextInputProps } from 'react-native'
 import clsx from 'clsx'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 interface InputProps extends TextInputProps {
   className?: string
 }
 
 export const Input = ({ className, style, ...rest }: InputProps) => {
+  const theme = useAppTheme()
+
   return (
     <TextInput
-      placeholderTextColor="rgba(100,116,139,0.8)"
+      placeholderTextColor={theme.colors.text.tertiary}
       className={clsx(
-        'w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-4 text-base text-slate-900 dark:text-slate-50',
-        'focus:border-purple-600 dark:focus:border-purple-500',
+        'w-full rounded-xl border border-border-primary bg-surface-bg px-4 text-base text-content-primary',
+        'focus:border-brand-primary',
         className,
       )}
       style={[{ paddingTop: 14, paddingBottom: 14, lineHeight: undefined }, style]}

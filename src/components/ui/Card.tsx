@@ -10,7 +10,7 @@ export const Card = ({ children, className, ...rest }: CardProps) => {
   return (
     <View
       className={clsx(
-        'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4',
+        'bg-surface-card border border-border-primary rounded-xl p-4',
         className,
       )}
       {...rest}

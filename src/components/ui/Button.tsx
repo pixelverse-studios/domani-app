@@ -1,6 +1,7 @@
 import React, { forwardRef } from 'react'
 import { ActivityIndicator, StyleProp, Text, TouchableOpacity, ViewStyle, View } from 'react-native'
 import clsx from 'clsx'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive'
 export type ButtonSize = 'sm' | 'md' | 'lg'
@@ -17,10 +18,17 @@ interface ButtonProps {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: 'bg-purple-600 dark:bg-purple-500',
-  secondary: 'bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600',
+  primary: 'bg-brand-primary',
+  secondary: 'bg-surface-card border border-border-primary',
   ghost: 'bg-transparent',
-  destructive: 'bg-red-500 dark:bg-red-600',
+  destructive: 'bg-red-500',
+}
+
+const textClasses: Record<ButtonVariant, string> = {
+  primary: 'text-white',
+  secondary: 'text-content-primary',
+  ghost: 'text-brand-primary',
+  destructive: 'text-white',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -43,12 +51,10 @@ export const Button = forwardRef<View, ButtonProps>(
     },
     ref,
   ) => {
-    const textColor =
-      variant === 'secondary'
-        ? 'text-slate-900 dark:text-slate-100'
-        : variant === 'ghost'
-          ? 'text-purple-600 dark:text-purple-400'
-          : 'text-white'
+    const theme = useAppTheme()
+
+    const loaderColor =
+      variant === 'secondary' ? theme.colors.text.primary : '#ffffff'
 
     return (
       <TouchableOpacity
@@ -66,9 +72,9 @@ export const Button = forwardRef<View, ButtonProps>(
         )}
       >
         {loading ? (
-          <ActivityIndicator color={variant === 'secondary' ? '#0f172a' : '#ffffff'} />
+          <ActivityIndicator color={loaderColor} />
         ) : (
-          <Text className={textColor}>{children}</Text>
+          <Text className={textClasses[variant]}>{children}</Text>
         )}
       </TouchableOpacity>
     )
