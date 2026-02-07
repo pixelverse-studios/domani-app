@@ -23,7 +23,7 @@ import {
 } from '~/components/settings'
 import { TutorialScrollProvider, useTutorialScroll } from '~/components/tutorial'
 import { useAuth } from '~/hooks/useAuth'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
 import { useSubscription } from '~/hooks/useSubscription'
 import { useNotifications } from '~/hooks/useNotifications'
@@ -54,7 +54,7 @@ function SettingsContent() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const { signOut } = useAuth()
-  const { mode, setMode, activeTheme } = useTheme()
+  const theme = useAppTheme()
   const { profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const subscription = useSubscription()
@@ -214,14 +214,14 @@ function SettingsContent() {
   }
 
   return (
-    <View className="flex-1 bg-white dark:bg-slate-950" style={{ paddingTop: insets.top }}>
+    <View className="flex-1" style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}>
       <ScrollView
         ref={tutorialScroll?.scrollViewRef}
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <Text className="text-2xl font-bold text-slate-900 dark:text-white mt-4 mb-6">
+        <Text className="text-2xl font-bold text-content-primary mt-4 mb-6">
           Settings
         </Text>
 
@@ -268,9 +268,7 @@ function SettingsContent() {
         <PreferencesSection
           isLoading={isLoading}
           timezone={profile?.timezone || null}
-          themeMode={mode}
           onEditTimezone={() => setShowTimezoneModal(true)}
-          onSetThemeMode={setMode}
         />
 
         {/* 6. Support Section */}
@@ -280,10 +278,15 @@ function SettingsContent() {
         <TouchableOpacity
           onPress={handleSignOut}
           activeOpacity={0.7}
-          className="flex-row items-center justify-center py-3.5 rounded-xl border border-slate-600/50 bg-[#374151]/30 dark:bg-[#374151]/50 mb-6"
+          className="flex-row items-center justify-center py-3.5 rounded-xl mb-6"
+          style={{
+            backgroundColor: theme.colors.interactive.hover,
+            borderWidth: 1,
+            borderColor: theme.colors.border.primary,
+          }}
         >
-          <LogOut size={18} color={activeTheme === 'dark' ? '#9ca3af' : '#475569'} />
-          <Text className="text-slate-600 dark:text-slate-400 font-semibold ml-2">Log Out</Text>
+          <LogOut size={18} color={theme.colors.text.secondary} />
+          <Text className="font-semibold ml-2" style={{ color: theme.colors.text.secondary }}>Log Out</Text>
         </TouchableOpacity>
 
         {/* 7. Danger Zone Section */}
@@ -297,7 +300,7 @@ function SettingsContent() {
         />
 
         {/* App Version */}
-        <Text className="text-center text-sm text-slate-500 dark:text-slate-500 mb-4">
+        <Text className="text-center text-sm text-content-tertiary mb-4">
           Domani v{APP_VERSION}
         </Text>
 
