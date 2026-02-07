@@ -4,7 +4,7 @@ import { Calendar } from 'lucide-react-native'
 import { format, addDays } from 'date-fns'
 
 import { Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { DayToggle, type PlanningTarget } from './DayToggle'
 
 function getOrdinalSuffix(day: number): string {
@@ -27,8 +27,7 @@ interface PlanningHeaderProps {
 }
 
 export function PlanningHeader({ selectedTarget, onTargetChange }: PlanningHeaderProps) {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
 
   const targetDate = selectedTarget === 'today' ? new Date() : addDays(new Date(), 1)
   const dayOfWeek = format(targetDate, 'EEEE')
@@ -36,8 +35,7 @@ export function PlanningHeader({ selectedTarget, onTargetChange }: PlanningHeade
   const day = targetDate.getDate()
   const formattedDate = `${dayOfWeek}, ${month} ${day}${getOrdinalSuffix(day)}`
 
-  const purpleColor = isDark ? '#a78bfa' : '#8b5cf6'
-  const calendarIconColor = isDark ? '#a78bfa' : '#7c3aed'
+  const brandColor = theme.colors.brand.primary
 
   return (
     <View className="px-5 pt-4 pb-2">
@@ -45,8 +43,8 @@ export function PlanningHeader({ selectedTarget, onTargetChange }: PlanningHeade
       <View className="flex-row items-center justify-between mb-6">
         {/* Planning for label with calendar icon */}
         <View className="flex-row items-center">
-          <Calendar size={18} color={calendarIconColor} />
-          <Text className="font-sans-medium ml-2" style={{ fontSize: 16, color: purpleColor }}>
+          <Calendar size={18} color={brandColor} />
+          <Text className="font-sans-medium ml-2" style={{ fontSize: 16, color: brandColor }}>
             Planning for
           </Text>
         </View>
@@ -59,13 +57,13 @@ export function PlanningHeader({ selectedTarget, onTargetChange }: PlanningHeade
       <View>
         {/* Today/Tomorrow - large title */}
         <Text
-          className="font-sans-bold text-slate-900 dark:text-white mb-1"
+          className="font-sans-bold text-content-primary mb-1"
           style={{ fontSize: 36, lineHeight: 44 }}
         >
           {selectedTarget === 'today' ? 'Today' : 'Tomorrow'}
         </Text>
         {/* Full date */}
-        <Text className="font-sans text-slate-500 dark:text-slate-400" style={{ fontSize: 18 }}>
+        <Text className="font-sans text-content-secondary" style={{ fontSize: 18 }}>
           {formattedDate}
         </Text>
       </View>

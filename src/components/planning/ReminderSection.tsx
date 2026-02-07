@@ -6,7 +6,7 @@ import { format, addDays, setHours, setMinutes, isBefore } from 'date-fns'
 import Animated from 'react-native-reanimated'
 
 import { Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useProfile } from '~/hooks/useProfile'
 import { DEFAULT_SHORTCUTS, type ReminderShortcut } from '~/components/settings'
 
@@ -32,8 +32,8 @@ export function ReminderSection({
   disabled = false,
   selectedTarget,
 }: ReminderSectionProps) {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
   const { profile } = useProfile()
 
   // Get user's shortcuts from profile or use defaults
@@ -43,11 +43,10 @@ export function ReminderSection({
   }, [profile?.reminder_shortcuts])
 
   // Colors
-  const purpleColor = isDark ? '#a78bfa' : '#8b5cf6'
-  const iconColor = isDark ? '#94a3b8' : '#64748b'
-  const borderColor = isDark ? '#334155' : '#e2e8f0'
-  const chipBg = isDark ? '#1e293b' : '#f1f5f9'
-  const chipActiveBg = isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.1)'
+  const iconColor = theme.colors.text.tertiary
+  const borderColor = theme.colors.border.primary
+  const chipBg = theme.colors.background
+  const chipActiveBg = `${brandColor}1A`
 
   // State for time picker modal visibility (both platforms)
   const [showTimePicker, setShowTimePicker] = useState(false)
@@ -85,20 +84,20 @@ export function ReminderSection({
         style={{
           backgroundColor: isReminderEnabled ? chipActiveBg : chipBg,
           borderWidth: 1,
-          borderColor: isReminderEnabled ? purpleColor : borderColor,
+          borderColor: isReminderEnabled ? brandColor : borderColor,
         }}
       >
         <View className="flex-row items-center" style={{ gap: 10 }}>
-          <Bell size={18} color={isReminderEnabled ? purpleColor : iconColor} />
+          <Bell size={18} color={isReminderEnabled ? brandColor : iconColor} />
           <View>
             <Text
               className="text-sm font-sans-semibold"
-              style={{ color: isReminderEnabled ? purpleColor : isDark ? '#e2e8f0' : '#1e293b' }}
+              style={{ color: isReminderEnabled ? brandColor : theme.colors.text.primary }}
             >
               {isReminderEnabled ? 'Reminder On' : 'Add Reminder'}
             </Text>
             {isReminderEnabled && (
-              <Text className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <Text className="text-xs text-content-secondary mt-0.5">
                 {format(reminderDate, "EEE, MMM d 'at' h:mm a")}
               </Text>
             )}
@@ -109,7 +108,7 @@ export function ReminderSection({
         <View
           className="w-11 h-6 rounded-full justify-center px-0.5"
           style={{
-            backgroundColor: isReminderEnabled ? purpleColor : isDark ? '#475569' : '#cbd5e1',
+            backgroundColor: isReminderEnabled ? brandColor : theme.colors.border.primary,
           }}
         >
           <Animated.View
@@ -132,14 +131,14 @@ export function ReminderSection({
           {/* Shortcuts Header - matching Priority/Category style */}
           <View className="flex-row items-center mb-3">
             <Zap size={16} color={iconColor} />
-            <Text className="font-sans-medium text-slate-900 dark:text-white ml-2">Shortcuts</Text>
+            <Text className="font-sans-medium text-content-primary ml-2">Shortcuts</Text>
           </View>
           <View className="flex-row" style={{ gap: 6 }}>
             {timePresets.map((preset) => {
               const isSelected =
                 reminderDate.getHours() === preset.hour &&
                 reminderDate.getMinutes() === preset.minute
-              const textColor = isSelected ? purpleColor : isDark ? '#64748b' : '#94a3b8'
+              const textColor = isSelected ? brandColor : iconColor
               return (
                 <TouchableOpacity
                   key={preset.id}
@@ -153,7 +152,7 @@ export function ReminderSection({
                   style={{
                     backgroundColor: isSelected ? chipActiveBg : chipBg,
                     borderWidth: isSelected ? 2 : 1,
-                    borderColor: isSelected ? purpleColor : borderColor,
+                    borderColor: isSelected ? brandColor : borderColor,
                   }}
                 >
                   <Text className="text-sm font-sans-semibold" style={{ color: textColor }}>
@@ -181,14 +180,14 @@ export function ReminderSection({
                   style={{
                     backgroundColor: isCustomTime ? chipActiveBg : chipBg,
                     borderWidth: isCustomTime ? 2 : 1,
-                    borderColor: isCustomTime ? purpleColor : borderColor,
+                    borderColor: isCustomTime ? brandColor : borderColor,
                     gap: 6,
                   }}
                 >
-                  <Settings2 size={14} color={isCustomTime ? purpleColor : iconColor} />
+                  <Settings2 size={14} color={isCustomTime ? brandColor : iconColor} />
                   <Text
                     className="text-xs font-sans-medium"
-                    style={{ color: isCustomTime ? purpleColor : iconColor }}
+                    style={{ color: isCustomTime ? brandColor : iconColor }}
                   >
                     Custom
                   </Text>
@@ -206,7 +205,7 @@ export function ReminderSection({
                   }}
                 >
                   <Clock size={16} color={iconColor} />
-                  <Text className="text-sm font-sans-semibold" style={{ color: purpleColor }}>
+                  <Text className="text-sm font-sans-semibold" style={{ color: brandColor }}>
                     {format(reminderDate, 'h:mm a')}
                   </Text>
                 </TouchableOpacity>
@@ -228,7 +227,7 @@ export function ReminderSection({
                   onReminderDateChange(newDate)
                 }
               }}
-              themeVariant={isDark ? 'dark' : 'light'}
+              themeVariant="light"
             />
           )}
 
@@ -244,7 +243,7 @@ export function ReminderSection({
                   activeOpacity={1}
                   onPress={() => {}} // Prevent closing when tapping the picker
                   className="rounded-t-2xl pb-8"
-                  style={{ backgroundColor: isDark ? '#1e293b' : '#ffffff' }}
+                  style={{ backgroundColor: theme.colors.card }}
                 >
                   <View
                     className="flex-row justify-between items-center px-4 py-3 border-b"
@@ -255,11 +254,11 @@ export function ReminderSection({
                         Cancel
                       </Text>
                     </TouchableOpacity>
-                    <Text className="text-base font-sans-semibold text-slate-900 dark:text-white">
+                    <Text className="text-base font-sans-semibold text-content-primary">
                       Select Time
                     </Text>
                     <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                      <Text className="text-base font-sans-semibold" style={{ color: purpleColor }}>
+                      <Text className="text-base font-sans-semibold" style={{ color: brandColor }}>
                         Done
                       </Text>
                     </TouchableOpacity>
@@ -275,7 +274,7 @@ export function ReminderSection({
                         onReminderDateChange(newDate)
                       }
                     }}
-                    themeVariant={isDark ? 'dark' : 'light'}
+                    themeVariant="light"
                     style={{ height: 200 }}
                   />
                 </TouchableOpacity>

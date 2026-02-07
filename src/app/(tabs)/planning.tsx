@@ -22,6 +22,7 @@ import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAdvancement } from '~/components/tutorial'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import type { TaskWithCategory } from '~/types'
 
 const FREE_TIER_TASK_LIMIT = 3
@@ -59,6 +60,7 @@ interface TaskFormData {
 
 export default function PlanningScreen() {
   useScreenTracking('planning')
+  const theme = useAppTheme()
   const router = useRouter()
   const scrollViewRef = useRef<ScrollView>(null)
   const isMountedRef = useRef(true)
@@ -387,7 +389,7 @@ export default function PlanningScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white dark:bg-slate-950" edges={['top']}>
+    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }} edges={['top']}>
       <ScrollView
         ref={scrollViewRef}
         className="flex-1"
