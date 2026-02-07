@@ -40,8 +40,8 @@ export function GradientButton({
       ]}
     >
       <LinearGradient
-        colors={[theme.colors.brand.primary, theme.colors.brand.primary, theme.colors.brand.dark] as const}
-        locations={[0, 0.6, 1]}
+        colors={theme.gradients.brandButton.colors}
+        locations={theme.gradients.brandButton.locations}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.gradient}

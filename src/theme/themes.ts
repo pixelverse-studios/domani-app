@@ -50,6 +50,10 @@ export interface Theme {
   gradients: {
     primary: [string, string]
     primaryLight: [string, string]
+    brandButton: {
+      colors: readonly [string, string, string]
+      locations: readonly [number, number, number]
+    }
   }
   spacing: {
     xs: number
@@ -105,6 +109,10 @@ const sage: Theme = {
   gradients: {
     primary: ['#7D9B8A', '#5A7765'],
     primaryLight: ['#7D9B8A', '#A3BFB0'],
+    brandButton: {
+      colors: ['#7D9B8A', '#7D9B8A', '#5A7765'] as const,
+      locations: [0, 0.6, 1] as const,
+    },
   },
   spacing: {
     xs: 4,
