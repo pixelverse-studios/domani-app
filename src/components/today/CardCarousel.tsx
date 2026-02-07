@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { View, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native'
 
 import { useAppTheme } from '~/hooks/useAppTheme'
@@ -22,6 +22,13 @@ export function CardCarousel({ children }: CardCarouselProps) {
   const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const childCount = React.Children.count(children)
+
+  const getDotStyle = useCallback(
+    (index: number) => ({
+      backgroundColor: index === activeIndex ? brandColor : theme.colors.border.primary,
+    }),
+    [activeIndex, brandColor, theme.colors.border.primary]
+  )
 
   // Auto-scroll timer
   useEffect(() => {
@@ -94,9 +101,7 @@ export function CardCarousel({ children }: CardCarouselProps) {
           <View
             key={index}
             className="w-2 h-2 rounded-full"
-            style={{
-              backgroundColor: index === activeIndex ? brandColor : theme.colors.border.primary,
-            }}
+            style={getDotStyle(index)}
           />
         ))}
       </View>

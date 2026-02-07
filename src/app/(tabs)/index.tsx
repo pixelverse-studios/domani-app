@@ -114,6 +114,20 @@ export default function TodayScreen() {
     return inferDayType(nonMitTasks)
   }, [tasks])
 
+  // Memoize TextInput style for name prompt modal
+  const textInputStyle = useMemo(() => ({
+    paddingTop: 14,
+    paddingBottom: 14,
+    lineHeight: undefined,
+    backgroundColor: theme.colors.background,
+    color: theme.colors.text.primary,
+  }), [theme])
+
+  // Memoize submit button style for name prompt modal
+  const submitButtonStyle = useMemo(() => ({
+    backgroundColor: nameInput.trim() ? brandColor : `${brandColor}80`,
+  }), [nameInput, brandColor])
+
   const handleToggleTask = async (taskId: string, completed: boolean) => {
     try {
       await toggleTask.mutateAsync({ taskId, completed })
@@ -257,22 +271,14 @@ export default function TodayScreen() {
               placeholderTextColor={theme.colors.text.tertiary}
               autoFocus
               className="rounded-xl px-4 text-base mb-4"
-              style={{
-                paddingTop: 14,
-                paddingBottom: 14,
-                lineHeight: undefined,
-                backgroundColor: theme.colors.background,
-                color: theme.colors.text.primary,
-              }}
+              style={textInputStyle}
             />
             <TouchableOpacity
               onPress={handleSaveName}
               disabled={updateProfile.isPending || !nameInput.trim()}
               activeOpacity={0.8}
               className="py-3 rounded-xl items-center"
-              style={{
-                backgroundColor: nameInput.trim() ? brandColor : `${brandColor}80`,
-              }}
+              style={submitButtonStyle}
             >
               {updateProfile.isPending ? (
                 <ActivityIndicator color="#fff" />
