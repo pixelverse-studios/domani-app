@@ -4,7 +4,7 @@ import { Tabs, Redirect } from 'expo-router'
 import { CheckCircle, Calendar, MessageCircle, BarChart3, Settings } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useAuth } from '~/hooks/useAuth'
 import { WelcomeOverlay, TutorialSpotlight, useTutorialLifecycle } from '~/components/tutorial'
 import { useTutorialStore } from '~/stores/tutorialStore'
@@ -13,8 +13,7 @@ const TAB_BAR_CONTENT_HEIGHT = 56
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets()
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
   const { user, loading } = useAuth()
   const initializeTutorialState = useTutorialStore((state) => state.initializeTutorialState)
 
@@ -31,8 +30,8 @@ export default function TabLayout() {
   // Show loading while checking auth
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-slate-950">
-        <ActivityIndicator size="large" color="#a855f7" />
+      <View className="flex-1 items-center justify-center bg-surface-bg">
+        <ActivityIndicator size="large" color={theme.colors.brand.primary} />
       </View>
     )
   }
@@ -42,21 +41,16 @@ export default function TabLayout() {
     return <Redirect href="/welcome" />
   }
 
-  const activeColor = '#a855f7' // purple-500
-  const inactiveColor = isDark ? '#6b7280' : '#9ca3af' // gray-500/400
-  const backgroundColor = isDark ? '#0a0a0f' : '#ffffff'
-  const borderColor = isDark ? '#1f2937' : '#e5e7eb'
-
   return (
     <>
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: activeColor,
-          tabBarInactiveTintColor: inactiveColor,
+          tabBarActiveTintColor: theme.colors.brand.primary,
+          tabBarInactiveTintColor: theme.colors.text.tertiary,
           tabBarStyle: {
-            backgroundColor,
-            borderTopColor: borderColor,
+            backgroundColor: theme.colors.background,
+            borderTopColor: theme.colors.border.primary,
             borderTopWidth: 1,
             height: TAB_BAR_CONTENT_HEIGHT + insets.bottom,
             paddingBottom: insets.bottom,
