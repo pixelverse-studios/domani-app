@@ -26,7 +26,7 @@ import {
 import { format, parseISO, isFuture } from 'date-fns'
 
 import { Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import type { TaskWithCategory } from '~/types'
 
 // Enable LayoutAnimation on Android
@@ -40,25 +40,6 @@ interface TaskCardProps {
   onDelete?: (taskId: string) => void
   onToggleComplete?: (taskId: string, completed: boolean) => void
   showCheckbox?: boolean
-}
-
-const PRIORITY_COLORS = {
-  top: {
-    border: '#8b5cf6',
-    badge: { bg: 'rgba(139, 92, 246, 0.15)', text: '#8b5cf6' },
-  },
-  high: {
-    border: '#ef4444',
-    badge: { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444' },
-  },
-  medium: {
-    border: '#f97316',
-    badge: { bg: 'rgba(249, 115, 22, 0.15)', text: '#f97316' },
-  },
-  low: {
-    border: '#22c55e',
-    badge: { bg: 'rgba(34, 197, 94, 0.15)', text: '#22c55e' },
-  },
 }
 
 // Get icon for category based on name/icon field
@@ -110,13 +91,14 @@ export function TaskCard({
   onToggleComplete,
   showCheckbox = false,
 }: TaskCardProps) {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
   const [isNotesExpanded, setIsNotesExpanded] = useState(false)
 
   const isCompleted = !!task.completed_at
   const priority = task.priority || 'medium'
-  const priorityConfig = PRIORITY_COLORS[priority] || PRIORITY_COLORS.medium
+
+  const priorityColor = theme.priority[priority]?.color ?? theme.priority.medium.color
+  const priorityBadgeBg = `${priorityColor}26` // 15% opacity
 
   // Get category info (prefer user category, fall back to system category)
   const category = task.user_category || task.system_category
@@ -149,13 +131,9 @@ export function TaskCard({
     setIsNotesExpanded((prev) => !prev)
   }
 
-  const iconColor = isDark ? '#94a3b8' : '#64748b'
-  const cardBg = isDark ? '#1e293b' : '#ffffff'
-  const borderColor = isDark ? '#334155' : '#e2e8f0'
-  const dividerColor = isDark ? 'rgba(148, 163, 184, 0.2)' : 'rgba(148, 163, 184, 0.2)'
-  const checkboxColor = '#a855f7' // purple-500
-  const uncheckedColor = isDark ? '#6b7280' : '#9ca3af'
-  const reminderColor = '#a855f7' // purple-500 to match app accent
+  const iconColor = theme.colors.text.tertiary
+  const dividerColor = `${theme.colors.border.primary}33`
+  const buttonBg = theme.colors.interactive.hover
 
   const handleToggleComplete = () => {
     onToggleComplete?.(task.id, !isCompleted)
@@ -166,9 +144,9 @@ export function TaskCard({
       style={[
         styles.card,
         {
-          backgroundColor: cardBg,
-          borderColor: borderColor,
-          borderLeftColor: priorityConfig.border,
+          backgroundColor: theme.colors.card,
+          borderColor: theme.colors.border.primary,
+          borderLeftColor: priorityColor,
         },
       ]}
     >
@@ -183,9 +161,9 @@ export function TaskCard({
             accessibilityLabel={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
           >
             {isCompleted ? (
-              <CheckCircle size={24} color={checkboxColor} />
+              <CheckCircle size={24} color={theme.colors.brand.primary} />
             ) : (
-              <Circle size={24} color={uncheckedColor} />
+              <Circle size={24} color={theme.colors.text.tertiary} />
             )}
           </TouchableOpacity>
         )}
@@ -198,8 +176,8 @@ export function TaskCard({
               <Text
                 className={`font-sans-semibold text-base ${
                   isCompleted
-                    ? 'text-slate-400 dark:text-slate-500 line-through'
-                    : 'text-slate-900 dark:text-white'
+                    ? 'text-content-muted line-through'
+                    : 'text-content-primary'
                 }`}
                 numberOfLines={2}
               >
@@ -211,18 +189,18 @@ export function TaskCard({
               style={[
                 styles.priorityBadge,
                 {
-                  backgroundColor: priorityConfig.badge.bg,
+                  backgroundColor: priorityBadgeBg,
                   flexDirection: 'row',
                   alignItems: 'center',
                 },
               ]}
             >
               {priority === 'top' && (
-                <Crown size={12} color={priorityConfig.badge.text} style={{ marginRight: 4 }} />
+                <Crown size={12} color={priorityColor} style={{ marginRight: 4 }} />
               )}
               <Text
                 className="font-sans-medium text-xs capitalize"
-                style={{ color: priorityConfig.badge.text }}
+                style={{ color: priorityColor }}
               >
                 {priority}
               </Text>
@@ -240,10 +218,10 @@ export function TaskCard({
               <View style={styles.categoryContainer}>
                 {getCategoryIcon(
                   category ? { name: categoryName, icon: category.icon || undefined } : null,
-                  isUserCategory ? '#a78bfa' : iconColor,
+                  isUserCategory ? theme.colors.brand.light : iconColor,
                 )}
                 <Text
-                  className="font-sans text-sm text-slate-500 dark:text-slate-400 ml-1.5"
+                  className="font-sans text-sm text-content-secondary ml-1.5"
                   numberOfLines={1}
                 >
                   {categoryName}
@@ -253,10 +231,10 @@ export function TaskCard({
               {/* Reminder Indicator */}
               {reminderInfo && (
                 <View style={styles.reminderContainer}>
-                  <Bell size={12} color={reminderColor} />
+                  <Bell size={12} color={theme.colors.brand.primary} />
                   <Text
                     className="font-sans text-xs ml-1"
-                    style={{ color: reminderColor }}
+                    style={{ color: theme.colors.brand.primary }}
                     numberOfLines={1}
                   >
                     {reminderInfo.time}
@@ -271,7 +249,7 @@ export function TaskCard({
               {hasNotes && (
                 <TouchableOpacity
                   onPress={handleToggleNotes}
-                  style={[styles.notesToggle, { backgroundColor: isDark ? '#334155' : '#f1f5f9' }]}
+                  style={[styles.notesToggle, { backgroundColor: buttonBg }]}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   accessibilityLabel={isNotesExpanded ? 'Hide notes' : 'Show notes'}
                 >
@@ -287,17 +265,17 @@ export function TaskCard({
               {/* Edit Button */}
               <TouchableOpacity
                 onPress={() => onEdit?.(task.id)}
-                style={[styles.actionButton, { backgroundColor: isDark ? '#334155' : '#f1f5f9' }]}
+                style={[styles.actionButton, { backgroundColor: buttonBg }]}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel="Edit task"
               >
-                <Pencil size={16} color="#a78bfa" />
+                <Pencil size={16} color={theme.colors.brand.light} />
               </TouchableOpacity>
 
               {/* Delete Button */}
               <TouchableOpacity
                 onPress={() => onDelete?.(task.id)}
-                style={[styles.actionButton, { backgroundColor: isDark ? '#334155' : '#f1f5f9' }]}
+                style={[styles.actionButton, { backgroundColor: buttonBg }]}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel="Delete task"
               >
@@ -316,14 +294,14 @@ export function TaskCard({
           <View style={styles.notesContainer}>
             <View style={styles.notesHeader}>
               <FileText size={14} color={iconColor} />
-              <Text className="font-sans-medium text-sm text-slate-500 dark:text-slate-400 ml-1.5">
+              <Text className="font-sans-medium text-sm text-content-secondary ml-1.5">
                 Notes
               </Text>
             </View>
             <View
-              style={[styles.notesContent, { backgroundColor: isDark ? '#0f172a' : '#f1f5f9' }]}
+              style={[styles.notesContent, { backgroundColor: buttonBg }]}
             >
-              <Text className="font-sans text-sm text-slate-700 dark:text-slate-300">
+              <Text className="font-sans text-sm text-content-primary">
                 {task.notes}
               </Text>
             </View>
