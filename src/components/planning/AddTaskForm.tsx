@@ -32,8 +32,7 @@ import { CategorySelector } from './CategorySelector'
 import { PrioritySelector, type Priority } from './PrioritySelector'
 import { DayToggle, type PlanningTarget } from './DayToggle'
 import { ReminderSection } from './ReminderSection'
-import { useTheme } from '~/hooks/useTheme'
-import { colors } from '~/theme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 type Category = 'work' | 'wellness' | 'personal' | 'education' | string
 type SubmitState = 'idle' | 'submitting' | 'success'
@@ -94,8 +93,7 @@ export function AddTaskForm({
   onScrollToCategory,
   onScrollToBottom,
 }: AddTaskFormProps) {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
   const titleInputRef = useRef<TextInput>(null)
   const isMountedRef = useRef(true)
 
@@ -213,9 +211,6 @@ export function AddTaskForm({
 
   // Focus state for title input
   const [isTitleFocused, setIsTitleFocused] = useState(false)
-
-  const purpleColor = isDark ? '#a78bfa' : '#8b5cf6'
-  const iconColor = isDark ? '#94a3b8' : '#64748b'
 
   const isValid = title.trim().length > 0 && selectedCategory !== null && selectedPriority !== null
 
@@ -353,9 +348,9 @@ export function AddTaskForm({
     <View
       className="mx-5 mt-6 p-5 rounded-2xl"
       style={{
-        backgroundColor: isDark ? '#1e293b' : '#f8fafc',
+        backgroundColor: theme.colors.card,
         borderWidth: 1,
-        borderColor: isDark ? '#7c3aed' : '#a78bfa',
+        borderColor: theme.colors.brand.primary,
       }}
     >
       {/* Dim overlay when submitting/success */}
@@ -364,7 +359,7 @@ export function AddTaskForm({
           style={[
             StyleSheet.absoluteFill,
             {
-              backgroundColor: isDark ? 'rgba(15, 23, 42, 0.5)' : 'rgba(248, 250, 252, 0.5)',
+              backgroundColor: `${theme.colors.card}80`,
               borderRadius: 16,
               zIndex: 1,
             },
@@ -375,7 +370,7 @@ export function AddTaskForm({
 
       {/* Header */}
       <View className="flex-row items-center justify-between mb-4">
-        <Text className="text-xl font-sans-bold text-slate-900 dark:text-white">
+        <Text className="text-xl font-sans-bold text-content-primary">
           {isEditing ? 'Edit Task' : 'New Task'}
         </Text>
         <TouchableOpacity
@@ -384,7 +379,7 @@ export function AddTaskForm({
           className="w-8 h-8 items-center justify-center"
           accessibilityLabel="Close form"
         >
-          <X size={24} color={iconColor} />
+          <X size={24} color={theme.colors.text.tertiary} />
         </TouchableOpacity>
       </View>
 
@@ -405,7 +400,7 @@ export function AddTaskForm({
           value={title}
           onChangeText={handleTitleChange}
           placeholder="What do you want to accomplish?"
-          placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+          placeholderTextColor={theme.colors.text.muted}
           editable={!isFormDisabled}
           onFocus={() => setIsTitleFocused(true)}
           onBlur={() => setIsTitleFocused(false)}
@@ -413,10 +408,10 @@ export function AddTaskForm({
           style={[
             styles.input,
             {
-              backgroundColor: isDark ? '#0f172a' : '#ffffff',
-              borderColor: isTitleFocused ? purpleColor : isDark ? '#334155' : '#e2e8f0',
+              backgroundColor: theme.colors.background,
+              borderColor: isTitleFocused ? theme.colors.brand.primary : theme.colors.border.primary,
               borderWidth: isTitleFocused ? 2 : 1,
-              color: isDark ? '#f8fafc' : '#0f172a',
+              color: theme.colors.text.primary,
             },
           ]}
         />
@@ -449,13 +444,13 @@ export function AddTaskForm({
           className="flex-row items-center justify-between py-2"
         >
           <View className="flex-row items-center" style={{ gap: 8 }}>
-            <FileText size={18} color={iconColor} />
-            <Text className="text-sm font-sans-medium text-slate-500 dark:text-slate-400">
+            <FileText size={18} color={theme.colors.text.tertiary} />
+            <Text className="text-sm font-sans-medium text-content-secondary">
               Add Notes (Optional)
             </Text>
           </View>
           <Animated.View style={notesChevronStyle}>
-            <ChevronRight size={18} color={iconColor} />
+            <ChevronRight size={18} color={theme.colors.text.tertiary} />
           </Animated.View>
         </TouchableOpacity>
 
@@ -464,7 +459,7 @@ export function AddTaskForm({
             value={notes}
             onChangeText={setNotes}
             placeholder="Add shopping list, details, or any notes..."
-            placeholderTextColor={isDark ? '#94a3b8' : '#64748b'}
+            placeholderTextColor={theme.colors.text.muted}
             multiline
             numberOfLines={4}
             textAlignVertical="top"
@@ -473,9 +468,9 @@ export function AddTaskForm({
             style={[
               styles.notesInput,
               {
-                backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                borderColor: isDark ? '#334155' : '#e2e8f0',
-                color: isDark ? '#f8fafc' : '#0f172a',
+                backgroundColor: theme.colors.background,
+                borderColor: theme.colors.border.primary,
+                color: theme.colors.text.primary,
               },
             ]}
           />
@@ -505,10 +500,10 @@ export function AddTaskForm({
             <TouchableOpacity
               onPress={onClose}
               className="flex-1 py-4 rounded-xl items-center justify-center"
-              style={{ backgroundColor: isDark ? '#334155' : '#e2e8f0' }}
+              style={{ backgroundColor: theme.colors.interactive.hover }}
               accessibilityRole="button"
             >
-              <Text className="font-sans-semibold text-slate-900 dark:text-white">Cancel</Text>
+              <Text className="font-sans-semibold text-content-primary">Cancel</Text>
             </TouchableOpacity>
 
             {/* Add/Update Task Button */}
@@ -522,8 +517,7 @@ export function AddTaskForm({
               accessibilityState={{ disabled: !isValid }}
             >
               <LinearGradient
-                colors={[colors.brand.pink, colors.brand.pink, colors.brand.purple] as const}
-                locations={[0, 0.6, 1]}
+                colors={[theme.gradients.primary[0], theme.gradients.primary[1]] as const}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.addButtonGradient}
@@ -539,9 +533,9 @@ export function AddTaskForm({
         {submitState === 'submitting' && (
           <View
             className="py-4 rounded-xl items-center justify-center"
-            style={{ backgroundColor: isDark ? '#334155' : '#e2e8f0' }}
+            style={{ backgroundColor: theme.colors.interactive.hover }}
           >
-            <ActivityIndicator size="small" color={purpleColor} />
+            <ActivityIndicator size="small" color={theme.colors.brand.primary} />
           </View>
         )}
 
@@ -549,7 +543,7 @@ export function AddTaskForm({
           <View
             className="py-4 rounded-xl items-center justify-center flex-row"
             style={{
-              backgroundColor: isDark ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.1)',
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
               borderWidth: 1,
               borderColor: '#22c55e',
             }}
