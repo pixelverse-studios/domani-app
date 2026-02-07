@@ -29,7 +29,7 @@ import { Text, ConfirmationModal } from '~/components/ui'
 import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useProfile } from '~/hooks/useProfile'
 import {
   useCreateUserCategory,
@@ -65,12 +65,12 @@ const FORM_ID_TO_DISPLAY: Record<string, string> = {
 function getCategoryIcon(
   categoryId: string,
   isSelected: boolean,
-  purpleColor: string,
-  iconColor: string,
+  brandColor: string,
+  defaultColor: string,
   size: number = 16,
 ) {
-  const color = isSelected ? purpleColor : iconColor
-  const fill = isSelected ? purpleColor : 'none'
+  const color = isSelected ? brandColor : defaultColor
+  const fill = isSelected ? brandColor : 'none'
 
   switch (categoryId) {
     case 'work':
@@ -115,8 +115,7 @@ export function CategorySelector({
     useTutorialTarget('category_selector')
   const { targetRef: moreCategoriesRef, measureTarget: measureMoreCategories } =
     useTutorialTarget('more_categories_button')
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
   const { profile } = useProfile()
   const sortedCategories = useSortedCategories(profile?.auto_sort_categories ?? false)
   const favoriteCategories = useFavoriteCategories(profile?.auto_sort_categories ?? false)
@@ -145,8 +144,8 @@ export function CategorySelector({
   const [categoryToDelete, setCategoryToDelete] = useState<CategoryOption | null>(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
-  const purpleColor = isDark ? '#a78bfa' : '#8b5cf6'
-  const iconColor = isDark ? '#94a3b8' : '#64748b'
+  const brandColor = theme.colors.brand.primary
+  const iconColor = theme.colors.text.tertiary
 
   // All categories - favorites first (in user-set order), then remaining alphabetically
   const allCategories: CategoryOption[] = useMemo(() => {
@@ -159,7 +158,7 @@ export function CategorySelector({
         return {
           id: formId,
           label: displayLabel,
-          icon: getCategoryIcon(formId, false, purpleColor, iconColor),
+          icon: getCategoryIcon(formId, false, brandColor, iconColor),
           isSystem: true,
         }
       } else {
@@ -182,7 +181,7 @@ export function CategorySelector({
       .map(toCategoryOption)
 
     return [...favoriteOptions, ...remainingOptions]
-  }, [sortedCategories, favoriteCategories, iconColor, purpleColor])
+  }, [sortedCategories, favoriteCategories, iconColor, brandColor])
 
   // Categories to display in collapsed state (first 4)
   const collapsedCategories = useMemo(() => {
@@ -363,19 +362,19 @@ export function CategorySelector({
           style={[
             styles.chip,
             {
-              backgroundColor: isDark ? '#0f172a' : '#ffffff',
-              borderColor: isSelected ? purpleColor : isDark ? '#334155' : '#e2e8f0',
+              backgroundColor: theme.colors.card,
+              borderColor: isSelected ? brandColor : theme.colors.border.primary,
               borderWidth: isSelected ? 2 : 1,
             },
           ]}
           accessibilityRole="button"
           accessibilityState={{ selected: isSelected }}
         >
-          {getCategoryIcon(category.id, isSelected, purpleColor, iconColor)}
+          {getCategoryIcon(category.id, isSelected, brandColor, iconColor)}
           <Text
             className="font-sans-medium ml-1.5"
             style={{
-              color: isSelected ? purpleColor : isDark ? '#e2e8f0' : '#334155',
+              color: isSelected ? theme.colors.brand.dark : theme.colors.text.primary,
               fontSize: 14,
             }}
             numberOfLines={1}
@@ -389,7 +388,7 @@ export function CategorySelector({
             onPress={() => handleDeletePress(category)}
             disabled={disabled}
             className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full items-center justify-center"
-            style={{ backgroundColor: isDark ? '#ef4444' : '#dc2626', zIndex: 10 }}
+            style={{ backgroundColor: '#dc2626', zIndex: 10 }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <X size={11} color="#ffffff" />
@@ -410,27 +409,21 @@ export function CategorySelector({
           disabled={disabled}
           className="flex-row items-center py-2.5 px-3 rounded-xl"
           style={{
-            backgroundColor: isSelected
-              ? isDark
-                ? 'rgba(139, 92, 246, 0.2)'
-                : 'rgba(139, 92, 246, 0.1)'
-              : isDark
-                ? '#1e293b'
-                : '#f8fafc',
+            backgroundColor: isSelected ? `${brandColor}1A` : theme.colors.card,
             borderWidth: isSelected ? 2 : 1,
-            borderColor: isSelected ? purpleColor : isDark ? '#334155' : '#e2e8f0',
+            borderColor: isSelected ? brandColor : theme.colors.border.primary,
           }}
           activeOpacity={0.7}
         >
-          {getCategoryIcon(category.id, isSelected, purpleColor, iconColor, 16)}
+          {getCategoryIcon(category.id, isSelected, brandColor, iconColor, 16)}
           <Text
             className="font-sans-medium ml-2 text-sm"
-            style={{ color: isSelected ? purpleColor : isDark ? '#e2e8f0' : '#334155' }}
+            style={{ color: isSelected ? theme.colors.brand.dark : theme.colors.text.primary }}
             numberOfLines={1}
           >
             {category.label}
           </Text>
-          {isSelected && <Check size={14} color={purpleColor} style={{ marginLeft: 4 }} />}
+          {isSelected && <Check size={14} color={brandColor} style={{ marginLeft: 4 }} />}
         </TouchableOpacity>
         {/* Delete button for user-created categories - same approach as collapsed view */}
         {!category.isSystem && (
@@ -439,7 +432,7 @@ export function CategorySelector({
             disabled={disabled}
             onStartShouldSetResponder={() => true}
             className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full items-center justify-center"
-            style={{ backgroundColor: isDark ? '#ef4444' : '#dc2626', zIndex: 10 }}
+            style={{ backgroundColor: '#dc2626', zIndex: 10 }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <X size={11} color="#ffffff" />
@@ -461,17 +454,17 @@ export function CategorySelector({
         style={[
           styles.newPill,
           {
-            backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.1)',
-            borderColor: purpleColor,
+            backgroundColor: `${brandColor}1A`,
+            borderColor: brandColor,
             opacity: hasSearchText && exactMatchExists ? 0.5 : 1,
           },
         ]}
         activeOpacity={0.7}
       >
-        <Plus size={14} color={purpleColor} />
+        <Plus size={14} color={brandColor} />
         <Text
           className="font-sans-medium ml-1"
-          style={{ color: purpleColor, fontSize: 14 }}
+          style={{ color: brandColor, fontSize: 14 }}
           numberOfLines={1}
         >
           {pillLabel}
@@ -486,7 +479,7 @@ export function CategorySelector({
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-row items-center">
           <Tag size={16} color={iconColor} />
-          <Text className="font-sans-medium text-slate-900 dark:text-white ml-2">Category</Text>
+          <Text className="font-sans-medium text-content-primary ml-2">Category</Text>
         </View>
 
         {/* Selected Category Badge */}
@@ -494,7 +487,7 @@ export function CategorySelector({
           <View className="flex-row items-center">
             <View
               className="flex-row items-center px-3 py-1.5 rounded-full"
-              style={{ backgroundColor: isDark ? '#7c3aed' : '#8b5cf6' }}
+              style={{ backgroundColor: brandColor }}
             >
               <Star size={12} color="#ffffff" fill="#ffffff" />
               <Text className="font-sans-medium text-white text-xs ml-1.5">
@@ -529,14 +522,14 @@ export function CategorySelector({
               style={[
                 styles.moreButton,
                 {
-                  backgroundColor: isDark ? 'rgba(148, 163, 184, 0.15)' : 'rgba(100, 116, 139, 0.1)',
-                  borderColor: isDark ? '#475569' : '#cbd5e1',
+                  backgroundColor: theme.colors.interactive.hover,
+                  borderColor: theme.colors.border.primary,
                 },
               ]}
             >
               <Text
                 className="font-sans-medium"
-                style={{ color: isDark ? '#94a3b8' : '#64748b', fontSize: 13 }}
+                style={{ color: theme.colors.text.secondary, fontSize: 13 }}
               >
                 +{additionalCount} more
               </Text>
@@ -551,13 +544,13 @@ export function CategorySelector({
           style={[
             styles.newButton,
             {
-              backgroundColor: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.1)',
-              borderColor: purpleColor,
+              backgroundColor: `${brandColor}1A`,
+              borderColor: brandColor,
             },
           ]}
         >
-          <Plus size={14} color={purpleColor} />
-          <Text className="font-sans-medium ml-1" style={{ color: purpleColor, fontSize: 13 }}>
+          <Plus size={14} color={brandColor} />
+          <Text className="font-sans-medium ml-1" style={{ color: brandColor, fontSize: 13 }}>
             New
           </Text>
         </TouchableOpacity>
@@ -582,7 +575,7 @@ export function CategorySelector({
             style={[
               styles.sheetContent,
               {
-                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                backgroundColor: theme.colors.background,
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
               },
@@ -599,7 +592,7 @@ export function CategorySelector({
               <View className="items-center pt-3 pb-2">
                 <View
                   className="w-10 h-1 rounded-full"
-                  style={{ backgroundColor: isDark ? '#334155' : '#cbd5e1' }}
+                  style={{ backgroundColor: theme.colors.border.secondary }}
                 />
               </View>
 
@@ -607,7 +600,7 @@ export function CategorySelector({
               <View className="flex-row items-center justify-between px-5 py-3">
                 <Text
                   className="font-sans-semibold text-lg"
-                  style={{ color: isDark ? '#f8fafc' : '#0f172a' }}
+                  style={{ color: theme.colors.text.primary }}
                 >
                   Select Category
                 </Text>
@@ -624,9 +617,9 @@ export function CategorySelector({
                 <View
                   className="flex-row items-center rounded-xl"
                   style={{
-                    backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
+                    backgroundColor: theme.colors.card,
                     borderWidth: 1,
-                    borderColor: hasSearchText ? purpleColor : 'transparent',
+                    borderColor: hasSearchText ? brandColor : 'transparent',
                   }}
                 >
                   <View className="pl-4">
@@ -637,12 +630,12 @@ export function CategorySelector({
                     value={categorySearch}
                     onChangeText={setCategorySearch}
                     placeholder="Search or create..."
-                    placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
+                    placeholderTextColor={theme.colors.text.muted}
                     className="flex-1 font-sans px-3"
                     style={{
                       fontSize: 15,
                       paddingVertical: 14,
-                      color: isDark ? '#f8fafc' : '#0f172a',
+                      color: theme.colors.text.primary,
                     }}
                     autoCapitalize="words"
                     autoCorrect={false}
@@ -679,7 +672,7 @@ export function CategorySelector({
                 <View className="items-center py-6 px-5">
                   <Text
                     className="font-sans text-center"
-                    style={{ color: isDark ? '#64748b' : '#94a3b8' }}
+                    style={{ color: theme.colors.text.muted }}
                   >
                     No categories match &quot;{categorySearch.trim()}&quot;
                   </Text>
@@ -691,7 +684,7 @@ export function CategorySelector({
             <View
               style={{
                 height: 400,
-                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                backgroundColor: theme.colors.background,
                 marginBottom: -400,
               }}
             />
@@ -729,7 +722,7 @@ export function CategorySelector({
           <View
             style={[
               styles.createModalContent,
-              { backgroundColor: isDark ? '#1e293b' : '#ffffff' },
+              { backgroundColor: theme.colors.card },
             ]}
           >
             <ScrollView
@@ -739,7 +732,7 @@ export function CategorySelector({
             >
               <Text
                 className="font-sans-semibold text-lg mb-4"
-                style={{ color: isDark ? '#f8fafc' : '#0f172a' }}
+                style={{ color: theme.colors.text.primary }}
               >
                 New Category
               </Text>
@@ -748,14 +741,14 @@ export function CategorySelector({
                 value={newCategoryName}
                 onChangeText={setNewCategoryName}
                 placeholder="Category name"
-                placeholderTextColor={isDark ? '#64748b' : '#94a3b8'}
+                placeholderTextColor={theme.colors.text.muted}
                 className="font-sans"
                 style={[
                   styles.createModalInput,
                   {
-                    backgroundColor: isDark ? '#0f172a' : '#f1f5f9',
-                    color: isDark ? '#f8fafc' : '#0f172a',
-                    borderColor: newCategoryName.trim() ? purpleColor : 'transparent',
+                    backgroundColor: theme.colors.background,
+                    color: theme.colors.text.primary,
+                    borderColor: newCategoryName.trim() ? brandColor : 'transparent',
                   },
                 ]}
                 autoCapitalize="words"
@@ -768,12 +761,12 @@ export function CategorySelector({
                   onPress={closeCreateModal}
                   style={[
                     styles.createModalButton,
-                    { backgroundColor: isDark ? '#334155' : '#e2e8f0' },
+                    { backgroundColor: theme.colors.interactive.hover },
                   ]}
                 >
                   <Text
                     className="font-sans-medium"
-                    style={{ color: isDark ? '#e2e8f0' : '#475569' }}
+                    style={{ color: theme.colors.text.secondary }}
                   >
                     Cancel
                   </Text>
@@ -784,7 +777,7 @@ export function CategorySelector({
                   style={[
                     styles.createModalButton,
                     {
-                      backgroundColor: purpleColor,
+                      backgroundColor: brandColor,
                       opacity: !newCategoryName.trim() || createCategory.isPending ? 0.5 : 1,
                       flex: 1,
                     },
