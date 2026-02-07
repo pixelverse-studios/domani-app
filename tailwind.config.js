@@ -1,16 +1,42 @@
 /** @type {import('tailwindcss').Config} */
 const nativewind = require('nativewind/preset')
 
+// Colors mirrored from src/theme/themes.ts (sage theme)
+// Keep in sync when updating theme values
 module.exports = {
   presets: [nativewind],
   content: ['./src/**/*.{js,jsx,ts,tsx}', './app/**/*.{js,jsx,ts,tsx}', './global.css'],
-  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        // Override slate-950 to be a true off-black instead of bluish
-        slate: {
-          950: '#0D0D0F',
+        brand: {
+          primary: '#7D9B8A',
+          light: '#A3BFB0',
+          dark: '#5A7765',
+        },
+        surface: {
+          bg: '#FAF8F5',
+          card: '#F5F2ED',
+        },
+        content: {
+          primary: '#3D4A44',
+          secondary: '#6B7265',
+          tertiary: '#9BA69E',
+          muted: '#ADB7B0',
+        },
+        border: {
+          primary: '#E8E4DD',
+          secondary: '#DDD9D0',
+          divider: '#E8E4DD',
+        },
+        priority: {
+          top: '#7D9B8A',
+          high: '#D77A61',
+          medium: '#E8B86D',
+          low: '#8B9DAF',
+        },
+        interactive: {
+          hover: '#EFEEE8',
         },
       },
       spacing: {
