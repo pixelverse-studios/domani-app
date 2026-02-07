@@ -3,6 +3,7 @@ import { View, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { Trash2, AlertTriangle, ChevronRight } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { SectionHeader } from './SectionHeader'
 
 interface DangerZoneSectionProps {
@@ -25,13 +26,15 @@ export function DangerZoneSection({
   onOpenDeleteModal,
   onCancelDeletion,
 }: DangerZoneSectionProps) {
+  const theme = useAppTheme()
+
   return (
     <>
       <SectionHeader title="Danger Zone" />
       <View className="mb-8 border border-red-500/30 rounded-xl overflow-hidden">
         {isPendingDeletion ? (
           // Pending deletion state
-          <View className="bg-red-500/5 dark:bg-red-500/10 p-4">
+          <View className="bg-red-500/5 p-4">
             <View className="flex-row items-center mb-3">
               <View className="w-10 h-10 rounded-full bg-red-500/20 items-center justify-center mr-3">
                 <AlertTriangle size={20} color="#ef4444" />
@@ -40,26 +43,27 @@ export function DangerZoneSection({
                 <Text className="text-base font-medium text-red-500">
                   Account Scheduled for Deletion
                 </Text>
-                <Text className="text-sm text-slate-600 dark:text-slate-400">
+                <Text className="text-sm text-content-secondary">
                   {daysRemaining} days remaining
                 </Text>
               </View>
             </View>
-            <Text className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+            <Text className="text-sm text-content-secondary mb-4">
               Your account will be permanently deleted on{' '}
-              <Text className="font-medium text-slate-700 dark:text-slate-300">{deletionDate}</Text>.
+              <Text className="font-medium text-content-primary">{deletionDate}</Text>.
               Sign in anytime before then to reactivate.
             </Text>
             <TouchableOpacity
               onPress={onCancelDeletion}
               disabled={isCancelling}
               activeOpacity={0.8}
-              className="bg-slate-200 dark:bg-slate-700 py-3 rounded-xl items-center"
+              className="py-3 rounded-xl items-center"
+              style={{ backgroundColor: theme.colors.interactive.hover }}
             >
               {isCancelling ? (
-                <ActivityIndicator color="#64748b" />
+                <ActivityIndicator color={theme.colors.text.tertiary} />
               ) : (
-                <Text className="text-slate-700 dark:text-slate-200 font-semibold">
+                <Text className="text-content-primary font-semibold">
                   Cancel Deletion
                 </Text>
               )}
@@ -70,7 +74,7 @@ export function DangerZoneSection({
           <TouchableOpacity
             onPress={onOpenDeleteModal}
             activeOpacity={0.7}
-            className="flex-row items-center justify-between py-3.5 px-4 bg-red-500/5 dark:bg-red-500/10"
+            className="flex-row items-center justify-between py-3.5 px-4 bg-red-500/5"
           >
             <View className="flex-row items-center">
               <Trash2 size={20} color="#ef4444" />

@@ -3,6 +3,7 @@ import { View, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { Crown, Sparkles, RotateCcw } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { SectionHeader } from './SectionHeader'
 import { SubscriptionSkeleton } from './SettingsSkeletons'
 import type { SubscriptionStatus } from '~/hooks/useSubscription'
@@ -40,6 +41,7 @@ export function SubscriptionSection({
   onStartTrial,
   onRestore,
 }: SubscriptionSectionProps) {
+  const theme = useAppTheme()
   const statusConfig = STATUS_CONFIG[status]
 
   return (
@@ -49,11 +51,11 @@ export function SubscriptionSection({
         <SubscriptionSkeleton />
       ) : (
         <View className="mb-6">
-          <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 mb-2">
+          <View className="rounded-xl p-4 mb-2" style={{ backgroundColor: theme.colors.card }}>
             <View className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center">
                 <Crown size={20} color={statusConfig.color} />
-                <Text className="text-base font-medium text-slate-900 dark:text-white ml-2">
+                <Text className="text-base font-medium text-content-primary ml-2">
                   Current Plan
                 </Text>
               </View>
@@ -67,7 +69,7 @@ export function SubscriptionSection({
             {/* Free tier - show trial option */}
             {status === 'free' && (
               <>
-                <Text className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+                <Text className="text-sm text-content-secondary mb-3">
                   3 tasks per day - Basic features
                 </Text>
                 {canStartTrial ? (
@@ -91,7 +93,8 @@ export function SubscriptionSection({
                 ) : (
                   <TouchableOpacity
                     activeOpacity={0.8}
-                    className="bg-purple-500 py-3 rounded-xl items-center"
+                    className="py-3 rounded-xl items-center"
+                    style={{ backgroundColor: theme.colors.brand.primary }}
                   >
                     <Text className="text-white font-semibold">Upgrade to Pro</Text>
                   </TouchableOpacity>
@@ -108,12 +111,13 @@ export function SubscriptionSection({
                     {trialDaysRemaining} days remaining in trial
                   </Text>
                 </View>
-                <Text className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+                <Text className="text-sm text-content-secondary mb-3">
                   Unlimited tasks - All features unlocked
                 </Text>
                 <TouchableOpacity
                   activeOpacity={0.8}
-                  className="bg-purple-500 py-3 rounded-xl items-center"
+                  className="py-3 rounded-xl items-center"
+                  style={{ backgroundColor: theme.colors.brand.primary }}
                 >
                   <Text className="text-white font-semibold">Get Lifetime Access</Text>
                 </TouchableOpacity>
@@ -122,14 +126,14 @@ export function SubscriptionSection({
 
             {/* Premium/Lifetime - no renewal, lifetime access */}
             {status === 'premium' && (
-              <Text className="text-sm text-slate-600 dark:text-slate-400">
+              <Text className="text-sm text-content-secondary">
                 Unlimited tasks - All features unlocked forever
               </Text>
             )}
 
             {/* Lifetime */}
             {status === 'lifetime' && (
-              <Text className="text-sm text-slate-600 dark:text-slate-400">
+              <Text className="text-sm text-content-secondary">
                 Unlimited tasks - All features unlocked forever
               </Text>
             )}
@@ -144,11 +148,11 @@ export function SubscriptionSection({
               className="flex-row items-center justify-center py-2"
             >
               {isRestoring ? (
-                <ActivityIndicator size="small" color="#94a3b8" />
+                <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
               ) : (
                 <>
-                  <RotateCcw size={14} color="#94a3b8" />
-                  <Text className="text-sm text-slate-600 dark:text-slate-400 ml-1.5">
+                  <RotateCcw size={14} color={theme.colors.text.tertiary} />
+                  <Text className="text-sm text-content-secondary ml-1.5">
                     Restore Purchases
                   </Text>
                 </>

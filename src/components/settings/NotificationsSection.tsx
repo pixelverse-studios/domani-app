@@ -59,17 +59,17 @@ export function NotificationsSection({
             <TouchableOpacity
               onPress={onOpenSettings}
               activeOpacity={0.7}
-              className="flex-row items-center justify-between py-3.5 px-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl mb-2 border border-amber-200 dark:border-amber-700/50"
+              className="flex-row items-center justify-between py-3.5 px-4 bg-amber-50 rounded-xl mb-2 border border-amber-200"
             >
               <View className="flex-row items-center flex-1">
                 <View className="mr-3">
                   <BellOff size={20} color="#f59e0b" />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-base text-slate-900 dark:text-slate-100">
+                  <Text className="text-base text-content-primary">
                     Notifications Disabled
                   </Text>
-                  <Text className="text-xs text-slate-600 dark:text-slate-400">
+                  <Text className="text-xs text-content-secondary">
                     Tap to enable in Settings
                   </Text>
                 </View>
