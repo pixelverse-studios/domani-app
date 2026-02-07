@@ -4,11 +4,10 @@ import { Bell, Sun, CloudMoon, Moon } from 'lucide-react-native'
 import { format } from 'date-fns'
 
 import { Text, Badge } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useProfile } from '~/hooks/useProfile'
 import { useAppConfig } from '~/stores/appConfigStore'
 import { PHASE_DISPLAY } from '~/types'
-import { colors } from '~/theme'
 
 type GreetingInfo = {
   text: string
@@ -41,8 +40,8 @@ interface TodayHeaderProps {
 }
 
 export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
   const { profile } = useProfile()
   const { phase, showBadge } = useAppConfig()
 
@@ -59,11 +58,8 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
   // Get first name from profile
   const firstName = profile?.full_name?.split(' ')[0]
 
-  // Icon colors adapt to theme
-  const bellColor = isDark ? '#cbd5e1' : '#64748b' // slate-300 / slate-500
-
   // Get the appropriate greeting icon element
-  const iconProps = { size: 16, color: colors.brand.pink }
+  const iconProps = { size: 16, color: brandColor }
   const greetingIcon = (() => {
     switch (greeting.icon) {
       case 'sun':
@@ -75,9 +71,6 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
     }
   })()
 
-  // Text colors
-  const grayColor = isDark ? '#94a3b8' : '#64748b' // slate-400 / slate-500
-
   return (
     <View className="flex-row items-start justify-between px-5 pt-4 pb-2">
       <View>
@@ -86,7 +79,7 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
           {greetingIcon}
           <Text
             className="font-sans-medium ml-1.5"
-            style={{ fontSize: 16, color: colors.brand.pink }}
+            style={{ fontSize: 16, color: brandColor }}
           >
             {greeting.text}
             {firstName ? `, ${firstName}` : ''}
@@ -98,27 +91,28 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
           )}
         </View>
         {/* Day of week - smaller, lighter */}
-        <Text className="mb-1" style={{ fontSize: 14, color: grayColor }}>
+        <Text className="mb-1" style={{ fontSize: 14, color: theme.colors.text.secondary }}>
           {dayOfWeek}
         </Text>
         {/* Date - very large and bold, the main focal point */}
         <Text
-          className="font-sans-bold text-slate-900 dark:text-white"
+          className="font-sans-bold text-content-primary"
           style={{ fontSize: 36, lineHeight: 44 }}
         >
           {formattedDate}
         </Text>
         {/* Today label - brand color */}
-        <Text className="font-sans-medium mt-2" style={{ fontSize: 18, color: colors.brand.pink }}>
+        <Text className="font-sans-medium mt-2" style={{ fontSize: 18, color: brandColor }}>
           Today
         </Text>
       </View>
       <TouchableOpacity
         onPress={onNotificationPress}
-        className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 items-center justify-center mt-2"
+        className="w-10 h-10 rounded-full items-center justify-center mt-2"
+        style={{ backgroundColor: theme.colors.card }}
         accessibilityLabel="Notifications"
       >
-        <Bell size={20} color={bellColor} />
+        <Bell size={20} color={theme.colors.text.tertiary} />
       </TouchableOpacity>
     </View>
   )

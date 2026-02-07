@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { View, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native'
 
+import { useAppTheme } from '~/hooks/useAppTheme'
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
 interface CardCarouselProps {
@@ -11,6 +13,9 @@ const AUTO_SCROLL_INTERVAL = 8000
 const RESUME_DELAY = 10000
 
 export function CardCarousel({ children }: CardCarouselProps) {
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
+
   const [activeIndex, setActiveIndex] = useState(0)
   const [isAutoScrolling, setIsAutoScrolling] = useState(true)
   const scrollViewRef = useRef<ScrollView>(null)
@@ -88,9 +93,10 @@ export function CardCarousel({ children }: CardCarouselProps) {
         {React.Children.map(children, (_, index) => (
           <View
             key={index}
-            className={`w-2 h-2 rounded-full ${
-              index === activeIndex ? 'bg-purple-500' : 'bg-slate-300 dark:bg-slate-600'
-            }`}
+            className="w-2 h-2 rounded-full"
+            style={{
+              backgroundColor: index === activeIndex ? brandColor : theme.colors.border.primary,
+            }}
           />
         ))}
       </View>

@@ -5,12 +5,13 @@ import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 
 import { Text } from '~/components/ui'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
-import { colors } from '~/theme'
 
 export function EmptyState() {
   const router = useRouter()
-  const iconColor = '#a855f7' // purple-500
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
   const { targetRef, measureTarget } = useTutorialTarget('plan_today_button')
   const { advanceFromTodayButton } = useTutorialAdvancement()
 
@@ -21,13 +22,16 @@ export function EmptyState() {
 
   return (
     <View className="items-center justify-center mx-5 mt-8">
-      {/* Icon with purple circular background */}
-      <View className="w-20 h-20 rounded-full bg-purple-500/20 items-center justify-center mb-6">
-        <Calendar size={36} color={iconColor} />
+      {/* Icon with brand circular background */}
+      <View
+        className="w-20 h-20 rounded-full items-center justify-center mb-6"
+        style={{ backgroundColor: `${brandColor}1A` }}
+      >
+        <Calendar size={36} color={brandColor} />
       </View>
 
       {/* Heading */}
-      <Text className="text-xl font-semibold text-slate-900 dark:text-white mb-8">
+      <Text className="text-xl font-semibold text-content-primary mb-8">
         No tasks planned yet
       </Text>
 
@@ -39,7 +43,7 @@ export function EmptyState() {
           style={styles.buttonContainer}
         >
         <LinearGradient
-          colors={[colors.brand.pink, colors.brand.pink, colors.brand.purple] as const}
+          colors={[theme.colors.brand.primary, theme.colors.brand.primary, theme.colors.brand.dark] as const}
           locations={[0, 0.6, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}

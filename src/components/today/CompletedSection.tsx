@@ -4,7 +4,7 @@ import { CheckCircle, ChevronUp, ChevronDown } from 'lucide-react-native'
 
 import { TaskCard } from '~/components/planning/TaskCard'
 import { Text, ConfirmationModal } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { sortTasksByPriority } from '~/utils/sortTasks'
 import type { TaskWithCategory } from '~/types'
 
@@ -21,8 +21,8 @@ export function CompletedSection({
   onTaskPress,
   onDeleteTask,
 }: CompletedSectionProps) {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
 
   const [isExpanded, setIsExpanded] = useState(false)
   const [taskToDelete, setTaskToDelete] = useState<TaskWithCategory | null>(null)
@@ -33,9 +33,7 @@ export function CompletedSection({
     [tasks],
   )
 
-  // Theme-aware icon colors
-  const checkColor = '#a855f7' // purple-500 - consistent
-  const chevronColor = isDark ? '#9ca3af' : '#6b7280' // gray-400 / gray-500
+  const chevronColor = theme.colors.text.tertiary
 
   const handleDeletePress = useCallback((task: TaskWithCategory) => {
     setTaskToDelete(task)
@@ -76,16 +74,17 @@ export function CompletedSection({
       {/* Header */}
       <TouchableOpacity
         onPress={() => setIsExpanded(!isExpanded)}
-        className="flex-row items-center justify-between bg-slate-100/50 dark:bg-slate-800/30 rounded-xl mx-5 px-4 py-3"
+        className="flex-row items-center justify-between rounded-xl mx-5 px-4 py-3"
+        style={{ backgroundColor: theme.colors.card }}
         accessibilityLabel={isExpanded ? 'Collapse completed tasks' : 'Expand completed tasks'}
       >
         <View className="flex-row items-center gap-2">
-          <CheckCircle size={20} color={checkColor} />
-          <Text className="text-base text-slate-600 dark:text-slate-300 font-medium">
+          <CheckCircle size={20} color={brandColor} />
+          <Text className="text-base text-content-primary font-medium">
             Completed ({completedTasks.length})
           </Text>
-          <View className="bg-purple-500/20 px-2 py-0.5 rounded-full ml-2">
-            <Text className="text-xs text-purple-600 dark:text-purple-400">Great job!</Text>
+          <View className="px-2 py-0.5 rounded-full ml-2" style={{ backgroundColor: `${brandColor}1A` }}>
+            <Text className="text-xs" style={{ color: brandColor }}>Great job!</Text>
           </View>
         </View>
         {isExpanded ? (
