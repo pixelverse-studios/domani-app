@@ -3,6 +3,7 @@ import { View } from 'react-native'
 import { Target, PartyPopper, Sparkles } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import type { TaskWithCategory, DayType, DayTheme } from '~/types'
 
 // Theme to focus phrase mapping
@@ -26,7 +27,8 @@ interface FocusCardProps {
 }
 
 export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: FocusCardProps) {
-  const iconColor = '#a855f7' // purple-500
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
 
   // Determine the focus message based on state
   const getFocusContent = () => {
@@ -34,7 +36,7 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
     if (totalTasks > 0 && completedTasks === totalTasks) {
       return {
         icon: <PartyPopper size={32} color="#22c55e" />,
-        iconBg: 'bg-green-500/20',
+        iconBgColor: 'rgba(34, 197, 94, 0.2)',
         label: 'All Done!',
         message: "You've crushed it today",
         subtitle: null,
@@ -44,8 +46,8 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
     // Edge case: No tasks at all
     if (totalTasks === 0) {
       return {
-        icon: <Sparkles size={32} color={iconColor} />,
-        iconBg: 'bg-purple-500/20',
+        icon: <Sparkles size={32} color={brandColor} />,
+        iconBgColor: `${brandColor}1A`,
         label: "Today's Focus",
         message: 'Plan your day',
         subtitle: 'Add tasks to get started',
@@ -62,8 +64,8 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
       // If MIT is the only task, show simpler message
       if (!hasOtherTasks || dayTheme.theme === 'balanced') {
         return {
-          icon: <Target size={32} color={iconColor} />,
-          iconBg: 'bg-purple-500/20',
+          icon: <Target size={32} color={brandColor} />,
+          iconBgColor: `${brandColor}1A`,
           label: "Today's Focus",
           message: mitTask.title,
           subtitle: 'Your most important task',
@@ -71,8 +73,8 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
       }
 
       return {
-        icon: <Target size={32} color={iconColor} />,
-        iconBg: 'bg-purple-500/20',
+        icon: <Target size={32} color={brandColor} />,
+        iconBgColor: `${brandColor}1A`,
         label: "Today's Focus",
         message: `${mitTask.title}${themeSuffix}`,
         subtitle: null,
@@ -81,8 +83,8 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
 
     // No MIT - fall back to day theme display
     return {
-      icon: <Target size={32} color={iconColor} />,
-      iconBg: 'bg-purple-500/20',
+      icon: <Target size={32} color={brandColor} />,
+      iconBgColor: `${brandColor}1A`,
       label: "Today's Vibe",
       message: dayTheme.title,
       subtitle: dayTheme.subtitle,
@@ -92,21 +94,27 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
   const content = getFocusContent()
 
   return (
-    <View className="bg-slate-100 dark:bg-[#1A1A1F] rounded-2xl p-6 mx-5 border border-slate-200/50 dark:border-slate-800/80 min-h-[132px] justify-center">
+    <View
+      className="rounded-2xl p-6 mx-5 min-h-[132px] justify-center"
+      style={{ backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border.primary }}
+    >
       <View className="flex-row items-center gap-4">
-        <View className={`w-16 h-16 rounded-full ${content.iconBg} items-center justify-center`}>
+        <View
+          className="w-16 h-16 rounded-full items-center justify-center"
+          style={{ backgroundColor: content.iconBgColor }}
+        >
           {content.icon}
         </View>
         <View className="flex-1">
-          <Text className="text-sm text-slate-500 dark:text-slate-400 mb-1">{content.label}</Text>
+          <Text className="text-sm text-content-secondary mb-1">{content.label}</Text>
           <Text
-            className="text-xl font-medium text-slate-700 dark:text-slate-300"
+            className="text-xl font-medium text-content-primary"
             numberOfLines={2}
           >
             {content.message}
           </Text>
           {content.subtitle && (
-            <Text className="text-base text-slate-500 dark:text-slate-500 mt-1">
+            <Text className="text-base text-content-secondary mt-1">
               {content.subtitle}
             </Text>
           )}

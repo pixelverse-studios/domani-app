@@ -15,7 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { X } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import {
   TodayHeader,
   ProgressCard,
@@ -41,7 +41,8 @@ export default function TodayScreen() {
   useScreenTracking('today')
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const { activeTheme } = useTheme()
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
   const { data: plan, isLoading: planLoading, refetch: refetchPlan } = useTodayPlan()
   const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useTasks(plan?.id)
   const { profile, isLoading: profileLoading } = useProfile()
@@ -91,9 +92,6 @@ export default function TodayScreen() {
     await AsyncStorage.setItem(NAME_PROMPT_DISMISSED_KEY, 'true')
     setShowNameModal(false)
   }
-
-  // Theme-aware colors for native components
-  const accentColor = '#a855f7' // purple-500 - consistent across themes
 
   const isLoading = planLoading || tasksLoading || profileLoading
   const [refreshing, setRefreshing] = React.useState(false)
@@ -155,16 +153,16 @@ export default function TodayScreen() {
   if (isLoading && !refreshing) {
     return (
       <View
-        className="flex-1 items-center justify-center bg-white dark:bg-slate-950"
-        style={{ paddingTop: insets.top }}
+        className="flex-1 items-center justify-center"
+        style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}
       >
-        <ActivityIndicator size="large" color={accentColor} />
+        <ActivityIndicator size="large" color={brandColor} />
       </View>
     )
   }
 
   return (
-    <View className="flex-1 bg-white dark:bg-slate-950" style={{ paddingTop: insets.top }}>
+    <View className="flex-1" style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}>
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
@@ -172,8 +170,8 @@ export default function TodayScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={accentColor}
-            colors={[accentColor]}
+            tintColor={brandColor}
+            colors={[brandColor]}
           />
         }
       >
@@ -225,8 +223,8 @@ export default function TodayScreen() {
       {/* Fixed Add Task Button - only show when user has tasks */}
       {tasks.length > 0 && (
         <View
-          className="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-950"
-          style={{ paddingBottom: insets.bottom > 0 ? 0 : 16 }}
+          className="absolute bottom-0 left-0 right-0"
+          style={{ paddingBottom: insets.bottom > 0 ? 0 : 16, backgroundColor: theme.colors.background }}
         >
           <AddTaskButton onPress={handleAddTask} label="Add More Tasks" />
         </View>
@@ -240,34 +238,41 @@ export default function TodayScreen() {
         onRequestClose={handleDismissNameModal}
       >
         <View className="flex-1 bg-black/50 justify-center px-6">
-          <View className="bg-white dark:bg-slate-800 rounded-2xl p-5 max-h-[75%]">
+          <View className="rounded-2xl p-5 max-h-[75%]" style={{ backgroundColor: theme.colors.card }}>
             <View className="flex-row items-center justify-between mb-2">
-              <Text className="text-lg font-semibold text-slate-900 dark:text-white">
+              <Text className="text-lg font-semibold text-content-primary">
                 What should we call you?
               </Text>
               <TouchableOpacity onPress={handleDismissNameModal} hitSlop={8}>
-                <X size={24} color={activeTheme === 'dark' ? '#94a3b8' : '#64748b'} />
+                <X size={24} color={theme.colors.text.tertiary} />
               </TouchableOpacity>
             </View>
-            <Text className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+            <Text className="text-sm text-content-secondary mb-4">
               Add your name to personalize your experience
             </Text>
             <TextInput
               value={nameInput}
               onChangeText={setNameInput}
               placeholder="Enter your name"
-              placeholderTextColor={activeTheme === 'dark' ? '#94a3b8' : '#64748b'}
+              placeholderTextColor={theme.colors.text.tertiary}
               autoFocus
-              className="bg-slate-100 dark:bg-slate-700 rounded-xl px-4 text-slate-900 dark:text-white text-base mb-4"
-              style={{ paddingTop: 14, paddingBottom: 14, lineHeight: undefined }}
+              className="rounded-xl px-4 text-base mb-4"
+              style={{
+                paddingTop: 14,
+                paddingBottom: 14,
+                lineHeight: undefined,
+                backgroundColor: theme.colors.background,
+                color: theme.colors.text.primary,
+              }}
             />
             <TouchableOpacity
               onPress={handleSaveName}
               disabled={updateProfile.isPending || !nameInput.trim()}
               activeOpacity={0.8}
-              className={`py-3 rounded-xl items-center ${
-                nameInput.trim() ? 'bg-purple-500' : 'bg-purple-500/50'
-              }`}
+              className="py-3 rounded-xl items-center"
+              style={{
+                backgroundColor: nameInput.trim() ? brandColor : `${brandColor}80`,
+              }}
             >
               {updateProfile.isPending ? (
                 <ActivityIndicator color="#fff" />
