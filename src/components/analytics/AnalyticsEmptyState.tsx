@@ -5,11 +5,12 @@ import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 
 import { Text } from '~/components/ui'
-import { colors } from '~/theme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 export function AnalyticsEmptyState() {
   const router = useRouter()
-  const iconColor = '#a855f7' // purple-500
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
 
   const handleStartPlanning = () => {
     router.push('/(tabs)/planning?defaultPlanningFor=today&openForm=true')
@@ -18,17 +19,17 @@ export function AnalyticsEmptyState() {
   return (
     <View className="items-center justify-center px-8 py-12">
       {/* Icon with purple circular background */}
-      <View className="w-20 h-20 rounded-full bg-purple-500/20 items-center justify-center mb-6">
-        <BarChart3 size={36} color={iconColor} />
+      <View className="w-20 h-20 rounded-full items-center justify-center mb-6" style={{ backgroundColor: `${brandColor}1A` }}>
+        <BarChart3 size={36} color={brandColor} />
       </View>
 
       {/* Heading */}
-      <Text className="text-xl font-semibold text-slate-900 dark:text-white mb-3 text-center">
+      <Text className="text-xl font-semibold text-content-primary mb-3 text-center">
         No progress yet
       </Text>
 
       {/* Description */}
-      <Text className="text-base text-slate-500 dark:text-slate-400 text-center mb-8 max-w-[280px]">
+      <Text className="text-base text-content-secondary text-center mb-8 max-w-[280px]">
         Start planning your days to see your productivity insights and trends here.
       </Text>
 
@@ -39,7 +40,7 @@ export function AnalyticsEmptyState() {
         style={styles.buttonContainer}
       >
         <LinearGradient
-          colors={[colors.brand.pink, colors.brand.pink, colors.brand.purple] as const}
+          colors={[theme.colors.brand.primary, theme.colors.brand.primary, theme.colors.brand.dark] as const}
           locations={[0, 0.6, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}

@@ -12,7 +12,7 @@ import Animated, {
 
 import { Text, Card } from '~/components/ui'
 import { CircularProgress } from '~/components/ui/CircularProgress'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import type { DailyCompletionData, CompletionRateData } from '~/lib/analytics-queries'
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect)
@@ -129,16 +129,15 @@ export function DailyCompletionChart({
   completionRate,
   animationKey = 0,
 }: DailyCompletionChartProps) {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
   const screenWidth = Dimensions.get('window').width
 
   // Get unique categories
   const categories = useMemo(() => getUniqueCategories(dailyData), [dailyData])
 
   // Colors
-  const incompleteColor = isDark ? '#374151' : '#e2e8f0'
-  const labelColor = isDark ? '#6b7280' : '#9ca3af'
+  const incompleteColor = theme.colors.border.primary
+  const labelColor = theme.colors.text.tertiary
 
   // Chart dimensions
   const chartPadding = 40
@@ -212,20 +211,20 @@ export function DailyCompletionChart({
           animationKey={animationKey}
         />
         <View className="ml-4 flex-1">
-          <Text className="text-base font-semibold text-slate-700 dark:text-slate-200">
+          <Text className="text-base font-semibold text-content-primary">
             Completion Rate
           </Text>
-          <Text className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <Text className="text-sm text-content-secondary mt-0.5">
             {totalCompleted} of {totalTasks} tasks done
           </Text>
         </View>
       </View>
 
       {/* Subtle divider */}
-      <View className="h-px bg-slate-100 dark:bg-slate-700/50 -mx-5 mb-4" />
+      <View className="h-px -mx-5 mb-4" style={{ backgroundColor: theme.colors.border.divider }} />
 
       {/* Section label */}
-      <Text className="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-3">
+      <Text className="text-xs font-medium text-content-tertiary uppercase tracking-wide mb-3">
         Last 7 Days
       </Text>
 
@@ -285,7 +284,7 @@ export function DailyCompletionChart({
               className="w-2.5 h-2.5 rounded-sm mr-1.5"
               style={{ backgroundColor: category.color }}
             />
-            <Text className="text-xs text-slate-500 dark:text-slate-400">{category.name}</Text>
+            <Text className="text-xs text-content-secondary">{category.name}</Text>
           </View>
         ))}
         <View className="flex-row items-center">
@@ -293,7 +292,7 @@ export function DailyCompletionChart({
             className="w-2.5 h-2.5 rounded-sm mr-1.5"
             style={{ backgroundColor: incompleteColor }}
           />
-          <Text className="text-xs text-slate-500 dark:text-slate-400">Remaining</Text>
+          <Text className="text-xs text-content-secondary">Remaining</Text>
         </View>
       </View>
     </Card>

@@ -12,7 +12,7 @@ import Animated, {
 } from 'react-native-reanimated'
 
 import { Text, Card } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { DailyCompletionData } from '~/lib/analytics-queries'
 
 // Animation timing - matches StreaksCard
@@ -190,14 +190,12 @@ function AnimatedNumber({ value, animationKey, index }: AnimatedNumberProps) {
   }, [animationKey, index, value, animatedNumber])
 
   return (
-    <Text className="text-2xl font-bold text-slate-900 dark:text-white">{displayedNumber}</Text>
+    <Text className="text-2xl font-bold text-content-primary">{displayedNumber}</Text>
   )
 }
 
 export function WeeklySummaryCard({ dailyData, animationKey = 0 }: WeeklySummaryCardProps) {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
-  const dividerColor = isDark ? 'bg-slate-700/50' : 'bg-slate-100'
+  const theme = useAppTheme()
 
   // Calculate metrics
   const mostProductiveDay = getMostProductiveDay(dailyData)
@@ -215,7 +213,7 @@ export function WeeklySummaryCard({ dailyData, animationKey = 0 }: WeeklySummary
   return (
     <Card className="p-5">
       {/* Section header */}
-      <Text className="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-4">
+      <Text className="text-xs font-medium text-content-tertiary uppercase tracking-wide mb-4">
         Weekly Summary
       </Text>
 
@@ -234,17 +232,17 @@ export function WeeklySummaryCard({ dailyData, animationKey = 0 }: WeeklySummary
           index={0}
           animationKey={animationKey}
         >
-          <Text className="text-base font-bold text-slate-900 dark:text-white">
+          <Text className="text-base font-bold text-content-primary">
             {hasProductiveData ? mostProductiveDay.dayLabel : '--'}
           </Text>
-          <Text className="text-xs text-slate-500 dark:text-slate-400 text-center mt-0.5">
+          <Text className="text-xs text-content-secondary text-center mt-0.5">
             {hasProductiveData ? `${mostProductiveDay.taskCount} tasks` : 'Best day'}
           </Text>
-          <Text className="text-xs text-slate-400 dark:text-slate-500">completed</Text>
+          <Text className="text-xs text-content-tertiary">completed</Text>
         </AnimatedMetric>
 
         {/* Divider */}
-        <View className={`w-px ${dividerColor} mx-3`} />
+        <View className="w-px mx-3" style={{ backgroundColor: theme.colors.border.divider }} />
 
         {/* Consistency Score */}
         <AnimatedMetric
@@ -259,17 +257,17 @@ export function WeeklySummaryCard({ dailyData, animationKey = 0 }: WeeklySummary
           index={1}
           animationKey={animationKey}
         >
-          <Text className="text-base font-bold text-slate-900 dark:text-white">
+          <Text className="text-base font-bold text-content-primary">
             {hasConsistencyData ? getConsistencyLabel(consistencyScore) : '--'}
           </Text>
-          <Text className="text-xs text-slate-500 dark:text-slate-400 text-center mt-0.5">
+          <Text className="text-xs text-content-secondary text-center mt-0.5">
             {hasConsistencyData ? `${consistencyScore}%` : 'Consistency'}
           </Text>
-          <Text className="text-xs text-slate-400 dark:text-slate-500">score</Text>
+          <Text className="text-xs text-content-tertiary">score</Text>
         </AnimatedMetric>
 
         {/* Divider */}
-        <View className={`w-px ${dividerColor} mx-3`} />
+        <View className="w-px mx-3" style={{ backgroundColor: theme.colors.border.divider }} />
 
         {/* Perfect Days */}
         <AnimatedMetric
@@ -285,10 +283,10 @@ export function WeeklySummaryCard({ dailyData, animationKey = 0 }: WeeklySummary
           animationKey={animationKey}
         >
           <AnimatedNumber value={perfectDays} animationKey={animationKey} index={2} />
-          <Text className="text-xs text-slate-500 dark:text-slate-400 text-center mt-0.5">
+          <Text className="text-xs text-content-secondary text-center mt-0.5">
             Perfect
           </Text>
-          <Text className="text-xs text-slate-400 dark:text-slate-500">
+          <Text className="text-xs text-content-tertiary">
             {perfectDays === 1 ? 'day' : 'days'}
           </Text>
         </AnimatedMetric>

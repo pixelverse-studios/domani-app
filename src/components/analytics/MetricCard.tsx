@@ -4,6 +4,7 @@ import { LucideIcon } from 'lucide-react-native'
 
 import { Text, Card } from '~/components/ui'
 import { CircularProgress } from '~/components/ui/CircularProgress'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 export interface MetricCardProps {
   title: string
@@ -25,10 +26,12 @@ export function MetricCard({
   icon: Icon,
   showProgress = false,
   progress = 0,
-  accentColor = '#a855f7', // purple-500 default
+  accentColor,
 }: MetricCardProps) {
+  const theme = useAppTheme()
+  const resolvedAccent = accentColor ?? theme.colors.brand.primary
   // Icon background with reduced opacity
-  const iconBgColor = `${accentColor}20` // 12% opacity
+  const iconBgColor = `${resolvedAccent}20` // 12% opacity
 
   return (
     <Card className="p-5">
@@ -41,20 +44,20 @@ export function MetricCard({
             className="w-14 h-14 rounded-full items-center justify-center"
             style={{ backgroundColor: iconBgColor }}
           >
-            <Icon size={28} color={accentColor} strokeWidth={1.5} />
+            <Icon size={28} color={resolvedAccent} strokeWidth={1.5} />
           </View>
         ) : null}
 
         {/* Right side: Content */}
         <View className="flex-1">
-          <Text className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">
+          <Text className="text-sm font-medium text-content-secondary mb-1">
             {title}
           </Text>
           {!showProgress && (
-            <Text className="text-4xl font-bold text-slate-900 dark:text-white">{value}</Text>
+            <Text className="text-4xl font-bold text-content-primary">{value}</Text>
           )}
           {subtitle && (
-            <Text className="text-sm text-slate-600 dark:text-slate-400 mt-1">{subtitle}</Text>
+            <Text className="text-sm text-content-secondary mt-1">{subtitle}</Text>
           )}
         </View>
       </View>
