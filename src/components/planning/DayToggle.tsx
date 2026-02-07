@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTutorialTarget } from '~/components/tutorial'
 
 export type PlanningTarget = 'today' | 'tomorrow'
@@ -71,6 +72,8 @@ function PillDayToggle({
   onTargetChange,
   disabled,
 }: Omit<DayToggleProps, 'variant'>) {
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
   const { targetRef, measureTarget } = useTutorialTarget('day_toggle')
   const indicatorPosition = useSharedValue(selectedTarget === 'today' ? 0 : TODAY_WIDTH)
   const indicatorWidth = useSharedValue(selectedTarget === 'today' ? TODAY_WIDTH : TOMORROW_WIDTH)
@@ -101,16 +104,17 @@ function PillDayToggle({
     <View
       ref={targetRef}
       onLayout={measureTarget}
-      className="flex-row bg-slate-200 dark:bg-slate-800 rounded-full"
-      style={{ padding: TOGGLE_PADDING, opacity: disabled ? 0.5 : 1 }}
+      className="flex-row rounded-full"
+      style={{ padding: TOGGLE_PADDING, opacity: disabled ? 0.5 : 1, backgroundColor: theme.colors.interactive.hover }}
     >
       <Animated.View
-        className="absolute bg-purple-600 rounded-full"
+        className="absolute rounded-full"
         style={[
           {
             top: TOGGLE_PADDING,
             left: TOGGLE_PADDING,
             height: 36,
+            backgroundColor: brandColor,
           },
           animatedIndicatorStyle,
         ]}
@@ -125,10 +129,8 @@ function PillDayToggle({
         accessibilityState={{ selected: selectedTarget === 'today' }}
       >
         <Animated.Text
-          className={`font-sans-medium ${
-            selectedTarget === 'today' ? 'text-white' : 'text-slate-500 dark:text-slate-400'
-          }`}
-          style={{ fontSize: 14 }}
+          className={`font-sans-medium ${selectedTarget === 'today' ? 'text-white' : ''}`}
+          style={selectedTarget === 'today' ? { fontSize: 14 } : { fontSize: 14, color: theme.colors.text.secondary }}
         >
           Today
         </Animated.Text>
@@ -143,10 +145,8 @@ function PillDayToggle({
         accessibilityState={{ selected: selectedTarget === 'tomorrow' }}
       >
         <Animated.Text
-          className={`font-sans-medium ${
-            selectedTarget === 'tomorrow' ? 'text-white' : 'text-slate-500 dark:text-slate-400'
-          }`}
-          style={{ fontSize: 14 }}
+          className={`font-sans-medium ${selectedTarget === 'tomorrow' ? 'text-white' : ''}`}
+          style={selectedTarget === 'tomorrow' ? { fontSize: 14 } : { fontSize: 14, color: theme.colors.text.secondary }}
         >
           Tomorrow
         </Animated.Text>
@@ -160,6 +160,8 @@ function MinimalDayToggle({
   onTargetChange,
   disabled,
 }: Omit<DayToggleProps, 'variant'>) {
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
   const ITEM_GAP = 24
   const TODAY_TEXT_WIDTH = 54
   const TOMORROW_TEXT_WIDTH = 90
@@ -196,12 +198,8 @@ function MinimalDayToggle({
           accessibilityState={{ selected: selectedTarget === 'today' }}
         >
           <Animated.Text
-            className={`font-sans-medium ${
-              selectedTarget === 'today'
-                ? 'text-purple-500 dark:text-purple-400'
-                : 'text-slate-400 dark:text-slate-500'
-            }`}
-            style={{ fontSize: 16 }}
+            className="font-sans-medium"
+            style={{ fontSize: 16, color: selectedTarget === 'today' ? brandColor : theme.colors.text.tertiary }}
           >
             Today
           </Animated.Text>
@@ -216,12 +214,8 @@ function MinimalDayToggle({
           accessibilityState={{ selected: selectedTarget === 'tomorrow' }}
         >
           <Animated.Text
-            className={`font-sans-medium ${
-              selectedTarget === 'tomorrow'
-                ? 'text-purple-500 dark:text-purple-400'
-                : 'text-slate-400 dark:text-slate-500'
-            }`}
-            style={{ fontSize: 16 }}
+            className="font-sans-medium"
+            style={{ fontSize: 16, color: selectedTarget === 'tomorrow' ? brandColor : theme.colors.text.tertiary }}
           >
             Tomorrow
           </Animated.Text>
@@ -231,12 +225,13 @@ function MinimalDayToggle({
       {/* Animated underline indicator */}
       <View className="relative" style={{ height: UNDERLINE_HEIGHT + 4, marginTop: 4 }}>
         <Animated.View
-          className="absolute bg-purple-500 dark:bg-purple-400 rounded-full"
+          className="absolute rounded-full"
           style={[
             {
               width: UNDERLINE_WIDTH,
               height: UNDERLINE_HEIGHT,
               top: 0,
+              backgroundColor: brandColor,
             },
             animatedUnderlineStyle,
           ]}

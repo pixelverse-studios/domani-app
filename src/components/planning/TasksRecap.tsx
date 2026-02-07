@@ -3,8 +3,7 @@ import { View, StyleSheet } from 'react-native'
 import { Briefcase, Heart, User, BookOpen, Star } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
-import { colors } from '~/theme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import type { TaskWithCategory } from '~/types'
 
 interface TasksRecapProps {
@@ -18,14 +17,13 @@ interface CategoryCount {
 }
 
 export function TasksRecap({ tasks }: TasksRecapProps) {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
-
-  const iconColor = isDark ? '#94a3b8' : '#64748b'
-  const cardBg = isDark ? '#1e293b' : '#f8fafc'
-  const borderColor = isDark ? '#334155' : '#e2e8f0'
-  const badgeBg = isDark ? '#0f172a' : '#ffffff'
-  const badgeBorderColor = isDark ? '#334155' : '#e2e8f0'
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
+  const iconColor = theme.colors.text.tertiary
+  const cardBg = theme.colors.card
+  const borderColor = theme.colors.border.primary
+  const badgeBg = theme.colors.background
+  const badgeBorderColor = theme.colors.border.primary
 
   // Count tasks by category
   const categoryCounts = useMemo(() => {
@@ -96,12 +94,12 @@ export function TasksRecap({ tasks }: TasksRecapProps) {
     >
       {/* Left side - Task count */}
       <View style={styles.taskCountSection}>
-        <Text className="font-sans-medium text-sm text-slate-500 dark:text-slate-400">
+        <Text className="font-sans-medium text-sm text-content-secondary">
           Tasks Planned
         </Text>
         <Text
           className="font-sans-bold"
-          style={{ fontSize: 32, lineHeight: 40, color: colors.brand.pink }}
+          style={{ fontSize: 32, lineHeight: 40, color: brandColor }}
         >
           {tasks.length}
         </Text>
@@ -121,7 +119,7 @@ export function TasksRecap({ tasks }: TasksRecapProps) {
             ]}
           >
             {category.icon}
-            <Text className="font-sans-medium text-sm text-slate-500 dark:text-slate-400 ml-1.5">
+            <Text className="font-sans-medium text-sm text-content-secondary ml-1.5">
               {category.count}
             </Text>
           </View>
