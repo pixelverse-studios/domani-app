@@ -22,8 +22,8 @@ export function AddTaskPlaceholder({ onPress, disabled, atLimit }: AddTaskPlaceh
   if (disabled && atLimit) {
     return (
       <View style={styles.buttonContainer} className="mx-5 mt-6">
-        <View style={styles.disabledContainer}>
-          <Lock size={18} color="#9ca3af" strokeWidth={2} />
+        <View style={[styles.disabledContainer, { backgroundColor: theme.colors.interactive.hover, borderColor: theme.colors.border.primary }]}>
+          <Lock size={18} color={theme.colors.text.tertiary} strokeWidth={2} />
           <Text className="text-content-tertiary font-sans-medium text-sm ml-2">
             Task limit reached (3/3)
           </Text>
@@ -79,10 +79,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 32,
-    backgroundColor: '#EFEEE8',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E8E4DD',
     borderStyle: 'dashed',
   },
 })
