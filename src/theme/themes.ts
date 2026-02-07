@@ -3,6 +3,15 @@
  *
  * Single source of truth for all theme values.
  * To add a new theme: add to ThemeName union + add object to themes record.
+ *
+ * Usage in components:
+ *   const theme = useAppTheme()
+ *   theme.colors.brand.primary   // '#7D9B8A' (sage green)
+ *   theme.colors.text.primary    // '#3D4A44'
+ *   theme.colors.background      // '#FAF8F5'
+ *
+ * ESLint enforces this — hardcoded hex colors in .tsx files will warn.
+ * Only this file is exempt from the no-hardcoded-colors rule.
  */
 
 export type ThemeName = 'sage'

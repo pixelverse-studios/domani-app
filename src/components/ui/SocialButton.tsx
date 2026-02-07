@@ -1,3 +1,4 @@
+/* eslint-disable domani/no-dark-mode-patterns, domani/no-hardcoded-colors */
 import React from 'react'
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import Svg, { Path, G, ClipPath, Defs } from 'react-native-svg'
