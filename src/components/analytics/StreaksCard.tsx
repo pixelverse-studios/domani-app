@@ -12,8 +12,7 @@ import Animated, {
 } from 'react-native-reanimated'
 
 import { Text, Card } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
-import { colors } from '~/theme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 // Animation timing - faster than main chart (secondary content)
 const ICON_DURATION = 400
@@ -130,13 +129,13 @@ function AnimatedMetric({
         {icon}
       </Animated.View>
       <Animated.View style={contentAnimatedStyle} className="items-center">
-        <Text className="text-2xl font-bold text-slate-900 dark:text-white">
+        <Text className="text-2xl font-bold text-content-primary">
           {hasData ? `${displayedNumber}${suffix}` : '--'}
         </Text>
-        <Text className="text-xs text-slate-500 dark:text-slate-400 text-center mt-0.5">
+        <Text className="text-xs text-content-secondary text-center mt-0.5">
           {label}
         </Text>
-        <Text className="text-xs text-slate-400 dark:text-slate-500">{sublabel}</Text>
+        <Text className="text-xs text-content-tertiary">{sublabel}</Text>
       </Animated.View>
     </View>
   )
@@ -148,15 +147,13 @@ export function StreaksCard({
   mitCompletionRate,
   animationKey = 0,
 }: StreaksCardProps) {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
-
-  const dividerColor = isDark ? 'bg-slate-700/50' : 'bg-slate-100'
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
 
   return (
     <Card className="p-5">
       {/* Section header */}
-      <Text className="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-4">
+      <Text className="text-xs font-medium text-content-tertiary uppercase tracking-wide mb-4">
         Streaks & Focus
       </Text>
 
@@ -167,9 +164,9 @@ export function StreaksCard({
           icon={
             <View
               className="w-11 h-11 rounded-full items-center justify-center"
-              style={{ backgroundColor: `${colors.primary}20` }}
+              style={{ backgroundColor: `${brandColor}20` }}
             >
-              <Calendar size={22} color={colors.primary} strokeWidth={1.5} />
+              <Calendar size={22} color={brandColor} strokeWidth={1.5} />
             </View>
           }
           value={planningStreak}
@@ -180,7 +177,7 @@ export function StreaksCard({
         />
 
         {/* Divider */}
-        <View className={`w-px ${dividerColor} mx-3`} />
+        <View className="w-px mx-3" style={{ backgroundColor: theme.colors.border.divider }} />
 
         {/* Execution Streak */}
         <AnimatedMetric
@@ -200,16 +197,16 @@ export function StreaksCard({
         />
 
         {/* Divider */}
-        <View className={`w-px ${dividerColor} mx-3`} />
+        <View className="w-px mx-3" style={{ backgroundColor: theme.colors.border.divider }} />
 
         {/* MIT Completion */}
         <AnimatedMetric
           icon={
             <View
               className="w-11 h-11 rounded-full items-center justify-center"
-              style={{ backgroundColor: `${colors.primary}20` }}
+              style={{ backgroundColor: `${brandColor}20` }}
             >
-              <Target size={22} color={colors.primary} strokeWidth={1.5} />
+              <Target size={22} color={brandColor} strokeWidth={1.5} />
             </View>
           }
           value={mitCompletionRate}

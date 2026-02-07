@@ -14,10 +14,12 @@ import {
 } from '~/components/analytics'
 import { useAnalyticsSummary, useDailyCompletions } from '~/hooks/useAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
-import { colors } from '~/theme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 export default function AnalyticsScreen() {
   useScreenTracking('progress')
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
   const insets = useSafeAreaInsets()
   const queryClient = useQueryClient()
   const [refreshing, setRefreshing] = useState(false)
@@ -42,7 +44,7 @@ export default function AnalyticsScreen() {
   // Loading state
   if (isLoading && !refreshing) {
     return (
-      <View className="flex-1 bg-white dark:bg-slate-950">
+      <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <View className="px-5 pb-2" style={{ paddingTop: insets.top + 16 }}>
           <Text variant="title">Progress</Text>
           <Text variant="caption" className="mt-1">
@@ -58,8 +60,8 @@ export default function AnalyticsScreen() {
   if (error) {
     return (
       <View
-        className="flex-1 items-center justify-center bg-white dark:bg-slate-950 px-6"
-        style={{ paddingTop: insets.top }}
+        className="flex-1 items-center justify-center px-6"
+        style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}
       >
         <Text variant="title" className="mb-2">
           Something went wrong
@@ -75,13 +77,13 @@ export default function AnalyticsScreen() {
   if (!analytics?.hasData) {
     return (
       <ScrollView
-        className="flex-1 bg-white dark:bg-slate-950"
-        contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top }}
+        className="flex-1"
+        contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top, backgroundColor: theme.colors.background }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.primary}
+            tintColor={brandColor}
           />
         }
       >
@@ -101,10 +103,10 @@ export default function AnalyticsScreen() {
   // Main analytics view with metrics
   return (
     <ScrollView
-      className="flex-1 bg-white dark:bg-slate-950"
-      contentContainerStyle={{ paddingTop: insets.top }}
+      className="flex-1"
+      contentContainerStyle={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={brandColor} />
       }
     >
       {/* Header */}

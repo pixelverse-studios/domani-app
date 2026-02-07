@@ -2,8 +2,10 @@ import React, { useEffect, useMemo } from 'react'
 import { View, Animated, Easing } from 'react-native'
 
 import { Card } from '~/components/ui'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 function SkeletonBox({ className }: { className?: string }) {
+  const theme = useAppTheme()
   const opacity = useMemo(() => new Animated.Value(0.3), [])
 
   useEffect(() => {
@@ -29,8 +31,8 @@ function SkeletonBox({ className }: { className?: string }) {
 
   return (
     <Animated.View
-      style={{ opacity }}
-      className={`bg-slate-200 dark:bg-slate-700 rounded-lg ${className || ''}`}
+      style={[{ opacity }, { backgroundColor: theme.colors.border.primary }]}
+      className={`rounded-lg ${className || ''}`}
     />
   )
 }
