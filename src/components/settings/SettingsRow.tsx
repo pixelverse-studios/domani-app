@@ -3,7 +3,7 @@ import { View, TouchableOpacity } from 'react-native'
 import { ChevronRight, type LucideIcon } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 interface SettingsRowProps {
   label: string
@@ -23,15 +23,16 @@ export function SettingsRow({
   icon: Icon,
   showChevron = true,
 }: SettingsRowProps) {
-  const { activeTheme } = useTheme()
-  const iconColor = activeTheme === 'dark' ? '#94a3b8' : '#64748b'
+  const theme = useAppTheme()
+  const iconColor = theme.colors.text.tertiary
 
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={!onPress}
       activeOpacity={0.7}
-      className="flex-row items-center justify-between py-3.5 px-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl mb-2"
+      className="flex-row items-center justify-between py-3.5 px-4 rounded-xl mb-2"
+      style={{ backgroundColor: theme.colors.card }}
     >
       <View className="flex-row items-center flex-1">
         {Icon && (
@@ -39,10 +40,10 @@ export function SettingsRow({
             <Icon size={20} color={iconColor} />
           </View>
         )}
-        <Text className="text-base text-slate-900 dark:text-slate-100">{label}</Text>
+        <Text className="text-base text-content-primary">{label}</Text>
       </View>
       <View className="flex-row items-center">
-        {value && <Text className="text-sm text-slate-600 dark:text-slate-400 mr-2">{value}</Text>}
+        {value && <Text className="text-sm text-content-secondary mr-2">{value}</Text>}
         {showChevron && onPress && <ChevronRight size={18} color={iconColor} />}
       </View>
     </TouchableOpacity>

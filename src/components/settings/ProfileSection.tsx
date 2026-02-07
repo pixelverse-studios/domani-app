@@ -44,11 +44,11 @@ export function ProfileSection({
           {isBeta && (
             <View className="flex-row items-center mt-1 px-1">
               <Sparkles size={14} color="#f59e0b" />
-              <Text className="text-sm text-amber-600 dark:text-amber-400 ml-1.5 font-medium">
+              <Text className="text-sm text-amber-600 ml-1.5 font-medium">
                 Beta Tester
               </Text>
-              <View className="ml-2 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
-                <Text className="text-xs text-amber-700 dark:text-amber-300 font-semibold">
+              <View className="ml-2 bg-amber-100 px-2 py-0.5 rounded-full">
+                <Text className="text-xs text-amber-700 font-semibold">
                   Full Access
                 </Text>
               </View>

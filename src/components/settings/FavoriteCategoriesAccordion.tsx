@@ -31,7 +31,7 @@ import {
 import * as Haptics from 'expo-haptics'
 
 import { Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useProfile } from '~/hooks/useProfile'
 import {
   useSortedCategories,
@@ -72,8 +72,8 @@ function getCategoryIcon(category: UnifiedCategory, color: string, size: number 
 }
 
 export function FavoriteCategoriesAccordion() {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
   const { profile } = useProfile()
   const autoSort = profile?.auto_sort_categories ?? false
   const allCategories = useSortedCategories(false) // Always get manual sort for selection UI
@@ -189,10 +189,10 @@ export function FavoriteCategoriesAccordion() {
   }))
 
   // Colors
-  const iconColor = isDark ? '#64748b' : '#94a3b8'
-  const selectedHeartColor = isDark ? '#a78bfa' : '#8b5cf6'
-  const textMuted = isDark ? '#64748b' : '#94a3b8'
-  const dividerColor = isDark ? '#334155' : '#e2e8f0'
+  const iconColor = theme.colors.text.tertiary
+  const selectedHeartColor = brandColor
+  const textMuted = theme.colors.text.muted
+  const dividerColor = theme.colors.border.divider
 
   // Render a non-draggable category row (for "other" categories)
   const renderCategoryRow = (category: UnifiedCategory, isLast: boolean = false) => {
@@ -217,16 +217,16 @@ export function FavoriteCategoriesAccordion() {
             {getCategoryIcon(category, category.color, 16)}
           </View>
           <Text
-            className={`text-base ${isDark ? 'text-white' : 'text-slate-900'}`}
+            className="text-base text-content-primary"
             style={{ marginLeft: 12 }}
           >
             {category.name}
           </Text>
           {!category.isSystem && (
             <View
-              style={[styles.customBadge, { backgroundColor: isDark ? '#7c3aed20' : '#8b5cf620' }]}
+              style={[styles.customBadge, { backgroundColor: `${brandColor}1A` }]}
             >
-              <Text style={{ color: selectedHeartColor, fontSize: 10, fontWeight: '500' }}>
+              <Text style={{ color: brandColor, fontSize: 10, fontWeight: '500' }}>
                 Custom
               </Text>
             </View>
@@ -265,7 +265,7 @@ export function FavoriteCategoriesAccordion() {
               styles.categoryRow,
               !isLast && { borderBottomWidth: 1, borderBottomColor: dividerColor },
               isActive && {
-                backgroundColor: isDark ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)',
+                backgroundColor: `${brandColor}0D`,
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.15,
@@ -285,7 +285,7 @@ export function FavoriteCategoriesAccordion() {
                 {getCategoryIcon(item, item.color, 16)}
               </View>
               <Text
-                className={`text-base ${isDark ? 'text-white' : 'text-slate-900'}`}
+                className="text-base text-content-primary"
                 style={{ marginLeft: 12 }}
               >
                 {item.name}
@@ -294,7 +294,7 @@ export function FavoriteCategoriesAccordion() {
                 <View
                   style={[
                     styles.customBadge,
-                    { backgroundColor: isDark ? '#7c3aed20' : '#8b5cf620' },
+                    { backgroundColor: `${brandColor}1A` },
                   ]}
                 >
                   <Text style={{ color: selectedHeartColor, fontSize: 10, fontWeight: '500' }}>
@@ -314,7 +314,7 @@ export function FavoriteCategoriesAccordion() {
       favoriteCategories.length,
       handleToggleCategory,
       dividerColor,
-      isDark,
+      brandColor,
       iconColor,
       selectedHeartColor,
     ],
@@ -322,7 +322,7 @@ export function FavoriteCategoriesAccordion() {
 
   return (
     <View
-      style={[styles.container, { backgroundColor: isDark ? 'rgba(30, 41, 59, 0.5)' : '#f8fafc' }]}
+      style={[styles.container, { backgroundColor: theme.colors.card }]}
     >
       {/* Header Row - Always Visible */}
       <TouchableOpacity
@@ -338,7 +338,7 @@ export function FavoriteCategoriesAccordion() {
             fill={autoSort || selectedCount > 0 ? selectedHeartColor : 'transparent'}
           />
           <Text
-            className={`text-base font-sans-medium ${isDark ? 'text-white' : 'text-slate-900'}`}
+            className="text-base font-sans-medium text-content-primary"
             style={{ marginLeft: 12 }}
           >
             Favorite Categories
@@ -367,7 +367,7 @@ export function FavoriteCategoriesAccordion() {
           {/* Section Header */}
           <View style={styles.sectionHeader}>
             <Text
-              className={`text-sm font-sans-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}
+              className="text-sm font-sans-semibold text-content-primary"
             >
               Quick Access Categories
             </Text>

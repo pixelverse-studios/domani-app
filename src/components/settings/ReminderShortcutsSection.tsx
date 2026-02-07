@@ -20,7 +20,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 import { format, setHours, setMinutes } from 'date-fns'
 
 import { Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTutorialTarget } from '~/components/tutorial'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
 
@@ -49,25 +49,19 @@ const SHORTCUT_LABELS: Record<number, string> = {
   2: 'Shortcut 3',
 }
 
-// Zone colors based on actual time of day
+// Zone colors based on actual time of day (single theme)
 const ZONE_COLORS = {
   morning: {
-    light: '#f59e0b', // amber-500
-    dark: '#fbbf24', // amber-400
+    color: '#f59e0b', // amber-500
     bg: 'rgba(245, 158, 11, 0.15)',
-    bgDark: 'rgba(251, 191, 36, 0.2)',
   },
   afternoon: {
-    light: '#8b5cf6', // violet-500
-    dark: '#a78bfa', // violet-400
+    color: '#8b5cf6', // violet-500
     bg: 'rgba(139, 92, 246, 0.15)',
-    bgDark: 'rgba(167, 139, 250, 0.2)',
   },
   evening: {
-    light: '#6366f1', // indigo-500
-    dark: '#818cf8', // indigo-400
+    color: '#6366f1', // indigo-500
     bg: 'rgba(99, 102, 241, 0.15)',
-    bgDark: 'rgba(129, 140, 248, 0.2)',
   },
 }
 
@@ -78,10 +72,8 @@ const ZONE_COLORS = {
  * - Evening: 5 PM - 4:59 AM (indigo)
  */
 function getTimeZoneColor(hour: number): {
-  light: string
-  dark: string
+  color: string
   bg: string
-  bgDark: string
 } {
   if (hour >= 5 && hour < 12) {
     return ZONE_COLORS.morning
@@ -93,8 +85,8 @@ function getTimeZoneColor(hour: number): {
 }
 
 export function ReminderShortcutsSection() {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
   const { profile } = useProfile()
   const updateProfile = useUpdateProfile()
   const { targetRef, measureTarget } = useTutorialTarget('settings_reminders')
@@ -165,11 +157,10 @@ export function ReminderShortcutsSection() {
   }))
 
   // Colors
-  const purpleColor = isDark ? '#a78bfa' : '#8b5cf6'
-  const iconColor = isDark ? '#64748b' : '#94a3b8'
-  const textMuted = isDark ? '#64748b' : '#94a3b8'
-  const dividerColor = isDark ? '#334155' : '#e2e8f0'
-  const borderColor = isDark ? '#334155' : '#e2e8f0'
+  const iconColor = theme.colors.text.tertiary
+  const textMuted = theme.colors.text.muted
+  const dividerColor = theme.colors.border.divider
+  const borderColor = theme.colors.border.primary
 
   // Format time for display (compact format without minutes if on the hour)
   const formatTimeCompact = (hour: number, minute: number) => {
@@ -190,7 +181,7 @@ export function ReminderShortcutsSection() {
     <View
       ref={targetRef}
       onLayout={measureTarget}
-      style={[styles.container, { backgroundColor: isDark ? 'rgba(30, 41, 59, 0.5)' : '#f8fafc' }]}
+      style={[styles.container, { backgroundColor: theme.colors.card }]}
     >
       {/* Header Section - Always Visible */}
       <TouchableOpacity
@@ -201,9 +192,9 @@ export function ReminderShortcutsSection() {
         {/* Top Row: Title and Chevron */}
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
-            <Bell size={18} color={purpleColor} />
+            <Bell size={18} color={brandColor} />
             <Text
-              className={`text-base font-sans-medium ${isDark ? 'text-white' : 'text-slate-900'}`}
+              className="text-base font-sans-medium text-content-primary"
               style={{ marginLeft: 12 }}
             >
               Reminder Shortcuts
@@ -218,12 +209,10 @@ export function ReminderShortcutsSection() {
         <View style={styles.pillsRow}>
           {shortcuts.map((shortcut) => {
             const colors = getTimeZoneColor(shortcut.hour)
-            const pillBg = isDark ? colors.bgDark : colors.bg
-            const textColor = isDark ? colors.dark : colors.light
 
             return (
-              <View key={shortcut.id} style={[styles.timePill, { backgroundColor: pillBg }]}>
-                <Text style={[styles.pillTime, { color: textColor }]}>
+              <View key={shortcut.id} style={[styles.timePill, { backgroundColor: colors.bg }]}>
+                <Text style={[styles.pillTime, { color: colors.color }]}>
                   {formatTimeCompact(shortcut.hour, shortcut.minute)}
                 </Text>
               </View>
@@ -238,7 +227,7 @@ export function ReminderShortcutsSection() {
           {/* Section Header */}
           <View style={styles.sectionHeader}>
             <Text
-              className={`text-sm font-sans-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}
+              className="text-sm font-sans-semibold text-content-primary"
             >
               Customize Shortcuts
             </Text>
@@ -252,7 +241,6 @@ export function ReminderShortcutsSection() {
             {shortcuts.map((shortcut, index) => {
               const isLast = index === shortcuts.length - 1
               const colors = getTimeZoneColor(shortcut.hour)
-              const accentColor = isDark ? colors.dark : colors.light
 
               return (
                 <TouchableOpacity
@@ -265,12 +253,12 @@ export function ReminderShortcutsSection() {
                   ]}
                 >
                   <View style={styles.shortcutLabelRow}>
-                    <View style={[styles.shortcutDot, { backgroundColor: accentColor }]} />
-                    <Text className={`text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    <View style={[styles.shortcutDot, { backgroundColor: colors.color }]} />
+                    <Text className="text-base text-content-primary">
                       {SHORTCUT_LABELS[index] || `Shortcut ${index + 1}`}
                     </Text>
                   </View>
-                  <Text style={{ color: accentColor, fontSize: 16, fontWeight: '600' }}>
+                  <Text style={{ color: colors.color, fontSize: 16, fontWeight: '600' }}>
                     {formatTime(shortcut.hour, shortcut.minute)}
                   </Text>
                 </TouchableOpacity>
@@ -294,7 +282,7 @@ export function ReminderShortcutsSection() {
               handleCloseModal()
             }
           }}
-          themeVariant={isDark ? 'dark' : 'light'}
+          themeVariant="light"
         />
       )}
 
@@ -311,7 +299,7 @@ export function ReminderShortcutsSection() {
               activeOpacity={1}
               onPress={() => {}} // Prevent closing when tapping the picker
               className="rounded-t-2xl pb-8"
-              style={{ backgroundColor: isDark ? '#1e293b' : '#ffffff' }}
+              style={{ backgroundColor: theme.colors.card }}
             >
               <View
                 className="flex-row justify-between items-center px-4 py-3 border-b"
@@ -322,7 +310,7 @@ export function ReminderShortcutsSection() {
                     Cancel
                   </Text>
                 </TouchableOpacity>
-                <Text className="text-base font-sans-semibold text-slate-900 dark:text-white">
+                <Text className="text-base font-sans-semibold text-content-primary">
                   {editingShortcut
                     ? `${SHORTCUT_LABELS[editingShortcut.index] || `Shortcut ${editingShortcut.index + 1}`} Time`
                     : 'Select Time'}
@@ -333,7 +321,7 @@ export function ReminderShortcutsSection() {
                     handleCloseModal()
                   }}
                 >
-                  <Text className="text-base font-sans-semibold" style={{ color: purpleColor }}>
+                  <Text className="text-base font-sans-semibold" style={{ color: brandColor }}>
                     Done
                   </Text>
                 </TouchableOpacity>
@@ -347,7 +335,7 @@ export function ReminderShortcutsSection() {
                     setSelectedTime(date)
                   }
                 }}
-                themeVariant={isDark ? 'dark' : 'light'}
+                themeVariant="light"
                 style={{ height: 200 }}
               />
             </TouchableOpacity>

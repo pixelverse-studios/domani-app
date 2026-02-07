@@ -3,7 +3,7 @@ import { View, TouchableOpacity, Switch, Alert, Platform } from 'react-native'
 import { Sparkles, Info } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTutorialTarget } from '~/components/tutorial'
 import { SectionHeader } from './SectionHeader'
 import { FavoriteCategoriesAccordion } from './FavoriteCategoriesAccordion'
@@ -23,7 +23,8 @@ export function CategoriesSection({
   autoSortCategories,
   onToggleSmartCategories,
 }: CategoriesSectionProps) {
-  const { activeTheme } = useTheme()
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
   const { targetRef, measureTarget } = useTutorialTarget('settings_categories')
 
   const showSmartCategoriesInfo = () => {
@@ -42,20 +43,14 @@ export function CategoriesSection({
       ) : (
         <View className="mb-6">
           {/* Smart Categories Toggle */}
-          <View className="bg-slate-50 dark:bg-slate-800/50 rounded-xl px-4 py-3 mb-2 flex-row items-center justify-between">
+          <View className="rounded-xl px-4 py-3 mb-2 flex-row items-center justify-between" style={{ backgroundColor: theme.colors.card }}>
             <View className="flex-row items-center">
               <Sparkles
                 size={18}
-                color={activeTheme === 'dark' ? '#a78bfa' : '#8b5cf6'}
-                fill={
-                  autoSortCategories
-                    ? activeTheme === 'dark'
-                      ? '#a78bfa'
-                      : '#8b5cf6'
-                    : 'transparent'
-                }
+                color={brandColor}
+                fill={autoSortCategories ? brandColor : 'transparent'}
               />
-              <Text className="text-base font-sans-medium text-slate-900 dark:text-white ml-3">
+              <Text className="text-base font-sans-medium text-content-primary ml-3">
                 Smart Categories
               </Text>
               <TouchableOpacity
@@ -63,18 +58,18 @@ export function CategoriesSection({
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 onPress={showSmartCategoriesInfo}
               >
-                <Info size={16} color={activeTheme === 'dark' ? '#64748b' : '#94a3b8'} />
+                <Info size={16} color={theme.colors.text.tertiary} />
               </TouchableOpacity>
             </View>
             <Switch
               value={autoSortCategories}
               onValueChange={onToggleSmartCategories}
               trackColor={{
-                false: activeTheme === 'dark' ? '#334155' : '#e2e8f0',
-                true: activeTheme === 'dark' ? '#a78bfa' : '#8b5cf6',
+                false: theme.colors.border.primary,
+                true: brandColor,
               }}
               thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
-              ios_backgroundColor={activeTheme === 'dark' ? '#334155' : '#e2e8f0'}
+              ios_backgroundColor={theme.colors.border.primary}
             />
           </View>
 
