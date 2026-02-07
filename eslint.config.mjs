@@ -3,6 +3,8 @@ import tseslint from 'typescript-eslint'
 import react from 'eslint-plugin-react'
 import reactHooks from 'eslint-plugin-react-hooks'
 import prettier from 'eslint-config-prettier'
+import noHardcodedColors from './eslint-rules/no-hardcoded-colors.js'
+import noDarkModePatterns from './eslint-rules/no-dark-mode-patterns.js'
 
 export default tseslint.config(
   js.configs.recommended,
@@ -12,6 +14,12 @@ export default tseslint.config(
     plugins: {
       react,
       'react-hooks': reactHooks,
+      'domani': {
+        rules: {
+          'no-hardcoded-colors': noHardcodedColors,
+          'no-dark-mode-patterns': noDarkModePatterns,
+        },
+      },
     },
     languageOptions: {
       parserOptions: {
@@ -53,6 +61,9 @@ export default tseslint.config(
       'react-hooks/exhaustive-deps': 'warn',
       // Allow require() for React Native compatibility
       '@typescript-eslint/no-require-imports': 'off',
+      // Theme enforcement — use useAppTheme() tokens instead of hardcoded colors
+      'domani/no-hardcoded-colors': 'warn',
+      'domani/no-dark-mode-patterns': 'error',
     },
   },
   prettier,

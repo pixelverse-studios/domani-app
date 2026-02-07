@@ -1,3 +1,4 @@
+/* eslint-disable domani/no-hardcoded-colors -- Class component, cannot use hooks */
 import React from 'react'
 import { View, TouchableOpacity } from 'react-native'
 import { AlertTriangle, RotateCcw } from 'lucide-react-native'
