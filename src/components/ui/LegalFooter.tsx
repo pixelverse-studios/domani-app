@@ -1,7 +1,6 @@
 import React from 'react'
 import { StyleSheet, Text as RNText, View, TouchableOpacity, Linking, Alert } from 'react-native'
-import { useTheme } from '~/hooks/useTheme'
-import { colors } from '~/theme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 const LEGAL_URLS = {
   termsOfService: 'https://www.domani-app.com/terms',
@@ -9,12 +8,11 @@ const LEGAL_URLS = {
 }
 
 export const LegalFooter = () => {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
 
   const themeColors = {
-    text: isDark ? colors.text.tertiary.dark : colors.text.tertiary.light,
-    link: isDark ? colors.text.secondary.dark : colors.text.secondary.light,
+    text: theme.colors.text.tertiary,
+    link: theme.colors.text.secondary,
   }
 
   const openURL = async (url: string) => {

@@ -4,7 +4,7 @@ import { Sparkles } from 'lucide-react-native'
 import { router } from 'expo-router'
 
 import { Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useTutorialStore } from '~/stores/tutorialStore'
 
@@ -13,8 +13,8 @@ import { useTutorialStore } from '~/stores/tutorialStore'
  * Introduces users to the tutorial and offers a skip option.
  */
 export function WelcomeOverlay() {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
   const { isActive, currentStep, nextStep, skipTutorial, isLoading, abandonCount } =
     useTutorialStore()
   const { trackTutorialStarted, trackTutorialSkipped } = useTutorialAnalytics()
@@ -94,23 +94,23 @@ export function WelcomeOverlay() {
           style={[
             styles.card,
             {
-              backgroundColor: isDark ? '#1e293b' : '#ffffff',
+              backgroundColor: theme.colors.card,
               transform: [{ scale }],
             },
           ]}
         >
           {/* Icon */}
-          <View style={[styles.iconContainer, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
-            <Sparkles size={40} color="#a855f7" />
+          <View style={[styles.iconContainer, { backgroundColor: `${brandColor}26` }]}>
+            <Sparkles size={40} color={brandColor} />
           </View>
 
           {/* Title */}
-          <Text className="text-2xl font-sans-bold text-slate-900 dark:text-white text-center mb-2">
+          <Text className="text-2xl font-sans-bold text-content-primary text-center mb-2">
             {hasAbandonedMultipleTimes ? 'Ready to Continue?' : 'Welcome to Domani!'}
           </Text>
 
           {/* Description */}
-          <Text className="text-base text-slate-600 dark:text-slate-300 text-center mb-6">
+          <Text className="text-base text-content-secondary text-center mb-6">
             {hasAbandonedMultipleTimes
               ? "No pressure! You can skip the tour and explore on your own, or we can walk through it together."
               : "Let's walk through how to plan your day. This takes about 2 minutes."}
@@ -119,7 +119,7 @@ export function WelcomeOverlay() {
           {/* Primary Button */}
           <TouchableOpacity
             onPress={handleLetsGo}
-            style={styles.primaryButton}
+            style={[styles.primaryButton, { backgroundColor: brandColor }]}
             activeOpacity={0.8}
           >
             <Text className="text-white font-sans-semibold text-base">
@@ -129,7 +129,7 @@ export function WelcomeOverlay() {
 
           {/* Skip Link */}
           <TouchableOpacity onPress={handleSkip} style={styles.skipButton} activeOpacity={0.6}>
-            <Text className="text-slate-500 dark:text-slate-400 text-sm">
+            <Text className="text-content-tertiary text-sm">
               {hasAbandonedMultipleTimes ? "I'll Explore on My Own" : 'Skip Tutorial'}
             </Text>
           </TouchableOpacity>
@@ -163,7 +163,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   primaryButton: {
-    backgroundColor: '#a855f7',
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 12,

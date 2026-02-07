@@ -3,7 +3,7 @@ import { View, TextInput, TouchableOpacity } from 'react-native'
 import { Lock } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 interface FormTextAreaProps {
   label: string
@@ -30,17 +30,16 @@ export function FormTextArea({
   showMinLabel = true,
   disabledMessage = 'Select a category to start',
 }: FormTextAreaProps) {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
 
-  const textColor = isDark ? '#f8fafc' : '#0f172a'
-  const textSecondaryColor = isDark ? '#94a3b8' : '#64748b'
+  const textColor = theme.colors.text.primary
+  const textSecondaryColor = theme.colors.text.secondary
 
   return (
     <View>
       {/* Label Row */}
       <View className="flex-row justify-between items-center mb-2">
-        <Text className="text-sm text-slate-600 dark:text-slate-300">
+        <Text className="text-sm text-content-secondary">
           {label} <Text className="text-red-500">*</Text>
         </Text>
         {showClear && onClear && value.length > 0 && (
@@ -55,9 +54,12 @@ export function FormTextArea({
 
       {/* Text Area or Disabled State */}
       {disabled ? (
-        <View className="bg-slate-100 dark:bg-slate-800 rounded-xl px-4 py-3 min-h-[140px] items-center justify-center border border-slate-200 dark:border-slate-700">
+        <View
+          className="rounded-xl px-4 py-3 min-h-[140px] items-center justify-center border"
+          style={{ backgroundColor: theme.colors.interactive.hover, borderColor: theme.colors.border.primary }}
+        >
           <Lock size={24} color={textSecondaryColor} />
-          <Text className="text-sm text-slate-400 dark:text-slate-500 mt-2">{disabledMessage}</Text>
+          <Text className="text-sm text-content-tertiary mt-2">{disabledMessage}</Text>
         </View>
       ) : (
         <>
@@ -69,16 +71,16 @@ export function FormTextArea({
             multiline
             numberOfLines={6}
             textAlignVertical="top"
-            className="bg-slate-100 dark:bg-slate-800 rounded-xl px-4 text-base text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 min-h-[140px]"
-            style={{ color: textColor, paddingTop: 14, paddingBottom: 14, lineHeight: undefined }}
+            className="rounded-xl px-4 text-base text-content-primary border min-h-[140px]"
+            style={{ backgroundColor: theme.colors.interactive.hover, borderColor: theme.colors.border.primary, color: textColor, paddingTop: 14, paddingBottom: 14, lineHeight: undefined }}
           />
           {/* Character Counter */}
           <View className="flex-row justify-between mt-2">
-            <Text className="text-xs text-slate-500 dark:text-slate-400">
+            <Text className="text-xs text-content-secondary">
               {value.length} characters
             </Text>
             {showMinLabel && minCharacters !== undefined && minCharacters > 0 && (
-              <Text className="text-xs text-slate-500 dark:text-slate-400">
+              <Text className="text-xs text-content-secondary">
                 Min. {minCharacters} characters
               </Text>
             )}

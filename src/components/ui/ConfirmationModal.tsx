@@ -3,7 +3,7 @@ import { View, TouchableOpacity, Modal, StyleSheet } from 'react-native'
 import { AlertTriangle } from 'lucide-react-native'
 
 import { Text } from './Text'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 interface ConfirmationModalProps {
   visible: boolean
@@ -28,10 +28,9 @@ export function ConfirmationModal({
   onCancel,
   isLoading = false,
 }: ConfirmationModalProps) {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
 
-  const purpleColor = isDark ? '#a78bfa' : '#8b5cf6'
+  const brandColor = theme.colors.brand.primary
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
@@ -40,7 +39,7 @@ export function ConfirmationModal({
           style={[
             styles.container,
             {
-              backgroundColor: isDark ? '#1e293b' : '#ffffff',
+              backgroundColor: theme.colors.card,
             },
           ]}
         >
@@ -49,7 +48,7 @@ export function ConfirmationModal({
             style={[
               styles.iconContainer,
               {
-                backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.1)',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
               },
             ]}
           >
@@ -58,7 +57,7 @@ export function ConfirmationModal({
 
           {/* Title */}
           <Text
-            className="text-xl font-sans-bold text-slate-900 dark:text-white mt-4"
+            className="text-xl font-sans-bold text-content-primary mt-4"
             style={{ textAlign: 'center' }}
           >
             {title}
@@ -66,7 +65,7 @@ export function ConfirmationModal({
 
           {/* Description */}
           <Text
-            className="font-sans text-slate-500 dark:text-slate-400 mt-2"
+            className="font-sans text-content-secondary mt-2"
             style={{ textAlign: 'center', fontSize: 15 }}
           >
             {description}
@@ -75,7 +74,7 @@ export function ConfirmationModal({
           {/* Item Name */}
           <Text
             className="font-sans-semibold mt-1"
-            style={{ textAlign: 'center', fontSize: 16, color: purpleColor }}
+            style={{ textAlign: 'center', fontSize: 16, color: brandColor }}
             numberOfLines={3}
             ellipsizeMode="tail"
           >
@@ -84,7 +83,7 @@ export function ConfirmationModal({
 
           {/* Warning */}
           <Text
-            className="font-sans text-slate-400 dark:text-slate-500 mt-1"
+            className="font-sans text-content-tertiary mt-1"
             style={{ textAlign: 'center', fontSize: 13 }}
           >
             This cannot be undone.
@@ -111,13 +110,13 @@ export function ConfirmationModal({
               style={[
                 styles.button,
                 {
-                  backgroundColor: isDark ? '#334155' : '#e2e8f0',
+                  backgroundColor: theme.colors.interactive.hover,
                 },
               ]}
               activeOpacity={0.8}
             >
               <Text
-                className="font-sans-semibold text-slate-900 dark:text-white"
+                className="font-sans-semibold text-content-primary"
                 style={{ fontSize: 16 }}
               >
                 {cancelLabel}
