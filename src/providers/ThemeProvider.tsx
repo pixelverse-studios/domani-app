@@ -1,24 +1,13 @@
-import React, { createContext, useEffect, useMemo, useRef } from 'react'
-import { useColorScheme as useRNColorScheme, InteractionManager } from 'react-native'
+import React, { useEffect, useRef } from 'react'
+import { InteractionManager } from 'react-native'
 import { useColorScheme as useNativeWindColorScheme } from 'nativewind'
 
-import { ThemeMode, useThemeStore } from '~/stores/themeStore'
-
-interface ThemeContextValue {
-  mode: ThemeMode
-  activeTheme: 'light' | 'dark'
-  setMode: (mode: ThemeMode) => void
-}
-
-export const ThemeContext = createContext<ThemeContextValue | undefined>(undefined)
-
+/**
+ * ThemeProvider sets NativeWind to light mode (single theme).
+ * Kept as a provider for future multi-theme support.
+ */
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const systemTheme = useRNColorScheme() ?? 'light'
-  const { setColorScheme: setNativeWindColorScheme } = useNativeWindColorScheme()
-  const mode = useThemeStore((state) => state.mode)
-  const setMode = useThemeStore((state) => state.setMode)
-  const activeTheme = mode === 'auto' ? systemTheme : mode
-  const nativeWindScheme = mode === 'auto' ? 'system' : activeTheme
+  const { setColorScheme } = useNativeWindColorScheme()
   const isMounted = useRef(false)
 
   useEffect(() => {
@@ -29,23 +18,13 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   }, [])
 
   useEffect(() => {
-    // Defer NativeWind color scheme update to avoid state updates during render
     const task = InteractionManager.runAfterInteractions(() => {
       if (isMounted.current) {
-        setNativeWindColorScheme(nativeWindScheme)
+        setColorScheme('light')
       }
     })
     return () => task.cancel()
-  }, [nativeWindScheme, setNativeWindColorScheme])
+  }, [setColorScheme])
 
-  const value = useMemo<ThemeContextValue>(
-    () => ({
-      mode,
-      setMode,
-      activeTheme: (activeTheme ?? 'light') as 'light' | 'dark',
-    }),
-    [mode, setMode, activeTheme],
-  )
-
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+  return <>{children}</>
 }

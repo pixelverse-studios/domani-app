@@ -3,7 +3,7 @@ import { TouchableOpacity, ActivityIndicator, StyleProp, ViewStyle, StyleSheet }
 import { LinearGradient } from 'expo-linear-gradient'
 
 import { Text } from '~/components/ui/Text'
-import { colors } from '~/theme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 interface GradientButtonProps {
   children: React.ReactNode
@@ -24,6 +24,8 @@ export function GradientButton({
   fullWidth = false,
   style,
 }: GradientButtonProps) {
+  const theme = useAppTheme()
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -38,7 +40,7 @@ export function GradientButton({
       ]}
     >
       <LinearGradient
-        colors={[colors.brand.pink, colors.brand.pink, colors.brand.purple] as const}
+        colors={[theme.colors.brand.primary, theme.colors.brand.primary, theme.colors.brand.dark] as const}
         locations={[0, 0.6, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}

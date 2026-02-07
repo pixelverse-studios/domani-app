@@ -4,7 +4,7 @@ import { Plus, Lock } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 
 import { Text } from '~/components/ui'
-import { colors } from '~/theme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 interface AddTaskPlaceholderProps {
   onPress?: () => void
@@ -13,6 +13,7 @@ interface AddTaskPlaceholderProps {
 }
 
 export function AddTaskPlaceholder({ onPress, disabled, atLimit }: AddTaskPlaceholderProps) {
+  const theme = useAppTheme()
   const handlePress = () => {
     onPress?.()
   }
@@ -23,11 +24,11 @@ export function AddTaskPlaceholder({ onPress, disabled, atLimit }: AddTaskPlaceh
       <View style={styles.buttonContainer} className="mx-5 mt-6">
         <View style={styles.disabledContainer}>
           <Lock size={18} color="#9ca3af" strokeWidth={2} />
-          <Text className="text-slate-400 font-sans-medium text-sm ml-2">
+          <Text className="text-content-tertiary font-sans-medium text-sm ml-2">
             Task limit reached (3/3)
           </Text>
         </View>
-        <Text className="text-slate-500 text-xs text-center mt-2">
+        <Text className="text-content-secondary text-xs text-center mt-2">
           Upgrade to add unlimited tasks
         </Text>
       </View>
@@ -46,7 +47,7 @@ export function AddTaskPlaceholder({ onPress, disabled, atLimit }: AddTaskPlaceh
         disabled={disabled}
       >
           <LinearGradient
-          colors={[colors.brand.pink, colors.brand.pink, colors.brand.purple] as const}
+          colors={[theme.colors.brand.primary, theme.colors.brand.primary, theme.colors.brand.dark] as const}
           locations={[0, 0.6, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
@@ -78,10 +79,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 32,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#EFEEE8',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#E8E4DD',
     borderStyle: 'dashed',
   },
 })

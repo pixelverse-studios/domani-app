@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 
 import { Text } from '~/components/ui'
 import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
-import { colors } from '~/theme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 interface AddTaskButtonProps {
   onPress: () => void
@@ -14,6 +14,7 @@ interface AddTaskButtonProps {
 }
 
 export function AddTaskButton({ onPress, disabled, label = 'Add Task' }: AddTaskButtonProps) {
+  const theme = useAppTheme()
   const { targetRef, measureTarget } = useTutorialTarget('today_add_task_button')
   const { advanceFromTodayButton } = useTutorialAdvancement()
 
@@ -33,7 +34,7 @@ export function AddTaskButton({ onPress, disabled, label = 'Add Task' }: AddTask
         style={[styles.buttonContainer, { opacity: disabled ? 0.5 : 1 }]}
       >
         <LinearGradient
-          colors={[colors.brand.pink, colors.brand.pink, colors.brand.purple] as const}
+          colors={[theme.colors.brand.primary, theme.colors.brand.primary, theme.colors.brand.dark] as const}
           locations={[0, 0.6, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
