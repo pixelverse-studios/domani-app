@@ -13,7 +13,7 @@ import Animated, {
 
 import { Text } from '~/components/ui'
 import { useTutorialTarget } from '~/components/tutorial'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 export type Priority = 'top' | 'high' | 'medium' | 'low'
 
@@ -38,13 +38,6 @@ const PILL_SPRING = {
   damping: 18,
   stiffness: 180,
   mass: 0.8,
-}
-
-const PRIORITY_COLORS: Record<Priority, string> = {
-  top: '#8b5cf6', // Purple
-  high: '#ef4444', // Red
-  medium: '#f97316', // Orange
-  low: '#22c55e', // Green
 }
 
 export function PrioritySelector({
@@ -84,8 +77,14 @@ export function PrioritySelector({
     measureTopPriority()
   }, [measurePrioritySelector, measureTopPriority])
 
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
+
+  const priorityColors = {
+    top: theme.priority.top.color,
+    high: theme.priority.high.color,
+    medium: theme.priority.medium.color,
+    low: theme.priority.low.color,
+  }
 
   // MIT message logic
   const isEditingCurrentTopTask = editingTaskId && existingTopPriorityTask?.id === editingTaskId
@@ -141,7 +140,7 @@ export function PrioritySelector({
     const backgroundColor = interpolateColor(
       colorProgress.value,
       [0, 1, 2, 3],
-      [PRIORITY_COLORS.top, PRIORITY_COLORS.high, PRIORITY_COLORS.medium, PRIORITY_COLORS.low],
+      [priorityColors.top, priorityColors.high, priorityColors.medium, priorityColors.low],
     )
 
     return {
@@ -151,23 +150,19 @@ export function PrioritySelector({
     }
   })
 
-  const containerBg = isDark ? '#1e293b' : '#f1f5f9'
-  const unselectedTextColor = isDark ? '#94a3b8' : '#64748b'
-  const labelColor = isDark ? '#94a3b8' : '#64748b'
-
   return (
     <View className="mt-5" ref={combinedRef} onLayout={handleLayout}>
       {/* Priority Label */}
       <View className="flex-row items-center mb-3">
-        <Triangle size={16} color={labelColor} />
-        <Text className="font-sans-medium text-slate-900 dark:text-white ml-2">Priority</Text>
+        <Triangle size={16} color={theme.colors.text.tertiary} />
+        <Text className="font-sans-medium text-content-primary ml-2">Priority</Text>
       </View>
 
       {/* Priority Selector Container */}
       <View
         className="rounded-full overflow-hidden"
         style={{
-          backgroundColor: containerBg,
+          backgroundColor: theme.colors.card,
           padding: 4,
         }}
       >
@@ -190,9 +185,9 @@ export function PrioritySelector({
           {/* Priority Options */}
           {PRIORITIES.map(({ key, label }) => {
             const isSelected = selectedPriority === key
-            const textColor = isSelected ? '#ffffff' : unselectedTextColor
+            const textColor = isSelected ? '#ffffff' : theme.colors.text.secondary
             const iconColor =
-              key === 'top' ? (isSelected ? '#ffffff' : PRIORITY_COLORS.top) : textColor
+              key === 'top' ? (isSelected ? '#ffffff' : priorityColors.top) : textColor
 
             return (
               <TouchableOpacity
@@ -224,12 +219,12 @@ export function PrioritySelector({
           className="flex-row items-center mt-3 px-3 py-2.5 rounded-lg"
           style={{
             borderWidth: 1,
-            borderColor: isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.4)',
-            backgroundColor: isDark ? 'rgba(139, 92, 246, 0.08)' : 'rgba(139, 92, 246, 0.05)',
+            borderColor: `${priorityColors.top}66`,
+            backgroundColor: `${priorityColors.top}0D`,
           }}
         >
-          <Crown size={14} color={PRIORITY_COLORS.top} />
-          <Text className="font-sans text-sm ml-2" style={{ color: PRIORITY_COLORS.top }}>
+          <Crown size={14} color={priorityColors.top} />
+          <Text className="font-sans text-sm ml-2" style={{ color: priorityColors.top }}>
             This will be your top priority task
           </Text>
         </Animated.View>
@@ -243,8 +238,8 @@ export function PrioritySelector({
           className="flex-row items-center mt-3 px-3 py-2.5 rounded-lg"
           style={{
             borderWidth: 1,
-            borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.4)',
-            backgroundColor: isDark ? 'rgba(245, 158, 11, 0.08)' : 'rgba(245, 158, 11, 0.05)',
+            borderColor: `${amberColor}66`,
+            backgroundColor: `${amberColor}0D`,
           }}
         >
           <AlertTriangle size={14} color={amberColor} />
