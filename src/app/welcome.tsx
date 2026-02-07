@@ -4,22 +4,14 @@ import { Link } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { GradientText, LegalFooter, Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
-import { colors } from '~/theme'
 
 export default function WelcomeScreen() {
   useScreenTracking('welcome')
   const insets = useSafeAreaInsets()
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
-
-  // Theme-aware colors
-  const themeColors = {
-    background: isDark ? colors.background.dark : colors.background.light,
-    textSecondary: isDark ? colors.text.secondary.dark : colors.text.secondary.light,
-    glowOpacity: isDark ? 0.35 : 0.2,
-  }
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
 
   // Use useMemo to create stable animated values
   const titleAnim = useMemo(() => new Animated.Value(0), [])
@@ -72,13 +64,13 @@ export default function WelcomeScreen() {
   })
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      {/* Background glow - top right purple gradient, extends left and down */}
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* Background glow - top right sage gradient, extends left and down */}
       <LinearGradient
         colors={[
-          `rgba(${colors.brand.gradientStartRgb}, ${themeColors.glowOpacity})`,
-          `rgba(${colors.brand.gradientStartRgb}, ${themeColors.glowOpacity * 0.5})`,
-          `rgba(${colors.brand.gradientStartRgb}, ${themeColors.glowOpacity * 0.15})`,
+          'rgba(125, 155, 138, 0.2)',
+          'rgba(125, 155, 138, 0.1)',
+          'rgba(125, 155, 138, 0.03)',
           'transparent',
         ]}
         style={styles.backgroundGlow}
@@ -93,7 +85,7 @@ export default function WelcomeScreen() {
           {/* App name with gradient text - pink to purple */}
           <Animated.View style={createAnimatedStyle(titleAnim)}>
             <GradientText
-              colors={[colors.brand.gradientStart, colors.brand.gradientEnd]}
+              colors={[theme.colors.brand.primary, theme.colors.brand.dark]}
               style={styles.appName}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -104,10 +96,10 @@ export default function WelcomeScreen() {
 
           {/* Tagline */}
           <Animated.View style={[styles.taglineContainer, createAnimatedStyle(taglineAnim)]}>
-            <Text style={[styles.tagline, { color: themeColors.textSecondary }]}>
+            <Text style={[styles.tagline, { color: theme.colors.text.secondary }]}>
               Plan your tomorrow, tonight.
             </Text>
-            <Text style={[styles.taglineSecondary, { color: themeColors.textSecondary }]}>
+            <Text style={[styles.taglineSecondary, { color: theme.colors.text.secondary }]}>
               Execute with focus.
             </Text>
           </Animated.View>
@@ -120,7 +112,7 @@ export default function WelcomeScreen() {
             <Link href="/login?mode=new" asChild>
               <TouchableOpacity activeOpacity={0.8} style={styles.primaryButtonContainer}>
                 <LinearGradient
-                  colors={[colors.brand.gradientStart, colors.brand.gradientEnd]}
+                  colors={[theme.colors.brand.primary, theme.colors.brand.dark]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.primaryButton}
@@ -133,11 +125,11 @@ export default function WelcomeScreen() {
             {/* Secondary link for returning users */}
             <Link href="/login?mode=returning" asChild>
               <TouchableOpacity style={styles.secondaryLink} activeOpacity={0.7}>
-                <Text style={[styles.secondaryLinkText, { color: themeColors.textSecondary }]}>
+                <Text style={[styles.secondaryLinkText, { color: theme.colors.text.secondary }]}>
                   Already have an account?{' '}
                 </Text>
                 <GradientText
-                  colors={[colors.brand.gradientStart, colors.brand.gradientEnd]}
+                  colors={[theme.colors.brand.primary, theme.colors.brand.dark]}
                   style={styles.secondaryLinkHighlight}
                 >
                   Sign in

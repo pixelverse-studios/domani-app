@@ -7,9 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LegalFooter, Text } from '~/components/ui'
 import { SocialButton } from '~/components/ui/SocialButton'
 import { useAuth } from '~/hooks/useAuth'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
-import { colors } from '~/theme'
 
 export default function LoginScreen() {
   useScreenTracking('login')
@@ -17,17 +16,11 @@ export default function LoginScreen() {
   const { mode } = useLocalSearchParams<{ mode?: 'new' | 'returning' }>()
   const insets = useSafeAreaInsets()
   const { signInWithGoogle, signInWithApple } = useAuth()
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
 
   // Determine if this is a new user or returning user
   const isNewUser = mode === 'new'
-
-  // Theme-aware colors (matching welcome.tsx)
-  const themeColors = {
-    background: isDark ? colors.background.dark : colors.background.light,
-    glowOpacity: isDark ? 0.35 : 0.2,
-  }
 
   const [googleLoading, setGoogleLoading] = useState(false)
   const [appleLoading, setAppleLoading] = useState(false)
@@ -63,13 +56,13 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      {/* Background glow - top right purple gradient, matching welcome.tsx */}
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* Background glow - top right sage gradient, matching welcome.tsx */}
       <LinearGradient
         colors={[
-          `rgba(${colors.brand.gradientStartRgb}, ${themeColors.glowOpacity})`,
-          `rgba(${colors.brand.gradientStartRgb}, ${themeColors.glowOpacity * 0.5})`,
-          `rgba(${colors.brand.gradientStartRgb}, ${themeColors.glowOpacity * 0.15})`,
+          'rgba(125, 155, 138, 0.2)',
+          'rgba(125, 155, 138, 0.1)',
+          'rgba(125, 155, 138, 0.03)',
           'transparent',
         ]}
         style={styles.backgroundGlow}
@@ -82,14 +75,14 @@ export default function LoginScreen() {
         {/* Header section - no icon, just text */}
         <View style={styles.headerSection}>
           {/* Title - using RNText to avoid line-height clipping */}
-          <RNText style={[styles.title, { color: isDark ? '#a855f7' : '#7c3aed' }]}>
+          <RNText style={[styles.title, { color: brandColor }]}>
             {isNewUser ? "Let's Get Started" : 'Welcome Back'}
           </RNText>
 
           <Text
             style={[
               styles.subtitle,
-              { color: isDark ? 'rgba(250, 245, 255, 0.6)' : 'rgb(71, 85, 105)' },
+              { color: theme.colors.text.secondary },
             ]}
           >
             {isNewUser
@@ -122,7 +115,7 @@ export default function LoginScreen() {
             <Text
               style={[
                 styles.backButtonText,
-                { color: isDark ? 'rgba(250, 245, 255, 0.5)' : 'rgb(100, 116, 139)' },
+                { color: theme.colors.text.tertiary },
               ]}
             >
               ← Back

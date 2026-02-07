@@ -3,7 +3,7 @@ import { View, TouchableOpacity } from 'react-native'
 import type { LucideIcon } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 interface Category {
   id: string
@@ -18,10 +18,10 @@ interface CategoryGridProps {
 }
 
 export function CategoryGrid({ categories, selectedId, onSelect }: CategoryGridProps) {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
 
-  const iconColor = isDark ? '#94a3b8' : '#64748b'
+  const iconColor = theme.colors.text.secondary
 
   return (
     <View className="flex-row flex-wrap gap-3">
@@ -34,17 +34,18 @@ export function CategoryGrid({ categories, selectedId, onSelect }: CategoryGridP
             key={category.id}
             onPress={() => onSelect(category.id)}
             activeOpacity={0.7}
-            className={`w-[48%] p-4 rounded-xl border ${
+            className="w-[48%] p-4 rounded-xl border"
+            style={
               isSelected
-                ? 'bg-purple-500 border-purple-500'
-                : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
-            }`}
+                ? { backgroundColor: brandColor, borderColor: brandColor }
+                : { backgroundColor: theme.colors.interactive.hover, borderColor: theme.colors.border.primary }
+            }
           >
             <View className="flex-row items-center">
               <IconComponent size={20} color={isSelected ? '#ffffff' : iconColor} />
               <Text
                 className={`text-sm font-medium ml-2 ${
-                  isSelected ? 'text-white' : 'text-slate-700 dark:text-slate-300'
+                  isSelected ? 'text-white' : 'text-content-secondary'
                 }`}
               >
                 {category.label}

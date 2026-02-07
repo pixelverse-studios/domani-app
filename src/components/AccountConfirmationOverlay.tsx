@@ -3,6 +3,7 @@ import { View, Modal, Animated, StyleSheet } from 'react-native'
 import { Heart, HandHeart } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 interface AccountConfirmationOverlayProps {
   visible: boolean
@@ -15,6 +16,8 @@ export function AccountConfirmationOverlay({
   type,
   onDismiss,
 }: AccountConfirmationOverlayProps) {
+  const theme = useAppTheme()
+
   // Use state for animated values to satisfy lint rules
   const [opacity] = useState(() => new Animated.Value(0))
   const [scale] = useState(() => new Animated.Value(0.8))
@@ -68,8 +71,8 @@ export function AccountConfirmationOverlay({
       }
     : {
         icon: HandHeart,
-        iconColor: '#a855f7',
-        bgColor: '#a855f7',
+        iconColor: theme.colors.brand.primary,
+        bgColor: theme.colors.brand.primary,
         title: 'Sorry to See You Go',
         subtitle: "We'll miss you.",
         message: 'Sign back in within 30 days to reactivate your account anytime.',
@@ -80,24 +83,24 @@ export function AccountConfirmationOverlay({
   return (
     <Modal visible={visible} transparent animationType="none">
       <Animated.View style={[styles.container, { opacity }]}>
-        <Animated.View style={[styles.card, { transform: [{ scale }] }]}>
+        <Animated.View style={[styles.card, { backgroundColor: theme.colors.card }, { transform: [{ scale }] }]}>
           {/* Icon with pulse effect */}
           <View style={[styles.iconContainer, { backgroundColor: config.bgColor + '20' }]}>
             <Icon size={40} color={config.iconColor} fill={config.iconColor} />
           </View>
 
           {/* Title */}
-          <Text className="text-2xl font-bold text-slate-900 dark:text-white text-center mb-2">
+          <Text className="text-2xl font-bold text-content-primary text-center mb-2">
             {config.title}
           </Text>
 
           {/* Subtitle */}
-          <Text className="text-base text-slate-600 dark:text-slate-300 text-center mb-3">
+          <Text className="text-base text-content-secondary text-center mb-3">
             {config.subtitle}
           </Text>
 
           {/* Message */}
-          <Text className="text-sm text-slate-500 dark:text-slate-400 text-center">
+          <Text className="text-sm text-content-secondary text-center">
             {config.message}
           </Text>
         </Animated.View>

@@ -23,7 +23,7 @@ import {
 } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useCreateSupportRequest, type SupportCategory } from '~/hooks/useSupportRequests'
 import {
@@ -48,8 +48,8 @@ export default function ContactSupportScreen() {
   useScreenTracking('contact_support')
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
   const createSupportRequest = useCreateSupportRequest()
 
   // Form state
@@ -62,9 +62,7 @@ export default function ContactSupportScreen() {
   const selectedCategoryConfig = SUPPORT_CATEGORIES.find((c) => c.id === selectedCategory)
 
   // Colors
-  const colors = {
-    textSecondary: isDark ? '#94a3b8' : '#64748b',
-  }
+  const textSecondary = theme.colors.text.secondary
 
   const handleClearCategory = () => {
     setSelectedCategory(null)
@@ -110,14 +108,14 @@ export default function ContactSupportScreen() {
   // Success State
   if (submitState === 'success') {
     return (
-      <View className="flex-1 bg-white dark:bg-slate-950" style={{ paddingTop: insets.top }}>
+      <View className="flex-1" style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}>
         {/* Header */}
         <View className="flex-row items-center px-5 pt-4 pb-2">
           <TouchableOpacity
             onPress={() => router.back()}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <ArrowLeft size={24} color="#a855f7" />
+            <ArrowLeft size={24} color={brandColor} />
           </TouchableOpacity>
         </View>
 
@@ -127,10 +125,10 @@ export default function ContactSupportScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Title */}
-          <Text className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+          <Text className="text-2xl font-bold text-content-primary mb-2">
             Contact Support
           </Text>
-          <Text className="text-base text-slate-500 dark:text-slate-400 mb-8">
+          <Text className="text-base text-content-secondary mb-8">
             Submit a request and get personalized help from our team
           </Text>
 
@@ -159,8 +157,8 @@ export default function ContactSupportScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-white dark:bg-slate-950"
-      style={{ paddingTop: insets.top }}
+      className="flex-1"
+      style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}
     >
       {/* Header */}
       <View className="flex-row items-center px-5 pt-4 pb-2">
@@ -168,7 +166,7 @@ export default function ContactSupportScreen() {
           onPress={() => router.back()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <ArrowLeft size={24} color="#a855f7" />
+          <ArrowLeft size={24} color={brandColor} />
         </TouchableOpacity>
       </View>
 
@@ -178,15 +176,15 @@ export default function ContactSupportScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Title */}
-        <Text className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+        <Text className="text-2xl font-bold text-content-primary mb-2">
           Contact Support
         </Text>
-        <Text className="text-base text-slate-500 dark:text-slate-400 mb-6">
+        <Text className="text-base text-content-secondary mb-6">
           Submit a request and get personalized help from our team
         </Text>
 
         {/* Category Selection */}
-        <Text className="text-sm text-slate-600 dark:text-slate-300 mb-3">
+        <Text className="text-sm text-content-secondary mb-3">
           What do you need help with? <Text className="text-red-500">*</Text>
         </Text>
 
@@ -224,18 +222,17 @@ export default function ContactSupportScreen() {
           onPress={handleSubmit}
           disabled={!isValid || submitState === 'submitting'}
           activeOpacity={0.8}
-          className={`py-4 rounded-xl flex-row items-center justify-center mt-6 mb-4 ${
-            isValid ? 'bg-purple-500' : 'bg-slate-200 dark:bg-slate-800'
-          }`}
+          className="py-4 rounded-xl flex-row items-center justify-center mt-6 mb-4"
+          style={{ backgroundColor: isValid ? brandColor : theme.colors.interactive.hover }}
         >
           {submitState === 'submitting' ? (
-            <ActivityIndicator color={isValid ? '#ffffff' : colors.textSecondary} />
+            <ActivityIndicator color={isValid ? '#ffffff' : textSecondary} />
           ) : (
             <>
-              <Send size={18} color={isValid ? '#ffffff' : colors.textSecondary} />
+              <Send size={18} color={isValid ? '#ffffff' : textSecondary} />
               <Text
                 className={`font-semibold text-base ml-2 ${
-                  isValid ? 'text-white' : 'text-slate-400 dark:text-slate-500'
+                  isValid ? 'text-white' : 'text-content-tertiary'
                 }`}
               >
                 Submit Support Request

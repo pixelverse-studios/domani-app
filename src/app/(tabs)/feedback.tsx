@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MessageCircle, Bug, Lightbulb, Heart, Rocket, Send } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useCreateBetaFeedback, type FeedbackCategory } from '~/hooks/useBetaFeedback'
 import {
   CategoryGrid,
@@ -36,8 +36,8 @@ const MIN_MESSAGE_LENGTH = 1
 export default function FeedbackScreen() {
   useScreenTracking('feedback')
   const insets = useSafeAreaInsets()
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
   const createFeedback = useCreateBetaFeedback()
 
   // Form state
@@ -50,9 +50,7 @@ export default function FeedbackScreen() {
   const selectedCategoryConfig = FEEDBACK_CATEGORIES.find((c) => c.id === selectedCategory)
 
   // Colors
-  const colors = {
-    textSecondary: isDark ? '#94a3b8' : '#64748b',
-  }
+  const textSecondary = theme.colors.text.secondary
 
   const handleClearCategory = () => {
     setSelectedCategory(null)
@@ -102,7 +100,7 @@ export default function FeedbackScreen() {
   // Success State
   if (submitState === 'success') {
     return (
-      <View className="flex-1 bg-white dark:bg-slate-950" style={{ paddingTop: insets.top }}>
+      <View className="flex-1" style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}>
         <ScrollView
           className="flex-1 px-5"
           contentContainerStyle={{ flexGrow: 1 }}
@@ -110,13 +108,14 @@ export default function FeedbackScreen() {
         >
           {/* Header */}
           <View className="pt-6 pb-4">
-            <View className="w-14 h-14 rounded-full bg-purple-500 items-center justify-center mb-4">
+            <View className="w-14 h-14 rounded-full items-center justify-center mb-4"
+            style={{ backgroundColor: brandColor }}>
               <MessageCircle size={28} color="#ffffff" />
             </View>
-            <Text className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+            <Text className="text-2xl font-bold text-content-primary mb-2">
               Share Your Thoughts
             </Text>
-            <Text className="text-base text-slate-500 dark:text-slate-400">
+            <Text className="text-base text-content-secondary">
               Help us make Domani better! Your feedback shapes our development.
             </Text>
           </View>
@@ -147,8 +146,8 @@ export default function FeedbackScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-white dark:bg-slate-950"
-      style={{ paddingTop: insets.top }}
+      className="flex-1"
+      style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}
     >
       <ScrollView
         className="flex-1 px-5"
@@ -157,19 +156,20 @@ export default function FeedbackScreen() {
       >
         {/* Header */}
         <View className="pt-6 pb-6">
-          <View className="w-14 h-14 rounded-full bg-purple-500 items-center justify-center mb-4">
+          <View className="w-14 h-14 rounded-full items-center justify-center mb-4"
+            style={{ backgroundColor: brandColor }}>
             <MessageCircle size={28} color="#ffffff" />
           </View>
-          <Text className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+          <Text className="text-2xl font-bold text-content-primary mb-2">
             Share Your Thoughts
           </Text>
-          <Text className="text-base text-slate-500 dark:text-slate-400">
+          <Text className="text-base text-content-secondary">
             Help us make Domani better! Your feedback shapes our development.
           </Text>
         </View>
 
         {/* Category Selection */}
-        <Text className="text-sm text-slate-600 dark:text-slate-300 mb-3">
+        <Text className="text-sm text-content-secondary mb-3">
           What would you like to share? <Text className="text-red-500">*</Text>
         </Text>
 
@@ -209,18 +209,17 @@ export default function FeedbackScreen() {
           onPress={handleSubmit}
           disabled={!isValid || submitState === 'submitting'}
           activeOpacity={0.8}
-          className={`py-4 rounded-xl flex-row items-center justify-center mt-6 mb-4 ${
-            isValid ? 'bg-purple-500' : 'bg-slate-200 dark:bg-slate-800'
-          }`}
+          className="py-4 rounded-xl flex-row items-center justify-center mt-6 mb-4"
+          style={{ backgroundColor: isValid ? brandColor : theme.colors.interactive.hover }}
         >
           {submitState === 'submitting' ? (
-            <ActivityIndicator color={isValid ? '#ffffff' : colors.textSecondary} />
+            <ActivityIndicator color={isValid ? '#ffffff' : textSecondary} />
           ) : (
             <>
-              <Send size={18} color={isValid ? '#ffffff' : colors.textSecondary} />
+              <Send size={18} color={isValid ? '#ffffff' : textSecondary} />
               <Text
                 className={`font-semibold text-base ml-2 ${
-                  isValid ? 'text-white' : 'text-slate-400 dark:text-slate-500'
+                  isValid ? 'text-white' : 'text-content-tertiary'
                 }`}
               >
                 Send Feedback

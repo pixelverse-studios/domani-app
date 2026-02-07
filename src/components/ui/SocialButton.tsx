@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import Svg, { Path, G, ClipPath, Defs } from 'react-native-svg'
 import clsx from 'clsx'
 
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 type SocialProvider = 'google' | 'apple'
 
@@ -48,8 +48,9 @@ export const SocialButton = ({
   comingSoon = false,
   className,
 }: SocialButtonProps) => {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
+  // Note: isDark kept for provider brand colors (Google/Apple guidelines), not app theme
+  const isDark = false // Single light theme
 
   const isDisabled = disabled || comingSoon || loading
 

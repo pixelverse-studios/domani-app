@@ -12,8 +12,8 @@ export default function IndexScreen() {
   // Show loading while auth or profile is loading
   if (authLoading || (user && profileLoading)) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-slate-950">
-        <ActivityIndicator size="large" color="#a855f7" />
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: '#FAF8F5' }}>
+        <ActivityIndicator size="large" color="#7D9B8A" />
       </View>
     )
   }

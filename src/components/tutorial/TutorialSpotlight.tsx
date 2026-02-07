@@ -12,7 +12,7 @@ import Svg, { Defs, Rect, Mask } from 'react-native-svg'
 import { router } from 'expo-router'
 
 import { Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useTutorialStore, TutorialStep, TutorialTargetMeasurement } from '~/stores/tutorialStore'
 
@@ -170,8 +170,8 @@ const TOTAL_STEPS = 5
  */
 export function TutorialSpotlight() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions()
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
 
   const {
     isActive,
@@ -369,7 +369,7 @@ export function TutorialSpotlight() {
         <Rect
           width={screenWidth}
           height={screenHeight}
-          fill={isDark ? 'rgba(0, 0, 0, 0.75)' : 'rgba(0, 0, 0, 0.6)'}
+          fill="rgba(0, 0, 0, 0.6)"
           mask="url(#spotlight-mask)"
         />
       </Svg>
@@ -384,6 +384,7 @@ export function TutorialSpotlight() {
             top: holeY - 4,
             width: holeWidth + 8,
             height: holeHeight + 8,
+            shadowColor: brandColor,
           },
         ]}
       />
@@ -394,7 +395,7 @@ export function TutorialSpotlight() {
           styles.tooltip,
           tooltipAnimatedStyle,
           {
-            backgroundColor: isDark ? '#1e293b' : '#ffffff',
+            backgroundColor: theme.colors.card,
             ...tooltipStyle,
           },
         ]}
@@ -410,15 +411,13 @@ export function TutorialSpotlight() {
                   {
                     backgroundColor:
                       i + 1 <= (stepConfig.stepNumber || 0)
-                        ? '#a855f7'
-                        : isDark
-                          ? '#475569'
-                          : '#cbd5e1',
+                        ? brandColor
+                        : theme.colors.border.primary,
                   },
                 ]}
               />
             ))}
-            <Text className="text-xs ml-2" style={{ color: isDark ? '#94a3b8' : '#64748b' }}>
+            <Text className="text-xs ml-2" style={{ color: theme.colors.text.secondary }}>
               {stepConfig.stepNumber} of {TOTAL_STEPS}
             </Text>
           </View>
@@ -426,14 +425,14 @@ export function TutorialSpotlight() {
 
         {stepConfig.title && (
           <Text
-            className="text-lg font-sans-bold text-slate-900 dark:text-white"
+            className="text-lg font-sans-bold text-content-primary"
             style={{ marginTop: stepConfig.stepNumber ? 12 : 0 }}
           >
             {stepConfig.title}
           </Text>
         )}
         <Text
-          className="text-sm text-slate-600 dark:text-slate-300"
+          className="text-sm text-content-secondary"
           style={{ marginTop: 4, lineHeight: 20 }}
         >
           {stepConfig.description}
@@ -442,22 +441,22 @@ export function TutorialSpotlight() {
         <View style={styles.buttonRow}>
           {stepConfig.showSkip && (
             <TouchableOpacity onPress={handleSkip} style={styles.skipButton} activeOpacity={0.6}>
-              <Text className="text-slate-500 dark:text-slate-400 text-sm">Skip tour</Text>
+              <Text className="text-content-tertiary text-sm">Skip tour</Text>
             </TouchableOpacity>
           )}
 
           {stepConfig.requiresInteraction && (
             <TouchableOpacity
               onPress={handleNextInteraction}
-              style={styles.interactionNextButton}
+              style={[styles.interactionNextButton, { borderColor: brandColor }]}
               activeOpacity={0.8}
             >
-              <Text className="text-purple-500 font-sans-semibold text-sm">Next</Text>
+              <Text className="font-sans-semibold text-sm" style={{ color: brandColor }}>Next</Text>
             </TouchableOpacity>
           )}
 
           {stepConfig.showNext && (
-            <TouchableOpacity onPress={handleGotIt} style={styles.nextButton} activeOpacity={0.8}>
+            <TouchableOpacity onPress={handleGotIt} style={[styles.nextButton, { backgroundColor: brandColor }]} activeOpacity={0.8}>
               <Text className="text-white font-sans-semibold text-sm">Got it</Text>
             </TouchableOpacity>
           )}
@@ -508,7 +507,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderRadius: 18,
     backgroundColor: 'transparent',
-    shadowColor: '#a855f7',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 20,
@@ -546,7 +544,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   nextButton: {
-    backgroundColor: '#a855f7',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -554,7 +551,6 @@ const styles = StyleSheet.create({
   interactionNextButton: {
     backgroundColor: 'transparent',
     borderWidth: 1.5,
-    borderColor: '#a855f7',
     paddingVertical: 11,
     paddingHorizontal: 22,
     borderRadius: 12,

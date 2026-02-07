@@ -7,7 +7,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 import { format } from 'date-fns'
 
 import { Button, Text } from '~/components/ui'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { NotificationService } from '~/lib/notifications'
 import { useNotificationStore } from '~/stores/notificationStore'
@@ -37,8 +37,8 @@ export default function NotificationSetupScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const updateProfile = useUpdateProfile()
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
   const { track } = useAnalytics()
 
   const { setPlanningReminderId, setPermissionStatus } = useNotificationStore()
@@ -135,26 +135,24 @@ export default function NotificationSetupScreen() {
   }
 
   // Theme-aware colors
-  const colors = {
-    background: isDark ? '#0c0c1a' : '#f8f7fc',
-    gradientColors: isDark
-      ? (['#0c0c1a', '#12122a', '#0c0c1a'] as const)
-      : (['#f8f7fc', '#f3f0ff', '#f8f7fc'] as const),
-    title: isDark ? '#ffffff' : '#1e1b4b',
-    subtitle: isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(30, 27, 75, 0.5)',
-    sectionTitle: isDark ? '#ffffff' : '#1e1b4b',
-    sectionDescription: isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(30, 27, 75, 0.5)',
-    pickerBackground: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(124, 58, 237, 0.05)',
-    pickerText: isDark ? '#ffffff' : '#1e1b4b',
-    androidTimeText: isDark ? '#a78bfa' : '#7c3aed',
-    androidButtonBg: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(124, 58, 237, 0.1)',
+  const themeColors = {
+    background: theme.colors.background,
+    gradientColors: [theme.colors.background, theme.colors.card, theme.colors.background] as const,
+    title: theme.colors.text.primary,
+    subtitle: theme.colors.text.secondary,
+    sectionTitle: theme.colors.text.primary,
+    sectionDescription: theme.colors.text.secondary,
+    pickerBackground: `${brandColor}0D`, // 5% opacity
+    pickerText: theme.colors.text.primary,
+    androidTimeText: brandColor,
+    androidButtonBg: `${brandColor}1A`, // 10% opacity
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       {/* Gradient background */}
       <LinearGradient
-        colors={colors.gradientColors}
+        colors={themeColors.gradientColors}
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFillObject}
       />
@@ -169,18 +167,18 @@ export default function NotificationSetupScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.title }]}>Set Your Reminder</Text>
-          <Text style={[styles.subtitle, { color: colors.subtitle }]}>
+          <Text style={[styles.title, { color: themeColors.title }]}>Set Your Reminder</Text>
+          <Text style={[styles.subtitle, { color: themeColors.subtitle }]}>
             When to plan for tomorrow
           </Text>
         </View>
 
         {/* Plan Reminder Section */}
         <View style={styles.reminderSection}>
-          <Text style={[styles.sectionTitle, { color: colors.sectionTitle }]}>
+          <Text style={[styles.sectionTitle, { color: themeColors.sectionTitle }]}>
             Planning Reminder
           </Text>
-          <Text style={[styles.sectionDescription, { color: colors.sectionDescription }]}>
+          <Text style={[styles.sectionDescription, { color: themeColors.sectionDescription }]}>
             When would you like Domani to remind you to plan for tomorrow?
           </Text>
 
@@ -188,21 +186,21 @@ export default function NotificationSetupScreen() {
             <Button
               variant="ghost"
               onPress={() => setShowPlanPicker(true)}
-              style={[styles.androidTimeButton, { backgroundColor: colors.androidButtonBg }]}
+              style={[styles.androidTimeButton, { backgroundColor: themeColors.androidButtonBg }]}
             >
-              <Text style={[styles.androidTimeText, { color: colors.androidTimeText }]}>
+              <Text style={[styles.androidTimeText, { color: themeColors.androidTimeText }]}>
                 {format(planTime, 'h:mm a')}
               </Text>
             </Button>
           ) : (
-            <View style={[styles.pickerContainer, { backgroundColor: colors.pickerBackground }]}>
+            <View style={[styles.pickerContainer, { backgroundColor: themeColors.pickerBackground }]}>
               <DateTimePicker
                 value={planTime}
                 mode="time"
                 display="spinner"
                 onChange={handlePlanTimeChange}
-                textColor={colors.pickerText}
-                themeVariant={isDark ? 'dark' : 'light'}
+                textColor={themeColors.pickerText}
+                themeVariant="light"
                 style={styles.picker}
               />
             </View>
@@ -210,9 +208,9 @@ export default function NotificationSetupScreen() {
         </View>
 
         {/* Task Reminders Info */}
-        <View style={[styles.infoSection, { backgroundColor: colors.pickerBackground }]}>
-          <Text style={[styles.infoTitle, { color: colors.sectionTitle }]}>Task Reminders</Text>
-          <Text style={[styles.infoDescription, { color: colors.sectionDescription }]}>
+        <View style={[styles.infoSection, { backgroundColor: themeColors.pickerBackground }]}>
+          <Text style={[styles.infoTitle, { color: themeColors.sectionTitle }]}>Task Reminders</Text>
+          <Text style={[styles.infoDescription, { color: themeColors.sectionDescription }]}>
             Each task has its own reminder. You can set individual reminder times when creating or
             editing tasks.
           </Text>
@@ -228,7 +226,7 @@ export default function NotificationSetupScreen() {
             size="lg"
             onPress={handleContinue}
             loading={loading}
-            style={styles.continueButton}
+            style={[styles.continueButton, { backgroundColor: brandColor, shadowColor: brandColor }]}
           >
             <Text style={styles.continueButtonText}>Continue to Domani</Text>
           </Button>
@@ -322,10 +320,8 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   continueButton: {
-    backgroundColor: '#7c3aed',
     borderRadius: 16,
     paddingVertical: 18,
-    shadowColor: '#7c3aed',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 16,

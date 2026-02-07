@@ -12,7 +12,7 @@ import Animated, {
 } from 'react-native-reanimated'
 
 import { Text } from './Text'
-import { useTheme } from '~/hooks/useTheme'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle)
 
@@ -35,8 +35,7 @@ export function CircularProgress({
   showPercentage = true,
   animationKey = 0,
 }: CircularProgressProps) {
-  const { activeTheme } = useTheme()
-  const isDark = activeTheme === 'dark'
+  const theme = useAppTheme()
 
   const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
@@ -94,16 +93,16 @@ export function CircularProgress({
   })
 
   // Theme-aware colors
-  const backgroundStroke = isDark ? '#2D2D3A' : '#e2e8f0'
+  const backgroundStroke = theme.colors.border.primary
 
   return (
     <View style={{ width: size, height: size }} className="items-center justify-center">
       <Svg width={size} height={size}>
         <Defs>
           <LinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor="#c084fc" />
-            <Stop offset="50%" stopColor="#a855f7" />
-            <Stop offset="100%" stopColor="#7c3aed" />
+            <Stop offset="0%" stopColor={theme.colors.brand.light} />
+            <Stop offset="50%" stopColor={theme.colors.brand.primary} />
+            <Stop offset="100%" stopColor={theme.colors.brand.dark} />
           </LinearGradient>
         </Defs>
         {/* Background circle - subtle dark ring */}
@@ -133,13 +132,13 @@ export function CircularProgress({
       {showPercentage && (
         <View className="absolute items-center justify-center flex-row">
           <Text
-            className="font-bold text-slate-900 dark:text-white"
+            className="font-bold text-content-primary"
             style={{ fontSize: size * 0.26, lineHeight: size * 0.32 }}
           >
             {displayedProgress}
           </Text>
           <Text
-            className="font-medium text-slate-600 dark:text-slate-300"
+            className="font-medium text-content-secondary"
             style={{ fontSize: size * 0.14, marginTop: size * 0.02, marginLeft: 1 }}
           >
             %

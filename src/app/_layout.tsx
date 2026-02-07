@@ -58,8 +58,8 @@ function RootLayoutContent() {
   // This prevents the race condition where (tabs) renders before auth check completes
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white dark:bg-slate-950">
-        <ActivityIndicator size="large" color="#a855f7" />
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: '#FAF8F5' }}>
+        <ActivityIndicator size="large" color="#7D9B8A" />
       </View>
     )
   }
@@ -97,8 +97,8 @@ export default function RootLayout() {
 
   if (!fontsLoaded) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-950">
-        <ActivityIndicator size="large" color="#3b82f6" />
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: '#FAF8F5' }}>
+        <ActivityIndicator size="large" color="#7D9B8A" />
       </View>
     )
   }
