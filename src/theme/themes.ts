@@ -70,6 +70,10 @@ export interface Theme {
     xl: number
     full: number
   }
+  assets: {
+    icon: string
+    splash: string
+  }
 }
 
 const sage: Theme = {
@@ -128,6 +132,10 @@ const sage: Theme = {
     lg: 16,
     xl: 24,
     full: 9999,
+  },
+  assets: {
+    icon: './assets/AppIcon-sage.png',
+    splash: './assets/Splash-sage.png',
   },
 }
 
