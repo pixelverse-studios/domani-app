@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { View, ActivityIndicator } from 'react-native'
+import { View, Text, ActivityIndicator } from 'react-native'
 import { Tabs, Redirect } from 'expo-router'
 import { CheckCircle, Calendar, MessageCircle, BarChart3, Settings } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -56,14 +56,18 @@ export default function TabLayout() {
             paddingBottom: insets.bottom,
             paddingTop: 8,
           },
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: '400',
-            marginBottom: 2,
-          },
-          tabBarActiveLabelStyle: {
-            fontWeight: '600',
-          },
+          tabBarLabel: ({ focused, children }) => (
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: focused ? '600' : '400',
+                color: focused ? theme.colors.brand.primary : theme.colors.text.muted,
+                marginBottom: 2,
+              }}
+            >
+              {children}
+            </Text>
+          ),
           tabBarIconStyle: {
             marginTop: 4,
           },
