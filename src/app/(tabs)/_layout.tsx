@@ -47,7 +47,7 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: theme.colors.brand.primary,
-          tabBarInactiveTintColor: theme.colors.text.tertiary,
+          tabBarInactiveTintColor: theme.colors.text.muted,
           tabBarStyle: {
             backgroundColor: theme.colors.background,
             borderTopColor: theme.colors.border.primary,
@@ -58,8 +58,11 @@ export default function TabLayout() {
           },
           tabBarLabelStyle: {
             fontSize: 11,
-            fontWeight: '500',
+            fontWeight: '400',
             marginBottom: 2,
+          },
+          tabBarActiveLabelStyle: {
+            fontWeight: '600',
           },
           tabBarIconStyle: {
             marginTop: 4,
