@@ -4,6 +4,7 @@ import { Sparkles, HelpCircle } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 
 import { Text } from '~/components/ui'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { SectionHeader } from './SectionHeader'
 import { SettingsRow } from './SettingsRow'
 
@@ -16,6 +17,7 @@ interface SupportSectionProps {
  */
 export function SupportSection({ onReplayTutorial }: SupportSectionProps) {
   const router = useRouter()
+  const theme = useAppTheme()
 
   return (
     <>
@@ -30,10 +32,11 @@ export function SupportSection({ onReplayTutorial }: SupportSectionProps) {
         <TouchableOpacity
           onPress={() => router.push('/contact-support')}
           activeOpacity={0.7}
-          className="flex-row items-center justify-center py-3.5 rounded-xl border border-purple-500 bg-purple-500/10"
+          className="flex-row items-center justify-center py-3.5 rounded-xl"
+          style={{ borderWidth: 1, borderColor: theme.colors.brand.primary, backgroundColor: theme.colors.interactive.activeShadow }}
         >
-          <HelpCircle size={18} color="#a855f7" />
-          <Text className="text-purple-500 font-semibold ml-2">Contact for Support</Text>
+          <HelpCircle size={18} color={theme.colors.brand.primary} />
+          <Text style={{ color: theme.colors.brand.primary, fontWeight: '600', marginLeft: 8 }}>Contact for Support</Text>
         </TouchableOpacity>
       </View>
     </>

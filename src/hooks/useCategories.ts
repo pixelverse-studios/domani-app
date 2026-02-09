@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { supabase } from '~/lib/supabase'
 import type { UserCategory, SystemCategory, UserCategoryPreference } from '~/types'
+import { getTheme } from '~/theme/themes'
 
 // Map of form category IDs to database names for system categories
 const SYSTEM_CATEGORY_MAP: Record<string, string> = {
@@ -87,7 +88,7 @@ export function useCreateUserCategory() {
   return useMutation({
     mutationFn: async ({
       name,
-      color = '#8b5cf6',
+      color = getTheme().colors.brand.primary,
       icon = 'tag',
     }: {
       name: string

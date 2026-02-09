@@ -207,7 +207,7 @@ export function WeeklySummaryCard({ dailyData, animationKey = 0 }: WeeklySummary
 
   // Color palette - using distinct colors for visual variety
   const trophyColor = '#eab308' // yellow-500 for trophy
-  const activityColor = '#8b5cf6' // violet-500 for activity
+  const activityColor = theme.colors.brand.primary
   const checkColor = '#22c55e' // green-500 for perfect days
 
   return (

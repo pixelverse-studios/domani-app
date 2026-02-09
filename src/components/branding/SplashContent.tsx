@@ -2,6 +2,7 @@ import React, { useEffect, useMemo } from 'react'
 import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import Svg, { Defs, LinearGradient as SvgGradient, Stop, Path, Circle, G } from 'react-native-svg'
+import { getTheme } from '~/theme/themes'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -94,7 +95,7 @@ export function SplashContent({ showTagline = true }: SplashContentProps) {
     <View style={styles.container}>
       {/* Gradient background - twilight sky */}
       <LinearGradient
-        colors={['#1e1b4b', '#0f172a', '#0c0f1a']}
+        colors={[getTheme().colors.text.primary, '#2A3530', '#1E2722']}
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFillObject}
       />
@@ -109,9 +110,9 @@ export function SplashContent({ showTagline = true }: SplashContentProps) {
           <Svg width={280} height={72} viewBox="0 0 280 72">
             <Defs>
               <SvgGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <Stop offset="0%" stopColor="#c4b5fd" />
-                <Stop offset="50%" stopColor="#a78bfa" />
-                <Stop offset="100%" stopColor="#8b5cf6" />
+                <Stop offset="0%" stopColor={getTheme().colors.brand.light} />
+                <Stop offset="50%" stopColor={getTheme().colors.brand.primary} />
+                <Stop offset="100%" stopColor={getTheme().colors.brand.dark} />
               </SvgGradient>
             </Defs>
             {/* Custom "domani" letterforms - geometric, slightly rounded, lowercase */}
@@ -187,7 +188,7 @@ const styles = StyleSheet.create({
     marginLeft: -SCREEN_WIDTH * 0.4,
     marginTop: -SCREEN_WIDTH * 0.4,
     borderRadius: SCREEN_WIDTH * 0.4,
-    backgroundColor: '#7c3aed',
+    backgroundColor: getTheme().colors.brand.primary,
     opacity: 0.08,
   },
   content: {

@@ -144,3 +144,11 @@ export const themes: Record<ThemeName, Theme> = {
 }
 
 export const defaultTheme: ThemeName = 'sage'
+
+/**
+ * Get the current theme outside of React components.
+ * Use useAppTheme() in components instead.
+ */
+export function getTheme(): Theme {
+  return themes[defaultTheme]
+}

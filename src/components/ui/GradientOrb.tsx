@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react'
 import { Animated, Easing, StyleSheet, View } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import { getTheme } from '~/theme/themes'
 
 interface GradientOrbProps {
   size?: number
@@ -8,7 +9,8 @@ interface GradientOrbProps {
   position?: 'center' | 'top-right' | 'bottom-left'
 }
 
-const defaultColors = ['#7c3aed', '#a855f7', '#f59e0b', '#fbbf24'] as const
+const t = getTheme()
+const defaultColors = [t.colors.brand.dark, t.colors.brand.primary, t.colors.brand.light, t.colors.border.primary] as const
 
 export const GradientOrb = ({
   size = 400,
@@ -123,7 +125,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     backgroundColor: 'transparent',
     // Creates a soft glow effect
-    shadowColor: '#a855f7',
+    shadowColor: getTheme().colors.brand.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 100,
