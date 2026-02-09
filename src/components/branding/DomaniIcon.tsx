@@ -11,6 +11,7 @@ import Svg, {
   G,
   ClipPath,
 } from 'react-native-svg'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 interface DomaniIconProps {
   size?: number
@@ -36,21 +37,23 @@ export function DomaniIcon({
   variant = 'monogram',
   showBackground = true,
 }: DomaniIconProps) {
+  const theme = useAppTheme()
+
   if (variant === 'monogram') {
     return (
       <Svg width={size} height={size} viewBox="0 0 100 100">
         <Defs>
-          {/* Background gradient - deep purple to indigo */}
+          {/* Background gradient - sage green */}
           <LinearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor="#7c3aed" />
-            <Stop offset="50%" stopColor="#6d28d9" />
-            <Stop offset="100%" stopColor="#5b21b6" />
+            <Stop offset="0%" stopColor={theme.colors.brand.primary} />
+            <Stop offset="50%" stopColor={theme.colors.brand.dark} />
+            <Stop offset="100%" stopColor={theme.colors.text.primary} />
           </LinearGradient>
 
-          {/* D letter gradient - light purple/white */}
+          {/* D letter gradient - light sage/white */}
           <LinearGradient id="letterGradient" x1="0%" y1="0%" x2="100%" y2="100%">
             <Stop offset="0%" stopColor="#ffffff" />
-            <Stop offset="100%" stopColor="#e9d5ff" />
+            <Stop offset="100%" stopColor={theme.colors.brand.light} />
           </LinearGradient>
 
           {/* Sun gradient - amber with glow */}
@@ -112,9 +115,9 @@ export function DomaniIcon({
       <Svg width={size * 2.8} height={size * 0.72} viewBox="0 0 280 72">
         <Defs>
           <LinearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <Stop offset="0%" stopColor="#c4b5fd" />
-            <Stop offset="50%" stopColor="#a78bfa" />
-            <Stop offset="100%" stopColor="#8b5cf6" />
+            <Stop offset="0%" stopColor={theme.colors.brand.light} />
+            <Stop offset="50%" stopColor={theme.colors.brand.primary} />
+            <Stop offset="100%" stopColor={theme.colors.brand.dark} />
           </LinearGradient>
         </Defs>
         {/* d */}

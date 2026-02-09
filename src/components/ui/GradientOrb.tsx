@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react'
 import { Animated, Easing, StyleSheet, View } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 interface GradientOrbProps {
   size?: number
@@ -8,13 +9,20 @@ interface GradientOrbProps {
   position?: 'center' | 'top-right' | 'bottom-left'
 }
 
-const defaultColors = ['#7c3aed', '#a855f7', '#f59e0b', '#fbbf24'] as const
-
 export const GradientOrb = ({
   size = 400,
-  colors = defaultColors,
+  colors,
   position = 'center',
 }: GradientOrbProps) => {
+  const theme = useAppTheme()
+
+  const defaultColors = useMemo(
+    () =>
+      [theme.colors.brand.dark, theme.colors.brand.primary, theme.colors.brand.light, theme.colors.border.primary] as const,
+    [theme],
+  )
+  const finalColors = colors ?? defaultColors
+
   // Use useMemo to create stable animated values
   const pulseAnim = useMemo(() => new Animated.Value(1), [])
   const rotateAnim = useMemo(() => new Animated.Value(0), [])
@@ -87,7 +95,7 @@ export const GradientOrb = ({
     >
       {/* Multiple layered gradients for depth */}
       <LinearGradient
-        colors={colors}
+        colors={finalColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[styles.gradient, { borderRadius: size / 2 }]}
@@ -102,6 +110,7 @@ export const GradientOrb = ({
             borderRadius: (size * 1.5) / 2,
             marginLeft: -size * 0.25,
             marginTop: -size * 0.25,
+            shadowColor: theme.colors.brand.primary,
           },
         ]}
       />
@@ -122,8 +131,6 @@ const styles = StyleSheet.create({
   blurOverlay: {
     position: 'absolute',
     backgroundColor: 'transparent',
-    // Creates a soft glow effect
-    shadowColor: '#a855f7',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 100,

@@ -21,6 +21,7 @@ import { format, setHours, setMinutes } from 'date-fns'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { getTheme } from '~/theme/themes'
 import { useTutorialTarget } from '~/components/tutorial'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
 
@@ -49,20 +50,23 @@ const SHORTCUT_LABELS: Record<number, string> = {
   2: 'Shortcut 3',
 }
 
-// Zone colors based on actual time of day (single theme)
-const ZONE_COLORS = {
-  morning: {
-    color: '#f59e0b', // amber-500
-    bg: 'rgba(245, 158, 11, 0.15)',
-  },
-  afternoon: {
-    color: '#8b5cf6', // violet-500
-    bg: 'rgba(139, 92, 246, 0.15)',
-  },
-  evening: {
-    color: '#6366f1', // indigo-500
-    bg: 'rgba(99, 102, 241, 0.15)',
-  },
+// Zone colors based on actual time of day
+function getZoneColors() {
+  const t = getTheme()
+  return {
+    morning: {
+      color: t.priority.medium.color,
+      bg: `${t.priority.medium.color}26`, // 15% opacity
+    },
+    afternoon: {
+      color: t.colors.brand.primary,
+      bg: `${t.colors.brand.primary}26`,
+    },
+    evening: {
+      color: t.colors.brand.dark,
+      bg: `${t.colors.brand.dark}26`,
+    },
+  }
 }
 
 /**
@@ -71,21 +75,22 @@ const ZONE_COLORS = {
  * - Afternoon: 12 PM - 4:59 PM (violet)
  * - Evening: 5 PM - 4:59 AM (indigo)
  */
-function getTimeZoneColor(hour: number): {
+function getTimeZoneColor(hour: number, zoneColors: ReturnType<typeof getZoneColors>): {
   color: string
   bg: string
 } {
   if (hour >= 5 && hour < 12) {
-    return ZONE_COLORS.morning
+    return zoneColors.morning
   }
   if (hour >= 12 && hour < 17) {
-    return ZONE_COLORS.afternoon
+    return zoneColors.afternoon
   }
-  return ZONE_COLORS.evening
+  return zoneColors.evening
 }
 
 export function ReminderShortcutsSection() {
   const theme = useAppTheme()
+  const zoneColors = getZoneColors()
   const brandColor = theme.colors.brand.primary
   const { profile } = useProfile()
   const updateProfile = useUpdateProfile()
@@ -208,7 +213,7 @@ export function ReminderShortcutsSection() {
         {/* Second Row: Time Pills */}
         <View style={styles.pillsRow}>
           {shortcuts.map((shortcut) => {
-            const colors = getTimeZoneColor(shortcut.hour)
+            const colors = getTimeZoneColor(shortcut.hour, zoneColors)
 
             return (
               <View key={shortcut.id} style={[styles.timePill, { backgroundColor: colors.bg }]}>
@@ -240,7 +245,7 @@ export function ReminderShortcutsSection() {
           <View style={styles.shortcutList}>
             {shortcuts.map((shortcut, index) => {
               const isLast = index === shortcuts.length - 1
-              const colors = getTimeZoneColor(shortcut.hour)
+              const colors = getTimeZoneColor(shortcut.hour, zoneColors)
 
               return (
                 <TouchableOpacity

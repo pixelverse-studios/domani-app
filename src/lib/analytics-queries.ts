@@ -1,4 +1,5 @@
 import { supabase } from '~/lib/supabase'
+import { getTheme } from '~/theme/themes'
 
 /**
  * Analytics Query Utilities
@@ -236,7 +237,7 @@ export async function fetchDailyCompletions(
     // Use actual category or fallback to "Uncategorized"
     const categoryId = category?.id ?? 'uncategorized'
     const categoryName = category?.name ?? 'Uncategorized'
-    const categoryColor = category?.color ?? '#8b5cf6' // Purple for uncategorized
+    const categoryColor = category?.color ?? getTheme().colors.brand.primary
 
     // Find or create category entry for this day
     let categoryEntry = dayData.categories.find((c) => c.categoryId === categoryId)

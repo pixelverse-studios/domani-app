@@ -2,6 +2,7 @@ import { Platform, Linking } from 'react-native'
 import { addDays, format, parseISO } from 'date-fns'
 import Constants from 'expo-constants'
 
+import { getTheme } from '~/theme/themes'
 import { supabase } from './supabase'
 
 // Check if notifications are supported (not in Expo Go on Android SDK 53+)
@@ -52,7 +53,7 @@ export const NotificationService = {
         description: 'Daily reminders to plan tomorrow',
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#7c3aed',
+        lightColor: getTheme().colors.brand.primary,
       })
 
       await Notifications.setNotificationChannelAsync(TASK_CHANNEL_ID, {
@@ -60,7 +61,7 @@ export const NotificationService = {
         description: 'Reminders for individual tasks',
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#7c3aed',
+        lightColor: getTheme().colors.brand.primary,
       })
     }
   },

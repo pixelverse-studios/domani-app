@@ -6,6 +6,7 @@
  */
 
 import type { TaskWithCategory } from '~/types'
+import { getTheme } from '~/theme/themes'
 
 // Theme buckets that categories map to
 export type DayTheme = 'work' | 'wellness' | 'personal' | 'learning' | 'balanced'
@@ -139,7 +140,7 @@ const DAY_TYPE_CONFIG: Record<DayTheme, Omit<DayType, 'theme'>> = {
     title: 'Balanced Day',
     subtitle: 'A well-rounded day ahead',
     iconName: 'Scale',
-    accentColor: '#a855f7', // purple-500 (matches app accent)
+    accentColor: getTheme().colors.brand.primary,
   },
 }
 
