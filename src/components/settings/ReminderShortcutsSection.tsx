@@ -75,11 +75,10 @@ function getZoneColors() {
  * - Afternoon: 12 PM - 4:59 PM (violet)
  * - Evening: 5 PM - 4:59 AM (indigo)
  */
-function getTimeZoneColor(hour: number): {
+function getTimeZoneColor(hour: number, zoneColors: ReturnType<typeof getZoneColors>): {
   color: string
   bg: string
 } {
-  const zoneColors = getZoneColors()
   if (hour >= 5 && hour < 12) {
     return zoneColors.morning
   }
@@ -91,6 +90,7 @@ function getTimeZoneColor(hour: number): {
 
 export function ReminderShortcutsSection() {
   const theme = useAppTheme()
+  const zoneColors = getZoneColors()
   const brandColor = theme.colors.brand.primary
   const { profile } = useProfile()
   const updateProfile = useUpdateProfile()
@@ -213,7 +213,7 @@ export function ReminderShortcutsSection() {
         {/* Second Row: Time Pills */}
         <View style={styles.pillsRow}>
           {shortcuts.map((shortcut) => {
-            const colors = getTimeZoneColor(shortcut.hour)
+            const colors = getTimeZoneColor(shortcut.hour, zoneColors)
 
             return (
               <View key={shortcut.id} style={[styles.timePill, { backgroundColor: colors.bg }]}>
@@ -245,7 +245,7 @@ export function ReminderShortcutsSection() {
           <View style={styles.shortcutList}>
             {shortcuts.map((shortcut, index) => {
               const isLast = index === shortcuts.length - 1
-              const colors = getTimeZoneColor(shortcut.hour)
+              const colors = getTimeZoneColor(shortcut.hour, zoneColors)
 
               return (
                 <TouchableOpacity

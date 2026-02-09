@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from 'react'
 import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import Svg, { Defs, LinearGradient as SvgGradient, Stop, Path, Circle, G } from 'react-native-svg'
-import { getTheme } from '~/theme/themes'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
@@ -18,6 +18,7 @@ interface SplashContentProps {
  * capturing the threshold moment between today and tomorrow.
  */
 export function SplashContent({ showTagline = true }: SplashContentProps) {
+  const theme = useAppTheme()
   const logoAnim = useMemo(() => new Animated.Value(0), [])
   const taglineAnim = useMemo(() => new Animated.Value(0), [])
   const sunAnim = useMemo(() => new Animated.Value(0), [])
@@ -95,13 +96,13 @@ export function SplashContent({ showTagline = true }: SplashContentProps) {
     <View style={styles.container}>
       {/* Gradient background - twilight sky */}
       <LinearGradient
-        colors={[getTheme().colors.text.primary, '#2A3530', '#1E2722']}
+        colors={[theme.colors.text.primary, '#2A3530', '#1E2722']}
         locations={[0, 0.5, 1]}
         style={StyleSheet.absoluteFillObject}
       />
 
       {/* Subtle ambient glow */}
-      <View style={styles.ambientGlow} />
+      <View style={[styles.ambientGlow, { backgroundColor: theme.colors.brand.primary }]} />
 
       {/* Main content */}
       <View style={styles.content}>
@@ -110,9 +111,9 @@ export function SplashContent({ showTagline = true }: SplashContentProps) {
           <Svg width={280} height={72} viewBox="0 0 280 72">
             <Defs>
               <SvgGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <Stop offset="0%" stopColor={getTheme().colors.brand.light} />
-                <Stop offset="50%" stopColor={getTheme().colors.brand.primary} />
-                <Stop offset="100%" stopColor={getTheme().colors.brand.dark} />
+                <Stop offset="0%" stopColor={theme.colors.brand.light} />
+                <Stop offset="50%" stopColor={theme.colors.brand.primary} />
+                <Stop offset="100%" stopColor={theme.colors.brand.dark} />
               </SvgGradient>
             </Defs>
             {/* Custom "domani" letterforms - geometric, slightly rounded, lowercase */}
@@ -188,7 +189,6 @@ const styles = StyleSheet.create({
     marginLeft: -SCREEN_WIDTH * 0.4,
     marginTop: -SCREEN_WIDTH * 0.4,
     borderRadius: SCREEN_WIDTH * 0.4,
-    backgroundColor: getTheme().colors.brand.primary,
     opacity: 0.08,
   },
   content: {
