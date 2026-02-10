@@ -28,16 +28,19 @@ export function ProgressCard({ completed, total }: ProgressCardProps) {
           </Text>
           <View className="flex-row gap-10">
             <View className="items-center">
-              <Text className="text-4xl font-bold text-green-500">
+              <Text className="text-4xl font-bold text-brand-primary">
                 {completed}
               </Text>
               <Text className="text-base text-content-secondary">Completed</Text>
             </View>
             <View className="items-center">
-              <Text className="text-4xl font-bold text-orange-500">
+              <Text
+                className="text-4xl font-bold"
+                style={{ color: theme.colors.accent.terracotta }}
+              >
                 {remaining}
               </Text>
-              <Text className="text-base text-content-secondary">Remaining</Text>
+              <Text className="text-base text-content-secondary">Unfinished</Text>
             </View>
           </View>
         </View>

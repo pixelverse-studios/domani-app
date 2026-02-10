@@ -59,7 +59,11 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
 
   const track = useCallback(
     <T extends AnalyticsEvent>(eventName: T['name'], properties?: T['properties']) => {
-      if (!posthog) return
+      if (!posthog) {
+        console.warn('[Analytics] Cannot track event, PostHog not initialized:', eventName)
+        return
+      }
+      console.log('[Analytics] Tracking event:', eventName, properties)
       posthog.capture(eventName, properties)
     },
     [posthog],
@@ -67,20 +71,32 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
 
   const identify = useCallback(
     (userId: string, traits?: Record<string, string | number | boolean | null>) => {
-      if (!posthog) return
+      if (!posthog) {
+        console.warn('[Analytics] Cannot identify user, PostHog not initialized')
+        return
+      }
+      console.log('[Analytics] Identifying user:', userId, traits)
       posthog.identify(userId, traits)
     },
     [posthog],
   )
 
   const reset = useCallback(() => {
-    if (!posthog) return
+    if (!posthog) {
+      console.warn('[Analytics] Cannot reset, PostHog not initialized')
+      return
+    }
+    console.log('[Analytics] Resetting user session')
     posthog.reset()
   }, [posthog])
 
   const screen = useCallback(
     (screenName: string) => {
-      if (!posthog) return
+      if (!posthog) {
+        console.warn('[Analytics] Cannot track screen, PostHog not initialized:', screenName)
+        return
+      }
+      console.log('[Analytics] Tracking screen:', screenName)
       posthog.screen(screenName)
     },
     [posthog],
@@ -104,6 +120,9 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     return <AnalyticsContext.Provider value={noopValue}>{children}</AnalyticsContext.Provider>
   }
 
+  console.log('[Analytics] Initializing PostHog with key:', POSTHOG_API_KEY.substring(0, 10) + '...')
+  console.log('[Analytics] PostHog host:', POSTHOG_HOST)
+
   return (
     <PostHogProvider
       apiKey={POSTHOG_API_KEY}
@@ -111,16 +130,15 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
         host: POSTHOG_HOST,
         // Capture app lifecycle events automatically
         captureAppLifecycleEvents: true,
-        // Enable session replay (requires dev build)
-        enableSessionReplay: true,
-        sessionReplayConfig: {
-          // Mask all text input for privacy
-          maskAllTextInputs: true,
-          // Mask all images for privacy
-          maskAllImages: false,
-          // Capture network requests
-          captureNetworkTelemetry: true,
-        },
+        // Disable session replay for now (requires custom dev build, not Expo Go)
+        enableSessionReplay: false,
+        // Note: Uncomment below when using custom dev builds (not Expo Go)
+        // enableSessionReplay: true,
+        // sessionReplayConfig: {
+        //   maskAllTextInputs: true,
+        //   maskAllImages: false,
+        //   captureNetworkTelemetry: true,
+        // },
       }}
       // Enable autocapture for screen views
       autocapture={{

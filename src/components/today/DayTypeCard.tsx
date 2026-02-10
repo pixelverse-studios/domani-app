@@ -20,25 +20,25 @@ const ICON_MAP = {
   Scale,
 } as const
 
-// Background color classes for icon containers (20% opacity versions)
-const ICON_BG_COLORS: Record<DayType['iconName'], string> = {
-  Briefcase: 'bg-blue-500/20',
-  Heart: 'bg-pink-500/20',
-  Home: 'bg-emerald-500/20',
-  BookOpen: 'bg-amber-500/20',
-  Scale: 'bg-purple-500/20',
+// Background colors with 20% opacity matching the accent colors from dayTypeInference
+const ICON_BG_COLORS_HEX: Record<DayType['iconName'], string> = {
+  Briefcase: '#8B9DAF33', // Muted blue-gray with 20% opacity
+  Heart: '#D77A6133', // Terracotta with 20% opacity
+  Home: '#7D9B8A33', // Sage green with 20% opacity
+  BookOpen: '#E8B86D33', // Warm amber with 20% opacity
+  Scale: '#7D9B8A33', // Sage green with 20% opacity
 }
 
 // Default fallback values for safety
 const DEFAULT_ICON = Briefcase
-const DEFAULT_ICON_BG = 'bg-slate-500/20'
+const DEFAULT_ICON_BG = '#8B9DAF33'
 
 export function DayTypeCard({ tasks }: DayTypeCardProps) {
   const theme = useAppTheme()
   const dayType = useMemo(() => inferDayType(tasks), [tasks])
 
   const IconComponent = ICON_MAP[dayType.iconName] || DEFAULT_ICON
-  const iconBgClass = ICON_BG_COLORS[dayType.iconName] || DEFAULT_ICON_BG
+  const iconBgColor = ICON_BG_COLORS_HEX[dayType.iconName] || DEFAULT_ICON_BG
 
   return (
     <View
@@ -46,7 +46,10 @@ export function DayTypeCard({ tasks }: DayTypeCardProps) {
       style={{ backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border.primary }}
     >
       <View className="flex-row items-center gap-4">
-        <View className={`w-16 h-16 rounded-full ${iconBgClass} items-center justify-center`}>
+        <View
+          className="w-16 h-16 rounded-full items-center justify-center"
+          style={{ backgroundColor: iconBgColor }}
+        >
           <IconComponent size={32} color={dayType.accentColor} />
         </View>
         <View className="flex-1">

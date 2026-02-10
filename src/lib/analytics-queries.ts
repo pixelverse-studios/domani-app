@@ -73,7 +73,7 @@ export async function checkHasAnalyticsData(userId: string): Promise<boolean> {
  * Fetch completion rate data including overall rate and per-category breakdown
  */
 export async function fetchCompletionRate(userId: string): Promise<CompletionRateData | null> {
-  // Fetch all tasks for user with their category info
+  // Fetch all tasks for user with their category info (both system and user categories)
   const { data: tasks, error: tasksError } = await supabase
     .from('tasks')
     .select(
@@ -81,7 +81,14 @@ export async function fetchCompletionRate(userId: string): Promise<CompletionRat
       id,
       completed_at,
       system_category_id,
+      user_category_id,
       system_categories (
+        id,
+        name,
+        color,
+        icon
+      ),
+      user_categories (
         id,
         name,
         color,
@@ -114,13 +121,22 @@ export async function fetchCompletionRate(userId: string): Promise<CompletionRat
   >()
 
   for (const task of tasks) {
-    // Type the system_categories correctly (it comes back as an object, not array)
-    const category = task.system_categories as {
+    // Type the categories correctly (they come back as objects, not arrays)
+    const systemCategory = task.system_categories as {
       id: string
       name: string
       color: string
       icon: string
     } | null
+    const userCategory = task.user_categories as {
+      id: string
+      name: string
+      color: string
+      icon: string
+    } | null
+
+    // Prefer system category if both exist (though that shouldn't happen)
+    const category = systemCategory || userCategory
 
     if (category) {
       const existing = categoryMap.get(category.id) || {
@@ -173,7 +189,7 @@ export async function fetchDailyCompletions(
 
   const startDateStr = startDate.toISOString().split('T')[0]
 
-  // Fetch tasks with their plan dates and category info
+  // Fetch tasks with their plan dates and category info (both system and user categories)
   const { data: tasks, error } = await supabase
     .from('tasks')
     .select(
@@ -181,8 +197,14 @@ export async function fetchDailyCompletions(
       id,
       completed_at,
       system_category_id,
+      user_category_id,
       plan_id,
       system_categories (
+        id,
+        name,
+        color
+      ),
+      user_categories (
         id,
         name,
         color
@@ -226,11 +248,20 @@ export async function fetchDailyCompletions(
     const dayData = dailyMap.get(dateStr)
     if (!dayData) continue
 
-    const category = task.system_categories as {
+    // Type the categories correctly (they come back as objects, not arrays)
+    const systemCategory = task.system_categories as {
       id: string
       name: string
       color: string
     } | null
+    const userCategory = task.user_categories as {
+      id: string
+      name: string
+      color: string
+    } | null
+
+    // Prefer system category if both exist (though that shouldn't happen)
+    const category = systemCategory || userCategory
 
     const isCompleted = task.completed_at !== null
 

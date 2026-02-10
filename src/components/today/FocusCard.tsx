@@ -35,8 +35,8 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
     // Edge case: All tasks completed
     if (totalTasks > 0 && completedTasks === totalTasks) {
       return {
-        icon: <PartyPopper size={32} color="#22c55e" />,
-        iconBgColor: 'rgba(34, 197, 94, 0.2)',
+        icon: <PartyPopper size={32} color={brandColor} />,
+        iconBgColor: `${brandColor}1A`,
         label: 'All Done!',
         message: "You've crushed it today",
         subtitle: null,

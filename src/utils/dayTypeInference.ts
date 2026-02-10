@@ -111,30 +111,31 @@ const SYSTEM_CATEGORY_MAP: Record<string, DayTheme> = {
 }
 
 // Day type definitions with personality
+// Colors updated to match sage theme from src/theme/themes.ts
 const DAY_TYPE_CONFIG: Record<DayTheme, Omit<DayType, 'theme'>> = {
   work: {
     title: 'Productivity Day',
     subtitle: 'Heads down, results ahead',
     iconName: 'Briefcase',
-    accentColor: '#3B82F6', // blue-500
+    accentColor: '#8B9DAF', // Muted blue-gray from theme.priority.low
   },
   wellness: {
     title: 'Self-Care Day',
     subtitle: 'Investing in yourself',
     iconName: 'Heart',
-    accentColor: '#EC4899', // pink-500
+    accentColor: '#D77A61', // Terracotta from theme.priority.high
   },
   personal: {
     title: 'Life Admin Day',
     subtitle: 'Taking care of what matters',
     iconName: 'Home',
-    accentColor: '#10B981', // emerald-500
+    accentColor: '#7D9B8A', // Sage green from theme.colors.brand.primary
   },
   learning: {
     title: 'Growth Day',
     subtitle: 'Expanding your horizons',
     iconName: 'BookOpen',
-    accentColor: '#F59E0B', // amber-500
+    accentColor: '#E8B86D', // Warm amber from theme.priority.medium
   },
   balanced: {
     title: 'Balanced Day',

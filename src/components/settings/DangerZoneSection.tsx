@@ -31,16 +31,19 @@ export function DangerZoneSection({
   return (
     <>
       <SectionHeader title="Danger Zone" />
-      <View className="mb-8 border border-red-500/30 rounded-xl overflow-hidden">
+      <View className="mb-8 border rounded-xl overflow-hidden" style={{ borderColor: `${theme.colors.accent.brick}4D` }}>
         {isPendingDeletion ? (
           // Pending deletion state
-          <View className="bg-red-500/5 p-4">
+          <View className="p-4" style={{ backgroundColor: `${theme.colors.accent.brick}0D` }}>
             <View className="flex-row items-center mb-3">
-              <View className="w-10 h-10 rounded-full bg-red-500/20 items-center justify-center mr-3">
-                <AlertTriangle size={20} color="#ef4444" />
+              <View
+                className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                style={{ backgroundColor: `${theme.colors.accent.brick}33` }}
+              >
+                <AlertTriangle size={20} color={theme.colors.accent.brick} />
               </View>
               <View className="flex-1">
-                <Text className="text-base font-medium text-red-500">
+                <Text className="text-base font-medium" style={{ color: theme.colors.accent.brick }}>
                   Account Scheduled for Deletion
                 </Text>
                 <Text className="text-sm text-content-secondary">
@@ -74,13 +77,16 @@ export function DangerZoneSection({
           <TouchableOpacity
             onPress={onOpenDeleteModal}
             activeOpacity={0.7}
-            className="flex-row items-center justify-between py-3.5 px-4 bg-red-500/5"
+            className="flex-row items-center justify-between py-3.5 px-4"
+            style={{ backgroundColor: `${theme.colors.accent.brick}0D` }}
           >
             <View className="flex-row items-center">
-              <Trash2 size={20} color="#ef4444" />
-              <Text className="text-base text-red-500 ml-3">Delete Account</Text>
+              <Trash2 size={20} color={theme.colors.accent.brick} />
+              <Text className="text-base ml-3" style={{ color: theme.colors.accent.brick }}>
+                Delete Account
+              </Text>
             </View>
-            <ChevronRight size={18} color="#ef4444" />
+            <ChevronRight size={18} color={theme.colors.accent.brick} />
           </TouchableOpacity>
         )}
       </View>

@@ -38,6 +38,10 @@ module.exports = {
         interactive: {
           hover: '#EFEEE8',
         },
+        accent: {
+          terracotta: '#D77A61',
+          brick: '#C17B6F',
+        },
       },
       spacing: {
         xs: '4px',

@@ -40,6 +40,10 @@ export interface Theme {
       hover: string
       activeShadow: string
     }
+    accent: {
+      terracotta: string
+      brick: string
+    }
   }
   priority: {
     top: { color: string; gradient: [string, string] }
@@ -99,6 +103,10 @@ const sage: Theme = {
     interactive: {
       hover: '#EFEEE8',
       activeShadow: 'rgba(125, 155, 138, 0.3)',
+    },
+    accent: {
+      terracotta: '#D77A61', // Muted warm orange for "remaining" counts
+      brick: '#C17B6F', // Muted brick red for delete/danger actions
     },
   },
   priority: {

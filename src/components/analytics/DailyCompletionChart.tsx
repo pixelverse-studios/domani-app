@@ -292,7 +292,7 @@ export function DailyCompletionChart({
             className="w-2.5 h-2.5 rounded-sm mr-1.5"
             style={{ backgroundColor: incompleteColor }}
           />
-          <Text className="text-xs text-content-secondary">Remaining</Text>
+          <Text className="text-xs text-content-secondary">Unfinished</Text>
         </View>
       </View>
     </Card>

@@ -205,10 +205,10 @@ export function WeeklySummaryCard({ dailyData, animationKey = 0 }: WeeklySummary
   const hasProductiveData = mostProductiveDay !== null
   const hasConsistencyData = consistencyScore !== null
 
-  // Color palette - using distinct colors for visual variety
-  const trophyColor = '#eab308' // yellow-500 for trophy
-  const activityColor = theme.colors.brand.primary
-  const checkColor = '#22c55e' // green-500 for perfect days
+  // Color palette - using sage theme colors for visual variety
+  const trophyColor = '#E8B86D' // warm amber for achievement (Education category color)
+  const activityColor = theme.colors.brand.primary // sage green for consistency
+  const checkColor = theme.colors.accent.terracotta // terracotta for perfect days
 
   return (
     <Card className="p-5">

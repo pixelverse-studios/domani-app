@@ -279,7 +279,7 @@ export function TaskCard({
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel="Delete task"
               >
-                <Trash2 size={16} color="#ef4444" />
+                <Trash2 size={16} color={theme.colors.accent.brick} />
               </TouchableOpacity>
             </View>
           </View>
