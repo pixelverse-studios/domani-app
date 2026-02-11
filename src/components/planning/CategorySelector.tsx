@@ -17,7 +17,7 @@ import {
   Briefcase,
   Heart,
   User,
-  BookOpen,
+  Home,
   Search,
   Plus,
   Star,
@@ -79,8 +79,8 @@ function getCategoryIcon(
       return <Heart size={size} color={color} fill={fill} />
     case 'personal':
       return <User size={size} color={color} fill={fill} />
-    case 'education':
-      return <BookOpen size={size} color={color} fill={fill} />
+    case 'home':
+      return <Home size={size} color={color} fill={fill} />
     default:
       return <Tag size={size} color={color} fill={fill} />
   }

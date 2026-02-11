@@ -79,7 +79,7 @@ export const SYSTEM_CATEGORIES = {
   home: {
     id: 'home' as const,
     name: 'Home' as const,
-    icon: 'house',
+    icon: 'home',
     color: '#E8B86D',
     position: 3,
   },
