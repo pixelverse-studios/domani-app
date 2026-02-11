@@ -53,8 +53,7 @@ export const Button = forwardRef<View, ButtonProps>(
   ) => {
     const theme = useAppTheme()
 
-    const loaderColor =
-      variant === 'secondary' ? theme.colors.text.primary : '#ffffff'
+    const loaderColor = variant === 'secondary' ? theme.colors.text.primary : '#ffffff'
 
     return (
       <TouchableOpacity

@@ -96,7 +96,11 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
   return (
     <View
       className="rounded-2xl p-6 mx-5 min-h-[132px] justify-center"
-      style={{ backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border.primary }}
+      style={{
+        backgroundColor: theme.colors.card,
+        borderWidth: 1,
+        borderColor: theme.colors.border.primary,
+      }}
     >
       <View className="flex-row items-center gap-4">
         <View
@@ -107,16 +111,11 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
         </View>
         <View className="flex-1">
           <Text className="text-sm text-content-secondary mb-1">{content.label}</Text>
-          <Text
-            className="text-xl font-medium text-content-primary"
-            numberOfLines={2}
-          >
+          <Text className="text-xl font-medium text-content-primary" numberOfLines={2}>
             {content.message}
           </Text>
           {content.subtitle && (
-            <Text className="text-base text-content-secondary mt-1">
-              {content.subtitle}
-            </Text>
+            <Text className="text-base text-content-secondary mt-1">{content.subtitle}</Text>
           )}
         </View>
       </View>

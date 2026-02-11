@@ -114,11 +114,8 @@ export function AddTaskForm({
     useTutorialTarget('title_input')
   const { targetRef: completeFormRef, measureTarget: measureCompleteForm } =
     useTutorialTarget('complete_form')
-  const {
-    advanceFromTitleInput,
-    advanceFromPrioritySelector,
-    advanceFromCompleteForm,
-  } = useTutorialAdvancement()
+  const { advanceFromTitleInput, advanceFromPrioritySelector, advanceFromCompleteForm } =
+    useTutorialAdvancement()
   const { isActive: isTutorialActive, currentStep: tutorialStep } = useTutorialStore()
 
   const [title, setTitle] = useState(initialValues?.title ?? '')
@@ -409,7 +406,9 @@ export function AddTaskForm({
             styles.input,
             {
               backgroundColor: theme.colors.background,
-              borderColor: isTitleFocused ? theme.colors.brand.primary : theme.colors.border.primary,
+              borderColor: isTitleFocused
+                ? theme.colors.brand.primary
+                : theme.colors.border.primary,
               borderWidth: isTitleFocused ? 2 : 1,
               color: theme.colors.text.primary,
             },

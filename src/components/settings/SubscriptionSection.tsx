@@ -152,9 +152,7 @@ export function SubscriptionSection({
               ) : (
                 <>
                   <RotateCcw size={14} color={theme.colors.text.tertiary} />
-                  <Text className="text-sm text-content-secondary ml-1.5">
-                    Restore Purchases
-                  </Text>
+                  <Text className="text-sm text-content-secondary ml-1.5">Restore Purchases</Text>
                 </>
               )}
             </TouchableOpacity>

@@ -175,9 +175,7 @@ export function TaskCard({
             <View style={styles.titleContainer}>
               <Text
                 className={`font-sans-semibold text-base ${
-                  isCompleted
-                    ? 'text-content-muted line-through'
-                    : 'text-content-primary'
+                  isCompleted ? 'text-content-muted line-through' : 'text-content-primary'
                 }`}
                 numberOfLines={2}
               >
@@ -220,10 +218,7 @@ export function TaskCard({
                   category ? { name: categoryName, icon: category.icon || undefined } : null,
                   isUserCategory ? theme.colors.brand.light : iconColor,
                 )}
-                <Text
-                  className="font-sans text-sm text-content-secondary ml-1.5"
-                  numberOfLines={1}
-                >
+                <Text className="font-sans text-sm text-content-secondary ml-1.5" numberOfLines={1}>
                   {categoryName}
                 </Text>
               </View>
@@ -294,16 +289,10 @@ export function TaskCard({
           <View style={styles.notesContainer}>
             <View style={styles.notesHeader}>
               <FileText size={14} color={iconColor} />
-              <Text className="font-sans-medium text-sm text-content-secondary ml-1.5">
-                Notes
-              </Text>
+              <Text className="font-sans-medium text-sm text-content-secondary ml-1.5">Notes</Text>
             </View>
-            <View
-              style={[styles.notesContent, { backgroundColor: buttonBg }]}
-            >
-              <Text className="font-sans text-sm text-content-primary">
-                {task.notes}
-              </Text>
+            <View style={[styles.notesContent, { backgroundColor: buttonBg }]}>
+              <Text className="font-sans text-sm text-content-primary">{task.notes}</Text>
             </View>
           </View>
         </View>

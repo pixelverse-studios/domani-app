@@ -227,7 +227,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
   // Skip the tutorial entirely
   skipTutorial: () => {
     markTutorialCompleted().catch((err) =>
-      console.error('Failed to save tutorial completion:', err)
+      console.error('Failed to save tutorial completion:', err),
     )
     set({
       isActive: false,
@@ -239,7 +239,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
   // Complete the tutorial successfully
   completeTutorial: () => {
     markTutorialCompleted().catch((err) =>
-      console.error('Failed to save tutorial completion:', err)
+      console.error('Failed to save tutorial completion:', err),
     )
     set({
       isActive: false,
@@ -251,7 +251,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
   // Reset tutorial state and start it (for "Replay Tutorial" in Settings)
   resetTutorial: () => {
     clearTutorialCompletion().catch((err) =>
-      console.error('Failed to clear tutorial completion:', err)
+      console.error('Failed to clear tutorial completion:', err),
     )
     set({
       isActive: true,

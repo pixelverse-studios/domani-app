@@ -43,7 +43,11 @@ export function DayTypeCard({ tasks }: DayTypeCardProps) {
   return (
     <View
       className="rounded-2xl p-6 mx-5 min-h-[132px] justify-center"
-      style={{ backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border.primary }}
+      style={{
+        backgroundColor: theme.colors.card,
+        borderWidth: 1,
+        borderColor: theme.colors.border.primary,
+      }}
     >
       <View className="flex-row items-center gap-4">
         <View
@@ -54,12 +58,8 @@ export function DayTypeCard({ tasks }: DayTypeCardProps) {
         </View>
         <View className="flex-1">
           <Text className="text-sm text-content-secondary mb-1">Today&apos;s Vibe</Text>
-          <Text className="text-xl font-medium text-content-primary">
-            {dayType.title}
-          </Text>
-          <Text className="text-base text-content-secondary mt-1">
-            {dayType.subtitle}
-          </Text>
+          <Text className="text-xl font-medium text-content-primary">{dayType.title}</Text>
+          <Text className="text-base text-content-secondary mt-1">{dayType.subtitle}</Text>
         </View>
       </View>
     </View>

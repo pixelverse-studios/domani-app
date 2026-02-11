@@ -42,7 +42,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   render() {
     if (this.state.hasError) {
       return (
-        <View className="flex-1 items-center justify-center p-6" style={{ backgroundColor: '#FAF8F5' }}>
+        <View
+          className="flex-1 items-center justify-center p-6"
+          style={{ backgroundColor: '#FAF8F5' }}
+        >
           <View className="w-16 h-16 rounded-full bg-red-100 items-center justify-center mb-6">
             <AlertTriangle size={32} color="#ef4444" />
           </View>
@@ -57,9 +60,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
           {__DEV__ && this.state.error && (
             <View className="rounded-xl p-4 mb-6 w-full" style={{ backgroundColor: '#F5F2ED' }}>
-              <Text className="text-sm font-medium text-red-600 mb-1">
-                {this.state.error.name}
-              </Text>
+              <Text className="text-sm font-medium text-red-600 mb-1">{this.state.error.name}</Text>
               <Text className="text-xs" style={{ color: '#6B7265' }}>
                 {this.state.error.message}
               </Text>

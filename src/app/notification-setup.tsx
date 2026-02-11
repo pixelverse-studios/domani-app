@@ -193,7 +193,9 @@ export default function NotificationSetupScreen() {
               </Text>
             </Button>
           ) : (
-            <View style={[styles.pickerContainer, { backgroundColor: themeColors.pickerBackground }]}>
+            <View
+              style={[styles.pickerContainer, { backgroundColor: themeColors.pickerBackground }]}
+            >
               <DateTimePicker
                 value={planTime}
                 mode="time"
@@ -209,7 +211,9 @@ export default function NotificationSetupScreen() {
 
         {/* Task Reminders Info */}
         <View style={[styles.infoSection, { backgroundColor: themeColors.pickerBackground }]}>
-          <Text style={[styles.infoTitle, { color: themeColors.sectionTitle }]}>Task Reminders</Text>
+          <Text style={[styles.infoTitle, { color: themeColors.sectionTitle }]}>
+            Task Reminders
+          </Text>
           <Text style={[styles.infoDescription, { color: themeColors.sectionDescription }]}>
             Each task has its own reminder. You can set individual reminder times when creating or
             editing tasks.
@@ -226,7 +230,10 @@ export default function NotificationSetupScreen() {
             size="lg"
             onPress={handleContinue}
             loading={loading}
-            style={[styles.continueButton, { backgroundColor: brandColor, shadowColor: brandColor }]}
+            style={[
+              styles.continueButton,
+              { backgroundColor: brandColor, shadowColor: brandColor },
+            ]}
           >
             <Text style={styles.continueButtonText}>Continue to Domani</Text>
           </Button>

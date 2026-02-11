@@ -78,13 +78,13 @@ export default function AnalyticsScreen() {
     return (
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ flexGrow: 1, paddingTop: insets.top, backgroundColor: theme.colors.background }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingTop: insets.top,
+          backgroundColor: theme.colors.background,
+        }}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={brandColor}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={brandColor} />
         }
       >
         <View className="px-5 pt-4 pb-2">

@@ -56,7 +56,10 @@ export function FormTextArea({
       {disabled ? (
         <View
           className="rounded-xl px-4 py-3 min-h-[140px] items-center justify-center border"
-          style={{ backgroundColor: theme.colors.interactive.hover, borderColor: theme.colors.border.primary }}
+          style={{
+            backgroundColor: theme.colors.interactive.hover,
+            borderColor: theme.colors.border.primary,
+          }}
         >
           <Lock size={24} color={textSecondaryColor} />
           <Text className="text-sm text-content-tertiary mt-2">{disabledMessage}</Text>
@@ -72,13 +75,18 @@ export function FormTextArea({
             numberOfLines={6}
             textAlignVertical="top"
             className="rounded-xl px-4 text-base text-content-primary border min-h-[140px]"
-            style={{ backgroundColor: theme.colors.interactive.hover, borderColor: theme.colors.border.primary, color: textColor, paddingTop: 14, paddingBottom: 14, lineHeight: undefined }}
+            style={{
+              backgroundColor: theme.colors.interactive.hover,
+              borderColor: theme.colors.border.primary,
+              color: textColor,
+              paddingTop: 14,
+              paddingBottom: 14,
+              lineHeight: undefined,
+            }}
           />
           {/* Character Counter */}
           <View className="flex-row justify-between mt-2">
-            <Text className="text-xs text-content-secondary">
-              {value.length} characters
-            </Text>
+            <Text className="text-xs text-content-secondary">{value.length} characters</Text>
             {showMinLabel && minCharacters !== undefined && minCharacters > 0 && (
               <Text className="text-xs text-content-secondary">
                 Min. {minCharacters} characters

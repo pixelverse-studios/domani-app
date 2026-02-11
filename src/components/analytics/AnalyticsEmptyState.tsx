@@ -19,7 +19,10 @@ export function AnalyticsEmptyState() {
   return (
     <View className="items-center justify-center px-8 py-12">
       {/* Icon with purple circular background */}
-      <View className="w-20 h-20 rounded-full items-center justify-center mb-6" style={{ backgroundColor: `${brandColor}1A` }}>
+      <View
+        className="w-20 h-20 rounded-full items-center justify-center mb-6"
+        style={{ backgroundColor: `${brandColor}1A` }}
+      >
         <BarChart3 size={36} color={brandColor} />
       </View>
 
@@ -40,7 +43,13 @@ export function AnalyticsEmptyState() {
         style={styles.buttonContainer}
       >
         <LinearGradient
-          colors={[theme.colors.brand.primary, theme.colors.brand.primary, theme.colors.brand.dark] as const}
+          colors={
+            [
+              theme.colors.brand.primary,
+              theme.colors.brand.primary,
+              theme.colors.brand.dark,
+            ] as const
+          }
           locations={[0, 0.6, 1]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}

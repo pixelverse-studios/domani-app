@@ -66,12 +66,8 @@ export function NotificationsSection({
                   <BellOff size={20} color="#f59e0b" />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-base text-content-primary">
-                    Notifications Disabled
-                  </Text>
-                  <Text className="text-xs text-content-secondary">
-                    Tap to enable in Settings
-                  </Text>
+                  <Text className="text-base text-content-primary">Notifications Disabled</Text>
+                  <Text className="text-xs text-content-secondary">Tap to enable in Settings</Text>
                 </View>
               </View>
               <ChevronRight size={18} color="#f59e0b" />

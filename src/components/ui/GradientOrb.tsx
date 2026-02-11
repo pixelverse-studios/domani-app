@@ -9,16 +9,17 @@ interface GradientOrbProps {
   position?: 'center' | 'top-right' | 'bottom-left'
 }
 
-export const GradientOrb = ({
-  size = 400,
-  colors,
-  position = 'center',
-}: GradientOrbProps) => {
+export const GradientOrb = ({ size = 400, colors, position = 'center' }: GradientOrbProps) => {
   const theme = useAppTheme()
 
   const defaultColors = useMemo(
     () =>
-      [theme.colors.brand.dark, theme.colors.brand.primary, theme.colors.brand.light, theme.colors.border.primary] as const,
+      [
+        theme.colors.brand.dark,
+        theme.colors.brand.primary,
+        theme.colors.brand.light,
+        theme.colors.border.primary,
+      ] as const,
     [theme],
   )
   const finalColors = colors ?? defaultColors

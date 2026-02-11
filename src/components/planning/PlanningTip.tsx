@@ -45,7 +45,10 @@ export function PlanningTip() {
       </View>
 
       {/* Tip text */}
-      <Text className="font-sans" style={{ fontSize: 15, color: theme.colors.text.secondary, lineHeight: 22 }}>
+      <Text
+        className="font-sans"
+        style={{ fontSize: 15, color: theme.colors.text.secondary, lineHeight: 22 }}
+      >
         {PLANNING_TIPS[tipIndex]}
       </Text>
     </View>

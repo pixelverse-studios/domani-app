@@ -83,8 +83,13 @@ export function CompletedSection({
           <Text className="text-base text-content-primary font-medium">
             Completed ({completedTasks.length})
           </Text>
-          <View className="px-2 py-0.5 rounded-full ml-2" style={{ backgroundColor: `${brandColor}1A` }}>
-            <Text className="text-xs" style={{ color: brandColor }}>Great job!</Text>
+          <View
+            className="px-2 py-0.5 rounded-full ml-2"
+            style={{ backgroundColor: `${brandColor}1A` }}
+          >
+            <Text className="text-xs" style={{ color: brandColor }}>
+              Great job!
+            </Text>
           </View>
         </View>
         {isExpanded ? (

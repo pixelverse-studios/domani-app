@@ -22,7 +22,10 @@ export function SubjectField({ icon: IconComponent, label, onClear }: SubjectFie
       <Text className="text-sm text-content-secondary mb-2">Subject</Text>
       <View
         className="rounded-xl px-4 py-3 flex-row items-center justify-between border"
-        style={{ backgroundColor: theme.colors.interactive.hover, borderColor: theme.colors.border.primary }}
+        style={{
+          backgroundColor: theme.colors.interactive.hover,
+          borderColor: theme.colors.border.primary,
+        }}
       >
         <View className="flex-row items-center flex-1">
           <IconComponent size={18} color={iconColor} />

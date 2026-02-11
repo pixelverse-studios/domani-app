@@ -49,9 +49,7 @@ export function FormSuccessState({
       )}
 
       {/* Success Message */}
-      <Text className="text-base text-content-secondary text-center px-4 mb-8">
-        {message}
-      </Text>
+      <Text className="text-base text-content-secondary text-center px-4 mb-8">{message}</Text>
 
       {/* Action Button */}
       <TouchableOpacity

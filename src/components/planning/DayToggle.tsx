@@ -105,7 +105,11 @@ function PillDayToggle({
       ref={targetRef}
       onLayout={measureTarget}
       className="flex-row rounded-full"
-      style={{ padding: TOGGLE_PADDING, opacity: disabled ? 0.5 : 1, backgroundColor: theme.colors.interactive.hover }}
+      style={{
+        padding: TOGGLE_PADDING,
+        opacity: disabled ? 0.5 : 1,
+        backgroundColor: theme.colors.interactive.hover,
+      }}
     >
       <Animated.View
         className="absolute rounded-full"
@@ -130,7 +134,11 @@ function PillDayToggle({
       >
         <Animated.Text
           className={`font-sans-medium ${selectedTarget === 'today' ? 'text-white' : ''}`}
-          style={selectedTarget === 'today' ? { fontSize: 14 } : { fontSize: 14, color: theme.colors.text.secondary }}
+          style={
+            selectedTarget === 'today'
+              ? { fontSize: 14 }
+              : { fontSize: 14, color: theme.colors.text.secondary }
+          }
         >
           Today
         </Animated.Text>
@@ -146,7 +154,11 @@ function PillDayToggle({
       >
         <Animated.Text
           className={`font-sans-medium ${selectedTarget === 'tomorrow' ? 'text-white' : ''}`}
-          style={selectedTarget === 'tomorrow' ? { fontSize: 14 } : { fontSize: 14, color: theme.colors.text.secondary }}
+          style={
+            selectedTarget === 'tomorrow'
+              ? { fontSize: 14 }
+              : { fontSize: 14, color: theme.colors.text.secondary }
+          }
         >
           Tomorrow
         </Animated.Text>
@@ -199,7 +211,10 @@ function MinimalDayToggle({
         >
           <Animated.Text
             className="font-sans-medium"
-            style={{ fontSize: 16, color: selectedTarget === 'today' ? brandColor : theme.colors.text.tertiary }}
+            style={{
+              fontSize: 16,
+              color: selectedTarget === 'today' ? brandColor : theme.colors.text.tertiary,
+            }}
           >
             Today
           </Animated.Text>
@@ -215,7 +230,10 @@ function MinimalDayToggle({
         >
           <Animated.Text
             className="font-sans-medium"
-            style={{ fontSize: 16, color: selectedTarget === 'tomorrow' ? brandColor : theme.colors.text.tertiary }}
+            style={{
+              fontSize: 16,
+              color: selectedTarget === 'tomorrow' ? brandColor : theme.colors.text.tertiary,
+            }}
           >
             Tomorrow
           </Animated.Text>

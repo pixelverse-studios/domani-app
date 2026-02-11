@@ -29,10 +29,7 @@ module.exports = {
     const filename = context.getFilename()
 
     // Skip theme definition files and config files
-    if (
-      filename.includes('/theme/') ||
-      filename.includes('tailwind.config')
-    ) {
+    if (filename.includes('/theme/') || filename.includes('tailwind.config')) {
       return {}
     }
 
