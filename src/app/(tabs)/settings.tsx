@@ -93,7 +93,7 @@ function SettingsContent() {
       if (Constants.isDevice) {
         getPermissionStatus()
       }
-    }, [getPermissionStatus])
+    }, [getPermissionStatus]),
   )
 
   // Modal states
@@ -214,16 +214,17 @@ function SettingsContent() {
   }
 
   return (
-    <View className="flex-1" style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}>
+    <View
+      className="flex-1"
+      style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}
+    >
       <ScrollView
         ref={tutorialScroll?.scrollViewRef}
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <Text className="text-2xl font-bold text-content-primary mt-4 mb-6">
-          Settings
-        </Text>
+        <Text className="text-2xl font-bold text-content-primary mt-4 mb-6">Settings</Text>
 
         {/* 1. Profile Section */}
         <ProfileSection
@@ -286,7 +287,9 @@ function SettingsContent() {
           }}
         >
           <LogOut size={18} color={theme.colors.text.secondary} />
-          <Text className="font-semibold ml-2" style={{ color: theme.colors.text.secondary }}>Log Out</Text>
+          <Text className="font-semibold ml-2" style={{ color: theme.colors.text.secondary }}>
+            Log Out
+          </Text>
         </TouchableOpacity>
 
         {/* 7. Danger Zone Section */}

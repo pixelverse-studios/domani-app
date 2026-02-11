@@ -120,10 +120,7 @@ export function PreferencesSkeleton() {
   const theme = useAppTheme()
   return (
     <View className="mb-6">
-      <View
-        className="py-3.5 px-4 rounded-xl mb-2"
-        style={{ backgroundColor: theme.colors.card }}
-      >
+      <View className="py-3.5 px-4 rounded-xl mb-2" style={{ backgroundColor: theme.colors.card }}>
         <View className="flex-row items-center">
           <SkeletonBox className="w-5 h-5 rounded mr-3" />
           <SkeletonBox className="w-28 h-4 rounded" />

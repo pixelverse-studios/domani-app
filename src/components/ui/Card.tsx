@@ -9,10 +9,7 @@ interface CardProps extends ViewProps {
 export const Card = ({ children, className, ...rest }: CardProps) => {
   return (
     <View
-      className={clsx(
-        'bg-surface-card border border-border-primary rounded-xl p-4',
-        className,
-      )}
+      className={clsx('bg-surface-card border border-border-primary rounded-xl p-4', className)}
       {...rest}
     >
       {children}

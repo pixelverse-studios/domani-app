@@ -94,9 +94,7 @@ export function TasksRecap({ tasks }: TasksRecapProps) {
     >
       {/* Left side - Task count */}
       <View style={styles.taskCountSection}>
-        <Text className="font-sans-medium text-sm text-content-secondary">
-          Tasks Planned
-        </Text>
+        <Text className="font-sans-medium text-sm text-content-secondary">Tasks Planned</Text>
         <Text
           className="font-sans-bold"
           style={{ fontSize: 32, lineHeight: 40, color: brandColor }}

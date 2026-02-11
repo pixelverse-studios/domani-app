@@ -13,7 +13,10 @@ export function useTutorialAdvancement() {
    * Advance the tutorial when the user taps "Plan Today" or "Add More Tasks" button on Today screen
    */
   const advanceFromTodayButton = useCallback(() => {
-    if (isActive && (currentStep === 'plan_today_button' || currentStep === 'today_add_task_button')) {
+    if (
+      isActive &&
+      (currentStep === 'plan_today_button' || currentStep === 'today_add_task_button')
+    ) {
       nextStep('title_input')
     }
   }, [isActive, currentStep, nextStep])
@@ -76,7 +79,7 @@ export function useTutorialAdvancement() {
         }
       }
     },
-    [isActive, currentStep, nextStep]
+    [isActive, currentStep, nextStep],
   )
 
   /**
@@ -135,7 +138,7 @@ export function useTutorialAdvancement() {
     (step: TutorialStep) => {
       return isActive && currentStep === step
     },
-    [isActive, currentStep]
+    [isActive, currentStep],
   )
 
   return {

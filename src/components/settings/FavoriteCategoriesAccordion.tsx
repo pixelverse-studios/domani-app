@@ -216,19 +216,12 @@ export function FavoriteCategoriesAccordion() {
           <View style={[styles.categoryIconBg, { backgroundColor: `${category.color}15` }]}>
             {getCategoryIcon(category, category.color, 16)}
           </View>
-          <Text
-            className="text-base text-content-primary"
-            style={{ marginLeft: 12 }}
-          >
+          <Text className="text-base text-content-primary" style={{ marginLeft: 12 }}>
             {category.name}
           </Text>
           {!category.isSystem && (
-            <View
-              style={[styles.customBadge, { backgroundColor: `${brandColor}1A` }]}
-            >
-              <Text style={{ color: brandColor, fontSize: 10, fontWeight: '500' }}>
-                Custom
-              </Text>
+            <View style={[styles.customBadge, { backgroundColor: `${brandColor}1A` }]}>
+              <Text style={{ color: brandColor, fontSize: 10, fontWeight: '500' }}>Custom</Text>
             </View>
           )}
         </View>
@@ -284,19 +277,11 @@ export function FavoriteCategoriesAccordion() {
               <View style={[styles.categoryIconBg, { backgroundColor: `${item.color}15` }]}>
                 {getCategoryIcon(item, item.color, 16)}
               </View>
-              <Text
-                className="text-base text-content-primary"
-                style={{ marginLeft: 12 }}
-              >
+              <Text className="text-base text-content-primary" style={{ marginLeft: 12 }}>
                 {item.name}
               </Text>
               {!item.isSystem && (
-                <View
-                  style={[
-                    styles.customBadge,
-                    { backgroundColor: `${brandColor}1A` },
-                  ]}
-                >
+                <View style={[styles.customBadge, { backgroundColor: `${brandColor}1A` }]}>
                   <Text style={{ color: selectedHeartColor, fontSize: 10, fontWeight: '500' }}>
                     Custom
                   </Text>
@@ -321,9 +306,7 @@ export function FavoriteCategoriesAccordion() {
   )
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: theme.colors.card }]}
-    >
+    <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
       {/* Header Row - Always Visible */}
       <TouchableOpacity
         onPress={handleToggleExpand}
@@ -366,9 +349,7 @@ export function FavoriteCategoriesAccordion() {
         <View style={styles.expandedContent}>
           {/* Section Header */}
           <View style={styles.sectionHeader}>
-            <Text
-              className="text-sm font-sans-semibold text-content-primary"
-            >
+            <Text className="text-sm font-sans-semibold text-content-primary">
               Quick Access Categories
             </Text>
             <Text style={{ color: textMuted, fontSize: 13, marginTop: 4 }}>

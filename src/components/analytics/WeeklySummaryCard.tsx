@@ -189,9 +189,7 @@ function AnimatedNumber({ value, animationKey, index }: AnimatedNumberProps) {
     )
   }, [animationKey, index, value, animatedNumber])
 
-  return (
-    <Text className="text-2xl font-bold text-content-primary">{displayedNumber}</Text>
-  )
+  return <Text className="text-2xl font-bold text-content-primary">{displayedNumber}</Text>
 }
 
 export function WeeklySummaryCard({ dailyData, animationKey = 0 }: WeeklySummaryCardProps) {
@@ -206,7 +204,7 @@ export function WeeklySummaryCard({ dailyData, animationKey = 0 }: WeeklySummary
   const hasConsistencyData = consistencyScore !== null
 
   // Color palette - using sage theme colors for visual variety
-  const trophyColor = '#E8B86D' // warm amber for achievement (Education category color)
+  const trophyColor = '#E8B86D' // warm amber for achievement (Home category color)
   const activityColor = theme.colors.brand.primary // sage green for consistency
   const checkColor = theme.colors.accent.terracotta // terracotta for perfect days
 
@@ -283,9 +281,7 @@ export function WeeklySummaryCard({ dailyData, animationKey = 0 }: WeeklySummary
           animationKey={animationKey}
         >
           <AnimatedNumber value={perfectDays} animationKey={animationKey} index={2} />
-          <Text className="text-xs text-content-secondary text-center mt-0.5">
-            Perfect
-          </Text>
+          <Text className="text-xs text-content-secondary text-center mt-0.5">Perfect</Text>
           <Text className="text-xs text-content-tertiary">
             {perfectDays === 1 ? 'day' : 'days'}
           </Text>

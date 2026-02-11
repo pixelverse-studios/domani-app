@@ -35,9 +35,7 @@ function CategoryRow({ category }: CategoryRowProps) {
 
       {/* Category name and count */}
       <View className="flex-1">
-        <Text className="text-sm font-medium text-content-primary">
-          {category.categoryName}
-        </Text>
+        <Text className="text-sm font-medium text-content-primary">{category.categoryName}</Text>
         <Text className="text-xs text-content-secondary">
           {category.completed}/{category.total} tasks
         </Text>
@@ -45,10 +43,11 @@ function CategoryRow({ category }: CategoryRowProps) {
 
       {/* Progress bar and percentage */}
       <View className="items-end">
-        <Text className="text-sm font-semibold text-content-primary mb-1">
-          {category.rate}%
-        </Text>
-        <View className="w-16 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: theme.colors.border.primary }}>
+        <Text className="text-sm font-semibold text-content-primary mb-1">{category.rate}%</Text>
+        <View
+          className="w-16 h-1.5 rounded-full overflow-hidden"
+          style={{ backgroundColor: theme.colors.border.primary }}
+        >
           <View
             className="h-full rounded-full"
             style={{
@@ -75,9 +74,7 @@ export function CategoryBreakdown({ categories }: CategoryBreakdownProps) {
 
   return (
     <Card className="p-4">
-      <Text className="text-sm font-medium text-content-secondary mb-2">
-        By Category
-      </Text>
+      <Text className="text-sm font-medium text-content-secondary mb-2">By Category</Text>
       <View style={{ borderColor: theme.colors.border.divider }}>
         {categories.map((category) => (
           <CategoryRow key={category.categoryId} category={category} />

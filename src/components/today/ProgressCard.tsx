@@ -18,7 +18,11 @@ export function ProgressCard({ completed, total }: ProgressCardProps) {
   return (
     <View
       className="rounded-2xl p-6 mx-5"
-      style={{ backgroundColor: theme.colors.card, borderWidth: 1, borderColor: theme.colors.border.primary }}
+      style={{
+        backgroundColor: theme.colors.card,
+        borderWidth: 1,
+        borderColor: theme.colors.border.primary,
+      }}
     >
       <View className="flex-row items-center gap-6">
         <CircularProgress progress={percentage} size={100} strokeWidth={9} />
@@ -28,9 +32,7 @@ export function ProgressCard({ completed, total }: ProgressCardProps) {
           </Text>
           <View className="flex-row gap-10">
             <View className="items-center">
-              <Text className="text-4xl font-bold text-brand-primary">
-                {completed}
-              </Text>
+              <Text className="text-4xl font-bold text-brand-primary">{completed}</Text>
               <Text className="text-base text-content-secondary">Completed</Text>
             </View>
             <View className="items-center">

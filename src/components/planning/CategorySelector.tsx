@@ -17,7 +17,7 @@ import {
   Briefcase,
   Heart,
   User,
-  BookOpen,
+  Home,
   Search,
   Plus,
   Star,
@@ -51,14 +51,14 @@ const SYSTEM_NAME_TO_FORM_ID: Record<string, string> = {
   Work: 'work',
   Wellness: 'wellness',
   Personal: 'personal',
-  Education: 'education',
+  Home: 'home',
 }
 
 const FORM_ID_TO_DISPLAY: Record<string, string> = {
   work: 'Work',
   wellness: 'Wellness',
   personal: 'Personal',
-  education: 'Education',
+  home: 'Home',
 }
 
 // Get icon for category
@@ -79,8 +79,8 @@ function getCategoryIcon(
       return <Heart size={size} color={color} fill={fill} />
     case 'personal':
       return <User size={size} color={color} fill={fill} />
-    case 'education':
-      return <BookOpen size={size} color={color} fill={fill} />
+    case 'home':
+      return <Home size={size} color={color} fill={fill} />
     default:
       return <Tag size={size} color={color} fill={fill} />
   }
@@ -719,12 +719,7 @@ export function CategorySelector({
           <Pressable style={styles.createModalBackdrop} onPress={closeCreateModal} />
 
           {/* Modal Content */}
-          <View
-            style={[
-              styles.createModalContent,
-              { backgroundColor: theme.colors.card },
-            ]}
-          >
+          <View style={[styles.createModalContent, { backgroundColor: theme.colors.card }]}>
             <ScrollView
               keyboardShouldPersistTaps="handled"
               bounces={false}
@@ -764,10 +759,7 @@ export function CategorySelector({
                     { backgroundColor: theme.colors.interactive.hover },
                   ]}
                 >
-                  <Text
-                    className="font-sans-medium"
-                    style={{ color: theme.colors.text.secondary }}
-                  >
+                  <Text className="font-sans-medium" style={{ color: theme.colors.text.secondary }}>
                     Cancel
                   </Text>
                 </TouchableOpacity>

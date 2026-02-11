@@ -36,7 +36,7 @@ const STEP_CONFIG: Record<
   welcome: { title: '', description: '', position: 'center' },
   plan_today_button: {
     title: 'Plan Your Day',
-    description: "Tap here to add your first task for today.",
+    description: 'Tap here to add your first task for today.',
     position: 'above',
     showSkip: true,
     stepNumber: 1,
@@ -44,7 +44,7 @@ const STEP_CONFIG: Record<
   },
   today_add_task_button: {
     title: 'Add More Tasks',
-    description: "This is your Today view with existing tasks. Tap here to add another task.",
+    description: 'This is your Today view with existing tasks. Tap here to add another task.',
     position: 'above',
     showSkip: true,
     stepNumber: 1,
@@ -116,13 +116,15 @@ const STEP_CONFIG: Record<
   },
   task_created: {
     title: 'Task Created!',
-    description: "Here's your task! Notice the category and priority. Let's see it on your Today screen.",
+    description:
+      "Here's your task! Notice the category and priority. Let's see it on your Today screen.",
     position: 'above',
     showNext: true,
   },
   today_screen: {
     title: 'Your Focus View',
-    description: "Your most important task and daily progress live here. Next, let's explore a few helpful Settings.",
+    description:
+      "Your most important task and daily progress live here. Next, let's explore a few helpful Settings.",
     position: 'below',
     showNext: true,
     stepNumber: 5,
@@ -132,14 +134,16 @@ const STEP_CONFIG: Record<
   // Settings tutorial steps
   settings_categories: {
     title: 'Smart Categories',
-    description: "Welcome to Settings! Smart Categories learns your habits and auto-sorts your favorites. You can disable it to pick manually.",
+    description:
+      'Welcome to Settings! Smart Categories learns your habits and auto-sorts your favorites. You can disable it to pick manually.',
     position: 'below',
     showNext: true,
     showSkip: true,
   },
   settings_reminders: {
     title: 'Reminder Shortcuts',
-    description: 'Set up quick reminder presets for common times like morning, afternoon, or evening.',
+    description:
+      'Set up quick reminder presets for common times like morning, afternoon, or evening.',
     position: 'above',
     showNext: true,
   },
@@ -232,7 +236,16 @@ export function TutorialSpotlight() {
       }, 600)
       return () => clearTimeout(timer)
     }
-  }, [isLoading, isActive, isSpotlightStep, measurement, isOverlayHidden, currentStep, targetMeasurements, nextStep])
+  }, [
+    isLoading,
+    isActive,
+    isSpotlightStep,
+    measurement,
+    isOverlayHidden,
+    currentStep,
+    targetMeasurements,
+    nextStep,
+  ])
 
   // Animate in when visible
   useEffect(() => {
@@ -340,11 +353,14 @@ export function TutorialSpotlight() {
     stepConfig.position,
     measurement,
     screenWidth,
-    screenHeight
+    screenHeight,
   )
 
   return (
-    <Animated.View style={[styles.fullScreenOverlay, overlayAnimatedStyle]} pointerEvents="box-none">
+    <Animated.View
+      style={[styles.fullScreenOverlay, overlayAnimatedStyle]}
+      pointerEvents="box-none"
+    >
       {/* Dark overlay with spotlight cutout - doesn't block touches */}
       <Svg
         width={screenWidth}
@@ -431,10 +447,7 @@ export function TutorialSpotlight() {
             {stepConfig.title}
           </Text>
         )}
-        <Text
-          className="text-sm text-content-secondary"
-          style={{ marginTop: 4, lineHeight: 20 }}
-        >
+        <Text className="text-sm text-content-secondary" style={{ marginTop: 4, lineHeight: 20 }}>
           {stepConfig.description}
         </Text>
 
@@ -451,12 +464,18 @@ export function TutorialSpotlight() {
               style={[styles.interactionNextButton, { borderColor: brandColor }]}
               activeOpacity={0.8}
             >
-              <Text className="font-sans-semibold text-sm" style={{ color: brandColor }}>Next</Text>
+              <Text className="font-sans-semibold text-sm" style={{ color: brandColor }}>
+                Next
+              </Text>
             </TouchableOpacity>
           )}
 
           {stepConfig.showNext && (
-            <TouchableOpacity onPress={handleGotIt} style={[styles.nextButton, { backgroundColor: brandColor }]} activeOpacity={0.8}>
+            <TouchableOpacity
+              onPress={handleGotIt}
+              style={[styles.nextButton, { backgroundColor: brandColor }]}
+              activeOpacity={0.8}
+            >
               <Text className="text-white font-sans-semibold text-sm">Got it</Text>
             </TouchableOpacity>
           )}
@@ -470,7 +489,7 @@ function calculateTooltipPosition(
   position: 'above' | 'below' | 'center',
   measurement: TutorialTargetMeasurement,
   screenWidth: number,
-  screenHeight: number
+  screenHeight: number,
 ): { top?: number; bottom?: number; left: number; right: number } {
   const MARGIN = 20
   const TOOLTIP_OFFSET = 20

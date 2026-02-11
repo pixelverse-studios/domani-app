@@ -1,5 +1,12 @@
 import React from 'react'
-import { View, TouchableOpacity, TextInput, ScrollView, Modal, ActivityIndicator } from 'react-native'
+import {
+  View,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  Modal,
+  ActivityIndicator,
+} from 'react-native'
 import { X, Check, AlertTriangle, Sparkles } from 'lucide-react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -34,7 +41,10 @@ export function NameModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View className="flex-1 bg-black/50 justify-center px-6">
-        <View className="rounded-2xl p-5 max-h-[75%]" style={{ backgroundColor: theme.colors.card }}>
+        <View
+          className="rounded-2xl p-5 max-h-[75%]"
+          style={{ backgroundColor: theme.colors.card }}
+        >
           <View className="flex-row items-center justify-between mb-4">
             <Text className="text-lg font-semibold text-content-primary">Edit Name</Text>
             <TouchableOpacity onPress={onClose}>
@@ -86,12 +96,7 @@ interface TimezoneModalProps {
   onClose: () => void
 }
 
-export function TimezoneModal({
-  visible,
-  currentTimezone,
-  onSelect,
-  onClose,
-}: TimezoneModalProps) {
+export function TimezoneModal({ visible, currentTimezone, onSelect, onClose }: TimezoneModalProps) {
   const theme = useAppTheme()
   const insets = useSafeAreaInsets()
 
@@ -99,10 +104,11 @@ export function TimezoneModal({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View className="flex-1 bg-black/50 justify-end">
         <View className="rounded-t-3xl max-h-[70%]" style={{ backgroundColor: theme.colors.card }}>
-          <View className="flex-row items-center justify-between p-5 border-b" style={{ borderColor: theme.colors.border.primary }}>
-            <Text className="text-lg font-semibold text-content-primary">
-              Select Timezone
-            </Text>
+          <View
+            className="flex-row items-center justify-between p-5 border-b"
+            style={{ borderColor: theme.colors.border.primary }}
+          >
+            <Text className="text-lg font-semibold text-content-primary">Select Timezone</Text>
             <TouchableOpacity onPress={onClose}>
               <X size={24} color={theme.colors.text.tertiary} />
             </TouchableOpacity>
@@ -160,11 +166,12 @@ export function PlanningTimeModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View className="flex-1 bg-black/50 justify-center px-6">
-        <View className="rounded-2xl p-5 max-h-[75%]" style={{ backgroundColor: theme.colors.card }}>
+        <View
+          className="rounded-2xl p-5 max-h-[75%]"
+          style={{ backgroundColor: theme.colors.card }}
+        >
           <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-lg font-semibold text-content-primary">
-              Planning Reminder
-            </Text>
+            <Text className="text-lg font-semibold text-content-primary">Planning Reminder</Text>
             <TouchableOpacity onPress={onClose}>
               <X size={24} color={theme.colors.text.tertiary} />
             </TouchableOpacity>
@@ -222,7 +229,10 @@ export function DeleteAccountModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View className="flex-1 bg-black/60 justify-center items-center px-6">
-        <View className="rounded-2xl p-6 w-full max-w-[320px] max-h-[75%] items-center" style={{ backgroundColor: theme.colors.card }}>
+        <View
+          className="rounded-2xl p-6 w-full max-w-[320px] max-h-[75%] items-center"
+          style={{ backgroundColor: theme.colors.card }}
+        >
           {/* Warning Icon */}
           <View className="w-14 h-14 rounded-full bg-red-500/15 items-center justify-center mb-4">
             <AlertTriangle size={28} color="#ef4444" />
@@ -274,9 +284,7 @@ export function DeleteAccountModal({
               className="w-full py-4 rounded-xl items-center"
               style={{ backgroundColor: theme.colors.interactive.hover }}
             >
-              <Text className="font-semibold text-base text-content-primary">
-                Keep Account
-              </Text>
+              <Text className="font-semibold text-base text-content-primary">Keep Account</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -309,9 +317,15 @@ export function SmartCategoriesModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View className="flex-1 bg-black/60 justify-center items-center px-6">
-        <View className="rounded-2xl p-6 w-full max-w-[320px] max-h-[75%] items-center" style={{ backgroundColor: theme.colors.card }}>
+        <View
+          className="rounded-2xl p-6 w-full max-w-[320px] max-h-[75%] items-center"
+          style={{ backgroundColor: theme.colors.card }}
+        >
           {/* Icon */}
-          <View className="w-14 h-14 rounded-full items-center justify-center mb-4" style={{ backgroundColor: `${theme.colors.brand.primary}1A` }}>
+          <View
+            className="w-14 h-14 rounded-full items-center justify-center mb-4"
+            style={{ backgroundColor: `${theme.colors.brand.primary}1A` }}
+          >
             <Sparkles size={28} color={theme.colors.brand.primary} />
           </View>
 
@@ -352,9 +366,7 @@ export function SmartCategoriesModal({
               className="w-full py-4 rounded-xl items-center"
               style={{ backgroundColor: theme.colors.interactive.hover }}
             >
-              <Text className="font-semibold text-base text-content-primary">
-                Cancel
-              </Text>
+              <Text className="font-semibold text-base text-content-primary">Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>

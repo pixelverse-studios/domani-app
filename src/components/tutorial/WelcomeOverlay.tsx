@@ -112,7 +112,7 @@ export function WelcomeOverlay() {
           {/* Description */}
           <Text className="text-base text-content-secondary text-center mb-6">
             {hasAbandonedMultipleTimes
-              ? "No pressure! You can skip the tour and explore on your own, or we can walk through it together."
+              ? 'No pressure! You can skip the tour and explore on your own, or we can walk through it together.'
               : "Let's walk through how to plan your day. This takes about 2 minutes."}
           </Text>
 

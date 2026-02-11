@@ -115,10 +115,7 @@ export function ConfirmationModal({
               ]}
               activeOpacity={0.8}
             >
-              <Text
-                className="font-sans-semibold text-content-primary"
-                style={{ fontSize: 16 }}
-              >
+              <Text className="font-sans-semibold text-content-primary" style={{ fontSize: 16 }}>
                 {cancelLabel}
               </Text>
             </TouchableOpacity>

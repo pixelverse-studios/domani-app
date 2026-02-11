@@ -73,9 +73,7 @@ export function TaskList({
   return (
     <View className="mx-5 mt-6">
       {/* Header */}
-      <Text className="font-sans-semibold text-lg text-content-primary mb-4">
-        {headerText}
-      </Text>
+      <Text className="font-sans-semibold text-lg text-content-primary mb-4">{headerText}</Text>
 
       {/* Task Cards */}
       {sortedTasks.map((task) => {

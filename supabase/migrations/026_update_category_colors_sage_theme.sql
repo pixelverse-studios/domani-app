@@ -12,7 +12,7 @@
 -- Work: Muted blue-gray (#8B9DAF) - professional, calm
 -- Wellness: Terracotta (#D77A61) - warm, nurturing
 -- Personal: Sage green (#7D9B8A) - balanced, personal
--- Education: Warm amber (#E8B86D) - growth, learning
+-- Education: Warm amber (#E8B86D) - growth, learning (renamed to Home in migration 027)
 
 UPDATE public.system_categories
 SET color = CASE name

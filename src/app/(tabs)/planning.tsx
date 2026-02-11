@@ -127,7 +127,11 @@ export default function PlanningScreen() {
   const { status: subscriptionStatus } = useSubscription()
   const { phase } = useAppConfig()
   const { setTutorialTaskId } = useTutorialStore()
-  const { isActive: isTutorialActive, currentStep, advanceFromCompleteForm } = useTutorialAdvancement()
+  const {
+    isActive: isTutorialActive,
+    currentStep,
+    advanceFromCompleteForm,
+  } = useTutorialAdvancement()
   const { trackTutorialTaskCreated } = useTutorialAnalytics()
 
   // Handle editTaskId param - open edit form when navigating from Today page
@@ -389,7 +393,11 @@ export default function PlanningScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }} edges={['top']}>
+    <SafeAreaView
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+      edges={['top']}
+    >
       <ScrollView
         ref={scrollViewRef}
         className="flex-1"
