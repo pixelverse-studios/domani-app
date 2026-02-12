@@ -14,10 +14,6 @@ import {
 } from 'react-native'
 import {
   Tag,
-  Briefcase,
-  Heart,
-  User,
-  Home,
   Search,
   Plus,
   Star,
@@ -26,6 +22,7 @@ import {
 } from 'lucide-react-native'
 
 import { Text, ConfirmationModal } from '~/components/ui'
+import { getCategoryIcon } from '~/utils/categoryIcons'
 import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
@@ -59,31 +56,6 @@ const FORM_ID_TO_DISPLAY: Record<string, string> = {
   wellness: 'Wellness',
   personal: 'Personal',
   home: 'Home',
-}
-
-// Get icon for category
-function getCategoryIcon(
-  categoryId: string,
-  isSelected: boolean,
-  brandColor: string,
-  defaultColor: string,
-  size: number = 16,
-) {
-  const color = isSelected ? brandColor : defaultColor
-  const fill = isSelected ? brandColor : 'none'
-
-  switch (categoryId) {
-    case 'work':
-      return <Briefcase size={size} color={color} fill={fill} />
-    case 'wellness':
-      return <Heart size={size} color={color} fill={fill} />
-    case 'personal':
-      return <User size={size} color={color} fill={fill} />
-    case 'home':
-      return <Home size={size} color={color} fill={fill} />
-    default:
-      return <Tag size={size} color={color} fill={fill} />
-  }
 }
 
 export interface CategoryOption {
@@ -158,7 +130,7 @@ export function CategorySelector({
         return {
           id: formId,
           label: displayLabel,
-          icon: getCategoryIcon(formId, false, brandColor, iconColor),
+          icon: getCategoryIcon({ categoryId: formId, color: iconColor, isSelected: false, fill: 'none' }),
           isSystem: true,
         }
       } else {
@@ -370,7 +342,12 @@ export function CategorySelector({
           accessibilityRole="button"
           accessibilityState={{ selected: isSelected }}
         >
-          {getCategoryIcon(category.id, isSelected, brandColor, iconColor)}
+          {getCategoryIcon({
+            categoryId: category.id,
+            color: isSelected ? brandColor : iconColor,
+            isSelected: isSelected,
+            fill: isSelected ? brandColor : 'none',
+          })}
           <Text
             className="font-sans-medium ml-1.5"
             style={{
@@ -415,7 +392,13 @@ export function CategorySelector({
           }}
           activeOpacity={0.7}
         >
-          {getCategoryIcon(category.id, isSelected, brandColor, iconColor, 16)}
+          {getCategoryIcon({
+            categoryId: category.id,
+            color: isSelected ? brandColor : iconColor,
+            isSelected: isSelected,
+            fill: isSelected ? brandColor : 'none',
+            size: 16,
+          })}
           <Text
             className="font-sans-medium ml-2 text-sm"
             style={{ color: isSelected ? theme.colors.brand.dark : theme.colors.text.primary }}
