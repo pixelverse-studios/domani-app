@@ -4,7 +4,7 @@ import { View } from 'react-native'
 import { Text, Card } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import type { CategoryCompletionRate } from '~/lib/analytics-queries'
-import { getCategoryIconComponent } from '~/utils/categoryIcons'
+import { getCategoryIcon } from '~/utils/categoryIcons'
 
 interface CategoryRowProps {
   category: CategoryCompletionRate
@@ -12,7 +12,6 @@ interface CategoryRowProps {
 
 function CategoryRow({ category }: CategoryRowProps) {
   const theme = useAppTheme()
-  const IconComponent = getCategoryIconComponent(category.categoryIcon)
 
   return (
     <View className="flex-row items-center py-3">
@@ -21,7 +20,12 @@ function CategoryRow({ category }: CategoryRowProps) {
         className="w-8 h-8 rounded-full items-center justify-center mr-3"
         style={{ backgroundColor: `${category.categoryColor}20` }}
       >
-        <IconComponent size={16} color={category.categoryColor} strokeWidth={1.5} />
+        {getCategoryIcon({
+          categoryId: category.categoryIcon,
+          color: category.categoryColor,
+          size: 16,
+          strokeWidth: 1.5,
+        })}
       </View>
 
       {/* Category name and count */}
