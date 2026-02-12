@@ -1,19 +1,10 @@
 import React from 'react'
 import { View } from 'react-native'
-import { Briefcase, Heart, User, BookOpen, Tag, LucideIcon } from 'lucide-react-native'
 
 import { Text, Card } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import type { CategoryCompletionRate } from '~/lib/analytics-queries'
-
-// Map category icons to Lucide components
-const CATEGORY_ICON_MAP: Record<string, LucideIcon> = {
-  briefcase: Briefcase,
-  heart: Heart,
-  user: User,
-  'book-open': BookOpen,
-  tag: Tag,
-}
+import { getCategoryIconComponent } from '~/utils/categoryIcons'
 
 interface CategoryRowProps {
   category: CategoryCompletionRate
@@ -21,7 +12,7 @@ interface CategoryRowProps {
 
 function CategoryRow({ category }: CategoryRowProps) {
   const theme = useAppTheme()
-  const IconComponent = CATEGORY_ICON_MAP[category.categoryIcon] || Tag
+  const IconComponent = getCategoryIconComponent(category.categoryIcon)
 
   return (
     <View className="flex-row items-center py-3">

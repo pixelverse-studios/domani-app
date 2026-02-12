@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react'
 import { View, StyleSheet } from 'react-native'
-import { Briefcase, Heart, User, BookOpen, Star } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import type { TaskWithCategory } from '~/types'
+import { getCategoryIcon } from '~/utils/categoryIcons'
 
 interface TasksRecapProps {
   tasks: TaskWithCategory[]
@@ -49,34 +49,16 @@ export function TasksRecap({ tasks }: TasksRecapProps) {
     return counts
   }, [tasks])
 
-  // Get icon for category
-  const getCategoryIcon = (name: string, isSystem: boolean) => {
-    if (!isSystem) {
-      return <Star size={14} color={iconColor} />
-    }
-
-    switch (name.toLowerCase()) {
-      case 'work':
-        return <Briefcase size={14} color={iconColor} />
-      case 'health':
-      case 'wellness':
-        return <Heart size={14} color={iconColor} />
-      case 'personal':
-        return <User size={14} color={iconColor} />
-      case 'other':
-      case 'education':
-        return <BookOpen size={14} color={iconColor} />
-      default:
-        return <Star size={14} color={iconColor} />
-    }
-  }
-
   // Convert to array for rendering
   const categoryList: CategoryCount[] = Object.entries(categoryCounts).map(
     ([name, { count, isSystem }]) => ({
       name,
       count,
-      icon: getCategoryIcon(name, isSystem),
+      icon: getCategoryIcon({
+        category: { name, isSystem },
+        color: iconColor,
+        size: 14,
+      }),
     }),
   )
 
