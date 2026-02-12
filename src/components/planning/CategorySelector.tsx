@@ -34,11 +34,23 @@ import {
   useSortedCategories,
   useFavoriteCategories,
 } from '~/hooks/useCategories'
+import {
+  RESERVED_NAME_ERROR_CODE,
+  getReservedNameError,
+} from '~/constants/systemCategories.validation'
 
 // Check if error is a duplicate name constraint violation (Postgres error code 23505)
 function isDuplicateNameError(error: unknown): boolean {
   if (error && typeof error === 'object' && 'code' in error) {
     return (error as { code: string }).code === '23505'
+  }
+  return false
+}
+
+// Check if error is a reserved category name error
+function isReservedNameError(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'code' in error) {
+    return (error as { code: string }).code === RESERVED_NAME_ERROR_CODE
   }
   return false
 }
@@ -229,7 +241,9 @@ export function CategorySelector({
       }, 400)
     } catch (error) {
       console.error('Failed to create category:', error)
-      if (isDuplicateNameError(error)) {
+      if (isReservedNameError(error)) {
+        Alert.alert('Reserved Category Name', getReservedNameError())
+      } else if (isDuplicateNameError(error)) {
         Alert.alert('Category already exists', 'A category with this name already exists.')
       } else {
         Alert.alert('Failed to create category', 'Please try again.')
@@ -270,7 +284,9 @@ export function CategorySelector({
         closeSheet()
       } catch (error) {
         console.error('Failed to create category:', error)
-        if (isDuplicateNameError(error)) {
+        if (isReservedNameError(error)) {
+          Alert.alert('Reserved Category Name', getReservedNameError())
+        } else if (isDuplicateNameError(error)) {
           Alert.alert('Category already exists', 'A category with this name already exists.')
         } else {
           Alert.alert('Failed to create category', 'Please try again.')

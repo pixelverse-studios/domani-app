@@ -4,3 +4,4 @@
  */
 
 export * from './systemCategories'
+export * from './systemCategories.validation'
