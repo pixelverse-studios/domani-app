@@ -100,7 +100,10 @@ export default function FeedbackScreen() {
   // Success State
   if (submitState === 'success') {
     return (
-      <View className="flex-1" style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}>
+      <View
+        className="flex-1"
+        style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}
+      >
         <ScrollView
           className="flex-1 px-5"
           contentContainerStyle={{ flexGrow: 1 }}
@@ -108,8 +111,10 @@ export default function FeedbackScreen() {
         >
           {/* Header */}
           <View className="pt-6 pb-4">
-            <View className="w-14 h-14 rounded-full items-center justify-center mb-4"
-            style={{ backgroundColor: brandColor }}>
+            <View
+              className="w-14 h-14 rounded-full items-center justify-center mb-4"
+              style={{ backgroundColor: brandColor }}
+            >
               <MessageCircle size={28} color="#ffffff" />
             </View>
             <Text className="text-2xl font-bold text-content-primary mb-2">
@@ -156,13 +161,13 @@ export default function FeedbackScreen() {
       >
         {/* Header */}
         <View className="pt-6 pb-6">
-          <View className="w-14 h-14 rounded-full items-center justify-center mb-4"
-            style={{ backgroundColor: brandColor }}>
+          <View
+            className="w-14 h-14 rounded-full items-center justify-center mb-4"
+            style={{ backgroundColor: brandColor }}
+          >
             <MessageCircle size={28} color="#ffffff" />
           </View>
-          <Text className="text-2xl font-bold text-content-primary mb-2">
-            Share Your Thoughts
-          </Text>
+          <Text className="text-2xl font-bold text-content-primary mb-2">Share Your Thoughts</Text>
           <Text className="text-base text-content-secondary">
             Help us make Domani better! Your feedback shapes our development.
           </Text>

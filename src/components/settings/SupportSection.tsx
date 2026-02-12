@@ -33,10 +33,16 @@ export function SupportSection({ onReplayTutorial }: SupportSectionProps) {
           onPress={() => router.push('/contact-support')}
           activeOpacity={0.7}
           className="flex-row items-center justify-center py-3.5 rounded-xl"
-          style={{ borderWidth: 1, borderColor: theme.colors.brand.primary, backgroundColor: theme.colors.interactive.activeShadow }}
+          style={{
+            borderWidth: 1,
+            borderColor: theme.colors.brand.primary,
+            backgroundColor: theme.colors.interactive.activeShadow,
+          }}
         >
           <HelpCircle size={18} color={theme.colors.brand.primary} />
-          <Text style={{ color: theme.colors.brand.primary, fontWeight: '600', marginLeft: 8 }}>Contact for Support</Text>
+          <Text style={{ color: theme.colors.brand.primary, fontWeight: '600', marginLeft: 8 }}>
+            Contact for Support
+          </Text>
         </TouchableOpacity>
       </View>
     </>

@@ -79,12 +79,7 @@ export default function LoginScreen() {
             {isNewUser ? "Let's Get Started" : 'Welcome Back'}
           </RNText>
 
-          <Text
-            style={[
-              styles.subtitle,
-              { color: theme.colors.text.secondary },
-            ]}
-          >
+          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
             {isNewUser
               ? 'Create an account to start planning\nyour tomorrow'
               : 'Sign in to continue planning\nyour tomorrow'}
@@ -112,12 +107,7 @@ export default function LoginScreen() {
             style={styles.backButton}
             activeOpacity={0.7}
           >
-            <Text
-              style={[
-                styles.backButtonText,
-                { color: theme.colors.text.tertiary },
-              ]}
-            >
+            <Text style={[styles.backButtonText, { color: theme.colors.text.tertiary }]}>
               ← Back
             </Text>
           </TouchableOpacity>

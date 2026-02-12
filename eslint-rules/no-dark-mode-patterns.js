@@ -28,10 +28,7 @@ module.exports = {
     return {
       // Catch: isDark ? x : y
       ConditionalExpression(node) {
-        if (
-          node.test.type === 'Identifier' &&
-          node.test.name === 'isDark'
-        ) {
+        if (node.test.type === 'Identifier' && node.test.name === 'isDark') {
           context.report({ node: node.test, messageId: 'noIsDarkTernary' })
         }
       },

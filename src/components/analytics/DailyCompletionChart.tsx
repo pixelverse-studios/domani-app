@@ -211,9 +211,7 @@ export function DailyCompletionChart({
           animationKey={animationKey}
         />
         <View className="ml-4 flex-1">
-          <Text className="text-base font-semibold text-content-primary">
-            Completion Rate
-          </Text>
+          <Text className="text-base font-semibold text-content-primary">Completion Rate</Text>
           <Text className="text-sm text-content-secondary mt-0.5">
             {totalCompleted} of {totalTasks} tasks done
           </Text>

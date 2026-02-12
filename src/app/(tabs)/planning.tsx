@@ -38,7 +38,7 @@ const FORM_TO_DB_CATEGORY: Record<string, string> = {
   work: 'Work',
   wellness: 'Wellness',
   personal: 'Personal',
-  education: 'Education',
+  home: 'Home',
 }
 
 // Map database category names back to form IDs
@@ -46,7 +46,7 @@ const DB_TO_FORM_CATEGORY: Record<string, string> = {
   Work: 'work',
   Wellness: 'wellness',
   Personal: 'personal',
-  Education: 'education',
+  Home: 'home',
 }
 
 interface TaskFormData {
@@ -127,7 +127,11 @@ export default function PlanningScreen() {
   const { status: subscriptionStatus } = useSubscription()
   const { phase } = useAppConfig()
   const { setTutorialTaskId } = useTutorialStore()
-  const { isActive: isTutorialActive, currentStep, advanceFromCompleteForm } = useTutorialAdvancement()
+  const {
+    isActive: isTutorialActive,
+    currentStep,
+    advanceFromCompleteForm,
+  } = useTutorialAdvancement()
   const { trackTutorialTaskCreated } = useTutorialAnalytics()
 
   // Handle editTaskId param - open edit form when navigating from Today page
@@ -389,7 +393,11 @@ export default function PlanningScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.colors.background }} edges={['top']}>
+    <SafeAreaView
+      className="flex-1"
+      style={{ backgroundColor: theme.colors.background }}
+      edges={['top']}
+    >
       <ScrollView
         ref={scrollViewRef}
         className="flex-1"

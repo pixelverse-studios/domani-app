@@ -14,10 +14,6 @@ import {
 } from 'react-native'
 import {
   Tag,
-  Briefcase,
-  Heart,
-  User,
-  BookOpen,
   Search,
   Plus,
   Star,
@@ -26,6 +22,7 @@ import {
 } from 'lucide-react-native'
 
 import { Text, ConfirmationModal } from '~/components/ui'
+import { getCategoryIcon } from '~/utils/categoryIcons'
 import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
@@ -37,6 +34,10 @@ import {
   useSortedCategories,
   useFavoriteCategories,
 } from '~/hooks/useCategories'
+import {
+  RESERVED_NAME_ERROR_CODE,
+  getReservedNameError,
+} from '~/constants/systemCategories.validation'
 
 // Check if error is a duplicate name constraint violation (Postgres error code 23505)
 function isDuplicateNameError(error: unknown): boolean {
@@ -46,44 +47,27 @@ function isDuplicateNameError(error: unknown): boolean {
   return false
 }
 
+// Check if error is a reserved category name error
+function isReservedNameError(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'code' in error) {
+    return (error as { code: string }).code === RESERVED_NAME_ERROR_CODE
+  }
+  return false
+}
+
 // Map system category names (from database) to form IDs
 const SYSTEM_NAME_TO_FORM_ID: Record<string, string> = {
   Work: 'work',
   Wellness: 'wellness',
   Personal: 'personal',
-  Education: 'education',
+  Home: 'home',
 }
 
 const FORM_ID_TO_DISPLAY: Record<string, string> = {
   work: 'Work',
   wellness: 'Wellness',
   personal: 'Personal',
-  education: 'Education',
-}
-
-// Get icon for category
-function getCategoryIcon(
-  categoryId: string,
-  isSelected: boolean,
-  brandColor: string,
-  defaultColor: string,
-  size: number = 16,
-) {
-  const color = isSelected ? brandColor : defaultColor
-  const fill = isSelected ? brandColor : 'none'
-
-  switch (categoryId) {
-    case 'work':
-      return <Briefcase size={size} color={color} fill={fill} />
-    case 'wellness':
-      return <Heart size={size} color={color} fill={fill} />
-    case 'personal':
-      return <User size={size} color={color} fill={fill} />
-    case 'education':
-      return <BookOpen size={size} color={color} fill={fill} />
-    default:
-      return <Tag size={size} color={color} fill={fill} />
-  }
+  home: 'Home',
 }
 
 export interface CategoryOption {
@@ -158,7 +142,7 @@ export function CategorySelector({
         return {
           id: formId,
           label: displayLabel,
-          icon: getCategoryIcon(formId, false, brandColor, iconColor),
+          icon: getCategoryIcon({ categoryId: formId, color: iconColor, isSelected: false, fill: 'none' }),
           isSystem: true,
         }
       } else {
@@ -257,7 +241,9 @@ export function CategorySelector({
       }, 400)
     } catch (error) {
       console.error('Failed to create category:', error)
-      if (isDuplicateNameError(error)) {
+      if (isReservedNameError(error)) {
+        Alert.alert('Reserved Category Name', getReservedNameError())
+      } else if (isDuplicateNameError(error)) {
         Alert.alert('Category already exists', 'A category with this name already exists.')
       } else {
         Alert.alert('Failed to create category', 'Please try again.')
@@ -298,7 +284,9 @@ export function CategorySelector({
         closeSheet()
       } catch (error) {
         console.error('Failed to create category:', error)
-        if (isDuplicateNameError(error)) {
+        if (isReservedNameError(error)) {
+          Alert.alert('Reserved Category Name', getReservedNameError())
+        } else if (isDuplicateNameError(error)) {
           Alert.alert('Category already exists', 'A category with this name already exists.')
         } else {
           Alert.alert('Failed to create category', 'Please try again.')
@@ -370,7 +358,12 @@ export function CategorySelector({
           accessibilityRole="button"
           accessibilityState={{ selected: isSelected }}
         >
-          {getCategoryIcon(category.id, isSelected, brandColor, iconColor)}
+          {getCategoryIcon({
+            categoryId: category.id,
+            color: isSelected ? brandColor : iconColor,
+            isSelected: isSelected,
+            fill: isSelected ? brandColor : 'none',
+          })}
           <Text
             className="font-sans-medium ml-1.5"
             style={{
@@ -415,7 +408,13 @@ export function CategorySelector({
           }}
           activeOpacity={0.7}
         >
-          {getCategoryIcon(category.id, isSelected, brandColor, iconColor, 16)}
+          {getCategoryIcon({
+            categoryId: category.id,
+            color: isSelected ? brandColor : iconColor,
+            isSelected: isSelected,
+            fill: isSelected ? brandColor : 'none',
+            size: 16,
+          })}
           <Text
             className="font-sans-medium ml-2 text-sm"
             style={{ color: isSelected ? theme.colors.brand.dark : theme.colors.text.primary }}
@@ -719,12 +718,7 @@ export function CategorySelector({
           <Pressable style={styles.createModalBackdrop} onPress={closeCreateModal} />
 
           {/* Modal Content */}
-          <View
-            style={[
-              styles.createModalContent,
-              { backgroundColor: theme.colors.card },
-            ]}
-          >
+          <View style={[styles.createModalContent, { backgroundColor: theme.colors.card }]}>
             <ScrollView
               keyboardShouldPersistTaps="handled"
               bounces={false}
@@ -764,10 +758,7 @@ export function CategorySelector({
                     { backgroundColor: theme.colors.interactive.hover },
                   ]}
                 >
-                  <Text
-                    className="font-sans-medium"
-                    style={{ color: theme.colors.text.secondary }}
-                  >
+                  <Text className="font-sans-medium" style={{ color: theme.colors.text.secondary }}>
                     Cancel
                   </Text>
                 </TouchableOpacity>

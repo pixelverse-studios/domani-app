@@ -38,7 +38,10 @@ export function CategoryGrid({ categories, selectedId, onSelect }: CategoryGridP
             style={
               isSelected
                 ? { backgroundColor: brandColor, borderColor: brandColor }
-                : { backgroundColor: theme.colors.interactive.hover, borderColor: theme.colors.border.primary }
+                : {
+                    backgroundColor: theme.colors.interactive.hover,
+                    borderColor: theme.colors.border.primary,
+                  }
             }
           >
             <View className="flex-row items-center">

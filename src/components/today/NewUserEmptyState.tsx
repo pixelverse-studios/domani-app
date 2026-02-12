@@ -31,9 +31,7 @@ export function EmptyState() {
       </View>
 
       {/* Heading */}
-      <Text className="text-xl font-semibold text-content-primary mb-8">
-        No tasks planned yet
-      </Text>
+      <Text className="text-xl font-semibold text-content-primary mb-8">No tasks planned yet</Text>
 
       {/* CTA Button - gradient background */}
       <View ref={targetRef} onLayout={measureTarget}>
@@ -42,16 +40,22 @@ export function EmptyState() {
           activeOpacity={0.8}
           style={styles.buttonContainer}
         >
-        <LinearGradient
-          colors={[theme.colors.brand.primary, theme.colors.brand.primary, theme.colors.brand.dark] as const}
-          locations={[0, 0.6, 1]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.gradient}
-        >
-          <Plus size={20} color="#ffffff" />
-          <Text className="text-white font-semibold text-base ml-2">Plan Today</Text>
-        </LinearGradient>
+          <LinearGradient
+            colors={
+              [
+                theme.colors.brand.primary,
+                theme.colors.brand.primary,
+                theme.colors.brand.dark,
+              ] as const
+            }
+            locations={[0, 0.6, 1]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.gradient}
+          >
+            <Plus size={20} color="#ffffff" />
+            <Text className="text-white font-semibold text-base ml-2">Plan Today</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </View>

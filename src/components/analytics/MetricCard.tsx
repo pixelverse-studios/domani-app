@@ -50,15 +50,11 @@ export function MetricCard({
 
         {/* Right side: Content */}
         <View className="flex-1">
-          <Text className="text-sm font-medium text-content-secondary mb-1">
-            {title}
-          </Text>
+          <Text className="text-sm font-medium text-content-secondary mb-1">{title}</Text>
           {!showProgress && (
             <Text className="text-4xl font-bold text-content-primary">{value}</Text>
           )}
-          {subtitle && (
-            <Text className="text-sm text-content-secondary mt-1">{subtitle}</Text>
-          )}
+          {subtitle && <Text className="text-sm text-content-secondary mt-1">{subtitle}</Text>}
         </View>
       </View>
     </Card>

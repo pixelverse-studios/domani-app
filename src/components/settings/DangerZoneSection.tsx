@@ -31,7 +31,10 @@ export function DangerZoneSection({
   return (
     <>
       <SectionHeader title="Danger Zone" />
-      <View className="mb-8 border rounded-xl overflow-hidden" style={{ borderColor: `${theme.colors.accent.brick}4D` }}>
+      <View
+        className="mb-8 border rounded-xl overflow-hidden"
+        style={{ borderColor: `${theme.colors.accent.brick}4D` }}
+      >
         {isPendingDeletion ? (
           // Pending deletion state
           <View className="p-4" style={{ backgroundColor: `${theme.colors.accent.brick}0D` }}>
@@ -43,7 +46,10 @@ export function DangerZoneSection({
                 <AlertTriangle size={20} color={theme.colors.accent.brick} />
               </View>
               <View className="flex-1">
-                <Text className="text-base font-medium" style={{ color: theme.colors.accent.brick }}>
+                <Text
+                  className="text-base font-medium"
+                  style={{ color: theme.colors.accent.brick }}
+                >
                   Account Scheduled for Deletion
                 </Text>
                 <Text className="text-sm text-content-secondary">
@@ -53,8 +59,8 @@ export function DangerZoneSection({
             </View>
             <Text className="text-sm text-content-secondary mb-4">
               Your account will be permanently deleted on{' '}
-              <Text className="font-medium text-content-primary">{deletionDate}</Text>.
-              Sign in anytime before then to reactivate.
+              <Text className="font-medium text-content-primary">{deletionDate}</Text>. Sign in
+              anytime before then to reactivate.
             </Text>
             <TouchableOpacity
               onPress={onCancelDeletion}
@@ -66,9 +72,7 @@ export function DangerZoneSection({
               {isCancelling ? (
                 <ActivityIndicator color={theme.colors.text.tertiary} />
               ) : (
-                <Text className="text-content-primary font-semibold">
-                  Cancel Deletion
-                </Text>
+                <Text className="text-content-primary font-semibold">Cancel Deletion</Text>
               )}
             </TouchableOpacity>
           </View>

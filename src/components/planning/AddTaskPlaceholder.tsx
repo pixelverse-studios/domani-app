@@ -22,7 +22,15 @@ export function AddTaskPlaceholder({ onPress, disabled, atLimit }: AddTaskPlaceh
   if (disabled && atLimit) {
     return (
       <View style={styles.buttonContainer} className="mx-5 mt-6">
-        <View style={[styles.disabledContainer, { backgroundColor: theme.colors.interactive.hover, borderColor: theme.colors.border.primary }]}>
+        <View
+          style={[
+            styles.disabledContainer,
+            {
+              backgroundColor: theme.colors.interactive.hover,
+              borderColor: theme.colors.border.primary,
+            },
+          ]}
+        >
           <Lock size={18} color={theme.colors.text.tertiary} strokeWidth={2} />
           <Text className="text-content-tertiary font-sans-medium text-sm ml-2">
             Task limit reached (3/3)
@@ -46,7 +54,7 @@ export function AddTaskPlaceholder({ onPress, disabled, atLimit }: AddTaskPlaceh
         accessibilityLabel="Add new task"
         disabled={disabled}
       >
-          <LinearGradient
+        <LinearGradient
           colors={theme.gradients.brandButton.colors}
           locations={theme.gradients.brandButton.locations}
           start={{ x: 0, y: 0 }}

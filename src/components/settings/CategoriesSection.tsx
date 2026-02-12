@@ -43,7 +43,10 @@ export function CategoriesSection({
       ) : (
         <View className="mb-6">
           {/* Smart Categories Toggle */}
-          <View className="rounded-xl px-4 py-3 mb-2 flex-row items-center justify-between" style={{ backgroundColor: theme.colors.card }}>
+          <View
+            className="rounded-xl px-4 py-3 mb-2 flex-row items-center justify-between"
+            style={{ backgroundColor: theme.colors.card }}
+          >
             <View className="flex-row items-center">
               <Sparkles
                 size={18}

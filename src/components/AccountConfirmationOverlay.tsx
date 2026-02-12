@@ -83,7 +83,9 @@ export function AccountConfirmationOverlay({
   return (
     <Modal visible={visible} transparent animationType="none">
       <Animated.View style={[styles.container, { opacity }]}>
-        <Animated.View style={[styles.card, { backgroundColor: theme.colors.card }, { transform: [{ scale }] }]}>
+        <Animated.View
+          style={[styles.card, { backgroundColor: theme.colors.card }, { transform: [{ scale }] }]}
+        >
           {/* Icon with pulse effect */}
           <View style={[styles.iconContainer, { backgroundColor: config.bgColor + '20' }]}>
             <Icon size={40} color={config.iconColor} fill={config.iconColor} />
@@ -100,9 +102,7 @@ export function AccountConfirmationOverlay({
           </Text>
 
           {/* Message */}
-          <Text className="text-sm text-content-secondary text-center">
-            {config.message}
-          </Text>
+          <Text className="text-sm text-content-secondary text-center">{config.message}</Text>
         </Animated.View>
       </Animated.View>
     </Modal>

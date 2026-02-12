@@ -75,7 +75,10 @@ function getZoneColors() {
  * - Afternoon: 12 PM - 4:59 PM (violet)
  * - Evening: 5 PM - 4:59 AM (indigo)
  */
-function getTimeZoneColor(hour: number, zoneColors: ReturnType<typeof getZoneColors>): {
+function getTimeZoneColor(
+  hour: number,
+  zoneColors: ReturnType<typeof getZoneColors>,
+): {
   color: string
   bg: string
 } {
@@ -231,9 +234,7 @@ export function ReminderShortcutsSection() {
         <View style={styles.expandedContent}>
           {/* Section Header */}
           <View style={styles.sectionHeader}>
-            <Text
-              className="text-sm font-sans-semibold text-content-primary"
-            >
+            <Text className="text-sm font-sans-semibold text-content-primary">
               Customize Shortcuts
             </Text>
             <Text style={{ color: textMuted, fontSize: 13, marginTop: 4 }}>

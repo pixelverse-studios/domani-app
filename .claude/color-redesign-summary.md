@@ -1,10 +1,13 @@
 # Analytics Chart Color Redesign - Summary
 
 ## Objective
+
 Update analytics/progress screen chart colors from vibrant blues, greens, and purples to muted, sage-themed colors that match the app's overall aesthetic.
 
 ## Problem
+
 The daily completion chart used bright, vibrant colors:
+
 - Work: #3B82F6 (bright blue)
 - Personal: #10B981 (bright green)
 - Wellness: #8B5CF6 (bright purple)
@@ -15,15 +18,18 @@ These colors didn't match the app's sage theme which uses warm, earthy, muted to
 ## Solution
 
 ### 1. Updated Category Colors in Database
+
 Created migration: `supabase/migrations/026_update_category_colors_sage_theme.sql`
 
 **New Colors (matching sage theme):**
+
 - Work: #8B9DAF (muted blue-gray) - from `theme.priority.low`
 - Wellness: #D77A61 (terracotta) - from `theme.priority.high`
 - Personal: #7D9B8A (sage green) - from `theme.colors.brand.primary`
 - Education: #E8B86D (warm amber) - from `theme.priority.medium`
 
 ### 2. Updated Day Type Inference Colors
+
 File: `src/utils/dayTypeInference.ts`
 
 Updated the `DAY_TYPE_CONFIG` object to use the same sage-themed colors for consistency across the app.
@@ -51,6 +57,7 @@ WHERE name IN ('Work', 'Wellness', 'Personal', 'Education');
 ```
 
 3. Verify the update:
+
 ```sql
 SELECT name, color FROM public.system_categories ORDER BY position;
 ```
@@ -68,6 +75,7 @@ SELECT name, color FROM public.system_categories ORDER BY position;
 ## How It Works
 
 The chart colors flow from database to UI:
+
 1. `system_categories` table stores colors for each category
 2. Analytics queries (`src/lib/analytics-queries.ts`) fetch category data with colors
 3. Chart component (`src/components/analytics/DailyCompletionChart.tsx`) renders bars using these colors
@@ -76,6 +84,7 @@ The chart colors flow from database to UI:
 ## Color Rationale
 
 The new colors were chosen to:
+
 - Match the sage theme's muted, earthy aesthetic
 - Provide sufficient contrast for chart readability
 - Maintain distinguishability in stacked bars
@@ -84,6 +93,7 @@ The new colors were chosen to:
 ## Testing Checklist
 
 After applying the database migration:
+
 - [ ] View Progress tab - daily completion chart shows new muted colors
 - [ ] Verify chart legend matches bar colors
 - [ ] Check that colors are distinguishable in stacked bars

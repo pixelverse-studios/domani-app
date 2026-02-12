@@ -120,7 +120,10 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     return <AnalyticsContext.Provider value={noopValue}>{children}</AnalyticsContext.Provider>
   }
 
-  console.log('[Analytics] Initializing PostHog with key:', POSTHOG_API_KEY.substring(0, 10) + '...')
+  console.log(
+    '[Analytics] Initializing PostHog with key:',
+    POSTHOG_API_KEY.substring(0, 10) + '...',
+  )
   console.log('[Analytics] PostHog host:', POSTHOG_HOST)
 
   return (

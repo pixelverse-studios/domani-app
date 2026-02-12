@@ -28,15 +28,16 @@
 
 ### Where Colors Currently Live
 
-| Location | What's There | Problem |
-|----------|--------------|---------|
+| Location                          | What's There                 | Problem                                         |
+| --------------------------------- | ---------------------------- | ----------------------------------------------- |
 | `src/theme/foundations/colors.ts` | Brand, semantic, text tokens | Underutilized - many components don't import it |
-| `tailwind.config.js` | Only `slate-950` override | Doesn't define our custom palette |
-| Components (15+ files) | Hardcoded hex values | No single source of truth |
+| `tailwind.config.js`              | Only `slate-950` override    | Doesn't define our custom palette               |
+| Components (15+ files)            | Hardcoded hex values         | No single source of truth                       |
 
 ### Examples of Scattered Colors
 
 **Priority colors duplicated:**
+
 ```typescript
 // PrioritySelector.tsx
 top: '#8b5cf6', high: '#ef4444', medium: '#f97316', low: '#22c55e'
@@ -46,6 +47,7 @@ top: '#8b5cf6', high: '#ef4444', medium: '#f97316', low: '#22c55e'
 ```
 
 **Dark/light values inline:**
+
 ```typescript
 // TaskCard.tsx
 const cardBg = isDark ? '#1e293b' : '#ffffff'
@@ -216,6 +218,7 @@ module.exports = {
 ### Component Usage
 
 **Option A: Tailwind classes (preferred for simple cases)**
+
 ```typescript
 // Uses tokens via Tailwind config
 <View className="bg-surface-light dark:bg-surface-dark border-border-default" />
@@ -223,6 +226,7 @@ module.exports = {
 ```
 
 **Option B: Direct import (for dynamic/computed styles)**
+
 ```typescript
 import { tokens } from '~/theme/tokens'
 import { useTheme } from '~/hooks/useTheme'
@@ -275,16 +279,19 @@ const { colors, priority, spacing } = useTokens()
 ## Migration Path
 
 ### Phase 1: Create Token System
+
 1. Create `src/theme/tokens.ts` with all color values
 2. Update `tailwind.config.js` to import and use tokens
 3. Delete old `src/theme/foundations/colors.ts`
 
 ### Phase 2: Update Components (incremental)
+
 4. Update shared components first (Button, Card, Input, Text)
 5. Update feature components (TaskCard, AddTaskForm, etc.)
 6. Update layout files (TabLayout, etc.)
 
 ### Phase 3: Validation
+
 7. Visual regression check across light/dark modes
 8. Remove all hardcoded hex values (lint rule?)
 
@@ -292,28 +299,31 @@ const { colors, priority, spacing } = useTokens()
 
 ## Benefits
 
-| Before | After |
-|--------|-------|
-| Change purple → update 15+ files | Change purple → update 1 file |
-| Hardcoded hex scattered everywhere | Single `tokens.ts` source |
-| Inconsistent dark/light patterns | Consistent `[mode]` accessor |
-| Easy to use wrong shade | IDE autocomplete from tokens |
-| No visibility into full palette | Complete palette in one place |
+| Before                             | After                         |
+| ---------------------------------- | ----------------------------- |
+| Change purple → update 15+ files   | Change purple → update 1 file |
+| Hardcoded hex scattered everywhere | Single `tokens.ts` source     |
+| Inconsistent dark/light patterns   | Consistent `[mode]` accessor  |
+| Easy to use wrong shade            | IDE autocomplete from tokens  |
+| No visibility into full palette    | Complete palette in one place |
 
 ---
 
 ## Considerations
 
 **Tailwind classes vs. style objects:**
+
 - Tailwind classes are great for static styles
 - Style objects needed for dynamic values (priority colors, computed styles)
 - Both can reference the same tokens
 
 **Naming convention:**
+
 - Keep it simple: `surface`, `text`, `border`, `brand`, `priority`
 - Avoid deep nesting that makes imports verbose
 
 **TypeScript:**
+
 - Full type safety on token access
 - Autocomplete for color names
 
@@ -329,4 +339,4 @@ const { colors, priority, spacing } = useTokens()
 
 ---
 
-*Ready for feedback*
+_Ready for feedback_

@@ -77,10 +77,7 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
         {/* Greeting with icon and beta badge */}
         <View className="flex-row items-center mb-2">
           {greetingIcon}
-          <Text
-            className="font-sans-medium ml-1.5"
-            style={{ fontSize: 16, color: brandColor }}
-          >
+          <Text className="font-sans-medium ml-1.5" style={{ fontSize: 16, color: brandColor }}>
             {greeting.text}
             {firstName ? `, ${firstName}` : ''}
           </Text>

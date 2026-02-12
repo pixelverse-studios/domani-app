@@ -50,7 +50,7 @@ export function useTutorialAnalytics() {
       setAnalyticsStartTime(Date.now())
       track('tutorial_started', { source })
     },
-    [setAnalyticsStartTime, track]
+    [setAnalyticsStartTime, track],
   )
 
   /**
@@ -67,7 +67,7 @@ export function useTutorialAnalytics() {
         step_number: STEP_NUMBERS[step],
       })
     },
-    [addAnalyticsViewedStep, track]
+    [addAnalyticsViewedStep, track],
   )
 
   /**
@@ -83,7 +83,7 @@ export function useTutorialAnalytics() {
       // Reset analytics state
       resetAnalyticsState()
     },
-    [resetAnalyticsState, track]
+    [resetAnalyticsState, track],
   )
 
   /**

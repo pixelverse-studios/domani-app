@@ -114,9 +114,9 @@ const sage: Theme = {
       color: '#7D9B8A',
       gradient: ['#7D9B8A', '#5A7765'],
     },
-    high: { color: '#D77A61' },
-    medium: { color: '#E8B86D' },
-    low: { color: '#8B9DAF' },
+    high: { color: '#D77A61' }, // Wellness
+    medium: { color: '#E8B86D' }, // Home
+    low: { color: '#8B9DAF' }, // Work
   },
   gradients: {
     primary: ['#7D9B8A', '#5A7765'],

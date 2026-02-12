@@ -10,11 +10,6 @@ import {
 import {
   Pencil,
   Trash2,
-  Heart,
-  Briefcase,
-  User,
-  BookOpen,
-  Star,
   FileText,
   ChevronDown,
   ChevronUp,
@@ -28,6 +23,7 @@ import { format, parseISO, isFuture } from 'date-fns'
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import type { TaskWithCategory } from '~/types'
+import { getCategoryIcon } from '~/utils/categoryIcons'
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -40,33 +36,6 @@ interface TaskCardProps {
   onDelete?: (taskId: string) => void
   onToggleComplete?: (taskId: string, completed: boolean) => void
   showCheckbox?: boolean
-}
-
-// Get icon for category based on name/icon field
-function getCategoryIcon(category: { name: string; icon?: string } | null, color: string) {
-  if (!category) return <Star size={14} color={color} />
-
-  const iconName = category.icon?.toLowerCase() || category.name.toLowerCase()
-
-  switch (iconName) {
-    case 'briefcase':
-    case 'work':
-      return <Briefcase size={14} color={color} />
-    case 'heart':
-    case 'health':
-    case 'wellness':
-      return <Heart size={14} color={color} />
-    case 'user':
-    case 'personal':
-      return <User size={14} color={color} />
-    case 'book-open':
-    case 'education':
-    case 'other':
-      return <BookOpen size={14} color={color} />
-    default:
-      // User-created categories use star icon
-      return <Star size={14} color={color} />
-  }
 }
 
 /**
@@ -175,9 +144,7 @@ export function TaskCard({
             <View style={styles.titleContainer}>
               <Text
                 className={`font-sans-semibold text-base ${
-                  isCompleted
-                    ? 'text-content-muted line-through'
-                    : 'text-content-primary'
+                  isCompleted ? 'text-content-muted line-through' : 'text-content-primary'
                 }`}
                 numberOfLines={2}
               >
@@ -216,14 +183,12 @@ export function TaskCard({
             <View style={styles.metadataContainer}>
               {/* Category Icon + Name */}
               <View style={styles.categoryContainer}>
-                {getCategoryIcon(
-                  category ? { name: categoryName, icon: category.icon || undefined } : null,
-                  isUserCategory ? theme.colors.brand.light : iconColor,
-                )}
-                <Text
-                  className="font-sans text-sm text-content-secondary ml-1.5"
-                  numberOfLines={1}
-                >
+                {getCategoryIcon({
+                  category: category ? { name: categoryName, icon: category.icon || undefined } : null,
+                  color: isUserCategory ? theme.colors.brand.light : iconColor,
+                  size: 14,
+                })}
+                <Text className="font-sans text-sm text-content-secondary ml-1.5" numberOfLines={1}>
                   {categoryName}
                 </Text>
               </View>
@@ -294,16 +259,10 @@ export function TaskCard({
           <View style={styles.notesContainer}>
             <View style={styles.notesHeader}>
               <FileText size={14} color={iconColor} />
-              <Text className="font-sans-medium text-sm text-content-secondary ml-1.5">
-                Notes
-              </Text>
+              <Text className="font-sans-medium text-sm text-content-secondary ml-1.5">Notes</Text>
             </View>
-            <View
-              style={[styles.notesContent, { backgroundColor: buttonBg }]}
-            >
-              <Text className="font-sans text-sm text-content-primary">
-                {task.notes}
-              </Text>
+            <View style={[styles.notesContent, { backgroundColor: buttonBg }]}>
+              <Text className="font-sans text-sm text-content-primary">{task.notes}</Text>
             </View>
           </View>
         </View>

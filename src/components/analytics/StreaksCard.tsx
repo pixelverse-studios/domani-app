@@ -132,9 +132,7 @@ function AnimatedMetric({
         <Text className="text-2xl font-bold text-content-primary">
           {hasData ? `${displayedNumber}${suffix}` : '--'}
         </Text>
-        <Text className="text-xs text-content-secondary text-center mt-0.5">
-          {label}
-        </Text>
+        <Text className="text-xs text-content-secondary text-center mt-0.5">{label}</Text>
         <Text className="text-xs text-content-tertiary">{sublabel}</Text>
       </Animated.View>
     </View>

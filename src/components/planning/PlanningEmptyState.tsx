@@ -16,10 +16,11 @@ export function PlanningEmptyState({ taskCount = 0 }: PlanningEmptyStateProps) {
     <View className="mx-5 mt-8">
       {/* Section header */}
       <View className="flex-row items-center mb-4">
-        <Text className="text-lg font-sans-semibold text-content-primary">
-          Planned Tasks
-        </Text>
-        <Text className="font-sans ml-1" style={{ fontSize: 18, color: theme.colors.text.tertiary }}>
+        <Text className="text-lg font-sans-semibold text-content-primary">Planned Tasks</Text>
+        <Text
+          className="font-sans ml-1"
+          style={{ fontSize: 18, color: theme.colors.text.tertiary }}
+        >
           ({taskCount})
         </Text>
       </View>

@@ -162,7 +162,10 @@ export default function TodayScreen() {
   }
 
   return (
-    <View className="flex-1" style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}>
+    <View
+      className="flex-1"
+      style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}
+    >
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
@@ -224,7 +227,10 @@ export default function TodayScreen() {
       {tasks.length > 0 && (
         <View
           className="absolute bottom-0 left-0 right-0"
-          style={{ paddingBottom: insets.bottom > 0 ? 0 : 16, backgroundColor: theme.colors.background }}
+          style={{
+            paddingBottom: insets.bottom > 0 ? 0 : 16,
+            backgroundColor: theme.colors.background,
+          }}
         >
           <AddTaskButton onPress={handleAddTask} label="Add More Tasks" />
         </View>
@@ -238,7 +244,10 @@ export default function TodayScreen() {
         onRequestClose={handleDismissNameModal}
       >
         <View className="flex-1 bg-black/50 justify-center px-6">
-          <View className="rounded-2xl p-5 max-h-[75%]" style={{ backgroundColor: theme.colors.card }}>
+          <View
+            className="rounded-2xl p-5 max-h-[75%]"
+            style={{ backgroundColor: theme.colors.card }}
+          >
             <View className="flex-row items-center justify-between mb-2">
               <Text className="text-lg font-semibold text-content-primary">
                 What should we call you?

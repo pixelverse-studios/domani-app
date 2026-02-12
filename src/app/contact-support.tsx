@@ -108,7 +108,10 @@ export default function ContactSupportScreen() {
   // Success State
   if (submitState === 'success') {
     return (
-      <View className="flex-1" style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}>
+      <View
+        className="flex-1"
+        style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}
+      >
         {/* Header */}
         <View className="flex-row items-center px-5 pt-4 pb-2">
           <TouchableOpacity
@@ -125,9 +128,7 @@ export default function ContactSupportScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Title */}
-          <Text className="text-2xl font-bold text-content-primary mb-2">
-            Contact Support
-          </Text>
+          <Text className="text-2xl font-bold text-content-primary mb-2">Contact Support</Text>
           <Text className="text-base text-content-secondary mb-8">
             Submit a request and get personalized help from our team
           </Text>
@@ -176,9 +177,7 @@ export default function ContactSupportScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Title */}
-        <Text className="text-2xl font-bold text-content-primary mb-2">
-          Contact Support
-        </Text>
+        <Text className="text-2xl font-bold text-content-primary mb-2">Contact Support</Text>
         <Text className="text-base text-content-secondary mb-6">
           Submit a request and get personalized help from our team
         </Text>
