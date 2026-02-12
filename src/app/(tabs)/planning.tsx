@@ -38,7 +38,7 @@ const FORM_TO_DB_CATEGORY: Record<string, string> = {
   work: 'Work',
   wellness: 'Wellness',
   personal: 'Personal',
-  education: 'Education',
+  home: 'Home',
 }
 
 // Map database category names back to form IDs
@@ -46,7 +46,7 @@ const DB_TO_FORM_CATEGORY: Record<string, string> = {
   Work: 'work',
   Wellness: 'wellness',
   Personal: 'personal',
-  Education: 'education',
+  Home: 'home',
 }
 
 interface TaskFormData {
