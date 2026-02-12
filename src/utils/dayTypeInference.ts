@@ -7,9 +7,7 @@
 
 import type { TaskWithCategory } from '~/types'
 import { getTheme } from '~/theme/themes'
-
-// Theme buckets that categories map to
-export type DayTheme = 'work' | 'wellness' | 'personal' | 'learning' | 'balanced'
+import { THEME_KEYWORDS, THEME_COLORS, type DayTheme } from '~/constants/systemCategories'
 
 export interface DayType {
   theme: DayTheme
@@ -17,89 +15,6 @@ export interface DayType {
   subtitle: string
   iconName: 'Briefcase' | 'Heart' | 'Home' | 'BookOpen' | 'Scale'
   accentColor: string
-}
-
-// Keywords for mapping custom categories to themes
-const THEME_KEYWORDS: Record<DayTheme, string[]> = {
-  work: [
-    'work',
-    'job',
-    'career',
-    'meeting',
-    'project',
-    'client',
-    'office',
-    'business',
-    'deadline',
-    'presentation',
-    'report',
-    'email',
-    'call',
-    'task',
-    'professional',
-  ],
-  wellness: [
-    'health',
-    'gym',
-    'workout',
-    'exercise',
-    'wellness',
-    'meditation',
-    'sleep',
-    'doctor',
-    'fitness',
-    'yoga',
-    'run',
-    'walk',
-    'mental',
-    'therapy',
-    'nutrition',
-    'diet',
-    'hydrate',
-    'rest',
-    'self-care',
-    'selfcare',
-  ],
-  personal: [
-    'home',
-    'family',
-    'friends',
-    'shopping',
-    'chores',
-    'errands',
-    'pets',
-    'cleaning',
-    'cooking',
-    'laundry',
-    'groceries',
-    'social',
-    'date',
-    'hobby',
-    'fun',
-    'relax',
-    'personal',
-  ],
-  learning: [
-    'learn',
-    'study',
-    'read',
-    'course',
-    'class',
-    'skill',
-    'practice',
-    'book',
-    'education',
-    'training',
-    'tutorial',
-    'lecture',
-    'research',
-    'creative',
-    'art',
-    'music',
-    'write',
-    'language',
-  ],
-  balanced: [], // Fallback, no keywords
 }
 
 // System category name to theme mapping
@@ -111,37 +26,37 @@ const SYSTEM_CATEGORY_MAP: Record<string, DayTheme> = {
 }
 
 // Day type definitions with personality
-// Colors updated to match sage theme from src/theme/themes.ts
+// Colors sourced from centralized THEME_COLORS (~/constants/systemCategories.ts)
 const DAY_TYPE_CONFIG: Record<DayTheme, Omit<DayType, 'theme'>> = {
   work: {
     title: 'Productivity Day',
     subtitle: 'Heads down, results ahead',
     iconName: 'Briefcase',
-    accentColor: '#8B9DAF', // Muted blue-gray from theme.priority.low
+    accentColor: THEME_COLORS.work,
   },
   wellness: {
     title: 'Self-Care Day',
     subtitle: 'Investing in yourself',
     iconName: 'Heart',
-    accentColor: '#D77A61', // Terracotta from theme.priority.high
+    accentColor: THEME_COLORS.wellness,
   },
   personal: {
     title: 'Life Admin Day',
     subtitle: 'Taking care of what matters',
     iconName: 'Home',
-    accentColor: '#7D9B8A', // Sage green from theme.colors.brand.primary
+    accentColor: THEME_COLORS.personal,
   },
   learning: {
     title: 'Growth Day',
     subtitle: 'Expanding your horizons',
     iconName: 'BookOpen',
-    accentColor: '#E8B86D', // Warm amber from theme.priority.medium
+    accentColor: THEME_COLORS.learning,
   },
   balanced: {
     title: 'Balanced Day',
     subtitle: 'A well-rounded day ahead',
     iconName: 'Scale',
-    accentColor: getTheme().colors.brand.primary,
+    accentColor: getTheme().colors.brand.primary, // Dynamic color from theme system
   },
 }
 

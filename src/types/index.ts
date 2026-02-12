@@ -49,8 +49,9 @@ export interface TaskWithCategory extends Task {
   user_category?: UserCategory | null
 }
 
-// Day type inference types (re-exported from utility for convenience)
-export type { DayTheme, DayType } from '~/utils/dayTypeInference'
+// Day type inference types (re-exported for convenience)
+export type { DayTheme } from '~/constants/systemCategories'
+export type { DayType } from '~/utils/dayTypeInference'
 
 // App configuration types
 export type { AppPhase, PhaseConfig, FeatureFlags, AppConfig } from './appConfig'

@@ -175,3 +175,119 @@ export function isSystemCategoryName(name: string): name is SystemCategoryName {
 export function isSystemCategoryId(id: string): id is SystemCategoryId {
   return id in CATEGORY_BY_ID
 }
+
+// ============================================================================
+// Theme Configuration for Day Type Inference
+// ============================================================================
+
+/**
+ * Day theme types used for inferring the overall "vibe" of a day
+ * Based on task categories and keywords
+ *
+ * @note 'learning' theme uses Home category colors since Home replaced Education category
+ */
+export type DayTheme = 'work' | 'wellness' | 'personal' | 'learning' | 'balanced'
+
+/**
+ * Keywords for mapping custom user categories to day themes
+ * Used by day type inference to categorize tasks when they don't have system categories
+ *
+ * @example A custom category named "gym session" would match wellness theme
+ * @example A custom category named "read book" would match learning theme
+ */
+export const THEME_KEYWORDS: Record<DayTheme, string[]> = {
+  work: [
+    'work',
+    'job',
+    'career',
+    'meeting',
+    'project',
+    'client',
+    'office',
+    'business',
+    'deadline',
+    'presentation',
+    'report',
+    'email',
+    'call',
+    'task',
+    'professional',
+  ],
+  wellness: [
+    'health',
+    'gym',
+    'workout',
+    'exercise',
+    'wellness',
+    'meditation',
+    'sleep',
+    'doctor',
+    'fitness',
+    'yoga',
+    'run',
+    'walk',
+    'mental',
+    'therapy',
+    'nutrition',
+    'diet',
+    'hydrate',
+    'rest',
+    'self-care',
+    'selfcare',
+  ],
+  personal: [
+    'home',
+    'family',
+    'friends',
+    'shopping',
+    'chores',
+    'errands',
+    'pets',
+    'cleaning',
+    'cooking',
+    'laundry',
+    'groceries',
+    'social',
+    'date',
+    'hobby',
+    'fun',
+    'relax',
+    'personal',
+  ],
+  learning: [
+    'learn',
+    'study',
+    'read',
+    'course',
+    'class',
+    'skill',
+    'practice',
+    'book',
+    'education',
+    'training',
+    'tutorial',
+    'lecture',
+    'research',
+    'creative',
+    'art',
+    'music',
+    'write',
+    'language',
+  ],
+  balanced: [], // Fallback theme with no specific keywords
+}
+
+/**
+ * Theme color mappings derived from system categories
+ * Maps day themes to their associated colors from system categories
+ *
+ * @note 'learning' theme uses Home category color (#E8B86D) since Home replaced the old Education category
+ * @note 'balanced' theme uses the dynamic brand.primary color from the theme system
+ */
+export const THEME_COLORS: Record<DayTheme, string> = {
+  work: SYSTEM_CATEGORIES.work.color, // #8B9DAF - Muted blue-gray
+  wellness: SYSTEM_CATEGORIES.wellness.color, // #D77A61 - Terracotta
+  personal: SYSTEM_CATEGORIES.personal.color, // #7D9B8A - Sage green
+  learning: SYSTEM_CATEGORIES.home.color, // #E8B86D - Warm amber (Home replaced Education)
+  balanced: SYSTEM_CATEGORIES.personal.color, // #7D9B8A - Default to sage (overridden dynamically)
+}
