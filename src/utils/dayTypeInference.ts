@@ -107,7 +107,7 @@ const SYSTEM_CATEGORY_MAP: Record<string, DayTheme> = {
   Work: 'work',
   Wellness: 'wellness',
   Personal: 'personal',
-  Education: 'learning',
+  Home: 'personal', // Home tasks (chores, errands, household) map to personal theme
 }
 
 // Day type definitions with personality

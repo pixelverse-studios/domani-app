@@ -10,7 +10,7 @@ const SYSTEM_CATEGORY_MAP: Record<string, string> = {
   work: 'Work',
   wellness: 'Wellness',
   personal: 'Personal',
-  education: 'Education',
+  home: 'Home',
 }
 
 // 30 minutes - user categories rarely change

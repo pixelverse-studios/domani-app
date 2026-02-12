@@ -34,7 +34,7 @@ import { DayToggle, type PlanningTarget } from './DayToggle'
 import { ReminderSection } from './ReminderSection'
 import { useAppTheme } from '~/hooks/useAppTheme'
 
-type Category = 'work' | 'wellness' | 'personal' | 'education' | string
+type Category = 'work' | 'wellness' | 'personal' | 'home' | string
 type SubmitState = 'idle' | 'submitting' | 'success'
 
 // Tutorial timing constants
