@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '~/lib/supabase'
 import type { UserCategory, SystemCategory, UserCategoryPreference } from '~/types'
 import { getTheme } from '~/theme/themes'
+import { validateCategoryName } from '~/constants/systemCategories.validation'
 
 // Map of form category IDs to database names for system categories
 const SYSTEM_CATEGORY_MAP: Record<string, string> = {
@@ -95,6 +96,9 @@ export function useCreateUserCategory() {
       color?: string
       icon?: string
     }) => {
+      // Validate name before database call (fail fast)
+      validateCategoryName(name)
+
       const {
         data: { user },
       } = await supabase.auth.getUser()
