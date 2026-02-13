@@ -122,6 +122,21 @@ export async function carryForwardTasks(
   } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
+  // FIX 1: CRITICAL - Verify user owns the target plan
+  const { data: targetPlan, error: planError } = await supabase
+    .from('plans')
+    .select('user_id')
+    .eq('id', input.targetPlanId)
+    .single()
+
+  if (planError || !targetPlan) {
+    throw new Error('Unauthorized: Target plan does not belong to user')
+  }
+  if (targetPlan.user_id !== user.id) {
+    throw new Error('Unauthorized: Target plan does not belong to user')
+  }
+
+  // FIX 2: CRITICAL - Add explicit user_id check to source tasks query
   // Fetch original tasks with all data including category relations
   const { data: selectedTasks, error: fetchError } = await supabase
     .from('tasks')
@@ -133,6 +148,7 @@ export async function carryForwardTasks(
     `
     )
     .in('id', input.selectedTaskIds)
+    .eq('user_id', user.id)
 
   if (fetchError) throw fetchError
   if (!selectedTasks || selectedTasks.length === 0) {
@@ -195,9 +211,20 @@ export async function carryForwardTasks(
         )
         .single()
 
-      if (createError) throw createError
+      // FIX 3: IMPORTANT - Check for FREE_TIER_LIMIT error
+      if (createError) {
+        // Check if this is a free tier limit error
+        if (
+          (createError as any).code === '23514' ||
+          createError.message.includes('task limit')
+        ) {
+          throw new Error('FREE_TIER_LIMIT')
+        }
+        throw createError
+      }
 
       const taskWithCategory = newTask as TaskWithCategory
+      // FIX 4: IMPORTANT - Track task immediately after successful insert
       createdTasks.push(taskWithCategory)
 
       // Schedule notification if reminder is set
@@ -211,13 +238,16 @@ export async function carryForwardTasks(
 
         if (notificationId) {
           scheduledNotifications.push(notificationId)
+          // FIX 5: IMPORTANT - Check for errors when updating notification_id
           // Update task with notification ID
-          await supabase
+          const { error: updateError } = await supabase
             .from('tasks')
             .update({ notification_id: notificationId })
             .eq('id', taskWithCategory.id)
-          // Update local object for return value
-          taskWithCategory.notification_id = notificationId
+          // Only update local object if update succeeded
+          if (!updateError) {
+            taskWithCategory.notification_id = notificationId
+          }
         }
       }
     }
