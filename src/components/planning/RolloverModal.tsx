@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Modal, View, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
 import { Check, Star, X } from 'lucide-react-native'
 
@@ -33,6 +33,15 @@ export function RolloverModal({
   const [makeMitToday, setMakeMitToday] = useState(false)
   const [keepReminderTimes, setKeepReminderTimes] = useState(true)
 
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!visible) {
+      setSelectedIds(new Set())
+      setMakeMitToday(false)
+      setKeepReminderTimes(true)
+    }
+  }, [visible])
+
   // Selection handlers
   const toggleTask = (id: string) => {
     const newSelected = new Set(selectedIds)
@@ -59,7 +68,7 @@ export function RolloverModal({
   const isMitSelected = mitTask ? selectedIds.has(mitTask.id) : false
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onStartFresh}>
       <View style={styles.overlay}>
         <View
           style={[
