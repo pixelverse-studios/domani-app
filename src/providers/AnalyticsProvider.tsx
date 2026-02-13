@@ -11,8 +11,6 @@ export type AnalyticsEvent =
       name: 'plan_created'
       properties: { task_count: number; has_mit: boolean; plan_date: string }
     }
-  | { name: 'plan_locked'; properties: { task_count: number; plan_date: string } }
-  | { name: 'plan_unlocked'; properties: { plan_date: string } }
   // Task events
   | {
       name: 'task_created'
