@@ -22,6 +22,11 @@ import type { TaskWithCategory, TaskPriority } from '~/types'
 const ROLLOVER_PROMPTED_DATE_KEY = 'rollover_prompted_date'
 
 /**
+ * AsyncStorage key for storing the last celebrated date
+ */
+const CELEBRATION_SHOWN_DATE_KEY = 'celebration_shown_date'
+
+/**
  * Check if the user was already prompted for rollover today
  *
  * @returns Promise<boolean> - true if already prompted today, false otherwise
@@ -79,6 +84,67 @@ export async function clearPromptState(): Promise<void> {
     await AsyncStorage.removeItem(ROLLOVER_PROMPTED_DATE_KEY)
   } catch (error) {
     console.error('Error clearing rollover prompt state:', error)
+  }
+}
+
+/**
+ * Check if the user was already celebrated for completing all tasks today
+ *
+ * @returns Promise<boolean> - true if already celebrated today, false otherwise
+ *
+ * @example
+ * const alreadyCelebrated = await wasCelebratedToday()
+ * if (!alreadyCelebrated) {
+ *   // Show celebration modal
+ * }
+ */
+export async function wasCelebratedToday(): Promise<boolean> {
+  try {
+    const lastCelebrated = await AsyncStorage.getItem(CELEBRATION_SHOWN_DATE_KEY)
+    const today = format(new Date(), 'yyyy-MM-dd')
+    return lastCelebrated === today
+  } catch (error) {
+    console.error('Error checking celebration status:', error)
+    // On error, assume not celebrated to avoid blocking the celebration
+    return false
+  }
+}
+
+/**
+ * Mark the user as having been celebrated today
+ *
+ * Stores today's date in ISO format (yyyy-MM-dd).
+ * State automatically resets at midnight when the date changes.
+ *
+ * @returns Promise<void>
+ *
+ * @example
+ * // After showing celebration modal
+ * await markCelebratedToday()
+ */
+export async function markCelebratedToday(): Promise<void> {
+  try {
+    const today = format(new Date(), 'yyyy-MM-dd')
+    await AsyncStorage.setItem(CELEBRATION_SHOWN_DATE_KEY, today)
+  } catch (error) {
+    console.error('Error marking celebration:', error)
+    // Fail silently - not critical if we can't save the state
+  }
+}
+
+/**
+ * Clear the celebration state (for testing/debugging)
+ *
+ * @returns Promise<void>
+ *
+ * @example
+ * await clearCelebrationState()
+ */
+export async function clearCelebrationState(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(CELEBRATION_SHOWN_DATE_KEY)
+  } catch (error) {
+    console.error('Error clearing celebration state:', error)
   }
 }
 
