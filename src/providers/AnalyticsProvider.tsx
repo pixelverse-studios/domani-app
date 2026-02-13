@@ -44,6 +44,18 @@ export type AnalyticsEvent =
   | { name: 'tutorial_completed'; properties: { duration_seconds: number } }
   | { name: 'tutorial_task_created'; properties?: Record<string, never> }
   | { name: 'tutorial_category_created'; properties?: Record<string, never> }
+  // Rollover events
+  | { name: 'rollover_prompt_shown'; properties: { task_count: number; has_mit: boolean } }
+  | {
+      name: 'rollover_carried_forward'
+      properties: {
+        task_count: number
+        mit_carried: boolean
+        mit_made_today: boolean
+        kept_reminders: boolean
+      }
+    }
+  | { name: 'rollover_started_fresh'; properties: { task_count: number; had_mit: boolean } }
 
 interface AnalyticsContextValue {
   track: <T extends AnalyticsEvent>(eventName: T['name'], properties?: T['properties']) => void

@@ -21,7 +21,7 @@ import { View, ActivityIndicator } from 'react-native'
 
 import { ThemeProvider } from '~/providers/ThemeProvider'
 import { AuthProvider } from '~/providers/AuthProvider'
-import { AnalyticsProvider } from '~/providers/AnalyticsProvider'
+import { AnalyticsProvider, useAnalytics } from '~/providers/AnalyticsProvider'
 import { useNotificationObserver } from '~/hooks/useNotifications'
 import { useAnalyticsIdentify } from '~/hooks/useAnalyticsIdentify'
 import { useSentryIdentify } from '~/hooks/useSentryIdentify'
@@ -51,6 +51,9 @@ function RootLayoutContent() {
   // Track auth events (sign in, sign out)
   useAuthAnalytics()
 
+  // Analytics tracking
+  const { track } = useAnalytics()
+
   // Fetch app config on mount
   const fetchConfig = useAppConfigStore((state) => state.fetchConfig)
   React.useEffect(() => {
@@ -72,6 +75,16 @@ function RootLayoutContent() {
   // - Auth is complete
   const showRollover = shouldShowPrompt && !tutorialActive && !rolloverLoading && !loading
 
+  // Track when rollover prompt is shown
+  React.useEffect(() => {
+    if (showRollover && mitTask) {
+      track('rollover_prompt_shown', {
+        task_count: (mitTask ? 1 : 0) + otherTasks.length,
+        has_mit: !!mitTask,
+      })
+    }
+  }, [showRollover, mitTask, otherTasks.length, track])
+
   // Handle carrying forward selected tasks to today
   const handleCarryForward = React.useCallback(
     async (params: { selectedTaskIds: string[]; makeMitToday: boolean; keepReminderTimes: boolean }) => {
@@ -88,6 +101,14 @@ function RootLayoutContent() {
           keepReminderTimes: params.keepReminderTimes,
         })
 
+        // Track analytics
+        track('rollover_carried_forward', {
+          task_count: params.selectedTaskIds.length,
+          mit_carried: !!mitTask && params.selectedTaskIds.includes(mitTask.id),
+          mit_made_today: params.makeMitToday,
+          kept_reminders: params.keepReminderTimes,
+        })
+
         // Mark as prompted so modal doesn't show again today
         await markPrompted()
       } catch (error) {
@@ -96,14 +117,20 @@ function RootLayoutContent() {
         throw error
       }
     },
-    [todayPlan, carryForwardTasks, markPrompted]
+    [todayPlan, carryForwardTasks, markPrompted, track, mitTask]
   )
 
   // Handle user choosing to start fresh (no task rollover)
   const handleStartFresh = React.useCallback(async () => {
+    // Track analytics
+    track('rollover_started_fresh', {
+      task_count: (mitTask ? 1 : 0) + otherTasks.length,
+      had_mit: !!mitTask,
+    })
+
     // Mark as prompted so modal doesn't show again today
     await markPrompted()
-  }, [markPrompted])
+  }, [markPrompted, track, mitTask, otherTasks.length])
 
   // Wait for auth to initialize before rendering routes
   // This prevents the race condition where (tabs) renders before auth check completes
