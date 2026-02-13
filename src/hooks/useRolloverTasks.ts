@@ -14,7 +14,7 @@
  * rollover experience around the user's MIT.
  */
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, subDays } from 'date-fns'
 import { useCallback, useMemo } from 'react'
 
@@ -68,6 +68,8 @@ export interface UseRolloverTasksResult {
  * }
  */
 export function useRolloverTasks(): UseRolloverTasksResult {
+  const queryClient = useQueryClient()
+
   // Query incomplete tasks from yesterday
   const {
     data: incompleteTasks = [],
@@ -113,6 +115,7 @@ export function useRolloverTasks(): UseRolloverTasksResult {
 
   // Check if user was already prompted today
   // This is checked separately from the query to avoid re-querying when prompt status changes
+  // Default to true (fail closed) to prevent duplicate prompts on error
   const { data: alreadyPrompted = true } = useQuery({
     queryKey: ['rolloverPromptedToday'],
     queryFn: wasPromptedToday,
@@ -127,9 +130,9 @@ export function useRolloverTasks(): UseRolloverTasksResult {
   // Memoized function to mark user as prompted
   const markPrompted = useCallback(async () => {
     await markPromptedToday()
-    // Refetch prompt status to update UI
-    await refetch()
-  }, [refetch])
+    // Invalidate the prompt status query so shouldShowPrompt updates
+    await queryClient.invalidateQueries({ queryKey: ['rolloverPromptedToday'] })
+  }, [queryClient])
 
   return {
     incompleteTasks,
