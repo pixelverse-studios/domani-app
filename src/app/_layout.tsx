@@ -28,7 +28,12 @@ import { useSentryIdentify } from '~/hooks/useSentryIdentify'
 import { useAuthAnalytics } from '~/hooks/useAuthAnalytics'
 import { useAuth } from '~/hooks/useAuth'
 import { useAppConfigStore } from '~/stores/appConfigStore'
+import { useTutorialStore } from '~/stores/tutorialStore'
+import { useRolloverTasks } from '~/hooks/useRolloverTasks'
+import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
+import { useTodayPlan } from '~/hooks/usePlans'
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
+import { RolloverModal } from '~/components/planning'
 import { ErrorBoundary } from '~/components/ErrorBoundary'
 
 const queryClient = new QueryClient()
@@ -53,6 +58,52 @@ function RootLayoutContent() {
   }, [fetchConfig])
 
   const { accountReactivated, clearAccountReactivated, loading } = useAuth()
+
+  // Rollover tasks detection
+  const { shouldShowPrompt, mitTask, otherTasks, isLoading: rolloverLoading, markPrompted } = useRolloverTasks()
+  const { isActive: tutorialActive } = useTutorialStore()
+  const { data: todayPlan } = useTodayPlan()
+  const { mutateAsync: carryForwardTasks, isPending: _isCarryingForward } = useCarryForwardTasks()
+
+  // Show rollover modal if:
+  // - User should be prompted (has incomplete tasks from yesterday & not already prompted today)
+  // - Tutorial is not active (don't conflict with tutorial)
+  // - Not already loading rollover data
+  // - Auth is complete
+  const showRollover = shouldShowPrompt && !tutorialActive && !rolloverLoading && !loading
+
+  // Handle carrying forward selected tasks to today
+  const handleCarryForward = React.useCallback(
+    async (params: { selectedTaskIds: string[]; makeMitToday: boolean; keepReminderTimes: boolean }) => {
+      if (!todayPlan) {
+        console.error('[Rollover] No today plan available')
+        return
+      }
+
+      try {
+        await carryForwardTasks({
+          selectedTaskIds: params.selectedTaskIds,
+          targetPlanId: todayPlan.id,
+          shouldMakeMIT: params.makeMitToday,
+          keepReminderTimes: params.keepReminderTimes,
+        })
+
+        // Mark as prompted so modal doesn't show again today
+        await markPrompted()
+      } catch (error) {
+        console.error('[Rollover] Failed to carry forward tasks:', error)
+        // Let the modal handle displaying the error
+        throw error
+      }
+    },
+    [todayPlan, carryForwardTasks, markPrompted]
+  )
+
+  // Handle user choosing to start fresh (no task rollover)
+  const handleStartFresh = React.useCallback(async () => {
+    // Mark as prompted so modal doesn't show again today
+    await markPrompted()
+  }, [markPrompted])
 
   // Wait for auth to initialize before rendering routes
   // This prevents the race condition where (tabs) renders before auth check completes
@@ -82,6 +133,15 @@ function RootLayoutContent() {
         visible={accountReactivated}
         type="reactivated"
         onDismiss={clearAccountReactivated}
+      />
+
+      {/* Rollover prompt for incomplete tasks from yesterday */}
+      <RolloverModal
+        visible={showRollover}
+        mitTask={mitTask}
+        otherTasks={otherTasks}
+        onCarryForward={handleCarryForward}
+        onStartFresh={handleStartFresh}
       />
     </>
   )
