@@ -33,7 +33,7 @@ import { useRolloverTasks } from '~/hooks/useRolloverTasks'
 import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
 import { useTodayPlan } from '~/hooks/usePlans'
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
-import { RolloverModal } from '~/components/planning'
+import { RolloverModal, CelebrationModal } from '~/components/planning'
 import { ErrorBoundary } from '~/components/ErrorBoundary'
 
 const queryClient = new QueryClient()
@@ -62,18 +62,36 @@ function RootLayoutContent() {
 
   const { accountReactivated, clearAccountReactivated, loading } = useAuth()
 
-  // Rollover tasks detection
-  const { shouldShowPrompt, mitTask, otherTasks, isLoading: rolloverLoading, markPrompted } = useRolloverTasks()
+  // Rollover tasks detection and celebration
+  const {
+    shouldShowPrompt,
+    shouldShowCelebration,
+    yesterdayTaskCount,
+    mitTask,
+    otherTasks,
+    isLoading: rolloverLoading,
+    markPrompted,
+    markCelebrated,
+  } = useRolloverTasks()
   const { isActive: tutorialActive } = useTutorialStore()
   const { data: todayPlan } = useTodayPlan()
   const { mutateAsync: carryForwardTasks, isPending: _isCarryingForward } = useCarryForwardTasks()
+
+  // Show celebration modal if:
+  // - User should be celebrated (all tasks from yesterday completed & not already celebrated)
+  // - Tutorial is not active (don't conflict with tutorial)
+  // - Not loading
+  // - Auth is complete
+  // Celebration takes precedence over rollover
+  const showCelebration = shouldShowCelebration && !tutorialActive && !rolloverLoading && !loading
 
   // Show rollover modal if:
   // - User should be prompted (has incomplete tasks from yesterday & not already prompted today)
   // - Tutorial is not active (don't conflict with tutorial)
   // - Not already loading rollover data
   // - Auth is complete
-  const showRollover = shouldShowPrompt && !tutorialActive && !rolloverLoading && !loading
+  // - Celebration is NOT showing (celebration takes precedence)
+  const showRollover = shouldShowPrompt && !tutorialActive && !rolloverLoading && !loading && !showCelebration
 
   // Track when rollover prompt is shown
   React.useEffect(() => {
@@ -84,6 +102,21 @@ function RootLayoutContent() {
       })
     }
   }, [showRollover, mitTask, otherTasks.length, track])
+
+  // Track when celebration modal is shown
+  React.useEffect(() => {
+    if (showCelebration) {
+      track('celebration_shown', {
+        celebration_type: 'daily_completion',
+        task_count: yesterdayTaskCount,
+      })
+    }
+  }, [showCelebration, yesterdayTaskCount, track])
+
+  // Handle celebration dismissal
+  const handleCelebrationDismiss = React.useCallback(async () => {
+    await markCelebrated()
+  }, [markCelebrated])
 
   // Handle carrying forward selected tasks to today
   const handleCarryForward = React.useCallback(
@@ -160,6 +193,13 @@ function RootLayoutContent() {
         visible={accountReactivated}
         type="reactivated"
         onDismiss={clearAccountReactivated}
+      />
+
+      {/* Celebration modal for completing all tasks from yesterday */}
+      <CelebrationModal
+        visible={showCelebration}
+        taskCount={yesterdayTaskCount}
+        onDismiss={handleCelebrationDismiss}
       />
 
       {/* Rollover prompt for incomplete tasks from yesterday */}

@@ -56,6 +56,11 @@ export type AnalyticsEvent =
       }
     }
   | { name: 'rollover_started_fresh'; properties: { task_count: number; had_mit: boolean } }
+  // Celebration events
+  | {
+      name: 'celebration_shown'
+      properties: { celebration_type: 'daily_completion'; task_count: number }
+    }
 
 interface AnalyticsContextValue {
   track: <T extends AnalyticsEvent>(eventName: T['name'], properties?: T['properties']) => void

@@ -19,7 +19,12 @@ import { format, subDays } from 'date-fns'
 import { useCallback, useMemo } from 'react'
 
 import { supabase } from '~/lib/supabase'
-import { wasPromptedToday, markPromptedToday } from '~/lib/rollover'
+import {
+  wasPromptedToday,
+  markPromptedToday,
+  wasCelebratedToday,
+  markCelebratedToday,
+} from '~/lib/rollover'
 import type { TaskPriority } from '~/types'
 
 /**
@@ -48,10 +53,16 @@ export interface UseRolloverTasksResult {
   otherTasks: RolloverTask[]
   /** Whether to show the rollover prompt (has tasks && not already prompted) */
   shouldShowPrompt: boolean
+  /** Whether to show celebration modal (all tasks completed && not already celebrated) */
+  shouldShowCelebration: boolean
+  /** Total count of yesterday's tasks (for celebration context) */
+  yesterdayTaskCount: number
   /** Loading state */
   isLoading: boolean
   /** Mark user as having been prompted today */
   markPrompted: () => Promise<void>
+  /** Mark user as having been celebrated today */
+  markCelebrated: () => Promise<void>
 }
 
 /**
@@ -70,10 +81,13 @@ export interface UseRolloverTasksResult {
 export function useRolloverTasks(): UseRolloverTasksResult {
   const queryClient = useQueryClient()
 
+  // Calculate yesterday's date once for all queries
+  const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd')
+
   // Query incomplete tasks from yesterday
   const {
     data: incompleteTasks = [],
-    isLoading,
+    isLoading: isLoadingIncomplete,
     refetch,
   } = useQuery({
     queryKey: ['rolloverTasks'],
@@ -83,9 +97,6 @@ export function useRolloverTasks(): UseRolloverTasksResult {
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) return []
-
-      // Calculate yesterday's date in yyyy-MM-dd format
-      const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd')
 
       // Query incomplete tasks from yesterday
       const { data, error } = await supabase
@@ -106,6 +117,32 @@ export function useRolloverTasks(): UseRolloverTasksResult {
     staleTime: 1000 * 60 * 5, // 5 minutes - reasonable for rollover check
   })
 
+  // Query ALL tasks from yesterday to check if all were completed
+  const { data: allYesterdayTasks = [], isLoading: isLoadingAll } = useQuery({
+    queryKey: ['allYesterdayTasks'],
+    queryFn: async (): Promise<{ id: string; completed_at: string | null }[]> => {
+      // Get current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return []
+
+      // Query all tasks from yesterday
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('id, completed_at')
+        .eq('user_id', user.id)
+        .eq('planned_for', yesterday)
+
+      if (error) throw error
+
+      return data || []
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+
+  const isLoading = isLoadingIncomplete || isLoadingAll
+
   // Separate MIT task from other tasks
   const { mitTask, otherTasks } = useMemo(() => {
     const mit = incompleteTasks.find((task) => task.is_mit) || null
@@ -122,10 +159,32 @@ export function useRolloverTasks(): UseRolloverTasksResult {
     staleTime: 1000 * 60 * 60, // 1 hour - prompt status doesn't change frequently
   })
 
-  // Determine if we should show the prompt
+  // Check if user was already celebrated today
+  // Default to true (fail closed) to prevent duplicate celebrations on error
+  const { data: alreadyCelebrated = true } = useQuery({
+    queryKey: ['celebrationShownToday'],
+    queryFn: wasCelebratedToday,
+    staleTime: 1000 * 60 * 60, // 1 hour
+  })
+
+  // Determine if we should show the rollover prompt
   const shouldShowPrompt = useMemo(() => {
     return !isLoading && !alreadyPrompted && incompleteTasks.length > 0
   }, [isLoading, alreadyPrompted, incompleteTasks.length])
+
+  // Determine if we should show the celebration modal
+  // Show when: had tasks yesterday, all are completed, and not already celebrated
+  const shouldShowCelebration = useMemo(() => {
+    if (isLoading || alreadyCelebrated) return false
+
+    const hadTasksYesterday = allYesterdayTasks.length > 0
+    const allTasksCompleted =
+      hadTasksYesterday && allYesterdayTasks.every((task) => task.completed_at !== null)
+
+    return hadTasksYesterday && allTasksCompleted
+  }, [isLoading, alreadyCelebrated, allYesterdayTasks])
+
+  const yesterdayTaskCount = allYesterdayTasks.length
 
   // Memoized function to mark user as prompted
   const markPrompted = useCallback(async () => {
@@ -134,12 +193,22 @@ export function useRolloverTasks(): UseRolloverTasksResult {
     await queryClient.invalidateQueries({ queryKey: ['rolloverPromptedToday'] })
   }, [queryClient])
 
+  // Memoized function to mark user as celebrated
+  const markCelebrated = useCallback(async () => {
+    await markCelebratedToday()
+    // Invalidate the celebration status query so shouldShowCelebration updates
+    await queryClient.invalidateQueries({ queryKey: ['celebrationShownToday'] })
+  }, [queryClient])
+
   return {
     incompleteTasks,
     mitTask,
     otherTasks,
     shouldShowPrompt,
+    shouldShowCelebration,
+    yesterdayTaskCount,
     isLoading,
     markPrompted,
+    markCelebrated,
   }
 }
