@@ -60,7 +60,8 @@
     "extra": {
       "eas": {
         "projectId": "5341e2b9-b8e9-4faf-8caf-f4d3847fd92e"
-      }
+      },
+      "posthogApiKey": "phc_zIMNv3qWfQHyXlXgTnQJEaomiOXO38LTNS6JyNddK57"
     }
   }
 }
