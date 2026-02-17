@@ -88,7 +88,6 @@ export function useRolloverTasks(): UseRolloverTasksResult {
   const {
     data: incompleteTasks = [],
     isLoading: isLoadingIncomplete,
-    refetch,
   } = useQuery({
     queryKey: ['rolloverTasks'],
     queryFn: async (): Promise<RolloverTask[]> => {
@@ -98,14 +97,23 @@ export function useRolloverTasks(): UseRolloverTasksResult {
       } = await supabase.auth.getUser()
       if (!user) return []
 
-      // Query incomplete tasks from yesterday
+      // Step 1: Get yesterday's plan (tasks link to plans via plan_id, not planned_for)
+      const { data: yesterdayPlan } = await supabase
+        .from('plans')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('planned_for', yesterday)
+        .maybeSingle()
+
+      if (!yesterdayPlan) return []
+
+      // Step 2: Query incomplete tasks from that plan
       const { data, error } = await supabase
         .from('tasks')
         .select(
           'id, title, priority, system_category_id, user_category_id, reminder_at, is_mit',
         )
-        .eq('user_id', user.id)
-        .eq('planned_for', yesterday)
+        .eq('plan_id', yesterdayPlan.id)
         .is('completed_at', null)
         .order('is_mit', { ascending: false }) // MIT first
         .order('position')
@@ -127,12 +135,21 @@ export function useRolloverTasks(): UseRolloverTasksResult {
       } = await supabase.auth.getUser()
       if (!user) return []
 
-      // Query all tasks from yesterday
+      // Step 1: Get yesterday's plan
+      const { data: yesterdayPlan } = await supabase
+        .from('plans')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('planned_for', yesterday)
+        .maybeSingle()
+
+      if (!yesterdayPlan) return []
+
+      // Step 2: Query all tasks from that plan
       const { data, error } = await supabase
         .from('tasks')
         .select('id, completed_at')
-        .eq('user_id', user.id)
-        .eq('planned_for', yesterday)
+        .eq('plan_id', yesterdayPlan.id)
 
       if (error) throw error
 
