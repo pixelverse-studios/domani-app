@@ -105,7 +105,12 @@ export function useRolloverTasks(): UseRolloverTasksResult {
         .eq('planned_for', yesterday)
         .maybeSingle()
 
-      if (!yesterdayPlan) return []
+      if (!yesterdayPlan) {
+        console.log('[useRolloverTasks] No plan found for yesterday:', yesterday)
+        return []
+      }
+
+      console.log('[useRolloverTasks] Found yesterday plan:', yesterdayPlan.id)
 
       // Step 2: Query incomplete tasks from that plan
       const { data, error } = await supabase
@@ -120,6 +125,7 @@ export function useRolloverTasks(): UseRolloverTasksResult {
 
       if (error) throw error
 
+      console.log('[useRolloverTasks] Incomplete tasks found:', data?.length ?? 0)
       return (data as RolloverTask[]) || []
     },
     staleTime: 1000 * 60 * 5, // 5 minutes - reasonable for rollover check
@@ -172,7 +178,11 @@ export function useRolloverTasks(): UseRolloverTasksResult {
   // Default to true (fail closed) to prevent duplicate prompts on error
   const { data: alreadyPrompted = true } = useQuery({
     queryKey: ['rolloverPromptedToday'],
-    queryFn: wasPromptedToday,
+    queryFn: async () => {
+      const result = await wasPromptedToday()
+      console.log('[useRolloverTasks] wasPromptedToday:', result)
+      return result
+    },
     staleTime: 1000 * 60 * 60, // 1 hour - prompt status doesn't change frequently
   })
 
