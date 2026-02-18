@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useEffect, useCallback } from 'react'
 import { PostHogProvider, usePostHog } from 'posthog-react-native'
+import Constants from 'expo-constants'
 
-const POSTHOG_API_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY || ''
+const POSTHOG_API_KEY =
+  Constants.expoConfig?.extra?.posthogApiKey || process.env.EXPO_PUBLIC_POSTHOG_KEY || ''
 const POSTHOG_HOST = 'https://us.i.posthog.com'
 
 // Event types for type-safe tracking

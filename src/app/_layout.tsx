@@ -93,6 +93,22 @@ function RootLayoutContent() {
   // - Celebration is NOT showing (celebration takes precedence)
   const showRollover = shouldShowPrompt && !tutorialActive && !rolloverLoading && !loading && !showCelebration
 
+  // Debug: log rollover state on every change (DEV only)
+  React.useEffect(() => {
+    if (__DEV__) {
+      console.log('[Rollover Debug]', {
+        shouldShowPrompt,
+        tutorialActive,
+        rolloverLoading,
+        authLoading: loading,
+        showCelebration,
+        showRollover,
+        incompleteTasks: otherTasks.length + (mitTask ? 1 : 0),
+        hasMit: !!mitTask,
+      })
+    }
+  }, [shouldShowPrompt, tutorialActive, rolloverLoading, loading, showCelebration, showRollover, otherTasks.length, mitTask])
+
   // Track when rollover prompt is shown
   React.useEffect(() => {
     if (showRollover && mitTask) {

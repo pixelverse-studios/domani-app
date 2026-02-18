@@ -94,8 +94,8 @@ android {
         applicationId 'com.baitedz.domaniapp'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 22
-        versionName "1.0.21"
+        versionCode 100
+        versionName "1.0.22"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -106,15 +106,22 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            if (project.hasProperty('DOMANI_RELEASE_STORE_FILE')) {
+                storeFile file(DOMANI_RELEASE_STORE_FILE.replaceFirst("^~", System.getProperty("user.home")))
+                storePassword DOMANI_RELEASE_STORE_PASSWORD
+                keyAlias DOMANI_RELEASE_KEY_ALIAS
+                keyPassword DOMANI_RELEASE_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Use production keystore for release builds
+            signingConfig signingConfigs.release
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds

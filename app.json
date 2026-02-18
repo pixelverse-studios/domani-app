@@ -2,7 +2,7 @@
   "expo": {
     "name": "Domani",
     "slug": "domani-app",
-    "version": "1.0.21",
+    "version": "1.0.22",
     "orientation": "portrait",
     "scheme": "domani",
     "icon": "./assets/AppIcon-sage.png",
@@ -60,7 +60,8 @@
     "extra": {
       "eas": {
         "projectId": "5341e2b9-b8e9-4faf-8caf-f4d3847fd92e"
-      }
+      },
+      "posthogApiKey": "phc_zIMNv3qWfQHyXlXgTnQJEaomiOXO38LTNS6JyNddK57"
     }
   }
 }

@@ -15,6 +15,7 @@ import {
   PreferencesSection,
   SupportSection,
   DangerZoneSection,
+  DevToolsSection,
   NameModal,
   TimezoneModal,
   PlanningTimeModal,
@@ -301,6 +302,9 @@ function SettingsContent() {
           onOpenDeleteModal={() => setShowDeleteModal(true)}
           onCancelDeletion={handleCancelDeletion}
         />
+
+        {/* Dev Tools — only visible in development builds */}
+        {__DEV__ && <DevToolsSection />}
 
         {/* App Version */}
         <Text className="text-center text-sm text-content-tertiary mb-4">
