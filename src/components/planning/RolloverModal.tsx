@@ -374,6 +374,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   container: {
+    flex: 1,
     width: '100%',
     maxWidth: 420,
     maxHeight: '85%',
