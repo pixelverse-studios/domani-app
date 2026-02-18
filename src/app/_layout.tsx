@@ -107,7 +107,7 @@ function RootLayoutContent() {
         hasMit: !!mitTask,
       })
     }
-  })
+  }, [shouldShowPrompt, tutorialActive, rolloverLoading, loading, showCelebration, showRollover, otherTasks.length, mitTask])
 
   // Track when rollover prompt is shown
   React.useEffect(() => {

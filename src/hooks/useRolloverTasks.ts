@@ -97,15 +97,17 @@ export function useRolloverTasks(): UseRolloverTasksResult {
       if (!user) return []
 
       // Step 1: Get yesterday's plan
-      const { data: plan } = await supabase
+      const { data: plan, error: planError } = await supabase
         .from('plans')
         .select('id')
         .eq('user_id', user.id)
         .eq('planned_for', yesterday)
         .maybeSingle()
 
+      if (planError) throw planError
+
       if (!plan) {
-        console.log('[useRolloverTasks] No plan found for yesterday:', yesterday)
+        if (__DEV__) console.log('[useRolloverTasks] No plan found for yesterday:', yesterday)
         return []
       }
 
@@ -122,7 +124,7 @@ export function useRolloverTasks(): UseRolloverTasksResult {
       const all = (tasks || []) as Array<
         RolloverTask & { completed_at: string | null; position: number | null }
       >
-      console.log('[useRolloverTasks] Plan:', plan.id, '| Tasks:', all.length)
+      if (__DEV__) console.log('[useRolloverTasks] Plan:', plan.id, '| Tasks:', all.length)
       return all
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -154,7 +156,7 @@ export function useRolloverTasks(): UseRolloverTasksResult {
     queryKey: ['rolloverPromptedToday'],
     queryFn: async () => {
       const result = await wasPromptedToday()
-      console.log('[useRolloverTasks] wasPromptedToday:', result)
+      if (__DEV__) console.log('[useRolloverTasks] wasPromptedToday:', result)
       return result
     },
     staleTime: 1000 * 60 * 60, // 1 hour - prompt status doesn't change frequently

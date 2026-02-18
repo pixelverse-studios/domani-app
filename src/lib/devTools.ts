@@ -23,6 +23,8 @@ const CELEBRATION_SHOWN_DATE_KEY = 'celebration_shown_date'
  * can fire on the next app open.
  */
 export async function seedRolloverTestData(): Promise<void> {
+  if (!__DEV__) throw new Error('Dev tools only available in development builds')
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -48,7 +50,8 @@ export async function seedRolloverTestData(): Promise<void> {
   if (existingPlan) {
     planId = existingPlan.id
     // Wipe existing tasks so the seed is deterministic
-    await supabase.from('tasks').delete().eq('plan_id', planId)
+    const { error: deleteError } = await supabase.from('tasks').delete().eq('plan_id', planId)
+    if (deleteError) throw deleteError
   } else {
     const { data: newPlan, error } = await supabase
       .from('plans')
@@ -134,6 +137,8 @@ export async function seedRolloverTestData(): Promise<void> {
  * Useful to re-trigger the modal after already dismissing it today.
  */
 export async function resetRolloverFlags(): Promise<void> {
+  if (!__DEV__) throw new Error('Dev tools only available in development builds')
+
   await AsyncStorage.removeItem(ROLLOVER_PROMPTED_DATE_KEY)
   await AsyncStorage.removeItem(CELEBRATION_SHOWN_DATE_KEY)
 }

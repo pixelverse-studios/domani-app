@@ -18,7 +18,6 @@ export function DevToolsSection() {
 
   const invalidateRolloverQueries = async () => {
     await queryClient.invalidateQueries({ queryKey: ['rolloverTasks'] })
-    await queryClient.invalidateQueries({ queryKey: ['allYesterdayTasks'] })
     await queryClient.invalidateQueries({ queryKey: ['rolloverPromptedToday'] })
     await queryClient.invalidateQueries({ queryKey: ['celebrationShownToday'] })
   }
