@@ -12,6 +12,10 @@ interface RolloverModalProps {
   visible: boolean
   mitTask: RolloverTask | null
   otherTasks: RolloverTask[]
+  /** Modal title — defaults to "Yesterday's Unfinished Tasks" */
+  title?: string
+  /** Modal subtitle — defaults to "A fresh start - choose what matters today" */
+  subtitle?: string
   onCarryForward: (params: {
     selectedTaskIds: string[]
     makeMitToday: boolean
@@ -24,6 +28,8 @@ export function RolloverModal({
   visible,
   mitTask,
   otherTasks,
+  title = "Yesterday's Unfinished Tasks",
+  subtitle = 'A fresh start - choose what matters today',
   onCarryForward,
   onStartFresh,
 }: RolloverModalProps) {
@@ -99,13 +105,13 @@ export function RolloverModal({
                 className="text-2xl font-sans-bold text-content-primary"
                 style={{ textAlign: 'center' }}
               >
-                Yesterday&apos;s Unfinished Tasks
+                {title}
               </Text>
               <Text
                 className="font-sans text-content-secondary mt-2"
                 style={{ textAlign: 'center', fontSize: 15 }}
               >
-                A fresh start - choose what matters today
+                {subtitle}
               </Text>
             </View>
 

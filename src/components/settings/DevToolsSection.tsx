@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
 import { View, TouchableOpacity, Alert, ActivityIndicator } from 'react-native'
 import { useQueryClient } from '@tanstack/react-query'
+import { useRouter } from 'expo-router'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
-import { seedRolloverTestData, resetRolloverFlags } from '~/lib/devTools'
+import { seedRolloverTestData, seedEveningRolloverTestData, resetRolloverFlags } from '~/lib/devTools'
 
 const PURPLE = '#7c3aed'
 const PURPLE_BG = '#7c3aed18'
@@ -13,8 +14,10 @@ const PURPLE_BORDER = '#7c3aed60'
 export function DevToolsSection() {
   const theme = useAppTheme()
   const queryClient = useQueryClient()
+  const router = useRouter()
   const [isSeeding, setIsSeeding] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
+  const [isSeedingEvening, setIsSeedingEvening] = useState(false)
 
   const invalidateRolloverQueries = async () => {
     await queryClient.invalidateQueries({ queryKey: ['rolloverTasks'] })
@@ -57,6 +60,26 @@ export function DevToolsSection() {
       )
     } finally {
       setIsResetting(false)
+    }
+  }
+
+  const handleSeedEveningRollover = async () => {
+    setIsSeedingEvening(true)
+    try {
+      await seedEveningRolloverTestData()
+      await queryClient.invalidateQueries({ queryKey: ['eveningRolloverTasks'] })
+      await queryClient.invalidateQueries({ queryKey: ['eveningRolloverPromptedToday'] })
+      // Navigate to planning screen as if tapping the planning reminder notification
+      router.push(
+        '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true&trigger=planning_reminder',
+      )
+    } catch (error) {
+      Alert.alert(
+        'Seed Failed',
+        error instanceof Error ? error.message : 'Unknown error',
+      )
+    } finally {
+      setIsSeedingEvening(false)
     }
   }
 
@@ -114,6 +137,7 @@ export function DevToolsSection() {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
+          marginBottom: 8,
         }}
       >
         <View style={{ flex: 1 }}>
@@ -128,6 +152,36 @@ export function DevToolsSection() {
           </Text>
         </View>
         {isResetting && <ActivityIndicator size="small" color={PURPLE} />}
+      </TouchableOpacity>
+
+      {/* Simulate Evening Planning Reminder */}
+      <TouchableOpacity
+        onPress={handleSeedEveningRollover}
+        disabled={isSeedingEvening}
+        activeOpacity={0.7}
+        style={{
+          backgroundColor: PURPLE_BG,
+          borderWidth: 1,
+          borderColor: PURPLE_BORDER,
+          borderRadius: 12,
+          padding: 14,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <Text className="font-sans-semibold text-sm" style={{ color: PURPLE }}>
+            🌙 Simulate Evening Reminder
+          </Text>
+          <Text
+            className="font-sans text-xs mt-0.5"
+            style={{ color: theme.colors.text.tertiary }}
+          >
+            Today: 1 MIT + 2 daytime tasks + 1 filtered (11pm) → opens modal
+          </Text>
+        </View>
+        {isSeedingEvening && <ActivityIndicator size="small" color={PURPLE} />}
       </TouchableOpacity>
     </View>
   )
