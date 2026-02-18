@@ -47,7 +47,9 @@ export function useEveningRolloverTasks({
   enabled = false,
 }: UseEveningRolloverTasksOptions = {}): UseEveningRolloverTasksResult {
   const queryClient = useQueryClient()
-  const today = format(new Date(), 'yyyy-MM-dd')
+  // Stable date string for the lifetime of this hook instance — prevents midnight
+  // boundary issues and avoids recreating the query key on every render
+  const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
 
   // Query 1: Get today's incomplete tasks (two-step: plan → tasks)
   const { data: rawTasks = [], isLoading: isLoadingTasks } = useQuery({
@@ -74,12 +76,14 @@ export function useEveningRolloverTasks({
       }
 
       // Step 2: Get all incomplete tasks for today's plan
+      // Explicitly scope by user_id for defence-in-depth alongside RLS
       const { data: tasks, error } = await supabase
         .from('tasks')
         .select(
           'id, title, priority, system_category_id, user_category_id, reminder_at, is_mit',
         )
         .eq('plan_id', plan.id)
+        .eq('user_id', user.id)
         .is('completed_at', null)
 
       if (error) throw error
@@ -92,6 +96,7 @@ export function useEveningRolloverTasks({
 
   // Query 2: Get planning_reminder_time from profile (for task eligibility cutoff)
   const { data: planningReminderTime, isLoading: isLoadingProfile } = useQuery({
+    // User-scoped key prevents stale data if a different account signs in
     queryKey: ['profileReminderTime'],
     enabled,
     queryFn: async (): Promise<string | null> => {
@@ -100,12 +105,13 @@ export function useEveningRolloverTasks({
       } = await supabase.auth.getUser()
       if (!user) return null
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('planning_reminder_time')
         .eq('id', user.id)
         .maybeSingle()
 
+      if (profileError) throw profileError
       return profile?.planning_reminder_time ?? null
     },
     staleTime: 1000 * 60 * 60, // 1 hour — reminder time changes infrequently
@@ -116,8 +122,9 @@ export function useEveningRolloverTasks({
   // - Reminder before planning_reminder_time → should have been done, now eligible
   // - Reminder after planning_reminder_time → scheduled for later, not eligible
   const eligibleTasks = useMemo((): RolloverTask[] => {
-    const sorted = (tasks: RolloverTask[]) =>
-      tasks.sort((a, b) => {
+    // Always returns a new sorted array (spread copy prevents in-place mutation)
+    const sortedCopy = (tasks: RolloverTask[]) =>
+      [...tasks].sort((a, b) => {
         if (a.is_mit && !b.is_mit) return -1
         if (!a.is_mit && b.is_mit) return 1
         return 0
@@ -125,10 +132,16 @@ export function useEveningRolloverTasks({
 
     if (!planningReminderTime) {
       // No reminder time set — all incomplete tasks are eligible
-      return sorted([...rawTasks])
+      return sortedCopy(rawTasks)
     }
 
-    const [hours, minutes] = planningReminderTime.split(':').map(Number)
+    // planning_reminder_time is a Postgres time in HH:mm:ss format
+    const parts = planningReminderTime.split(':').map(Number)
+    if (parts.length < 2 || parts.some(isNaN)) {
+      // Unexpected format — treat as no cutoff
+      return sortedCopy(rawTasks)
+    }
+    const [hours, minutes] = parts
     const cutoff = new Date()
     cutoff.setHours(hours, minutes, 0, 0)
 
@@ -137,7 +150,7 @@ export function useEveningRolloverTasks({
       return new Date(task.reminder_at) < cutoff
     })
 
-    return sorted(eligible)
+    return sortedCopy(eligible)
   }, [rawTasks, planningReminderTime])
 
   // Separate MIT from other tasks

@@ -156,16 +156,14 @@ const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
 
 /**
  * Check if the user was already shown the evening rollover prompt today
+ *
+ * Intentionally lets AsyncStorage errors propagate so the React Query caller
+ * can apply its default of `true` (fail-closed: suppress the prompt on error).
  */
 export async function wasEveningPromptedToday(): Promise<boolean> {
-  try {
-    const lastPrompted = await AsyncStorage.getItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
-    const today = format(new Date(), 'yyyy-MM-dd')
-    return lastPrompted === today
-  } catch (error) {
-    console.error('Error checking evening rollover prompt status:', error)
-    return false
-  }
+  const lastPrompted = await AsyncStorage.getItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
+  const today = format(new Date(), 'yyyy-MM-dd')
+  return lastPrompted === today
 }
 
 /**

@@ -223,17 +223,21 @@ export default function PlanningScreen() {
   }, [openForm, editTaskId, defaultPlanningFor, trigger, enforceLimits, atTaskLimit, router])
 
   // Once evening rollover data is ready, decide whether to show modal or open form directly
+  // Also wait for tomorrowPlan to be available before showing modal (prevents null guard issues)
   useEffect(() => {
     if (!planningReminderTriggered || eveningLoading) return
 
     if (eveningShouldShow) {
-      setShowEveningRollover(true)
+      if (tomorrowPlan) {
+        setShowEveningRollover(true)
+      }
+      // If tomorrowPlan isn't ready yet, wait — effect re-runs when tomorrowPlan resolves
     } else {
       // No eligible tasks or already prompted — skip rollover, open form directly
       setPlanningReminderTriggered(false)
       setIsFormVisible(true)
     }
-  }, [planningReminderTriggered, eveningLoading, eveningShouldShow])
+  }, [planningReminderTriggered, eveningLoading, eveningShouldShow, tomorrowPlan])
 
   // Evening rollover handlers
   const handleEveningCarryForward = useCallback(
@@ -243,7 +247,10 @@ export default function PlanningScreen() {
       keepReminderTimes: boolean
     }) => {
       if (!tomorrowPlan) {
-        console.error('[EveningRollover] No tomorrow plan available')
+        Alert.alert(
+          'Not ready yet',
+          "Tomorrow's plan is still loading. Please try again in a moment.",
+        )
         return
       }
 
@@ -263,13 +270,18 @@ export default function PlanningScreen() {
         })
 
         await markEveningPrompted()
-      } catch (error) {
-        console.error('[EveningRollover] Failed to carry forward tasks:', error)
-        throw error
-      } finally {
+
+        // Success: close modal and open planning form
         setShowEveningRollover(false)
         setPlanningReminderTriggered(false)
         setIsFormVisible(true)
+      } catch (error) {
+        console.error('[EveningRollover] Failed to carry forward tasks:', error)
+        // Keep modal open so user can retry or start fresh
+        Alert.alert(
+          'Something went wrong',
+          "We couldn't carry your tasks forward. Please try again.",
+        )
       }
     },
     [tomorrowPlan, carryForwardTasks, markEveningPrompted, track, eveningMitTask],
@@ -281,7 +293,12 @@ export default function PlanningScreen() {
       had_mit: !!eveningMitTask,
     })
 
-    await markEveningPrompted()
+    try {
+      await markEveningPrompted()
+    } catch (error) {
+      console.error('[EveningRollover] Failed to mark as prompted:', error)
+      // Non-fatal — proceed anyway so user isn't stuck
+    }
     setShowEveningRollover(false)
     setPlanningReminderTriggered(false)
     setIsFormVisible(true)
