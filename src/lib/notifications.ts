@@ -167,7 +167,7 @@ export const NotificationService = {
         sound: true,
         priority: Notifications.AndroidNotificationPriority.HIGH,
         data: {
-          url: '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true',
+          url: '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true&trigger=planning_reminder',
           type: 'planning_reminder',
         },
       },

@@ -12,6 +12,7 @@ import {
   PlanningEmptyState,
   TaskList,
   TasksRecap,
+  RolloverModal,
 } from '~/components/planning'
 import { usePlanForDate } from '~/hooks/usePlans'
 import { useCreateTask, useTasks, useDeleteTask, useUpdateTask } from '~/hooks/useTasks'
@@ -23,6 +24,9 @@ import { useTutorialAdvancement } from '~/components/tutorial'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
+import { useEveningRolloverTasks } from '~/hooks/useEveningRolloverTasks'
+import { useAnalytics } from '~/providers/AnalyticsProvider'
 import type { TaskWithCategory } from '~/types'
 
 const FREE_TIER_TASK_LIMIT = 3
@@ -71,10 +75,11 @@ export default function PlanningScreen() {
       isMountedRef.current = false
     }
   }, [])
-  const { defaultPlanningFor, editTaskId, openForm } = useLocalSearchParams<{
+  const { defaultPlanningFor, editTaskId, openForm, trigger } = useLocalSearchParams<{
     defaultPlanningFor?: 'today' | 'tomorrow'
     editTaskId?: string
     openForm?: string
+    trigger?: string
   }>()
   const [selectedTarget, setSelectedTarget] = useState<PlanningTarget>(
     defaultPlanningFor === 'today' ? 'today' : 'tomorrow',
@@ -87,6 +92,11 @@ export default function PlanningScreen() {
   const [formSelectedDay, setFormSelectedDay] = useState<PlanningTarget>(
     defaultPlanningFor === 'today' ? 'today' : 'tomorrow',
   )
+
+  // Evening rollover state (Flow 2 — triggered by planning reminder notification)
+  // When true, we gate openForm behind the evening rollover check
+  const [planningReminderTriggered, setPlanningReminderTriggered] = useState(false)
+  const [showEveningRollover, setShowEveningRollover] = useState(false)
 
   // Update target when navigation param changes (tab navigation preserves component state)
   // This effect must run synchronously before the openForm effect to ensure correct target
@@ -134,6 +144,19 @@ export default function PlanningScreen() {
   } = useTutorialAdvancement()
   const { trackTutorialTaskCreated } = useTutorialAnalytics()
 
+  // Analytics
+  const { track } = useAnalytics()
+
+  // Evening rollover hooks (only active when planning reminder notification was tapped)
+  const { mutateAsync: carryForwardTasks } = useCarryForwardTasks()
+  const {
+    mitTask: eveningMitTask,
+    otherTasks: eveningOtherTasks,
+    shouldShow: eveningShouldShow,
+    isLoading: eveningLoading,
+    markEveningPrompted,
+  } = useEveningRolloverTasks({ enabled: planningReminderTriggered })
+
   // Handle editTaskId param - open edit form when navigating from Today page
   useEffect(() => {
     if (editTaskId && tasks.length > 0) {
@@ -161,6 +184,7 @@ export default function PlanningScreen() {
   const enforceLimits = !isBeta && isFreeUser
 
   // Handle openForm param - auto-open form when navigating from Today's "Add New Task"
+  // When trigger==='planning_reminder', gate form behind evening rollover check first
   useEffect(() => {
     if (openForm === 'true' && !editTaskId) {
       // Ensure target is set correctly BEFORE opening the form
@@ -172,7 +196,14 @@ export default function PlanningScreen() {
       // Initialize form's day toggle for new task
       setFormSelectedDay(targetDay)
 
-      // Check task limit before opening
+      if (trigger === 'planning_reminder') {
+        // Gate form behind evening rollover check
+        setPlanningReminderTriggered(true)
+        router.setParams({ openForm: undefined, trigger: undefined })
+        return
+      }
+
+      // Normal flow (no trigger) — open form directly
       if (enforceLimits && atTaskLimit) {
         Alert.alert(
           'Daily Task Limit Reached',
@@ -189,7 +220,72 @@ export default function PlanningScreen() {
       // Keep defaultPlanningFor so it can be used if needed
       router.setParams({ openForm: undefined })
     }
-  }, [openForm, editTaskId, defaultPlanningFor, enforceLimits, atTaskLimit, router])
+  }, [openForm, editTaskId, defaultPlanningFor, trigger, enforceLimits, atTaskLimit, router])
+
+  // Once evening rollover data is ready, decide whether to show modal or open form directly
+  useEffect(() => {
+    if (!planningReminderTriggered || eveningLoading) return
+
+    if (eveningShouldShow) {
+      setShowEveningRollover(true)
+    } else {
+      // No eligible tasks or already prompted — skip rollover, open form directly
+      setPlanningReminderTriggered(false)
+      setIsFormVisible(true)
+    }
+  }, [planningReminderTriggered, eveningLoading, eveningShouldShow])
+
+  // Evening rollover handlers
+  const handleEveningCarryForward = useCallback(
+    async (params: {
+      selectedTaskIds: string[]
+      makeMitToday: boolean
+      keepReminderTimes: boolean
+    }) => {
+      if (!tomorrowPlan) {
+        console.error('[EveningRollover] No tomorrow plan available')
+        return
+      }
+
+      try {
+        await carryForwardTasks({
+          selectedTaskIds: params.selectedTaskIds,
+          targetPlanId: tomorrowPlan.id,
+          shouldMakeMIT: params.makeMitToday,
+          keepReminderTimes: params.keepReminderTimes,
+        })
+
+        track('evening_rollover_carried_forward', {
+          task_count: params.selectedTaskIds.length,
+          mit_carried: !!eveningMitTask && params.selectedTaskIds.includes(eveningMitTask.id),
+          mit_made_tomorrow: params.makeMitToday,
+          kept_reminders: params.keepReminderTimes,
+        })
+
+        await markEveningPrompted()
+      } catch (error) {
+        console.error('[EveningRollover] Failed to carry forward tasks:', error)
+        throw error
+      } finally {
+        setShowEveningRollover(false)
+        setPlanningReminderTriggered(false)
+        setIsFormVisible(true)
+      }
+    },
+    [tomorrowPlan, carryForwardTasks, markEveningPrompted, track, eveningMitTask],
+  )
+
+  const handleEveningStartFresh = useCallback(async () => {
+    track('evening_rollover_started_fresh', {
+      task_count: (eveningMitTask ? 1 : 0) + eveningOtherTasks.length,
+      had_mit: !!eveningMitTask,
+    })
+
+    await markEveningPrompted()
+    setShowEveningRollover(false)
+    setPlanningReminderTriggered(false)
+    setIsFormVisible(true)
+  }, [markEveningPrompted, track, eveningMitTask, eveningOtherTasks.length])
 
   const handleOpenForm = () => {
     // Pre-flight check: prevent free users at limit from opening form (only post-beta)
@@ -455,6 +551,16 @@ export default function PlanningScreen() {
           <PlanningEmptyState taskCount={0} />
         )}
       </ScrollView>
+      {/* Evening rollover prompt — shown when user opens planning via reminder notification */}
+      <RolloverModal
+        visible={showEveningRollover}
+        mitTask={eveningMitTask}
+        otherTasks={eveningOtherTasks}
+        title="Today's Unfinished Tasks"
+        subtitle="Before you plan tomorrow, wrap up today"
+        onCarryForward={handleEveningCarryForward}
+        onStartFresh={handleEveningStartFresh}
+      />
     </SafeAreaView>
   )
 }

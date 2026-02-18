@@ -149,6 +149,38 @@ export async function clearCelebrationState(): Promise<void> {
 }
 
 /**
+ * AsyncStorage key for tracking evening rollover prompt (Flow 2)
+ * Kept separate from morning rollover to allow both flows to run on the same day.
+ */
+const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
+
+/**
+ * Check if the user was already shown the evening rollover prompt today
+ */
+export async function wasEveningPromptedToday(): Promise<boolean> {
+  try {
+    const lastPrompted = await AsyncStorage.getItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
+    const today = format(new Date(), 'yyyy-MM-dd')
+    return lastPrompted === today
+  } catch (error) {
+    console.error('Error checking evening rollover prompt status:', error)
+    return false
+  }
+}
+
+/**
+ * Mark the user as having been shown the evening rollover prompt today
+ */
+export async function markEveningPromptedToday(): Promise<void> {
+  try {
+    const today = format(new Date(), 'yyyy-MM-dd')
+    await AsyncStorage.setItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY, today)
+  } catch (error) {
+    console.error('Error marking evening rollover prompt:', error)
+  }
+}
+
+/**
  * Input parameters for carrying forward tasks from yesterday to today
  */
 export interface CarryForwardInput {

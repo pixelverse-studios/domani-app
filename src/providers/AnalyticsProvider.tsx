@@ -56,6 +56,20 @@ export type AnalyticsEvent =
       }
     }
   | { name: 'rollover_started_fresh'; properties: { task_count: number; had_mit: boolean } }
+  // Evening rollover events (Flow 2 — triggered by planning reminder notification)
+  | {
+      name: 'evening_rollover_carried_forward'
+      properties: {
+        task_count: number
+        mit_carried: boolean
+        mit_made_tomorrow: boolean
+        kept_reminders: boolean
+      }
+    }
+  | {
+      name: 'evening_rollover_started_fresh'
+      properties: { task_count: number; had_mit: boolean }
+    }
   // Celebration events
   | {
       name: 'celebration_shown'
