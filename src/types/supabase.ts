@@ -1243,7 +1243,6 @@ export type Database = {
         Args: { p_plan_id: string; p_user_id: string }
         Returns: number
       }
-      get_task_count_for_plan: { Args: { p_plan_id: string }; Returns: number }
       get_user_cohort: { Args: { p_user_id: string }; Returns: string }
       get_user_role_level: { Args: { p_user_id: string }; Returns: number }
       get_user_tier: { Args: { p_user_id: string }; Returns: string }

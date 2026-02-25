@@ -197,10 +197,6 @@ export function useCreateTask() {
         .single()
 
       if (error) {
-        // Check for free tier limit error
-        if (error.code === '23514' || error.message.includes('task limit')) {
-          throw new Error('FREE_TIER_LIMIT')
-        }
         throw error
       }
 
