@@ -16,16 +16,12 @@ import {
 import { usePlanForDate } from '~/hooks/usePlans'
 import { useCreateTask, useTasks, useDeleteTask, useUpdateTask } from '~/hooks/useTasks'
 import { useSystemCategories } from '~/hooks/useCategories'
-import { useSubscription } from '~/hooks/useSubscription'
-import { useAppConfig } from '~/stores/appConfigStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAdvancement } from '~/components/tutorial'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import type { TaskWithCategory } from '~/types'
-
-const LOCKED_OUT_TASK_LIMIT = 3
 
 // Tutorial timing constants
 const TUTORIAL_TASK_RENDER_DELAY = 500 // Delay for task to appear in list before advancing
@@ -124,8 +120,6 @@ export default function PlanningScreen() {
   const createTask = useCreateTask()
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
-  const { status: subscriptionStatus } = useSubscription()
-  const { phase } = useAppConfig()
   const { setTutorialTaskId } = useTutorialStore()
   const {
     isActive: isTutorialActive,
@@ -152,14 +146,6 @@ export default function PlanningScreen() {
     }
   }, [editTaskId, tasks, todayPlan?.id, router])
 
-  // Locked-out user logic (disabled during beta - all users get unlimited tasks)
-  const isBeta = phase === 'closed_beta' || phase === 'open_beta'
-  const isLockedOut = subscriptionStatus === 'none'
-  const atTaskLimit = tasks.length >= LOCKED_OUT_TASK_LIMIT
-  // During beta, never show limit UI or enforce limits
-  const showLimitUI = !isBeta && isLockedOut
-  const enforceLimits = !isBeta && isLockedOut
-
   // Handle openForm param - auto-open form when navigating from Today's "Add New Task"
   useEffect(() => {
     if (openForm === 'true' && !editTaskId) {
@@ -172,38 +158,14 @@ export default function PlanningScreen() {
       // Initialize form's day toggle for new task
       setFormSelectedDay(targetDay)
 
-      // Check task limit before opening
-      if (enforceLimits && atTaskLimit) {
-        Alert.alert(
-          'Daily Task Limit Reached',
-          'Upgrade to Domani to continue adding tasks.',
-          [
-            { text: 'Maybe Later', style: 'cancel' },
-            { text: 'Upgrade', onPress: () => router.push('/subscription') },
-          ],
-        )
-      } else {
-        setIsFormVisible(true)
-      }
+      setIsFormVisible(true)
       // Clear only the openForm param to prevent re-triggering on tab switch
       // Keep defaultPlanningFor so it can be used if needed
       router.setParams({ openForm: undefined })
     }
-  }, [openForm, editTaskId, defaultPlanningFor, enforceLimits, atTaskLimit, router])
+  }, [openForm, editTaskId, defaultPlanningFor, router])
 
   const handleOpenForm = () => {
-    // Pre-flight check: prevent locked-out users at limit from opening form (only post-beta)
-    if (enforceLimits && atTaskLimit) {
-      Alert.alert(
-        'Daily Task Limit Reached',
-        'Upgrade to Domani to continue adding tasks.',
-        [
-          { text: 'Maybe Later', style: 'cancel' },
-          { text: 'Upgrade', onPress: () => router.push('/subscription') },
-        ],
-      )
-      return
-    }
     // Initialize form's day toggle from header selection for new tasks
     setFormSelectedDay(selectedTarget)
     setEditingTask(null)
@@ -325,21 +287,10 @@ export default function PlanningScreen() {
       // Close form after successful submission
       handleCloseForm()
     } catch (error) {
-      if (!editingTask && error instanceof Error && error.message === 'FREE_TIER_LIMIT') {
-        Alert.alert(
-          'Daily Task Limit Reached',
-          'Upgrade to Domani to continue adding tasks.',
-          [
-            { text: 'Maybe Later', style: 'cancel' },
-            { text: 'Upgrade', onPress: () => router.push('/subscription') },
-          ],
-        )
-      } else {
-        Alert.alert(
-          editingTask ? 'Failed to update task' : 'Failed to create task',
-          'Please try again.',
-        )
-      }
+      Alert.alert(
+        editingTask ? 'Failed to update task' : 'Failed to create task',
+        'Please try again.',
+      )
     }
   }
 
@@ -433,11 +384,7 @@ export default function PlanningScreen() {
             }}
           />
         ) : (
-          <AddTaskPlaceholder
-            onPress={handleOpenForm}
-            disabled={enforceLimits && atTaskLimit}
-            atLimit={atTaskLimit}
-          />
+          <AddTaskPlaceholder onPress={handleOpenForm} />
         )}
 
         {tasks.length > 0 ? (
@@ -446,8 +393,6 @@ export default function PlanningScreen() {
               tasks={tasks}
               onEditTask={handleEditTask}
               onDeleteTask={handleDeleteTask}
-              showLimit={showLimitUI}
-              taskLimit={LOCKED_OUT_TASK_LIMIT}
             />
             <PlanningTip />
           </>

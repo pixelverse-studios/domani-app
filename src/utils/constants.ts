@@ -14,17 +14,6 @@ export const PLANNING_PHILOSOPHY = {
   ],
 } as const
 
-export const FREE_TIER_LOGIC = {
-  rationale: 'Research shows 3-6 tasks is optimal for daily productivity',
-  benefits: [
-    'Forces prioritization',
-    'Maintains focus',
-    'Higher completion rates',
-    'Reduces overwhelm',
-  ],
-  messaging: '3 tasks is enough for what truly matters',
-} as const
-
 export interface TierFeatures {
   none: {
     tasksPerDay: 0
