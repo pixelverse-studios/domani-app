@@ -8,17 +8,21 @@
 -- This avoids the PostgreSQL restriction that newly added enum values cannot
 -- be used in the same transaction they were added in.
 
--- Step 1: Change the tier column to text so we can drop the old enum type
+-- Step 1: Drop views that depend on the tier column so we can alter its type
+DROP VIEW IF EXISTS public.admin_users_overview;
+DROP VIEW IF EXISTS public.user_overview;
+
+-- Step 2: Change the tier column to text so we can drop the old enum type
 ALTER TABLE public.profiles ALTER COLUMN tier TYPE text;
 
--- Step 2: Drop the old enum type
+-- Step 3: Drop the old enum type
 DROP TYPE public.tier;
 
--- Step 3: Migrate existing data while column is plain text
+-- Step 4: Migrate existing data while column is plain text
 UPDATE public.profiles SET tier = 'none' WHERE tier = 'free';
 UPDATE public.profiles SET tier = 'lifetime' WHERE tier = 'premium';
 
--- Step 4: Create the new enum with only the desired values
+-- Step 5: Create the new enum with only the desired values
 CREATE TYPE public.tier AS ENUM ('none', 'trialing', 'lifetime');
 
 -- Convert the column back to the new enum type
@@ -28,7 +32,44 @@ ALTER TABLE public.profiles
 -- Update the default from 'free' to 'none'
 ALTER TABLE public.profiles ALTER COLUMN tier SET DEFAULT 'none';
 
--- Step 5: Update the task insert RLS policy to use new tier values.
+-- Step 6: Recreate the views that were dropped
+CREATE OR REPLACE VIEW public.admin_users_overview AS
+SELECT
+    au.email,
+    au.id,
+    au.created_at,
+    au.last_sign_in_at,
+    COALESCE(p.full_name, '(no profile)'::text) AS full_name,
+    p.tier,
+    (SELECT count(*) FROM public.plans WHERE plans.user_id = au.id) AS plans_count,
+    (SELECT count(*) FROM public.tasks WHERE tasks.user_id = au.id) AS tasks_count,
+    (SELECT count(*) FROM public.user_categories WHERE user_categories.user_id = au.id) AS custom_categories,
+    (SELECT count(*) FROM public.beta_feedback WHERE beta_feedback.user_id = au.id) AS feedback_count,
+    (SELECT count(*) FROM public.support_requests WHERE support_requests.user_id = au.id) AS support_count
+FROM auth.users au
+LEFT JOIN public.profiles p ON au.id = p.id
+ORDER BY au.created_at DESC;
+
+CREATE OR REPLACE VIEW public.user_overview AS
+SELECT
+    p.id,
+    p.email,
+    p.full_name,
+    p.tier,
+    p.subscription_status,
+    p.timezone,
+    p.planning_reminder_time,
+    p.created_at,
+    p.updated_at,
+    count(DISTINCT pl.id) AS total_plans,
+    count(DISTINCT t.id) AS total_tasks,
+    count(DISTINCT CASE WHEN t.completed_at IS NOT NULL THEN t.id ELSE NULL::uuid END) AS completed_tasks
+FROM public.profiles p
+LEFT JOIN public.plans pl ON p.id = pl.user_id
+LEFT JOIN public.tasks t ON p.id = t.user_id
+GROUP BY p.id;
+
+-- Step 7: Update the task insert RLS policy to use new tier values.
 -- 'trialing' and 'lifetime' users have full access.
 -- 'none' users (trial expired) are locked out at the app level;
 -- the beta phase check already covers all users during beta.
