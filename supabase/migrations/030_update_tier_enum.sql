@@ -133,3 +133,36 @@ CREATE POLICY "Users can insert tasks with tier limit"
             public.get_user_tier(auth.uid()) IN ('trialing', 'lifetime')
         )
     );
+
+-- Step 8: Update can_add_task() to use the new tier values.
+-- Previously checked for 'premium', which no longer exists in the enum.
+-- 'trialing' and 'lifetime' users can always add tasks.
+CREATE OR REPLACE FUNCTION can_add_task(p_plan_id UUID)
+RETURNS BOOLEAN AS $$
+DECLARE
+    v_user_tier VARCHAR(20);
+    v_task_count INTEGER;
+    v_user_id UUID;
+BEGIN
+    -- Get user_id from plan
+    SELECT user_id INTO v_user_id FROM public.plans WHERE id = p_plan_id;
+
+    -- Verify requesting user owns this plan
+    IF v_user_id != auth.uid() THEN
+        RETURN FALSE;
+    END IF;
+
+    -- Get user tier
+    SELECT tier INTO v_user_tier FROM public.users WHERE id = v_user_id;
+
+    -- Trialing/Lifetime can always add
+    IF v_user_tier IN ('trialing', 'lifetime') THEN
+        RETURN TRUE;
+    END IF;
+
+    -- Count current tasks for free tier
+    SELECT COUNT(*) INTO v_task_count FROM public.tasks WHERE plan_id = p_plan_id;
+
+    RETURN v_task_count < 3;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

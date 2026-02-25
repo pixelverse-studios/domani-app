@@ -137,6 +137,7 @@ export function useSubscription() {
       const { data, error } = await supabase
         .from('profiles')
         .update({
+          tier: 'trialing',
           trial_started_at: now.toISOString(),
           trial_ends_at: trialEnd.toISOString(),
           subscription_status: 'trialing',
