@@ -3,26 +3,22 @@
 --
 -- The app model is now: trial → lifetime purchase or locked out.
 -- There is no free tier with limited tasks.
+--
+-- Strategy: convert the column to text first, then drop/recreate the enum.
+-- This avoids the PostgreSQL restriction that newly added enum values cannot
+-- be used in the same transaction they were added in.
 
--- Step 1: Add new enum values (safe to do directly in PostgreSQL)
-ALTER TYPE public.tier ADD VALUE IF NOT EXISTS 'none';
-ALTER TYPE public.tier ADD VALUE IF NOT EXISTS 'trialing';
+-- Step 1: Change the tier column to text so we can drop the old enum type
+ALTER TABLE public.profiles ALTER COLUMN tier TYPE text;
 
--- Step 2: Migrate existing user data to new values
+-- Step 2: Drop the old enum type
+DROP TYPE public.tier;
+
+-- Step 3: Migrate existing data while column is plain text
 UPDATE public.profiles SET tier = 'none' WHERE tier = 'free';
 UPDATE public.profiles SET tier = 'lifetime' WHERE tier = 'premium';
 
--- Step 3: Remove old enum values by recreating the type
--- PostgreSQL does not support dropping enum values directly;
--- we must recreate the type.
-
--- Change the tier column to text so we can drop the old type
-ALTER TABLE public.profiles ALTER COLUMN tier TYPE text;
-
--- Drop the old enum type
-DROP TYPE public.tier;
-
--- Recreate the type with only the desired values
+-- Step 4: Create the new enum with only the desired values
 CREATE TYPE public.tier AS ENUM ('none', 'trialing', 'lifetime');
 
 -- Convert the column back to the new enum type
@@ -32,7 +28,7 @@ ALTER TABLE public.profiles
 -- Update the default from 'free' to 'none'
 ALTER TABLE public.profiles ALTER COLUMN tier SET DEFAULT 'none';
 
--- Step 4: Update the task insert RLS policy to use new tier values.
+-- Step 5: Update the task insert RLS policy to use new tier values.
 -- 'trialing' and 'lifetime' users have full access.
 -- 'none' users (trial expired) are locked out at the app level;
 -- the beta phase check already covers all users during beta.
