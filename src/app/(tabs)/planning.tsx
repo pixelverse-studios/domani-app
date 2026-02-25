@@ -25,7 +25,7 @@ import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import type { TaskWithCategory } from '~/types'
 
-const FREE_TIER_TASK_LIMIT = 3
+const LOCKED_OUT_TASK_LIMIT = 3
 
 // Tutorial timing constants
 const TUTORIAL_TASK_RENDER_DELAY = 500 // Delay for task to appear in list before advancing
@@ -155,7 +155,7 @@ export default function PlanningScreen() {
   // Locked-out user logic (disabled during beta - all users get unlimited tasks)
   const isBeta = phase === 'closed_beta' || phase === 'open_beta'
   const isLockedOut = subscriptionStatus === 'none'
-  const atTaskLimit = tasks.length >= FREE_TIER_TASK_LIMIT
+  const atTaskLimit = tasks.length >= LOCKED_OUT_TASK_LIMIT
   // During beta, never show limit UI or enforce limits
   const showLimitUI = !isBeta && isLockedOut
   const enforceLimits = !isBeta && isLockedOut
@@ -176,7 +176,7 @@ export default function PlanningScreen() {
       if (enforceLimits && atTaskLimit) {
         Alert.alert(
           'Daily Task Limit Reached',
-          'Free accounts can create up to 3 tasks per day. Upgrade to unlock unlimited tasks.',
+          'Upgrade to Domani to continue adding tasks.',
           [
             { text: 'Maybe Later', style: 'cancel' },
             { text: 'Upgrade', onPress: () => router.push('/subscription') },
@@ -196,7 +196,7 @@ export default function PlanningScreen() {
     if (enforceLimits && atTaskLimit) {
       Alert.alert(
         'Daily Task Limit Reached',
-        'Free accounts can create up to 3 tasks per day. Upgrade to unlock unlimited tasks.',
+        'Upgrade to Domani to continue adding tasks.',
         [
           { text: 'Maybe Later', style: 'cancel' },
           { text: 'Upgrade', onPress: () => router.push('/subscription') },
@@ -328,7 +328,7 @@ export default function PlanningScreen() {
       if (!editingTask && error instanceof Error && error.message === 'FREE_TIER_LIMIT') {
         Alert.alert(
           'Daily Task Limit Reached',
-          'Free accounts can create up to 3 tasks per day. Upgrade to unlock unlimited tasks.',
+          'Upgrade to Domani to continue adding tasks.',
           [
             { text: 'Maybe Later', style: 'cancel' },
             { text: 'Upgrade', onPress: () => router.push('/subscription') },
@@ -447,7 +447,7 @@ export default function PlanningScreen() {
               onEditTask={handleEditTask}
               onDeleteTask={handleDeleteTask}
               showLimit={showLimitUI}
-              taskLimit={FREE_TIER_TASK_LIMIT}
+              taskLimit={LOCKED_OUT_TASK_LIMIT}
             />
             <PlanningTip />
           </>
