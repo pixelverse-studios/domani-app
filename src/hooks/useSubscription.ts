@@ -18,7 +18,7 @@ import {
   ENTITLEMENT_ID,
 } from '~/lib/revenuecat'
 
-export type SubscriptionStatus = 'free' | 'trialing' | 'premium' | 'lifetime'
+export type SubscriptionStatus = 'none' | 'trialing' | 'lifetime'
 
 interface SubscriptionState {
   status: SubscriptionStatus
@@ -137,6 +137,7 @@ export function useSubscription() {
       const { data, error } = await supabase
         .from('profiles')
         .update({
+          tier: 'trialing',
           trial_started_at: now.toISOString(),
           trial_ends_at: trialEnd.toISOString(),
           subscription_status: 'trialing',
@@ -220,6 +221,25 @@ function computeSubscriptionState(
     }
   }
 
+  // Offline fallback: if profile says trialing but RevenueCat is unavailable,
+  // use local trial_ends_at to determine if the trial is still active.
+  // If expired, fall through to the 'none' default so access is correctly revoked.
+  if (profile?.tier === 'trialing') {
+    const trialExpirationDate = profile.trial_ends_at ? new Date(profile.trial_ends_at) : null
+    if (!trialExpirationDate || trialExpirationDate > now) {
+      const trialDaysRemaining = trialExpirationDate
+        ? Math.max(0, Math.ceil((trialExpirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+        : null
+      return {
+        status: 'trialing',
+        isTrialing: true,
+        trialDaysRemaining,
+        trialExpirationDate,
+        canStartTrial: false,
+      }
+    }
+  }
+
   // Check RevenueCat entitlements (lifetime purchase or trial)
   const entitlement = customerInfo?.entitlements.active[ENTITLEMENT_ID]
   if (entitlement) {
@@ -274,9 +294,9 @@ function computeSubscriptionState(
   // Check if user already used their trial
   const hasUsedTrial = !!profile?.trial_started_at
 
-  // Default: free tier
+  // Default: no active tier (trial expired or never started)
   return {
-    status: 'free',
+    status: 'none',
     isTrialing: false,
     trialDaysRemaining: null,
     trialExpirationDate: null,
@@ -293,7 +313,7 @@ async function syncSubscriptionToSupabase(userId: string | undefined, customerIn
 
   const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID]
 
-  let tier: 'free' | 'premium' | 'lifetime' = 'free'
+  let tier: 'none' | 'trialing' | 'lifetime' = 'none'
   let subscriptionStatus: string = 'none'
   let expiresAt: string | null = null
 
@@ -302,7 +322,7 @@ async function syncSubscriptionToSupabase(userId: string | undefined, customerIn
 
     if (isTrialing) {
       // Trial period
-      tier = 'premium'
+      tier = 'trialing'
       subscriptionStatus = 'trialing'
       expiresAt = entitlement.expirationDate || null
     } else {
