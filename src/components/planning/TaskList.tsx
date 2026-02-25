@@ -12,17 +12,9 @@ interface TaskListProps {
   tasks: TaskWithCategory[]
   onEditTask?: (taskId: string) => void
   onDeleteTask?: (taskId: string) => Promise<void>
-  showLimit?: boolean
-  taskLimit?: number
 }
 
-export function TaskList({
-  tasks,
-  onEditTask,
-  onDeleteTask,
-  showLimit,
-  taskLimit = 3,
-}: TaskListProps) {
+export function TaskList({ tasks, onEditTask, onDeleteTask }: TaskListProps) {
   const [taskToDelete, setTaskToDelete] = useState<TaskWithCategory | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -34,10 +26,7 @@ export function TaskList({
   // Sort tasks by priority (high → medium → low), then alphabetically
   const sortedTasks = useMemo(() => sortTasksByPriority(tasks), [tasks])
 
-  // Format header text based on whether to show limit
-  const headerText = showLimit
-    ? `Planned Tasks (${tasks.length}/${taskLimit})`
-    : `Planned Tasks (${tasks.length})`
+  const headerText = `Planned Tasks (${tasks.length})`
 
   const handleDeletePress = useCallback(
     (taskId: string) => {
