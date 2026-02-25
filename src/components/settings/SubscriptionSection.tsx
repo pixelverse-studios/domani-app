@@ -11,7 +11,7 @@ import type { SubscriptionStatus } from '~/hooks/useSubscription'
 // Subscription status display config
 const STATUS_CONFIG: Record<SubscriptionStatus, { label: string; color: string; bgColor: string }> =
   {
-    none: { label: 'No Plan', color: '#94a3b8', bgColor: 'bg-slate-500/20' },
+    none: { label: 'No Active Plan', color: '#94a3b8', bgColor: 'bg-slate-500/20' },
     trialing: { label: 'Trial', color: '#22c55e', bgColor: 'bg-green-500/20' },
     lifetime: { label: 'Lifetime', color: '#f59e0b', bgColor: 'bg-amber-500/20' },
   }
@@ -69,7 +69,9 @@ export function SubscriptionSection({
             {status === 'none' && (
               <>
                 <Text className="text-sm text-content-secondary mb-3">
-                  3 tasks per day - Basic features
+                  {canStartTrial
+                    ? 'Start a free trial to get full access'
+                    : 'Your trial has ended — upgrade to keep using Domani'}
                 </Text>
                 {canStartTrial ? (
                   <TouchableOpacity

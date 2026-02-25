@@ -152,13 +152,13 @@ export default function PlanningScreen() {
     }
   }, [editTaskId, tasks, todayPlan?.id, router])
 
-  // Free tier limit logic (disabled during beta - all users get unlimited tasks)
+  // Locked-out user logic (disabled during beta - all users get unlimited tasks)
   const isBeta = phase === 'closed_beta' || phase === 'open_beta'
-  const isFreeUser = subscriptionStatus === 'none'
+  const isLockedOut = subscriptionStatus === 'none'
   const atTaskLimit = tasks.length >= FREE_TIER_TASK_LIMIT
   // During beta, never show limit UI or enforce limits
-  const showLimitUI = !isBeta && isFreeUser
-  const enforceLimits = !isBeta && isFreeUser
+  const showLimitUI = !isBeta && isLockedOut
+  const enforceLimits = !isBeta && isLockedOut
 
   // Handle openForm param - auto-open form when navigating from Today's "Add New Task"
   useEffect(() => {
@@ -192,7 +192,7 @@ export default function PlanningScreen() {
   }, [openForm, editTaskId, defaultPlanningFor, enforceLimits, atTaskLimit, router])
 
   const handleOpenForm = () => {
-    // Pre-flight check: prevent free users at limit from opening form (only post-beta)
+    // Pre-flight check: prevent locked-out users at limit from opening form (only post-beta)
     if (enforceLimits && atTaskLimit) {
       Alert.alert(
         'Daily Task Limit Reached',

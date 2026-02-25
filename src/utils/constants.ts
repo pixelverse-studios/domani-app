@@ -26,12 +26,11 @@ export const FREE_TIER_LOGIC = {
 } as const
 
 export interface TierFeatures {
-  free: {
-    tasksPerDay: number
-    categories: number
+  none: {
+    tasksPerDay: 0
     features: string[]
   }
-  premium: {
+  trialing: {
     tasksPerDay: 'unlimited'
     categories: 'unlimited'
     features: string[]
@@ -45,12 +44,11 @@ export interface TierFeatures {
 }
 
 export const tierFeatures: TierFeatures = {
-  free: {
-    tasksPerDay: 3,
-    categories: 4,
-    features: ['Daily planning', 'Task completion tracking', 'Category focus'],
+  none: {
+    tasksPerDay: 0,
+    features: ['Start a free trial to unlock all features'],
   },
-  premium: {
+  trialing: {
     tasksPerDay: 'unlimited',
     categories: 'unlimited',
     features: ['Unlimited tasks', 'Advanced analytics', 'Priority support'],
