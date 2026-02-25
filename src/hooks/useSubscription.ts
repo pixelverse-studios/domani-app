@@ -18,7 +18,7 @@ import {
   ENTITLEMENT_ID,
 } from '~/lib/revenuecat'
 
-export type SubscriptionStatus = 'free' | 'trialing' | 'premium' | 'lifetime'
+export type SubscriptionStatus = 'none' | 'trialing' | 'lifetime'
 
 interface SubscriptionState {
   status: SubscriptionStatus
@@ -274,9 +274,9 @@ function computeSubscriptionState(
   // Check if user already used their trial
   const hasUsedTrial = !!profile?.trial_started_at
 
-  // Default: free tier
+  // Default: no active tier (trial expired or never started)
   return {
-    status: 'free',
+    status: 'none',
     isTrialing: false,
     trialDaysRemaining: null,
     trialExpirationDate: null,
@@ -293,7 +293,7 @@ async function syncSubscriptionToSupabase(userId: string | undefined, customerIn
 
   const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID]
 
-  let tier: 'free' | 'premium' | 'lifetime' = 'free'
+  let tier: 'none' | 'trialing' | 'lifetime' = 'none'
   let subscriptionStatus: string = 'none'
   let expiresAt: string | null = null
 
@@ -302,7 +302,7 @@ async function syncSubscriptionToSupabase(userId: string | undefined, customerIn
 
     if (isTrialing) {
       // Trial period
-      tier = 'premium'
+      tier = 'trialing'
       subscriptionStatus = 'trialing'
       expiresAt = entitlement.expirationDate || null
     } else {

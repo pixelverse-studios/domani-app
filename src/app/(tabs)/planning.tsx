@@ -154,7 +154,7 @@ export default function PlanningScreen() {
 
   // Free tier limit logic (disabled during beta - all users get unlimited tasks)
   const isBeta = phase === 'closed_beta' || phase === 'open_beta'
-  const isFreeUser = subscriptionStatus === 'free'
+  const isFreeUser = subscriptionStatus === 'none'
   const atTaskLimit = tasks.length >= FREE_TIER_TASK_LIMIT
   // During beta, never show limit UI or enforce limits
   const showLimitUI = !isBeta && isFreeUser

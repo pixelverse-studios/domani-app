@@ -1322,7 +1322,7 @@ export type Database = {
       signup_cohort: 'friends_family' | 'early_adopter' | 'general'
       subscription_status_enum: 'none' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired'
       task_priority: 'top' | 'high' | 'medium' | 'low'
-      tier: 'free' | 'premium' | 'lifetime'
+      tier: 'none' | 'trialing' | 'lifetime'
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1470,7 +1470,7 @@ export const Constants = {
       signup_cohort: ['friends_family', 'early_adopter', 'general'],
       subscription_status_enum: ['none', 'trialing', 'active', 'past_due', 'canceled', 'expired'],
       task_priority: ['top', 'high', 'medium', 'low'],
-      tier: ['free', 'premium', 'lifetime'],
+      tier: ['none', 'trialing', 'lifetime'],
     },
   },
 } as const
