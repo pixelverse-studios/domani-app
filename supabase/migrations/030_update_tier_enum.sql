@@ -10,6 +10,7 @@
 
 -- Step 1: Drop views that depend on the tier column so we can alter its type
 DROP VIEW IF EXISTS public.admin_users_overview;
+DROP VIEW IF EXISTS public.admin_user_task_details;
 DROP VIEW IF EXISTS public.user_overview;
 
 -- Step 2: Change the tier column to text so we can drop the old enum type
@@ -33,6 +34,45 @@ ALTER TABLE public.profiles
 ALTER TABLE public.profiles ALTER COLUMN tier SET DEFAULT 'none';
 
 -- Step 6: Recreate the views that were dropped
+CREATE OR REPLACE VIEW public.admin_user_task_details AS
+SELECT
+    p.id AS user_id,
+    p.email AS user_email,
+    p.full_name,
+    p.tier,
+    pl.id AS plan_id,
+    pl.planned_for,
+    pl.status AS plan_status,
+    t.id AS task_id,
+    t.title AS task_title,
+    t.description,
+    t.notes,
+    t.priority,
+    t.is_mit,
+    t."position",
+    t.estimated_duration_minutes,
+    t.completed_at,
+    CASE WHEN t.completed_at IS NOT NULL THEN 'Done'::text ELSE 'Pending'::text END AS task_status,
+    CASE
+        WHEN t.system_category_id IS NOT NULL THEN 'system'::text
+        WHEN t.user_category_id IS NOT NULL THEN 'user'::text
+        ELSE 'none'::text
+    END AS category_type,
+    COALESCE(sc.name, uc.name) AS category_name,
+    COALESCE(sc.color, uc.color) AS category_color,
+    COALESCE(sc.icon, uc.icon) AS category_icon,
+    t.system_category_id,
+    t.user_category_id,
+    t.created_at AS task_created_at,
+    t.updated_at AS task_updated_at
+FROM public.profiles p
+LEFT JOIN public.plans pl ON pl.user_id = p.id
+LEFT JOIN public.tasks t ON t.plan_id = pl.id
+LEFT JOIN public.system_categories sc ON sc.id = t.system_category_id
+LEFT JOIN public.user_categories uc ON uc.id = t.user_category_id
+WHERE p.deleted_at IS NULL
+ORDER BY p.email, pl.planned_for DESC, t."position";
+
 CREATE OR REPLACE VIEW public.admin_users_overview AS
 SELECT
     au.email,
