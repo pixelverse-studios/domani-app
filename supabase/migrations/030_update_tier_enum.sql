@@ -13,7 +13,8 @@ DROP VIEW IF EXISTS public.admin_users_overview;
 DROP VIEW IF EXISTS public.admin_user_task_details;
 DROP VIEW IF EXISTS public.user_overview;
 
--- Step 2: Change the tier column to text so we can drop the old enum type
+-- Step 2: Drop the column default (it references the enum type) and convert to text
+ALTER TABLE public.profiles ALTER COLUMN tier DROP DEFAULT;
 ALTER TABLE public.profiles ALTER COLUMN tier TYPE text;
 
 -- Step 3: Drop the old enum type
