@@ -153,7 +153,7 @@ BEGIN
     END IF;
 
     -- Get user tier
-    SELECT tier INTO v_user_tier FROM public.users WHERE id = v_user_id;
+    SELECT tier INTO v_user_tier FROM public.profiles WHERE id = v_user_id;
 
     -- Trialing/Lifetime can always add
     IF v_user_tier IN ('trialing', 'lifetime') THEN
