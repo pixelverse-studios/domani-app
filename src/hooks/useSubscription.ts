@@ -222,18 +222,21 @@ function computeSubscriptionState(
   }
 
   // Offline fallback: if profile says trialing but RevenueCat is unavailable,
-  // use local trial_ends_at if present, otherwise return a safe trialing state
+  // use local trial_ends_at to determine if the trial is still active.
+  // If expired, fall through to the 'none' default so access is correctly revoked.
   if (profile?.tier === 'trialing') {
     const trialExpirationDate = profile.trial_ends_at ? new Date(profile.trial_ends_at) : null
-    const trialDaysRemaining = trialExpirationDate
-      ? Math.max(0, Math.ceil((trialExpirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
-      : null
-    return {
-      status: 'trialing',
-      isTrialing: true,
-      trialDaysRemaining,
-      trialExpirationDate,
-      canStartTrial: false,
+    if (!trialExpirationDate || trialExpirationDate > now) {
+      const trialDaysRemaining = trialExpirationDate
+        ? Math.max(0, Math.ceil((trialExpirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+        : null
+      return {
+        status: 'trialing',
+        isTrialing: true,
+        trialDaysRemaining,
+        trialExpirationDate,
+        canStartTrial: false,
+      }
     }
   }
 
