@@ -10,3 +10,5 @@ export { TasksRecap } from './TasksRecap'
 export { ReminderSection } from './ReminderSection'
 
 export { CategorySelector } from './CategorySelector'
+export { RolloverModal } from './RolloverModal'
+export { CelebrationModal } from './CelebrationModal'

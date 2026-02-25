@@ -520,7 +520,6 @@ export type Database = {
           created_at: string
           evening_notes: string | null
           id: string
-          locked_at: string | null
           morning_notes: string | null
           planned_for: string
           status: Database['public']['Enums']['plan_status']
@@ -533,7 +532,6 @@ export type Database = {
           created_at?: string
           evening_notes?: string | null
           id?: string
-          locked_at?: string | null
           morning_notes?: string | null
           planned_for: string
           status?: Database['public']['Enums']['plan_status']
@@ -546,7 +544,6 @@ export type Database = {
           created_at?: string
           evening_notes?: string | null
           id?: string
-          locked_at?: string | null
           morning_notes?: string | null
           planned_for?: string
           status?: Database['public']['Enums']['plan_status']

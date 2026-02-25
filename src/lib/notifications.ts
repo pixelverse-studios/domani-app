@@ -152,32 +152,6 @@ export const NotificationService = {
   },
 
   /**
-   * Check if tomorrow's plan is locked (already planned)
-   * If locked, we skip sending the planning reminder
-   */
-  async isTomorrowPlanLocked(): Promise<boolean> {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return false
-
-      const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd')
-
-      const { data: plan } = await supabase
-        .from('plans')
-        .select('locked_at')
-        .eq('planned_for', tomorrow)
-        .eq('user_id', user.id)
-        .maybeSingle()
-
-      return !!plan?.locked_at
-    } catch {
-      return false
-    }
-  },
-
-  /**
    * Schedule the planning reminder
    * @param hour - Hour in 24-hour format (0-23)
    * @param minute - Minute (0-59)
@@ -193,7 +167,7 @@ export const NotificationService = {
         sound: true,
         priority: Notifications.AndroidNotificationPriority.HIGH,
         data: {
-          url: '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true',
+          url: '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true&trigger=planning_reminder',
           type: 'planning_reminder',
         },
       },
