@@ -315,18 +315,23 @@ async function syncSubscriptionToSupabase(userId: string | undefined, customerIn
 
   const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID]
 
-  let tier: 'none' | 'trialing' | 'lifetime' = 'none'
+  // Always update revenuecat_user_id so the customer is linked
+  const { error: rcError } = await supabase
+    .from('profiles')
+    .update({ revenuecat_user_id: customerInfo.originalAppUserId })
+    .eq('id', userId)
+  if (rcError) throw rcError
 
+  // Only update tier when there is an active entitlement — never write 'none'
+  // unconditionally, as a RevenueCat propagation delay could downgrade a valid user
   if (entitlement) {
     const isTrialing = entitlement.periodType === 'TRIAL'
-    tier = isTrialing ? 'trialing' : 'lifetime'
-  }
+    const tier: 'trialing' | 'lifetime' = isTrialing ? 'trialing' : 'lifetime'
 
-  await supabase
-    .from('profiles')
-    .update({
-      tier,
-      revenuecat_user_id: customerInfo.originalAppUserId,
-    })
-    .eq('id', userId)
+    const { error: tierError } = await supabase
+      .from('profiles')
+      .update({ tier })
+      .eq('id', userId)
+    if (tierError) throw tierError
+  }
 }
