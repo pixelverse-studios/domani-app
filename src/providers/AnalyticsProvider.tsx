@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useEffect, useCallback } from 'react'
 import { PostHogProvider, usePostHog } from 'posthog-react-native'
+import Constants from 'expo-constants'
 
-const POSTHOG_API_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY || ''
+const POSTHOG_API_KEY =
+  Constants.expoConfig?.extra?.posthogApiKey || process.env.EXPO_PUBLIC_POSTHOG_KEY || ''
 const POSTHOG_HOST = 'https://us.i.posthog.com'
 
 // Event types for type-safe tracking
@@ -11,8 +13,6 @@ export type AnalyticsEvent =
       name: 'plan_created'
       properties: { task_count: number; has_mit: boolean; plan_date: string }
     }
-  | { name: 'plan_locked'; properties: { task_count: number; plan_date: string } }
-  | { name: 'plan_unlocked'; properties: { plan_date: string } }
   // Task events
   | {
       name: 'task_created'
@@ -44,6 +44,37 @@ export type AnalyticsEvent =
   | { name: 'tutorial_completed'; properties: { duration_seconds: number } }
   | { name: 'tutorial_task_created'; properties?: Record<string, never> }
   | { name: 'tutorial_category_created'; properties?: Record<string, never> }
+  // Rollover events
+  | { name: 'rollover_prompt_shown'; properties: { task_count: number; has_mit: boolean } }
+  | {
+      name: 'rollover_carried_forward'
+      properties: {
+        task_count: number
+        mit_carried: boolean
+        mit_made_today: boolean
+        kept_reminders: boolean
+      }
+    }
+  | { name: 'rollover_started_fresh'; properties: { task_count: number; had_mit: boolean } }
+  // Evening rollover events (Flow 2 — triggered by planning reminder notification)
+  | {
+      name: 'evening_rollover_carried_forward'
+      properties: {
+        task_count: number
+        mit_carried: boolean
+        mit_made_tomorrow: boolean
+        kept_reminders: boolean
+      }
+    }
+  | {
+      name: 'evening_rollover_started_fresh'
+      properties: { task_count: number; had_mit: boolean }
+    }
+  // Celebration events
+  | {
+      name: 'celebration_shown'
+      properties: { celebration_type: 'daily_completion'; task_count: number }
+    }
 
 interface AnalyticsContextValue {
   track: <T extends AnalyticsEvent>(eventName: T['name'], properties?: T['properties']) => void

@@ -32,3 +32,6 @@ export {
   DeleteAccountModal,
   SmartCategoriesModal,
 } from './SettingsModals'
+
+// Dev tools (only rendered when __DEV__ is true)
+export { DevToolsSection } from './DevToolsSection'
