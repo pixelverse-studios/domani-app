@@ -140,7 +140,6 @@ export function useSubscription() {
           tier: 'trialing',
           trial_started_at: now.toISOString(),
           trial_ends_at: trialEnd.toISOString(),
-          subscription_status: 'trialing',
         })
         .eq('id', user.id)
         .select()
@@ -317,31 +316,16 @@ async function syncSubscriptionToSupabase(userId: string | undefined, customerIn
   const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID]
 
   let tier: 'none' | 'trialing' | 'lifetime' = 'none'
-  let subscriptionStatus: string = 'none'
-  let expiresAt: string | null = null
 
   if (entitlement) {
     const isTrialing = entitlement.periodType === 'TRIAL'
-
-    if (isTrialing) {
-      // Trial period
-      tier = 'trialing'
-      subscriptionStatus = 'trialing'
-      expiresAt = entitlement.expirationDate || null
-    } else {
-      // Lifetime purchase - no expiration
-      tier = 'lifetime'
-      subscriptionStatus = 'active'
-      expiresAt = null
-    }
+    tier = isTrialing ? 'trialing' : 'lifetime'
   }
 
   await supabase
     .from('profiles')
     .update({
       tier,
-      subscription_status: subscriptionStatus,
-      subscription_expires_at: expiresAt,
       revenuecat_user_id: customerInfo.originalAppUserId,
     })
     .eq('id', userId)
