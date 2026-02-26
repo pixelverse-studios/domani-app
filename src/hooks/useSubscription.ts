@@ -228,7 +228,10 @@ function computeSubscriptionState(
     const trialExpirationDate = profile.trial_ends_at ? new Date(profile.trial_ends_at) : null
     if (!trialExpirationDate || trialExpirationDate > now) {
       const trialDaysRemaining = trialExpirationDate
-        ? Math.max(0, Math.ceil((trialExpirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+        ? Math.max(
+            0,
+            Math.ceil((trialExpirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
+          )
         : null
       return {
         status: 'trialing',

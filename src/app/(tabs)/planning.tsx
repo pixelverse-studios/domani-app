@@ -389,11 +389,7 @@ export default function PlanningScreen() {
 
         {tasks.length > 0 ? (
           <>
-            <TaskList
-              tasks={tasks}
-              onEditTask={handleEditTask}
-              onDeleteTask={handleDeleteTask}
-            />
+            <TaskList tasks={tasks} onEditTask={handleEditTask} onDeleteTask={handleDeleteTask} />
             <PlanningTip />
           </>
         ) : (

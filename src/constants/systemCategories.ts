@@ -95,7 +95,7 @@ export const SYSTEM_CATEGORIES = {
  */
 export const CATEGORY_BY_NAME: Record<
   SystemCategoryName,
-  typeof SYSTEM_CATEGORIES[keyof typeof SYSTEM_CATEGORIES]
+  (typeof SYSTEM_CATEGORIES)[keyof typeof SYSTEM_CATEGORIES]
 > = {
   Work: SYSTEM_CATEGORIES.work,
   Personal: SYSTEM_CATEGORIES.personal,
@@ -109,7 +109,7 @@ export const CATEGORY_BY_NAME: Record<
  */
 export const CATEGORY_BY_ID: Record<
   SystemCategoryId,
-  typeof SYSTEM_CATEGORIES[keyof typeof SYSTEM_CATEGORIES]
+  (typeof SYSTEM_CATEGORIES)[keyof typeof SYSTEM_CATEGORIES]
 > = {
   work: SYSTEM_CATEGORIES.work,
   personal: SYSTEM_CATEGORIES.personal,
@@ -127,9 +127,7 @@ export const CATEGORY_BY_ID: Record<
  * @returns Category definition or undefined if not found
  * @example getCategoryById('work') // { id: 'work', name: 'Work', ... }
  */
-export function getCategoryById(
-  id: SystemCategoryId,
-): SystemCategoryDefinition | undefined {
+export function getCategoryById(id: SystemCategoryId): SystemCategoryDefinition | undefined {
   return CATEGORY_BY_ID[id]
 }
 
@@ -139,9 +137,7 @@ export function getCategoryById(
  * @returns Category definition or undefined if not found
  * @example getCategoryByName('Work') // { id: 'work', name: 'Work', ... }
  */
-export function getCategoryByName(
-  name: SystemCategoryName,
-): SystemCategoryDefinition | undefined {
+export function getCategoryByName(name: SystemCategoryName): SystemCategoryDefinition | undefined {
   return CATEGORY_BY_NAME[name]
 }
 

@@ -1254,7 +1254,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      has_premium_access: { Args: { p_user_id: string }; Returns: boolean }
       increment_category_usage: {
         Args: {
           p_system_category_id?: string

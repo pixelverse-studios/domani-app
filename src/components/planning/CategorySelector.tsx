@@ -12,14 +12,7 @@ import {
   Keyboard,
   Alert,
 } from 'react-native'
-import {
-  Tag,
-  Search,
-  Plus,
-  Star,
-  Check,
-  X,
-} from 'lucide-react-native'
+import { Tag, Search, Plus, Star, Check, X } from 'lucide-react-native'
 
 import { Text, ConfirmationModal } from '~/components/ui'
 import { getCategoryIcon } from '~/utils/categoryIcons'
@@ -142,7 +135,12 @@ export function CategorySelector({
         return {
           id: formId,
           label: displayLabel,
-          icon: getCategoryIcon({ categoryId: formId, color: iconColor, isSelected: false, fill: 'none' }),
+          icon: getCategoryIcon({
+            categoryId: formId,
+            color: iconColor,
+            isSelected: false,
+            fill: 'none',
+          }),
           isSystem: true,
         }
       } else {
