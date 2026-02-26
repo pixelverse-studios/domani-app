@@ -140,7 +140,6 @@ export function useSubscription() {
           tier: 'trialing',
           trial_started_at: now.toISOString(),
           trial_ends_at: trialEnd.toISOString(),
-          subscription_status: 'trialing',
         })
         .eq('id', user.id)
         .select()
@@ -316,33 +315,23 @@ async function syncSubscriptionToSupabase(userId: string | undefined, customerIn
 
   const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID]
 
-  let tier: 'none' | 'trialing' | 'lifetime' = 'none'
-  let subscriptionStatus: string = 'none'
-  let expiresAt: string | null = null
+  // Always update revenuecat_user_id so the customer is linked
+  const { error: rcError } = await supabase
+    .from('profiles')
+    .update({ revenuecat_user_id: customerInfo.originalAppUserId })
+    .eq('id', userId)
+  if (rcError) throw rcError
 
+  // Only update tier when there is an active entitlement — never write 'none'
+  // unconditionally, as a RevenueCat propagation delay could downgrade a valid user
   if (entitlement) {
     const isTrialing = entitlement.periodType === 'TRIAL'
+    const tier: 'trialing' | 'lifetime' = isTrialing ? 'trialing' : 'lifetime'
 
-    if (isTrialing) {
-      // Trial period
-      tier = 'trialing'
-      subscriptionStatus = 'trialing'
-      expiresAt = entitlement.expirationDate || null
-    } else {
-      // Lifetime purchase - no expiration
-      tier = 'lifetime'
-      subscriptionStatus = 'active'
-      expiresAt = null
-    }
+    const { error: tierError } = await supabase
+      .from('profiles')
+      .update({ tier })
+      .eq('id', userId)
+    if (tierError) throw tierError
   }
-
-  await supabase
-    .from('profiles')
-    .update({
-      tier,
-      subscription_status: subscriptionStatus,
-      subscription_expires_at: expiresAt,
-      revenuecat_user_id: customerInfo.originalAppUserId,
-    })
-    .eq('id', userId)
 }
