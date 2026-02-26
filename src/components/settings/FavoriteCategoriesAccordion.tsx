@@ -18,11 +18,7 @@ import DraggableFlatList, {
   ScaleDecorator,
   RenderItemParams,
 } from 'react-native-draggable-flatlist'
-import {
-  Heart,
-  ChevronDown,
-  GripVertical,
-} from 'lucide-react-native'
+import { Heart, ChevronDown, GripVertical } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 
 import { Text } from '~/components/ui'

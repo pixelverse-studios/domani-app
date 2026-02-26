@@ -99,10 +99,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
 /**
  * Get icon component from category ID, icon name, or category object
  */
-function getIconComponent(
-  categoryId?: string,
-  category?: CategoryInput | null,
-): LucideIcon {
+function getIconComponent(categoryId?: string, category?: CategoryInput | null): LucideIcon {
   // If category object provided
   if (category) {
     // User-created categories (non-system) always get Star icon
@@ -174,14 +171,7 @@ export function getCategoryIcon({
   // Determine fill based on selection state
   const iconFill = isSelected ? (typeof fill === 'string' ? fill : color) : 'none'
 
-  return (
-    <IconComponent
-      size={size}
-      color={color}
-      strokeWidth={strokeWidth}
-      fill={iconFill}
-    />
-  )
+  return <IconComponent size={size} color={color} strokeWidth={strokeWidth} fill={iconFill} />
 }
 
 /**
@@ -192,8 +182,6 @@ export function getCategoryIcon({
  * const IconComponent = getCategoryIconComponent('work')
  * return <IconComponent size={20} color="#000" />
  */
-export function getCategoryIconComponent(
-  categoryIdOrName: string,
-): LucideIcon {
+export function getCategoryIconComponent(categoryIdOrName: string): LucideIcon {
   return ICON_MAP[categoryIdOrName.toLowerCase()] || Tag
 }

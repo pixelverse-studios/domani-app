@@ -11,9 +11,8 @@ import type { SubscriptionStatus } from '~/hooks/useSubscription'
 // Subscription status display config
 const STATUS_CONFIG: Record<SubscriptionStatus, { label: string; color: string; bgColor: string }> =
   {
-    free: { label: 'Free', color: '#94a3b8', bgColor: 'bg-slate-500/20' },
+    none: { label: 'No Active Plan', color: '#94a3b8', bgColor: 'bg-slate-500/20' },
     trialing: { label: 'Trial', color: '#22c55e', bgColor: 'bg-green-500/20' },
-    premium: { label: 'Lifetime', color: '#f59e0b', bgColor: 'bg-amber-500/20' },
     lifetime: { label: 'Lifetime', color: '#f59e0b', bgColor: 'bg-amber-500/20' },
   }
 
@@ -66,11 +65,13 @@ export function SubscriptionSection({
               </View>
             </View>
 
-            {/* Free tier - show trial option */}
-            {status === 'free' && (
+            {/* No active tier - show trial option */}
+            {status === 'none' && (
               <>
                 <Text className="text-sm text-content-secondary mb-3">
-                  3 tasks per day - Basic features
+                  {canStartTrial
+                    ? 'Start a free trial to get full access'
+                    : 'Your trial has ended — upgrade to keep using Domani'}
                 </Text>
                 {canStartTrial ? (
                   <TouchableOpacity
@@ -124,13 +125,6 @@ export function SubscriptionSection({
               </>
             )}
 
-            {/* Premium/Lifetime - no renewal, lifetime access */}
-            {status === 'premium' && (
-              <Text className="text-sm text-content-secondary">
-                Unlimited tasks - All features unlocked forever
-              </Text>
-            )}
-
             {/* Lifetime */}
             {status === 'lifetime' && (
               <Text className="text-sm text-content-secondary">
@@ -139,8 +133,8 @@ export function SubscriptionSection({
             )}
           </View>
 
-          {/* Restore purchases - only show for free/trial users */}
-          {(status === 'free' || status === 'trialing') && (
+          {/* Restore purchases - only show for non-lifetime users */}
+          {(status === 'none' || status === 'trialing') && (
             <TouchableOpacity
               onPress={onRestore}
               disabled={isRestoring}

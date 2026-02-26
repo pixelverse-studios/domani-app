@@ -184,7 +184,9 @@ export function TaskCard({
               {/* Category Icon + Name */}
               <View style={styles.categoryContainer}>
                 {getCategoryIcon({
-                  category: category ? { name: categoryName, icon: category.icon || undefined } : null,
+                  category: category
+                    ? { name: categoryName, icon: category.icon || undefined }
+                    : null,
                   color: isUserCategory ? theme.colors.brand.light : iconColor,
                   size: 14,
                 })}

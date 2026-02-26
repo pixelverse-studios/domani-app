@@ -1240,7 +1240,6 @@ export type Database = {
         Args: { p_plan_id: string; p_user_id: string }
         Returns: number
       }
-      get_task_count_for_plan: { Args: { p_plan_id: string }; Returns: number }
       get_user_cohort: { Args: { p_user_id: string }; Returns: string }
       get_user_role_level: { Args: { p_user_id: string }; Returns: number }
       get_user_tier: { Args: { p_user_id: string }; Returns: string }
@@ -1252,7 +1251,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      has_premium_access: { Args: { p_user_id: string }; Returns: boolean }
       increment_category_usage: {
         Args: {
           p_system_category_id?: string
@@ -1319,7 +1317,7 @@ export type Database = {
       signup_cohort: 'friends_family' | 'early_adopter' | 'general'
       subscription_status_enum: 'none' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired'
       task_priority: 'top' | 'high' | 'medium' | 'low'
-      tier: 'free' | 'premium' | 'lifetime'
+      tier: 'none' | 'trialing' | 'lifetime'
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1467,7 +1465,7 @@ export const Constants = {
       signup_cohort: ['friends_family', 'early_adopter', 'general'],
       subscription_status_enum: ['none', 'trialing', 'active', 'past_due', 'canceled', 'expired'],
       task_priority: ['top', 'high', 'medium', 'low'],
-      tier: ['free', 'premium', 'lifetime'],
+      tier: ['none', 'trialing', 'lifetime'],
     },
   },
 } as const
