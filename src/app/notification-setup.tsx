@@ -52,7 +52,7 @@ export default function NotificationSetupScreen() {
   }, [])
 
   const [planTime, setPlanTime] = useState(defaultPlanTime)
-  const [reminderOptedIn, setNotificationEnabled] = useState(true)
+  const [reminderOptedIn, setReminderOptedIn] = useState(true)
   const [loading, setLoading] = useState(false)
 
   // Android picker visibility state
@@ -185,7 +185,7 @@ export default function NotificationSetupScreen() {
             </Text>
             <Switch
               value={reminderOptedIn}
-              onValueChange={setNotificationEnabled}
+              onValueChange={setReminderOptedIn}
               trackColor={{
                 false: theme.colors.border.primary,
                 true: brandColor,
@@ -324,9 +324,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 12,
   },
-  pickerWrapper: {
-    marginBottom: 0,
-  },
+  pickerWrapper: {},
   toggleLabel: {
     fontSize: 15,
     fontWeight: '500',
