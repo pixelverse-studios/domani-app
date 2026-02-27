@@ -13,5 +13,5 @@ export const useCelebrationStore = create<CelebrationStore>((set) => ({
   shouldShowCelebration: false,
   taskCount: 0,
   trigger: (taskCount) => set({ shouldShowCelebration: true, taskCount }),
-  dismiss: () => set({ shouldShowCelebration: false }),
+  dismiss: () => set({ shouldShowCelebration: false, taskCount: 0 }),
 }))

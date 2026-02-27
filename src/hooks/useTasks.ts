@@ -100,20 +100,31 @@ export function useToggleTask() {
     onSuccess: async (data, variables) => {
       // Real-time celebration: fire when the last incomplete task is marked complete.
       // Checks the optimistic cache (already updated by onMutate) — no DB round-trip needed.
-      if (!variables.completed) return
+      // Wrapped in try/catch to isolate celebration logic from the mutation lifecycle:
+      // if this throws, onSettled still runs (cache invalidation + analytics stay intact).
+      try {
+        if (!variables.completed) return
 
-      const tasks = queryClient.getQueryData<TaskWithCategory[]>(['tasks', data.plan_id])
-      if (!tasks || tasks.length === 0) return
+        const tasks = queryClient.getQueryData<TaskWithCategory[]>(['tasks', data.plan_id])
+        if (!tasks || tasks.length === 0) return
 
-      const allComplete = tasks.every((t) => t.completed_at !== null)
-      if (!allComplete) return
+        const allComplete = tasks.every((t) => t.completed_at !== null)
+        if (!allComplete) return
 
-      // Idempotency: don't show twice if the user toggles a task off and on again
-      const alreadyCelebrated = await wasCelebratedToday()
-      if (alreadyCelebrated) return
+        // TOCTOU guard: if celebration is already showing (another concurrent completion
+        // won the race), skip the async AsyncStorage path entirely.
+        if (useCelebrationStore.getState().shouldShowCelebration) return
 
-      await markCelebratedToday()
-      useCelebrationStore.getState().trigger(tasks.length)
+        // Idempotency: don't show twice if the user toggles a task off and on again
+        const alreadyCelebrated = await wasCelebratedToday()
+        if (alreadyCelebrated) return
+
+        await markCelebratedToday()
+        useCelebrationStore.getState().trigger(tasks.length)
+      } catch (error) {
+        if (__DEV__) console.error('[useToggleTask] Celebration trigger failed:', error)
+        // Non-fatal — task toggle succeeded; celebration is best-effort
+      }
     },
     onError: (_err, _variables, context) => {
       // Rollback on error

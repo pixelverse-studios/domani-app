@@ -234,11 +234,6 @@ function RootLayoutContent() {
     router,
   ])
 
-  // Handle celebration dismissal — markCelebratedToday already called in useToggleTask.onSuccess
-  const handleCelebrationDismiss = React.useCallback(() => {
-    dismissCelebration()
-  }, [dismissCelebration])
-
   // Wait for auth to initialize before rendering routes
   // This prevents the race condition where (tabs) renders before auth check completes
   if (loading) {
@@ -273,7 +268,7 @@ function RootLayoutContent() {
       <CelebrationModal
         visible={showCelebration}
         taskCount={celebrationTaskCount}
-        onDismiss={handleCelebrationDismiss}
+        onDismiss={dismissCelebration}
       />
 
       {/* Evening rollover — app-open path (time-based, no notification tap required) */}
