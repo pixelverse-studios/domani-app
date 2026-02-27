@@ -257,6 +257,7 @@ export default function PlanningScreen() {
           mit_carried: !!eveningMitTask && params.selectedTaskIds.includes(eveningMitTask.id),
           mit_made_tomorrow: params.makeMitToday,
           kept_reminders: params.keepReminderTimes,
+          source: 'notification',
         })
 
         await markEveningPrompted()
@@ -283,6 +284,7 @@ export default function PlanningScreen() {
     track('evening_rollover_started_fresh', {
       task_count: (eveningMitTask ? 1 : 0) + eveningOtherTasks.length,
       had_mit: !!eveningMitTask,
+      source: 'notification',
     })
 
     try {

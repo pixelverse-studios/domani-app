@@ -209,6 +209,7 @@ function RootLayoutContent() {
             params.selectedTaskIds.includes(eveningAppOpenMitTask.id),
           mit_made_tomorrow: params.makeMitToday,
           kept_reminders: params.keepReminderTimes,
+          source: 'app_open',
         })
 
         await markEveningAppOpenPrompted()
@@ -233,6 +234,7 @@ function RootLayoutContent() {
     track('evening_rollover_started_fresh', {
       task_count: (eveningAppOpenMitTask ? 1 : 0) + eveningAppOpenOtherTasks.length,
       had_mit: !!eveningAppOpenMitTask,
+      source: 'app_open',
     })
 
     await markEveningAppOpenPrompted()
