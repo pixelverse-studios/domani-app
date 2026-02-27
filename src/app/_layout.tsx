@@ -103,7 +103,7 @@ function RootLayoutContent() {
   } = useEveningRolloverOnAppOpen()
 
   const { data: tomorrowPlan } = useTomorrowPlan({ enabled: eveningAppOpenShouldShow })
-  const { mutateAsync: carryForwardTasks, isPending: _isCarryingForward } = useCarryForwardTasks()
+  const { mutateAsync: carryForwardTasks } = useCarryForwardTasks()
 
   // Scalar id used in useCallback dep arrays to avoid referencing the full task object
   const eveningAppOpenMitTaskId = eveningAppOpenMitTask?.id ?? null
@@ -241,7 +241,12 @@ function RootLayoutContent() {
 
   // Handle celebration dismissal
   const handleCelebrationDismiss = React.useCallback(async () => {
-    await markCelebrated()
+    try {
+      await markCelebrated()
+    } catch (error) {
+      if (__DEV__) console.error('[Celebration] Failed to mark as celebrated:', error)
+      // Non-fatal — modal still closes
+    }
   }, [markCelebrated])
 
   // Wait for auth to initialize before rendering routes
