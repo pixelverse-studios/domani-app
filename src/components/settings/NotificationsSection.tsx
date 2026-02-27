@@ -9,13 +9,12 @@ import { SettingsRow } from './SettingsRow'
 import { ReminderShortcutsSection } from './ReminderShortcutsSection'
 import { NotificationsSkeleton } from './SettingsSkeletons'
 
-const BRAND_COLOR = '#7D9B8A'
-
 interface NotificationsSectionProps {
   isLoading: boolean
   planningReminderTime: string | null
   planningReminderEnabled: boolean
   permissionStatus: 'granted' | 'denied' | 'undetermined'
+  isUpdating: boolean
   onEditPlanningTime: () => void
   onTogglePlanningReminder: (enabled: boolean) => void
   onOpenSettings: () => void
@@ -29,11 +28,13 @@ export function NotificationsSection({
   planningReminderTime,
   planningReminderEnabled,
   permissionStatus,
+  isUpdating,
   onEditPlanningTime,
   onTogglePlanningReminder,
   onOpenSettings,
 }: NotificationsSectionProps) {
   const theme = useAppTheme()
+  const brandColor = theme.colors.brand.primary
 
   // Format time for display
   const formatTimeDisplay = (timeString: string | null) => {
@@ -69,9 +70,10 @@ export function NotificationsSection({
             <Switch
               value={planningReminderEnabled}
               onValueChange={onTogglePlanningReminder}
+              disabled={isUpdating}
               trackColor={{
                 false: theme.colors.border.primary,
-                true: BRAND_COLOR,
+                true: brandColor,
               }}
               thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
               ios_backgroundColor={theme.colors.border.primary}
@@ -115,8 +117,8 @@ export function NotificationsSection({
             </TouchableOpacity>
           )}
 
-          {/* Notification Status Row — shown when system permissions are denied */}
-          {permissionStatus !== 'granted' && (
+          {/* Notification Status Row — shown only when user wants notifications but OS has denied permission */}
+          {planningReminderEnabled && permissionStatus !== 'granted' && (
             <TouchableOpacity
               onPress={onOpenSettings}
               activeOpacity={0.7}

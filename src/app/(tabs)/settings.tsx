@@ -62,6 +62,7 @@ function SettingsContent() {
   const {
     schedulePlanningReminder,
     cancelPlanningReminder,
+    requestPermissions,
     permissionStatus,
     getPermissionStatus,
     openSettings,
@@ -204,8 +205,15 @@ function SettingsContent() {
     await updateProfile.mutateAsync({ planning_reminder_enabled: enabled })
 
     if (enabled) {
+      // If permissions not yet determined, request them now
+      let currentPermission = permissionStatus
+      if (currentPermission === 'undetermined') {
+        const granted = await requestPermissions()
+        currentPermission = granted ? 'granted' : 'denied'
+      }
+
       // Re-enable: reschedule using the existing planning time if permissions granted
-      if (profile?.planning_reminder_time && permissionStatus === 'granted') {
+      if (profile?.planning_reminder_time && currentPermission === 'granted') {
         const [hours, minutes] = profile.planning_reminder_time.split(':').map(Number)
         await schedulePlanningReminder(hours, minutes)
       }
@@ -281,8 +289,9 @@ function SettingsContent() {
         <NotificationsSection
           isLoading={isLoading}
           planningReminderTime={profile?.planning_reminder_time || null}
-          planningReminderEnabled={profile?.planning_reminder_enabled ?? true}
+          planningReminderEnabled={profile?.planning_reminder_enabled ?? false}
           permissionStatus={permissionStatus}
+          isUpdating={updateProfile.isPending}
           onEditPlanningTime={openPlanningTimeModal}
           onTogglePlanningReminder={handleTogglePlanningReminder}
           onOpenSettings={openSettings}
