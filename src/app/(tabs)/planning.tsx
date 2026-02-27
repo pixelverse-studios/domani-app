@@ -214,10 +214,20 @@ export default function PlanningScreen() {
       // If tomorrowPlan isn't ready yet, wait — effect re-runs when tomorrowPlan resolves
     } else {
       // No eligible tasks or already prompted — skip rollover, open form directly
+      // Reset source so the app-open flow isn't blocked for the rest of the session
       setPlanningReminderTriggered(false)
+      setEveningRolloverSource(null)
       setIsFormVisible(true)
     }
-  }, [planningReminderTriggered, eveningLoading, eveningShouldShow, tomorrowPlan])
+
+    return () => {
+      // If we claimed the session but tomorrowPlan never resolved (e.g. network error),
+      // release the claim on unmount so the app-open flow isn't permanently blocked
+      if (planningReminderTriggered && !tomorrowPlan) {
+        setEveningRolloverSource(null)
+      }
+    }
+  }, [planningReminderTriggered, eveningLoading, eveningShouldShow, tomorrowPlan, setEveningRolloverSource])
 
   // Evening rollover handlers
   const handleEveningCarryForward = useCallback(
@@ -250,6 +260,7 @@ export default function PlanningScreen() {
         })
 
         await markEveningPrompted()
+        // Reset inside try (not finally) — keep source claimed while modal is open for retry
         setEveningRolloverSource(null)
 
         // Success: close modal and open planning form
@@ -265,7 +276,7 @@ export default function PlanningScreen() {
         )
       }
     },
-    [tomorrowPlan, carryForwardTasks, markEveningPrompted, track, eveningMitTask],
+    [tomorrowPlan, carryForwardTasks, markEveningPrompted, track, eveningMitTask, setEveningRolloverSource],
   )
 
   const handleEveningStartFresh = useCallback(async () => {
@@ -284,7 +295,7 @@ export default function PlanningScreen() {
     setShowEveningRollover(false)
     setPlanningReminderTriggered(false)
     setIsFormVisible(true)
-  }, [markEveningPrompted, track, eveningMitTask, eveningOtherTasks.length])
+  }, [markEveningPrompted, track, eveningMitTask, eveningOtherTasks.length, setEveningRolloverSource])
 
   const handleOpenForm = () => {
     // Initialize form's day toggle from header selection for new tasks
