@@ -1,18 +1,23 @@
 import React from 'react'
-import { View, TouchableOpacity } from 'react-native'
-import { ClipboardClock, BellOff, ChevronRight } from 'lucide-react-native'
+import { View, TouchableOpacity, Switch, Platform } from 'react-native'
+import { ClipboardClock, BellOff, ChevronRight, Bell } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
+import { useAppTheme } from '~/hooks/useAppTheme'
 import { SectionHeader } from './SectionHeader'
 import { SettingsRow } from './SettingsRow'
 import { ReminderShortcutsSection } from './ReminderShortcutsSection'
 import { NotificationsSkeleton } from './SettingsSkeletons'
 
+const BRAND_COLOR = '#7D9B8A'
+
 interface NotificationsSectionProps {
   isLoading: boolean
   planningReminderTime: string | null
+  planningReminderEnabled: boolean
   permissionStatus: 'granted' | 'denied' | 'undetermined'
   onEditPlanningTime: () => void
+  onTogglePlanningReminder: (enabled: boolean) => void
   onOpenSettings: () => void
 }
 
@@ -22,17 +27,20 @@ interface NotificationsSectionProps {
 export function NotificationsSection({
   isLoading,
   planningReminderTime,
+  planningReminderEnabled,
   permissionStatus,
   onEditPlanningTime,
+  onTogglePlanningReminder,
   onOpenSettings,
 }: NotificationsSectionProps) {
+  const theme = useAppTheme()
+
   // Format time for display
   const formatTimeDisplay = (timeString: string | null) => {
     if (!timeString) return 'Not set'
     const [hours, minutes] = timeString.split(':')
     const date = new Date()
     date.setHours(parseInt(hours), parseInt(minutes))
-    // Manual formatting to avoid date-fns import in this component
     const h = date.getHours()
     const m = date.getMinutes()
     const ampm = h >= 12 ? 'PM' : 'AM'
@@ -47,14 +55,67 @@ export function NotificationsSection({
         <NotificationsSkeleton />
       ) : (
         <View className="mb-6">
-          <SettingsRow
-            label="Planning Reminder"
-            value={formatTimeDisplay(planningReminderTime)}
-            onPress={onEditPlanningTime}
-            icon={ClipboardClock}
-          />
+          {/* Planning Reminder Notification Toggle */}
+          <View
+            className="flex-row items-center justify-between py-3.5 px-4 rounded-xl mb-2"
+            style={{ backgroundColor: theme.colors.card }}
+          >
+            <View className="flex-row items-center flex-1">
+              <View className="mr-3">
+                <Bell size={20} color={theme.colors.text.tertiary} />
+              </View>
+              <Text className="text-base text-content-primary">Planning Reminder Notification</Text>
+            </View>
+            <Switch
+              value={planningReminderEnabled}
+              onValueChange={onTogglePlanningReminder}
+              trackColor={{
+                false: theme.colors.border.primary,
+                true: BRAND_COLOR,
+              }}
+              thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
+              ios_backgroundColor={theme.colors.border.primary}
+            />
+          </View>
 
-          {/* Notification Status Row */}
+          {/* Planning Time Row — always visible; label adapts to notification state */}
+          {planningReminderEnabled ? (
+            // Variant A — notifications ON: standard settings row
+            <SettingsRow
+              label="Planning Reminder"
+              value={formatTimeDisplay(planningReminderTime)}
+              onPress={onEditPlanningTime}
+              icon={ClipboardClock}
+            />
+          ) : (
+            // Variant B — notifications OFF: explains that the time still drives the in-app prompt
+            <TouchableOpacity
+              onPress={onEditPlanningTime}
+              activeOpacity={0.7}
+              className="flex-row items-center justify-between py-3.5 px-4 rounded-xl mb-2"
+              style={{ backgroundColor: theme.colors.card }}
+            >
+              <View className="flex-row items-center flex-1">
+                <View className="mr-3">
+                  <ClipboardClock size={20} color={theme.colors.text.tertiary} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-base text-content-primary">Evening Planning Time</Text>
+                  <Text className="text-xs text-content-tertiary mt-0.5">
+                    Notifications are off — this time still triggers the in-app planning prompt
+                  </Text>
+                </View>
+              </View>
+              <View className="flex-row items-center">
+                <Text className="text-sm text-content-secondary mr-2">
+                  {formatTimeDisplay(planningReminderTime)}
+                </Text>
+                <ChevronRight size={18} color={theme.colors.text.tertiary} />
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {/* Notification Status Row — shown when system permissions are denied */}
           {permissionStatus !== 'granted' && (
             <TouchableOpacity
               onPress={onOpenSettings}

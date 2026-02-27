@@ -59,8 +59,13 @@ function SettingsContent() {
   const { profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const subscription = useSubscription()
-  const { schedulePlanningReminder, permissionStatus, getPermissionStatus, openSettings } =
-    useNotifications()
+  const {
+    schedulePlanningReminder,
+    cancelPlanningReminder,
+    permissionStatus,
+    getPermissionStatus,
+    openSettings,
+  } = useNotifications()
   const accountDeletion = useAccountDeletion()
   const { phase } = useAppConfig()
   const { resetTutorial, isActive: isTutorialActive, currentStep } = useTutorialStore()
@@ -187,12 +192,27 @@ function SettingsContent() {
     const timeString = format(selectedTime, 'HH:mm:ss')
     await updateProfile.mutateAsync({ planning_reminder_time: timeString })
 
-    // Reschedule notification if permissions are granted
-    if (permissionStatus === 'granted') {
+    // Only reschedule notification if user has opted in and permissions are granted
+    if (profile?.planning_reminder_enabled && permissionStatus === 'granted') {
       await schedulePlanningReminder(selectedTime.getHours(), selectedTime.getMinutes())
     }
 
     setShowPlanningTimeModal(false)
+  }
+
+  const handleTogglePlanningReminder = async (enabled: boolean) => {
+    await updateProfile.mutateAsync({ planning_reminder_enabled: enabled })
+
+    if (enabled) {
+      // Re-enable: reschedule using the existing planning time if permissions granted
+      if (profile?.planning_reminder_time && permissionStatus === 'granted') {
+        const [hours, minutes] = profile.planning_reminder_time.split(':').map(Number)
+        await schedulePlanningReminder(hours, minutes)
+      }
+    } else {
+      // Disable: cancel the scheduled notification
+      await cancelPlanningReminder()
+    }
   }
 
   const openNameModal = () => {
@@ -261,8 +281,10 @@ function SettingsContent() {
         <NotificationsSection
           isLoading={isLoading}
           planningReminderTime={profile?.planning_reminder_time || null}
+          planningReminderEnabled={profile?.planning_reminder_enabled ?? true}
           permissionStatus={permissionStatus}
           onEditPlanningTime={openPlanningTimeModal}
+          onTogglePlanningReminder={handleTogglePlanningReminder}
           onOpenSettings={openSettings}
         />
 

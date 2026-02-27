@@ -167,7 +167,7 @@ export function useNotificationObserver() {
 
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('planning_reminder_time')
+          .select('planning_reminder_time, planning_reminder_enabled')
           .eq('id', user.id)
           .single()
 
@@ -214,9 +214,14 @@ export function useNotificationObserver() {
           console.warn('[Notifications] WARNING: Some notifications could not be cancelled!')
         }
 
-        // Only schedule new notification if user has a reminder time configured
-        if (!profile?.planning_reminder_time) {
-          console.log('[Notifications] No planning_reminder_time set, cleanup complete')
+        // Only schedule new notification if user has a reminder time configured and
+        // has opted in to planning reminder notifications
+        if (!profile?.planning_reminder_time || !profile?.planning_reminder_enabled) {
+          console.log(
+            '[Notifications] Skipping schedule: time=%s, enabled=%s',
+            profile?.planning_reminder_time || 'NOT SET',
+            profile?.planning_reminder_enabled ? 'true' : 'false',
+          )
           store.setHasValidatedIds(true)
           return
         }

@@ -589,6 +589,7 @@ export type Database = {
           full_name: string | null
           id: string
           notification_onboarding_completed: boolean
+          planning_reminder_enabled: boolean
           planning_reminder_time: string | null
           push_token_invalid_at: string | null
           push_token_last_verified_at: string | null
@@ -614,6 +615,7 @@ export type Database = {
           full_name?: string | null
           id: string
           notification_onboarding_completed?: boolean
+          planning_reminder_enabled?: boolean
           planning_reminder_time?: string | null
           push_token_invalid_at?: string | null
           push_token_last_verified_at?: string | null
@@ -639,6 +641,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           notification_onboarding_completed?: boolean
+          planning_reminder_enabled?: boolean
           planning_reminder_time?: string | null
           push_token_invalid_at?: string | null
           push_token_last_verified_at?: string | null
