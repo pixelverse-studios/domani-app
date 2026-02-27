@@ -1,15 +1,9 @@
 /**
  * useEveningRolloverTasks Hook
  *
- * Detects incomplete tasks from today's plan that are eligible for
- * rollover review when the user opens the planning screen via a
- * planning reminder notification (Flow 2: evening rollover).
- *
- * A task is "eligible" if:
- * - It is incomplete (completed_at IS NULL)
- * - AND its reminder_at is NULL (no specific time set)
- *   OR its reminder_at is before the user's planning_reminder_time
- *   (meaning the task was supposed to be done earlier today)
+ * Returns all incomplete tasks from today's plan for the evening rollover
+ * prompt, giving the user full visibility and a deliberate choice about what
+ * carries forward to tomorrow.
  *
  * This hook only runs when `enabled` is true, to avoid unnecessary
  * queries when the user opens the planning screen normally.
@@ -31,9 +25,9 @@ interface UseEveningRolloverTasksOptions {
 export interface UseEveningRolloverTasksResult {
   /** Incomplete tasks from today eligible for rollover review */
   eligibleTasks: RolloverTask[]
-  /** Today's MIT if incomplete and eligible, null otherwise */
+  /** Today's MIT if incomplete, null otherwise */
   mitTask: RolloverTask | null
-  /** Non-MIT eligible incomplete tasks */
+  /** Non-MIT incomplete tasks */
   otherTasks: RolloverTask[]
   /** True when there are eligible tasks and user hasn't been prompted yet */
   shouldShow: boolean
@@ -79,91 +73,36 @@ export function useEveningRolloverTasks({
       // Explicitly scope by user_id for defence-in-depth alongside RLS
       const { data: tasks, error } = await supabase
         .from('tasks')
-        .select(
-          'id, title, priority, system_category_id, user_category_id, reminder_at, is_mit',
-        )
+        .select('id, title, priority, system_category_id, user_category_id, reminder_at, is_mit')
         .eq('plan_id', plan.id)
         .eq('user_id', user.id)
         .is('completed_at', null)
 
       if (error) throw error
-      if (__DEV__)
-        console.log('[useEveningRolloverTasks] Incomplete tasks:', tasks?.length ?? 0)
+      if (__DEV__) console.log('[useEveningRolloverTasks] Incomplete tasks:', tasks?.length ?? 0)
       return (tasks || []) as RolloverTask[]
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
 
-  // Query 2: Get planning_reminder_time from profile (for task eligibility cutoff)
-  const { data: planningReminderTime, isLoading: isLoadingProfile } = useQuery({
-    // User-scoped key prevents stale data if a different account signs in
-    queryKey: ['profileReminderTime'],
-    enabled,
-    queryFn: async (): Promise<string | null> => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return null
-
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('planning_reminder_time')
-        .eq('id', user.id)
-        .maybeSingle()
-
-      if (profileError) throw profileError
-      return profile?.planning_reminder_time ?? null
-    },
-    staleTime: 1000 * 60 * 60, // 1 hour — reminder time changes infrequently
-  })
-
-  // Filter tasks by eligibility:
-  // - No reminder set → always eligible
-  // - Reminder before planning_reminder_time → should have been done, now eligible
-  // - Reminder after planning_reminder_time → scheduled for later, not eligible
-  const eligibleTasks = useMemo((): RolloverTask[] => {
-    // Always returns a new sorted array (spread copy prevents in-place mutation)
-    const sortedCopy = (tasks: RolloverTask[]) =>
-      [...tasks].sort((a, b) => {
-        if (a.is_mit && !b.is_mit) return -1
-        if (!a.is_mit && b.is_mit) return 1
-        return 0
-      })
-
-    if (!planningReminderTime) {
-      // No reminder time set — all incomplete tasks are eligible
-      return sortedCopy(rawTasks)
-    }
-
-    // planning_reminder_time is a Postgres time in HH:mm:ss format
-    const parts = planningReminderTime.split(':').map(Number)
-    if (parts.length < 2 || parts.some(isNaN)) {
-      // Unexpected format — treat as no cutoff
-      return sortedCopy(rawTasks)
-    }
-    const [hours, minutes] = parts
-    const cutoff = new Date()
-    cutoff.setHours(hours, minutes, 0, 0)
-
-    const eligible = rawTasks.filter((task) => {
-      if (!task.reminder_at) return true
-      return new Date(task.reminder_at) < cutoff
+  // Sort MIT first, then partition into mitTask / otherTasks in one pass
+  const { eligibleTasks, mitTask, otherTasks } = useMemo(() => {
+    const sorted = [...rawTasks].sort((a, b) => {
+      if (a.is_mit && !b.is_mit) return -1
+      if (!a.is_mit && b.is_mit) return 1
+      return 0
     })
+    const mit = sorted.find((t) => t.is_mit) ?? null
+    const others = sorted.filter((t) => !t.is_mit)
+    return { eligibleTasks: sorted, mitTask: mit, otherTasks: others }
+  }, [rawTasks])
 
-    return sortedCopy(eligible)
-  }, [rawTasks, planningReminderTime])
-
-  // Separate MIT from other tasks
-  const { mitTask, otherTasks } = useMemo(() => {
-    const mit = eligibleTasks.find((t) => t.is_mit) ?? null
-    const others = eligibleTasks.filter((t) => !t.is_mit)
-    return { mitTask: mit, otherTasks: others }
-  }, [eligibleTasks])
-
-  // Query 3: Check if user was already shown the evening prompt today
-  // Default to true (fail closed) to prevent duplicate prompts on error
+  // Query 2: Check if user was already shown the evening prompt today
+  // Default to true (fail closed) to prevent duplicate prompts on error.
+  // Keyed by `today` so the cache auto-resets at midnight without needing
+  // explicit invalidation — consistent with the tasks query key above.
   const { data: alreadyPrompted = true, isLoading: isLoadingPrompt } = useQuery({
-    queryKey: ['eveningRolloverPromptedToday'],
+    queryKey: ['eveningRolloverPromptedToday', today],
     enabled,
     queryFn: async () => {
       const result = await wasEveningPromptedToday()
@@ -173,13 +112,13 @@ export function useEveningRolloverTasks({
     staleTime: 1000 * 60 * 60, // 1 hour
   })
 
-  const isLoading = isLoadingTasks || isLoadingProfile || isLoadingPrompt
+  const isLoading = isLoadingTasks || isLoadingPrompt
 
   const shouldShow = !isLoading && !alreadyPrompted && eligibleTasks.length > 0
 
   const markEveningPrompted = useCallback(async () => {
     await markEveningPromptedToday()
-    await queryClient.invalidateQueries({ queryKey: ['eveningRolloverPromptedToday'] })
+    await queryClient.invalidateQueries({ queryKey: ['eveningRolloverPromptedToday', today] })
   }, [queryClient])
 
   return {
