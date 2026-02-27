@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { ScrollView, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { addDays } from 'date-fns'
+import { addDays, format } from 'date-fns'
 
 import {
   PlanningHeader,
@@ -17,6 +17,7 @@ import {
 import { usePlanForDate } from '~/hooks/usePlans'
 import { useCreateTask, useTasks, useDeleteTask, useUpdateTask } from '~/hooks/useTasks'
 import { useSystemCategories } from '~/hooks/useCategories'
+import { useNotificationStore } from '~/stores/notificationStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAdvancement } from '~/components/tutorial'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
@@ -89,6 +90,8 @@ export default function PlanningScreen() {
     defaultPlanningFor === 'today' ? 'today' : 'tomorrow',
   )
 
+  const setEveningRolloverSource = useNotificationStore((s) => s.setEveningRolloverSource)
+
   // Evening rollover state (Flow 2 — triggered by planning reminder notification)
   // When true, we gate openForm behind the evening rollover check
   const [planningReminderTriggered, setPlanningReminderTriggered] = useState(false)
@@ -110,14 +113,9 @@ export default function PlanningScreen() {
     }
   }, [defaultPlanningFor, editTaskId])
 
-  // Get the target date based on selection
-  const targetDate = useMemo(() => {
-    return selectedTarget === 'today' ? new Date() : addDays(new Date(), 1)
-  }, [selectedTarget])
-
   // Get dates for today and tomorrow
-  const todayDate = useMemo(() => new Date(), [])
-  const tomorrowDate = useMemo(() => addDays(new Date(), 1), [])
+  const todayDate = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
+  const tomorrowDate = useMemo(() => format(addDays(new Date(), 1), 'yyyy-MM-dd'), [])
 
   // Get or create plans for both today and tomorrow (needed for moving tasks between days)
   const { data: todayPlan } = usePlanForDate(todayDate)
@@ -183,6 +181,8 @@ export default function PlanningScreen() {
       setFormSelectedDay(targetDay)
 
       if (trigger === 'planning_reminder') {
+        // Claim the session so the app-open flow knows not to trigger
+        setEveningRolloverSource('notification')
         // Gate form behind evening rollover check
         setPlanningReminderTriggered(true)
         router.setParams({ openForm: undefined, trigger: undefined })
@@ -209,10 +209,20 @@ export default function PlanningScreen() {
       // If tomorrowPlan isn't ready yet, wait — effect re-runs when tomorrowPlan resolves
     } else {
       // No eligible tasks or already prompted — skip rollover, open form directly
+      // Reset source so the app-open flow isn't blocked for the rest of the session
       setPlanningReminderTriggered(false)
+      setEveningRolloverSource(null)
       setIsFormVisible(true)
     }
-  }, [planningReminderTriggered, eveningLoading, eveningShouldShow, tomorrowPlan])
+
+    return () => {
+      // If we claimed the session but tomorrowPlan never resolved (e.g. network error),
+      // release the claim on unmount so the app-open flow isn't permanently blocked
+      if (planningReminderTriggered && !tomorrowPlan) {
+        setEveningRolloverSource(null)
+      }
+    }
+  }, [planningReminderTriggered, eveningLoading, eveningShouldShow, tomorrowPlan, setEveningRolloverSource])
 
   // Evening rollover handlers
   const handleEveningCarryForward = useCallback(
@@ -242,9 +252,12 @@ export default function PlanningScreen() {
           mit_carried: !!eveningMitTask && params.selectedTaskIds.includes(eveningMitTask.id),
           mit_made_tomorrow: params.makeMitToday,
           kept_reminders: params.keepReminderTimes,
+          source: 'notification',
         })
 
         await markEveningPrompted()
+        // Reset inside try (not finally) — keep source claimed while modal is open for retry
+        setEveningRolloverSource(null)
 
         // Success: close modal and open planning form
         setShowEveningRollover(false)
@@ -259,13 +272,14 @@ export default function PlanningScreen() {
         )
       }
     },
-    [tomorrowPlan, carryForwardTasks, markEveningPrompted, track, eveningMitTask],
+    [tomorrowPlan, carryForwardTasks, markEveningPrompted, track, eveningMitTask, setEveningRolloverSource],
   )
 
   const handleEveningStartFresh = useCallback(async () => {
     track('evening_rollover_started_fresh', {
       task_count: (eveningMitTask ? 1 : 0) + eveningOtherTasks.length,
       had_mit: !!eveningMitTask,
+      source: 'notification',
     })
 
     try {
@@ -274,10 +288,11 @@ export default function PlanningScreen() {
       console.error('[EveningRollover] Failed to mark as prompted:', error)
       // Non-fatal — proceed anyway so user isn't stuck
     }
+    setEveningRolloverSource(null)
     setShowEveningRollover(false)
     setPlanningReminderTriggered(false)
     setIsFormVisible(true)
-  }, [markEveningPrompted, track, eveningMitTask, eveningOtherTasks.length])
+  }, [markEveningPrompted, track, eveningMitTask, eveningOtherTasks.length, setEveningRolloverSource])
 
   const handleOpenForm = () => {
     // Initialize form's day toggle from header selection for new tasks
