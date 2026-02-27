@@ -33,7 +33,7 @@ import { useTutorialStore } from '~/stores/tutorialStore'
 import { useRolloverTasks } from '~/hooks/useRolloverTasks'
 import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
 import { useEveningRolloverOnAppOpen } from '~/hooks/useEveningRolloverOnAppOpen'
-import { useTodayPlan, useTomorrowPlan } from '~/hooks/usePlans'
+import { useTomorrowPlan } from '~/hooks/usePlans'
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
 import { RolloverModal, CelebrationModal } from '~/components/planning'
 import { ErrorBoundary } from '~/components/ErrorBoundary'
@@ -84,19 +84,14 @@ function RootLayoutContent() {
 
   const { accountReactivated, clearAccountReactivated, loading } = useAuth()
 
-  // Rollover tasks detection and celebration
+  // Celebration detection (morning rollover prompt removed — evening flow handles rollover)
   const {
-    shouldShowPrompt,
     shouldShowCelebration,
     yesterdayTaskCount,
-    mitTask,
-    otherTasks,
     isLoading: rolloverLoading,
-    markPrompted,
     markCelebrated,
   } = useRolloverTasks()
   const { isActive: tutorialActive } = useTutorialStore()
-  const { data: todayPlan } = useTodayPlan()
 
   // Evening rollover on app open — triggers when user opens app at/after their reminder time
   const {
@@ -108,7 +103,7 @@ function RootLayoutContent() {
   } = useEveningRolloverOnAppOpen()
 
   const { data: tomorrowPlan } = useTomorrowPlan({ enabled: eveningAppOpenShouldShow })
-  const { mutateAsync: carryForwardTasks, isPending: _isCarryingForward } = useCarryForwardTasks()
+  const { mutateAsync: carryForwardTasks } = useCarryForwardTasks()
 
   // Scalar id used in useCallback dep arrays to avoid referencing the full task object
   const eveningAppOpenMitTaskId = eveningAppOpenMitTask?.id ?? null
@@ -118,19 +113,10 @@ function RootLayoutContent() {
   // - Tutorial is not active (don't conflict with tutorial)
   // - Not loading
   // - Auth is complete
-  // Celebration takes precedence over rollover
+  // Celebration takes precedence over evening rollover
   const showCelebration = shouldShowCelebration && !tutorialActive && !rolloverLoading && !loading
 
-  // Show rollover modal if:
-  // - User should be prompted (has incomplete tasks from yesterday & not already prompted today)
-  // - Tutorial is not active (don't conflict with tutorial)
-  // - Not already loading rollover data
-  // - Auth is complete
-  // - Celebration is NOT showing (celebration takes precedence)
-  const showRollover =
-    shouldShowPrompt && !tutorialActive && !rolloverLoading && !loading && !showCelebration
-
-  // Evening rollover (app-open path) — morning rollover takes visual precedence
+  // Evening rollover (app-open path)
   // Note: !!tomorrowPlan gates display until the plan upsert completes after eveningAppOpenShouldShow
   // flips true. There is no loading indicator for this window — the modal simply hasn't appeared yet.
   const showEveningAppOpenRollover =
@@ -139,49 +125,30 @@ function RootLayoutContent() {
     !eveningAppOpenLoading &&
     !loading &&
     !!tomorrowPlan &&
-    !showCelebration &&
-    !showRollover
+    !showCelebration
 
   // Debug: log rollover state on every change (DEV only)
   React.useEffect(() => {
     if (__DEV__) {
       console.log('[Rollover Debug]', {
-        shouldShowPrompt,
         tutorialActive,
         rolloverLoading,
         authLoading: loading,
         showCelebration,
-        showRollover,
-        incompleteTasks: otherTasks.length + (mitTask ? 1 : 0),
-        hasMit: !!mitTask,
         showEveningAppOpenRollover,
         eveningAppOpenShouldShow,
         eveningAppOpenLoading,
       })
     }
   }, [
-    shouldShowPrompt,
     tutorialActive,
     rolloverLoading,
     loading,
     showCelebration,
-    showRollover,
-    otherTasks.length,
-    mitTask,
     showEveningAppOpenRollover,
     eveningAppOpenShouldShow,
     eveningAppOpenLoading,
   ])
-
-  // Track when rollover prompt is shown
-  React.useEffect(() => {
-    if (showRollover && mitTask) {
-      track('rollover_prompt_shown', {
-        task_count: (mitTask ? 1 : 0) + otherTasks.length,
-        has_mit: !!mitTask,
-      })
-    }
-  }, [showRollover, mitTask, otherTasks.length, track])
 
   // Track when celebration modal is shown
   React.useEffect(() => {
@@ -274,59 +241,13 @@ function RootLayoutContent() {
 
   // Handle celebration dismissal
   const handleCelebrationDismiss = React.useCallback(async () => {
-    await markCelebrated()
+    try {
+      await markCelebrated()
+    } catch (error) {
+      if (__DEV__) console.error('[Celebration] Failed to mark as celebrated:', error)
+      // Non-fatal — modal still closes
+    }
   }, [markCelebrated])
-
-  // Handle carrying forward selected tasks to today
-  const handleCarryForward = React.useCallback(
-    async (params: {
-      selectedTaskIds: string[]
-      makeMitToday: boolean
-      keepReminderTimes: boolean
-    }) => {
-      if (!todayPlan) {
-        console.error('[Rollover] No today plan available')
-        return
-      }
-
-      try {
-        await carryForwardTasks({
-          selectedTaskIds: params.selectedTaskIds,
-          targetPlanId: todayPlan.id,
-          shouldMakeMIT: params.makeMitToday,
-          keepReminderTimes: params.keepReminderTimes,
-        })
-
-        // Track analytics
-        track('rollover_carried_forward', {
-          task_count: params.selectedTaskIds.length,
-          mit_carried: !!mitTask && params.selectedTaskIds.includes(mitTask.id),
-          mit_made_today: params.makeMitToday,
-          kept_reminders: params.keepReminderTimes,
-        })
-
-        // Mark as prompted so modal doesn't show again today
-        await markPrompted()
-      } catch (error) {
-        console.error('[Rollover] Failed to carry forward tasks:', error)
-        // Let the modal handle displaying the error
-        throw error
-      }
-    },
-    [todayPlan, carryForwardTasks, markPrompted, track, mitTask],
-  )
-
-  // Handle user choosing to start fresh (no task rollover)
-  const handleStartFresh = React.useCallback(async () => {
-    // Track analytics
-    track('rollover_started_fresh', {
-      task_count: (mitTask ? 1 : 0) + otherTasks.length,
-      had_mit: !!mitTask,
-    })
-
-    // Mark as prompted so modal doesn't show again today
-    await markPrompted()
-  }, [markPrompted, track, mitTask, otherTasks.length])
 
   // Wait for auth to initialize before rendering routes
   // This prevents the race condition where (tabs) renders before auth check completes
@@ -363,15 +284,6 @@ function RootLayoutContent() {
         visible={showCelebration}
         taskCount={yesterdayTaskCount}
         onDismiss={handleCelebrationDismiss}
-      />
-
-      {/* Rollover prompt for incomplete tasks from yesterday */}
-      <RolloverModal
-        visible={showRollover}
-        mitTask={mitTask}
-        otherTasks={otherTasks}
-        onCarryForward={handleCarryForward}
-        onStartFresh={handleStartFresh}
       />
 
       {/* Evening rollover — app-open path (time-based, no notification tap required) */}

@@ -149,8 +149,7 @@ export async function clearCelebrationState(): Promise<void> {
 }
 
 /**
- * AsyncStorage key for tracking evening rollover prompt (Flow 2)
- * Kept separate from morning rollover to allow both flows to run on the same day.
+ * AsyncStorage key for tracking the evening rollover prompt.
  */
 const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
 
@@ -210,9 +209,7 @@ export interface CarryForwardInput {
  *   keepReminderTimes: true,
  * })
  */
-export async function carryForwardTasks(
-  input: CarryForwardInput
-): Promise<TaskWithCategory[]> {
+export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskWithCategory[]> {
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -241,7 +238,7 @@ export async function carryForwardTasks(
       *,
       system_category:system_categories(*),
       user_category:user_categories(*)
-    `
+    `,
     )
     .in('id', input.selectedTaskIds)
     .eq('user_id', user.id)
@@ -273,7 +270,7 @@ export async function carryForwardTasks(
         // Create new reminder for today at the same time
         const nextOccurrence = setMinutes(
           setHours(now, originalReminder.getHours()),
-          originalReminder.getMinutes()
+          originalReminder.getMinutes(),
         )
 
         // Only use if future (don't schedule reminders in the past)
@@ -303,17 +300,14 @@ export async function carryForwardTasks(
           *,
           system_category:system_categories(*),
           user_category:user_categories(*)
-        `
+        `,
         )
         .single()
 
       // FIX 3: IMPORTANT - Check for FREE_TIER_LIMIT error
       if (createError) {
         // Check if this is a free tier limit error
-        if (
-          (createError as any).code === '23514' ||
-          createError.message.includes('task limit')
-        ) {
+        if ((createError as any).code === '23514' || createError.message.includes('task limit')) {
           throw new Error('FREE_TIER_LIMIT')
         }
         throw createError
@@ -375,7 +369,7 @@ export async function carryForwardTasks(
       } catch (cancelError) {
         console.error(
           `[carryForwardTasks] Failed to cancel notification ${notificationId}:`,
-          cancelError
+          cancelError,
         )
       }
     }
