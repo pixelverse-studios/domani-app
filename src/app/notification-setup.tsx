@@ -52,7 +52,7 @@ export default function NotificationSetupScreen() {
   }, [])
 
   const [planTime, setPlanTime] = useState(defaultPlanTime)
-  const [notificationEnabled, setNotificationEnabled] = useState(true)
+  const [reminderOptedIn, setNotificationEnabled] = useState(true)
   const [loading, setLoading] = useState(false)
 
   // Android picker visibility state
@@ -64,7 +64,7 @@ export default function NotificationSetupScreen() {
       const planTimeString = format(planTime, 'HH:mm:ss')
       const detectedTimezone = getDeviceTimezone()
 
-      if (notificationEnabled) {
+      if (reminderOptedIn) {
         // User wants notifications — initialize, request permissions, and schedule if granted
         await NotificationService.initialize()
         const granted = await NotificationService.requestPermissions()
@@ -92,7 +92,7 @@ export default function NotificationSetupScreen() {
       // planning_reminder_enabled reflects the user's toggle choice regardless of OS permission outcome
       await updateProfile.mutateAsync({
         planning_reminder_time: planTimeString,
-        planning_reminder_enabled: notificationEnabled,
+        planning_reminder_enabled: reminderOptedIn,
         notification_onboarding_completed: true,
         timezone: detectedTimezone,
       })
@@ -173,7 +173,7 @@ export default function NotificationSetupScreen() {
             Planning Reminder
           </Text>
           <Text style={[styles.sectionDescription, { color: themeColors.sectionDescription }]}>
-            When would you like Domani to remind you to plan for tomorrow?
+            Choose when you want to be reminded.
           </Text>
 
           {/* Notification opt-in toggle */}
@@ -184,7 +184,7 @@ export default function NotificationSetupScreen() {
               Send me a daily reminder
             </Text>
             <Switch
-              value={notificationEnabled}
+              value={reminderOptedIn}
               onValueChange={setNotificationEnabled}
               trackColor={{
                 false: theme.colors.border.primary,
@@ -195,31 +195,35 @@ export default function NotificationSetupScreen() {
             />
           </View>
 
-          {Platform.OS === 'android' && !showPlanPicker ? (
-            <Button
-              variant="ghost"
-              onPress={() => setShowPlanPicker(true)}
-              style={[styles.androidTimeButton, { backgroundColor: themeColors.androidButtonBg }]}
-            >
-              <Text style={[styles.androidTimeText, { color: themeColors.androidTimeText }]}>
-                {format(planTime, 'h:mm a')}
-              </Text>
-            </Button>
-          ) : (
-            <View
-              style={[styles.pickerContainer, { backgroundColor: themeColors.pickerBackground }]}
-            >
-              <DateTimePicker
-                value={planTime}
-                mode="time"
-                display="spinner"
-                onChange={handlePlanTimeChange}
-                textColor={themeColors.pickerText}
-                themeVariant="light"
-                style={styles.picker}
-              />
-            </View>
-          )}
+          <View style={[styles.pickerWrapper, { opacity: reminderOptedIn ? 1 : 0.4 }]}
+            pointerEvents={reminderOptedIn ? 'auto' : 'none'}
+          >
+            {Platform.OS === 'android' && !showPlanPicker ? (
+              <Button
+                variant="ghost"
+                onPress={() => setShowPlanPicker(true)}
+                style={[styles.androidTimeButton, { backgroundColor: themeColors.androidButtonBg }]}
+              >
+                <Text style={[styles.androidTimeText, { color: themeColors.androidTimeText }]}>
+                  {format(planTime, 'h:mm a')}
+                </Text>
+              </Button>
+            ) : (
+              <View
+                style={[styles.pickerContainer, { backgroundColor: themeColors.pickerBackground }]}
+              >
+                <DateTimePicker
+                  value={planTime}
+                  mode="time"
+                  display="spinner"
+                  onChange={handlePlanTimeChange}
+                  textColor={themeColors.pickerText}
+                  themeVariant="light"
+                  style={styles.picker}
+                />
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Task Reminders Info */}
@@ -315,10 +319,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 12,
+    borderRadius: 16,
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginBottom: 12,
+  },
+  pickerWrapper: {
+    marginBottom: 0,
   },
   toggleLabel: {
     fontSize: 15,
