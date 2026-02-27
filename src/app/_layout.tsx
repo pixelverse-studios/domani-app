@@ -30,8 +30,8 @@ import { useAuthAnalytics } from '~/hooks/useAuthAnalytics'
 import { useAuth } from '~/hooks/useAuth'
 import { useAppConfigStore } from '~/stores/appConfigStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
-import { useRolloverTasks } from '~/hooks/useRolloverTasks'
 import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
+import { useCelebrationStore } from '~/stores/celebrationStore'
 import { useEveningRolloverOnAppOpen } from '~/hooks/useEveningRolloverOnAppOpen'
 import { useTomorrowPlan } from '~/hooks/usePlans'
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
@@ -84,13 +84,11 @@ function RootLayoutContent() {
 
   const { accountReactivated, clearAccountReactivated, loading } = useAuth()
 
-  // Celebration detection (morning rollover prompt removed — evening flow handles rollover)
-  const {
-    shouldShowCelebration,
-    yesterdayTaskCount,
-    isLoading: rolloverLoading,
-    markCelebrated,
-  } = useRolloverTasks()
+  // Real-time celebration — triggered immediately when the last task is completed
+  const celebrationVisible = useCelebrationStore((s) => s.shouldShowCelebration)
+  const celebrationTaskCount = useCelebrationStore((s) => s.taskCount)
+  const dismissCelebration = useCelebrationStore((s) => s.dismiss)
+
   const { isActive: tutorialActive } = useTutorialStore()
 
   // Evening rollover on app open — triggers when user opens app at/after their reminder time
@@ -109,12 +107,11 @@ function RootLayoutContent() {
   const eveningAppOpenMitTaskId = eveningAppOpenMitTask?.id ?? null
 
   // Show celebration modal if:
-  // - User should be celebrated (all tasks from yesterday completed & not already celebrated)
+  // - celebrationVisible flag is set (triggered by useToggleTask when last task is completed)
   // - Tutorial is not active (don't conflict with tutorial)
-  // - Not loading
   // - Auth is complete
   // Celebration takes precedence over evening rollover
-  const showCelebration = shouldShowCelebration && !tutorialActive && !rolloverLoading && !loading
+  const showCelebration = celebrationVisible && !tutorialActive && !loading
 
   // Evening rollover (app-open path)
   // Note: !!tomorrowPlan gates display until the plan upsert completes after eveningAppOpenShouldShow
@@ -127,12 +124,11 @@ function RootLayoutContent() {
     !!tomorrowPlan &&
     !showCelebration
 
-  // Debug: log rollover state on every change (DEV only)
+  // Debug: log rollover/celebration state on every change (DEV only)
   React.useEffect(() => {
     if (__DEV__) {
       console.log('[Rollover Debug]', {
         tutorialActive,
-        rolloverLoading,
         authLoading: loading,
         showCelebration,
         showEveningAppOpenRollover,
@@ -142,7 +138,6 @@ function RootLayoutContent() {
     }
   }, [
     tutorialActive,
-    rolloverLoading,
     loading,
     showCelebration,
     showEveningAppOpenRollover,
@@ -155,10 +150,10 @@ function RootLayoutContent() {
     if (showCelebration) {
       track('celebration_shown', {
         celebration_type: 'daily_completion',
-        task_count: yesterdayTaskCount,
+        task_count: celebrationTaskCount,
       })
     }
-  }, [showCelebration, yesterdayTaskCount, track])
+  }, [showCelebration, celebrationTaskCount, track])
 
   // Handle carrying forward today's incomplete tasks to tomorrow (app-open evening path)
   const handleEveningAppOpenCarryForward = React.useCallback(
@@ -239,15 +234,10 @@ function RootLayoutContent() {
     router,
   ])
 
-  // Handle celebration dismissal
-  const handleCelebrationDismiss = React.useCallback(async () => {
-    try {
-      await markCelebrated()
-    } catch (error) {
-      if (__DEV__) console.error('[Celebration] Failed to mark as celebrated:', error)
-      // Non-fatal — modal still closes
-    }
-  }, [markCelebrated])
+  // Handle celebration dismissal — markCelebratedToday already called in useToggleTask.onSuccess
+  const handleCelebrationDismiss = React.useCallback(() => {
+    dismissCelebration()
+  }, [dismissCelebration])
 
   // Wait for auth to initialize before rendering routes
   // This prevents the race condition where (tabs) renders before auth check completes
@@ -279,10 +269,10 @@ function RootLayoutContent() {
         onDismiss={clearAccountReactivated}
       />
 
-      {/* Celebration modal for completing all tasks from yesterday */}
+      {/* Celebration modal — fires immediately when user completes their last task */}
       <CelebrationModal
         visible={showCelebration}
-        taskCount={yesterdayTaskCount}
+        taskCount={celebrationTaskCount}
         onDismiss={handleCelebrationDismiss}
       />
 

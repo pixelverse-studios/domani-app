@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '~/lib/supabase'
 import { addBreadcrumb } from '~/lib/sentry'
 import { NotificationService } from '~/lib/notifications'
+import { wasCelebratedToday, markCelebratedToday } from '~/lib/rollover'
+import { useCelebrationStore } from '~/stores/celebrationStore'
 import { useIncrementCategoryUsage } from '~/hooks/useCategories'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import type { TaskWithCategory, TaskPriority } from '~/types'
@@ -94,6 +96,24 @@ export function useToggleTask() {
       })
 
       return { previousTasks, taskForAnalytics }
+    },
+    onSuccess: async (data, variables) => {
+      // Real-time celebration: fire when the last incomplete task is marked complete.
+      // Checks the optimistic cache (already updated by onMutate) — no DB round-trip needed.
+      if (!variables.completed) return
+
+      const tasks = queryClient.getQueryData<TaskWithCategory[]>(['tasks', data.plan_id])
+      if (!tasks || tasks.length === 0) return
+
+      const allComplete = tasks.every((t) => t.completed_at !== null)
+      if (!allComplete) return
+
+      // Idempotency: don't show twice if the user toggles a task off and on again
+      const alreadyCelebrated = await wasCelebratedToday()
+      if (alreadyCelebrated) return
+
+      await markCelebratedToday()
+      useCelebrationStore.getState().trigger(tasks.length)
     },
     onError: (_err, _variables, context) => {
       // Rollback on error
