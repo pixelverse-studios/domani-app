@@ -113,11 +113,6 @@ export default function PlanningScreen() {
     }
   }, [defaultPlanningFor, editTaskId])
 
-  // Get the target date based on selection
-  const targetDate = useMemo(() => {
-    return selectedTarget === 'today' ? new Date() : addDays(new Date(), 1)
-  }, [selectedTarget])
-
   // Get dates for today and tomorrow
   const todayDate = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
   const tomorrowDate = useMemo(() => format(addDays(new Date(), 1), 'yyyy-MM-dd'), [])
