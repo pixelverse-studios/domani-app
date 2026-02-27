@@ -45,7 +45,7 @@ export function SubscriptionSection({
 
   return (
     <>
-      <SectionHeader title="Subscription" />
+      <SectionHeader title="Your Plan" />
       {isLoading ? (
         <SubscriptionSkeleton />
       ) : (
