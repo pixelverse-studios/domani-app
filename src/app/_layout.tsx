@@ -6,7 +6,7 @@ initSentry()
 
 import React from 'react'
 import { Stack } from 'expo-router'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -19,6 +19,7 @@ import {
 } from '@expo-google-fonts/inter'
 import { View, ActivityIndicator } from 'react-native'
 
+import { supabase } from '~/lib/supabase'
 import { ThemeProvider } from '~/providers/ThemeProvider'
 import { AuthProvider } from '~/providers/AuthProvider'
 import { AnalyticsProvider, useAnalytics } from '~/providers/AnalyticsProvider'
@@ -39,6 +40,22 @@ import { ErrorBoundary } from '~/components/ErrorBoundary'
 const queryClient = new QueryClient()
 
 function RootLayoutContent() {
+  const queryClient = useQueryClient()
+
+  // Clear React Query cache on sign out to prevent stale data leaking into new accounts.
+  // Without this, cached plan IDs from the previous user cause task creation to fail
+  // on the first attempt after switching accounts (RLS rejects the stale plan_id).
+  React.useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        queryClient.clear()
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [queryClient])
+
   // Initialize notification observer for deep linking
   useNotificationObserver()
 
@@ -91,7 +108,8 @@ function RootLayoutContent() {
   // - Not already loading rollover data
   // - Auth is complete
   // - Celebration is NOT showing (celebration takes precedence)
-  const showRollover = shouldShowPrompt && !tutorialActive && !rolloverLoading && !loading && !showCelebration
+  const showRollover =
+    shouldShowPrompt && !tutorialActive && !rolloverLoading && !loading && !showCelebration
 
   // Debug: log rollover state on every change (DEV only)
   React.useEffect(() => {
@@ -107,7 +125,16 @@ function RootLayoutContent() {
         hasMit: !!mitTask,
       })
     }
-  }, [shouldShowPrompt, tutorialActive, rolloverLoading, loading, showCelebration, showRollover, otherTasks.length, mitTask])
+  }, [
+    shouldShowPrompt,
+    tutorialActive,
+    rolloverLoading,
+    loading,
+    showCelebration,
+    showRollover,
+    otherTasks.length,
+    mitTask,
+  ])
 
   // Track when rollover prompt is shown
   React.useEffect(() => {
@@ -136,7 +163,11 @@ function RootLayoutContent() {
 
   // Handle carrying forward selected tasks to today
   const handleCarryForward = React.useCallback(
-    async (params: { selectedTaskIds: string[]; makeMitToday: boolean; keepReminderTimes: boolean }) => {
+    async (params: {
+      selectedTaskIds: string[]
+      makeMitToday: boolean
+      keepReminderTimes: boolean
+    }) => {
       if (!todayPlan) {
         console.error('[Rollover] No today plan available')
         return
@@ -166,7 +197,7 @@ function RootLayoutContent() {
         throw error
       }
     },
-    [todayPlan, carryForwardTasks, markPrompted, track, mitTask]
+    [todayPlan, carryForwardTasks, markPrompted, track, mitTask],
   )
 
   // Handle user choosing to start fresh (no task rollover)
