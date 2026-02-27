@@ -12,10 +12,13 @@ interface NotificationStore {
   permissionStatus: PermissionStatus
   // Flag to track if we've validated IDs after hydration
   hasValidatedIds: boolean
+  // Tracks which flow owns the current evening rollover session (session-only, resets on launch)
+  eveningRolloverSource: 'notification' | 'app_open' | null
 
   setPlanningReminderId: (id: string | null) => void
   setPermissionStatus: (status: PermissionStatus) => void
   setHasValidatedIds: (validated: boolean) => void
+  setEveningRolloverSource: (source: 'notification' | 'app_open' | null) => void
 }
 
 export const useNotificationStore = create<NotificationStore>()(
@@ -24,10 +27,12 @@ export const useNotificationStore = create<NotificationStore>()(
       planningReminderId: null,
       permissionStatus: 'undetermined' as PermissionStatus,
       hasValidatedIds: false,
+      eveningRolloverSource: null,
 
       setPlanningReminderId: (id) => set({ planningReminderId: id }),
       setPermissionStatus: (status) => set({ permissionStatus: status }),
       setHasValidatedIds: (validated) => set({ hasValidatedIds: validated }),
+      setEveningRolloverSource: (source) => set({ eveningRolloverSource: source }),
     }),
     {
       name: 'notification-storage',
@@ -40,6 +45,8 @@ export const useNotificationStore = create<NotificationStore>()(
           // Reset validation flag on each app launch
           // This ensures we always validate/reschedule notifications
           state.hasValidatedIds = false
+          // Reset rollover source on each launch — this is session-only state
+          state.eveningRolloverSource = null
         }
       },
     },
