@@ -97,9 +97,6 @@ function RootLayoutContent() {
   } = useRolloverTasks()
   const { isActive: tutorialActive } = useTutorialStore()
   const { data: todayPlan } = useTodayPlan()
-  const { data: tomorrowPlan } = useTomorrowPlan()
-  const { mutateAsync: carryForwardTasks, isPending: _isCarryingForward } = useCarryForwardTasks()
-  const { mutateAsync: carryForwardTasksEvening } = useCarryForwardTasks()
 
   // Evening rollover on app open — triggers when user opens app at/after their reminder time
   const {
@@ -109,6 +106,12 @@ function RootLayoutContent() {
     otherTasks: eveningAppOpenOtherTasks,
     markEveningPrompted: markEveningAppOpenPrompted,
   } = useEveningRolloverOnAppOpen()
+
+  const { data: tomorrowPlan } = useTomorrowPlan({ enabled: eveningAppOpenShouldShow })
+  const { mutateAsync: carryForwardTasks, isPending: _isCarryingForward } = useCarryForwardTasks()
+
+  // Scalar id used in useCallback dep arrays to avoid referencing the full task object
+  const eveningAppOpenMitTaskId = eveningAppOpenMitTask?.id ?? null
 
   // Show celebration modal if:
   // - User should be celebrated (all tasks from yesterday completed & not already celebrated)
@@ -149,6 +152,9 @@ function RootLayoutContent() {
         showRollover,
         incompleteTasks: otherTasks.length + (mitTask ? 1 : 0),
         hasMit: !!mitTask,
+        showEveningAppOpenRollover,
+        eveningAppOpenShouldShow,
+        eveningAppOpenLoading,
       })
     }
   }, [
@@ -160,6 +166,9 @@ function RootLayoutContent() {
     showRollover,
     otherTasks.length,
     mitTask,
+    showEveningAppOpenRollover,
+    eveningAppOpenShouldShow,
+    eveningAppOpenLoading,
   ])
 
   // Track when rollover prompt is shown
@@ -191,11 +200,12 @@ function RootLayoutContent() {
     }) => {
       if (!tomorrowPlan) {
         console.error('[EveningRollover] No tomorrow plan available')
+        await markEveningAppOpenPrompted()
         return
       }
 
       try {
-        await carryForwardTasksEvening({
+        await carryForwardTasks({
           selectedTaskIds: params.selectedTaskIds,
           targetPlanId: tomorrowPlan.id,
           shouldMakeMIT: params.makeMitToday,
@@ -205,8 +215,8 @@ function RootLayoutContent() {
         track('evening_rollover_carried_forward', {
           task_count: params.selectedTaskIds.length,
           mit_carried:
-            !!eveningAppOpenMitTask &&
-            params.selectedTaskIds.includes(eveningAppOpenMitTask.id),
+            !!eveningAppOpenMitTaskId &&
+            params.selectedTaskIds.includes(eveningAppOpenMitTaskId),
           mit_made_tomorrow: params.makeMitToday,
           kept_reminders: params.keepReminderTimes,
           source: 'app_open',
@@ -221,10 +231,10 @@ function RootLayoutContent() {
     },
     [
       tomorrowPlan,
-      carryForwardTasksEvening,
+      carryForwardTasks,
       markEveningAppOpenPrompted,
       track,
-      eveningAppOpenMitTask,
+      eveningAppOpenMitTaskId,
       router,
     ],
   )
@@ -232,17 +242,23 @@ function RootLayoutContent() {
   // Handle user dismissing evening rollover without carrying tasks forward
   const handleEveningAppOpenStartFresh = React.useCallback(async () => {
     track('evening_rollover_started_fresh', {
-      task_count: (eveningAppOpenMitTask ? 1 : 0) + eveningAppOpenOtherTasks.length,
-      had_mit: !!eveningAppOpenMitTask,
+      task_count: (eveningAppOpenMitTaskId ? 1 : 0) + eveningAppOpenOtherTasks.length,
+      had_mit: !!eveningAppOpenMitTaskId,
       source: 'app_open',
     })
 
-    await markEveningAppOpenPrompted()
+    try {
+      await markEveningAppOpenPrompted()
+    } catch (error) {
+      if (__DEV__)
+        console.error('[EveningRollover] Failed to mark as prompted:', error)
+      // Non-fatal — proceed so user is not stuck
+    }
     router.push('/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true')
   }, [
     markEveningAppOpenPrompted,
     track,
-    eveningAppOpenMitTask,
+    eveningAppOpenMitTaskId,
     eveningAppOpenOtherTasks.length,
     router,
   ])

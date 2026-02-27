@@ -47,9 +47,44 @@ export function usePlanForDate(date: Date) {
   })
 }
 
-export function useTomorrowPlan() {
+export function useTomorrowPlan(options?: { enabled?: boolean }) {
   const tomorrow = addDays(new Date(), 1)
-  return usePlanForDate(tomorrow)
+  const dateStr = format(tomorrow, 'yyyy-MM-dd')
+
+  return useQuery({
+    queryKey: ['plan', dateStr],
+    queryFn: async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      // Try to get existing plan for date
+      const { data: existingPlan, error: fetchError } = await supabase
+        .from('plans')
+        .select('*')
+        .eq('planned_for', dateStr)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (fetchError) throw fetchError
+
+      if (existingPlan) return existingPlan
+
+      // Create new plan for date
+      const { data: newPlan, error: createError } = await supabase
+        .from('plans')
+        .insert({ planned_for: dateStr, user_id: user.id })
+        .select()
+        .single()
+
+      if (createError) throw createError
+
+      return newPlan
+    },
+    enabled: options?.enabled ?? true,
+    staleTime: PLAN_STALE_TIME,
+  })
 }
 
 export function useTodayPlan() {
