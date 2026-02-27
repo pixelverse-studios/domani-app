@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { ScrollView, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { addDays } from 'date-fns'
+import { addDays, format } from 'date-fns'
 
 import {
   PlanningHeader,
@@ -113,14 +113,9 @@ export default function PlanningScreen() {
     }
   }, [defaultPlanningFor, editTaskId])
 
-  // Get the target date based on selection
-  const targetDate = useMemo(() => {
-    return selectedTarget === 'today' ? new Date() : addDays(new Date(), 1)
-  }, [selectedTarget])
-
   // Get dates for today and tomorrow
-  const todayDate = useMemo(() => new Date(), [])
-  const tomorrowDate = useMemo(() => addDays(new Date(), 1), [])
+  const todayDate = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
+  const tomorrowDate = useMemo(() => format(addDays(new Date(), 1), 'yyyy-MM-dd'), [])
 
   // Get or create plans for both today and tomorrow (needed for moving tasks between days)
   const { data: todayPlan } = usePlanForDate(todayDate)
@@ -257,6 +252,7 @@ export default function PlanningScreen() {
           mit_carried: !!eveningMitTask && params.selectedTaskIds.includes(eveningMitTask.id),
           mit_made_tomorrow: params.makeMitToday,
           kept_reminders: params.keepReminderTimes,
+          source: 'notification',
         })
 
         await markEveningPrompted()
@@ -283,6 +279,7 @@ export default function PlanningScreen() {
     track('evening_rollover_started_fresh', {
       task_count: (eveningMitTask ? 1 : 0) + eveningOtherTasks.length,
       had_mit: !!eveningMitTask,
+      source: 'notification',
     })
 
     try {

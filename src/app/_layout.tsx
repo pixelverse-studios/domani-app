@@ -5,7 +5,7 @@ import { initSentry } from '~/lib/sentry'
 initSentry()
 
 import React from 'react'
-import { Stack } from 'expo-router'
+import { Stack, useRouter } from 'expo-router'
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -17,7 +17,7 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from '@expo-google-fonts/inter'
-import { View, ActivityIndicator } from 'react-native'
+import { View, ActivityIndicator, Alert } from 'react-native'
 
 import { supabase } from '~/lib/supabase'
 import { ThemeProvider } from '~/providers/ThemeProvider'
@@ -32,7 +32,8 @@ import { useAppConfigStore } from '~/stores/appConfigStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useRolloverTasks } from '~/hooks/useRolloverTasks'
 import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
-import { useTodayPlan } from '~/hooks/usePlans'
+import { useEveningRolloverOnAppOpen } from '~/hooks/useEveningRolloverOnAppOpen'
+import { useTodayPlan, useTomorrowPlan } from '~/hooks/usePlans'
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
 import { RolloverModal, CelebrationModal } from '~/components/planning'
 import { ErrorBoundary } from '~/components/ErrorBoundary'
@@ -40,6 +41,7 @@ import { ErrorBoundary } from '~/components/ErrorBoundary'
 const queryClient = new QueryClient()
 
 function RootLayoutContent() {
+  const router = useRouter()
   const queryClient = useQueryClient()
 
   // Clear React Query cache on sign out to prevent stale data leaking into new accounts.
@@ -95,7 +97,21 @@ function RootLayoutContent() {
   } = useRolloverTasks()
   const { isActive: tutorialActive } = useTutorialStore()
   const { data: todayPlan } = useTodayPlan()
+
+  // Evening rollover on app open — triggers when user opens app at/after their reminder time
+  const {
+    shouldShow: eveningAppOpenShouldShow,
+    isLoading: eveningAppOpenLoading,
+    mitTask: eveningAppOpenMitTask,
+    otherTasks: eveningAppOpenOtherTasks,
+    markEveningPrompted: markEveningAppOpenPrompted,
+  } = useEveningRolloverOnAppOpen()
+
+  const { data: tomorrowPlan } = useTomorrowPlan({ enabled: eveningAppOpenShouldShow })
   const { mutateAsync: carryForwardTasks, isPending: _isCarryingForward } = useCarryForwardTasks()
+
+  // Scalar id used in useCallback dep arrays to avoid referencing the full task object
+  const eveningAppOpenMitTaskId = eveningAppOpenMitTask?.id ?? null
 
   // Show celebration modal if:
   // - User should be celebrated (all tasks from yesterday completed & not already celebrated)
@@ -114,6 +130,18 @@ function RootLayoutContent() {
   const showRollover =
     shouldShowPrompt && !tutorialActive && !rolloverLoading && !loading && !showCelebration
 
+  // Evening rollover (app-open path) — morning rollover takes visual precedence
+  // Note: !!tomorrowPlan gates display until the plan upsert completes after eveningAppOpenShouldShow
+  // flips true. There is no loading indicator for this window — the modal simply hasn't appeared yet.
+  const showEveningAppOpenRollover =
+    eveningAppOpenShouldShow &&
+    !tutorialActive &&
+    !eveningAppOpenLoading &&
+    !loading &&
+    !!tomorrowPlan &&
+    !showCelebration &&
+    !showRollover
+
   // Debug: log rollover state on every change (DEV only)
   React.useEffect(() => {
     if (__DEV__) {
@@ -126,6 +154,9 @@ function RootLayoutContent() {
         showRollover,
         incompleteTasks: otherTasks.length + (mitTask ? 1 : 0),
         hasMit: !!mitTask,
+        showEveningAppOpenRollover,
+        eveningAppOpenShouldShow,
+        eveningAppOpenLoading,
       })
     }
   }, [
@@ -137,6 +168,9 @@ function RootLayoutContent() {
     showRollover,
     otherTasks.length,
     mitTask,
+    showEveningAppOpenRollover,
+    eveningAppOpenShouldShow,
+    eveningAppOpenLoading,
   ])
 
   // Track when rollover prompt is shown
@@ -158,6 +192,85 @@ function RootLayoutContent() {
       })
     }
   }, [showCelebration, yesterdayTaskCount, track])
+
+  // Handle carrying forward today's incomplete tasks to tomorrow (app-open evening path)
+  const handleEveningAppOpenCarryForward = React.useCallback(
+    async (params: {
+      selectedTaskIds: string[]
+      makeMitToday: boolean
+      keepReminderTimes: boolean
+    }) => {
+      if (!tomorrowPlan) {
+        console.error('[EveningRollover] No tomorrow plan available')
+        await markEveningAppOpenPrompted() // swallows errors internally — safe to await without try/catch
+        return
+      }
+
+      try {
+        await carryForwardTasks({
+          selectedTaskIds: params.selectedTaskIds,
+          targetPlanId: tomorrowPlan.id,
+          shouldMakeMIT: params.makeMitToday,
+          keepReminderTimes: params.keepReminderTimes,
+        })
+
+        track('evening_rollover_carried_forward', {
+          task_count: params.selectedTaskIds.length,
+          mit_carried:
+            !!eveningAppOpenMitTaskId &&
+            params.selectedTaskIds.includes(eveningAppOpenMitTaskId),
+          mit_made_tomorrow: params.makeMitToday,
+          kept_reminders: params.keepReminderTimes,
+          source: 'app_open',
+        })
+
+        await markEveningAppOpenPrompted()
+        router.push('/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true')
+      } catch (error) {
+        console.error('[EveningRollover] Failed to carry forward tasks:', error)
+        Alert.alert(
+          'Something went wrong',
+          "We couldn't carry your tasks forward. Please try again.",
+        )
+        // Don't re-throw — RolloverModal.onCarryForward is not awaited (typed as void)
+        // Modal stays open so the user can retry or choose start fresh
+      }
+    },
+    [
+      tomorrowPlan,
+      carryForwardTasks,
+      markEveningAppOpenPrompted,
+      track,
+      eveningAppOpenMitTaskId,
+      router,
+    ],
+  )
+
+  // Handle user dismissing evening rollover without carrying tasks forward
+  const handleEveningAppOpenStartFresh = React.useCallback(async () => {
+    track('evening_rollover_started_fresh', {
+      task_count: (eveningAppOpenMitTaskId ? 1 : 0) + eveningAppOpenOtherTasks.length,
+      had_mit: !!eveningAppOpenMitTaskId,
+      source: 'app_open',
+    })
+
+    try {
+      await markEveningAppOpenPrompted()
+      // Note: markEveningAppOpenPrompted swallows errors internally (see useEveningRolloverOnAppOpen.ts)
+      // This catch is a safety net in case the internal behaviour changes
+    } catch (error) {
+      if (__DEV__)
+        console.error('[EveningRollover] Failed to mark as prompted:', error)
+      // Non-fatal — proceed so user is not stuck
+    }
+    router.push('/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true')
+  }, [
+    markEveningAppOpenPrompted,
+    track,
+    eveningAppOpenMitTaskId,
+    eveningAppOpenOtherTasks.length,
+    router,
+  ])
 
   // Handle celebration dismissal
   const handleCelebrationDismiss = React.useCallback(async () => {
@@ -259,6 +372,17 @@ function RootLayoutContent() {
         otherTasks={otherTasks}
         onCarryForward={handleCarryForward}
         onStartFresh={handleStartFresh}
+      />
+
+      {/* Evening rollover — app-open path (time-based, no notification tap required) */}
+      <RolloverModal
+        visible={showEveningAppOpenRollover}
+        mitTask={eveningAppOpenMitTask}
+        otherTasks={eveningAppOpenOtherTasks}
+        title="Today's Unfinished Tasks"
+        subtitle="Before you plan tomorrow, wrap up today"
+        onCarryForward={handleEveningAppOpenCarryForward}
+        onStartFresh={handleEveningAppOpenStartFresh}
       />
     </>
   )

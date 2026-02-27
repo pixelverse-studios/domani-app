@@ -56,7 +56,7 @@ export type AnalyticsEvent =
       }
     }
   | { name: 'rollover_started_fresh'; properties: { task_count: number; had_mit: boolean } }
-  // Evening rollover events (Flow 2 — triggered by planning reminder notification)
+  // Evening rollover events (Flow 2 — notification-tap or app-open after reminder time)
   | {
       name: 'evening_rollover_carried_forward'
       properties: {
@@ -64,11 +64,12 @@ export type AnalyticsEvent =
         mit_carried: boolean
         mit_made_tomorrow: boolean
         kept_reminders: boolean
+        source: 'notification' | 'app_open'
       }
     }
   | {
       name: 'evening_rollover_started_fresh'
-      properties: { task_count: number; had_mit: boolean }
+      properties: { task_count: number; had_mit: boolean; source: 'notification' | 'app_open' }
     }
   // Celebration events
   | {
