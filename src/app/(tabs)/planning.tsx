@@ -17,6 +17,7 @@ import {
 import { usePlanForDate } from '~/hooks/usePlans'
 import { useCreateTask, useTasks, useDeleteTask, useUpdateTask } from '~/hooks/useTasks'
 import { useSystemCategories } from '~/hooks/useCategories'
+import { useNotificationStore } from '~/stores/notificationStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAdvancement } from '~/components/tutorial'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
@@ -88,6 +89,8 @@ export default function PlanningScreen() {
   const [formSelectedDay, setFormSelectedDay] = useState<PlanningTarget>(
     defaultPlanningFor === 'today' ? 'today' : 'tomorrow',
   )
+
+  const setEveningRolloverSource = useNotificationStore((s) => s.setEveningRolloverSource)
 
   // Evening rollover state (Flow 2 — triggered by planning reminder notification)
   // When true, we gate openForm behind the evening rollover check
@@ -183,6 +186,8 @@ export default function PlanningScreen() {
       setFormSelectedDay(targetDay)
 
       if (trigger === 'planning_reminder') {
+        // Claim the session so the app-open flow knows not to trigger
+        setEveningRolloverSource('notification')
         // Gate form behind evening rollover check
         setPlanningReminderTriggered(true)
         router.setParams({ openForm: undefined, trigger: undefined })
@@ -245,6 +250,7 @@ export default function PlanningScreen() {
         })
 
         await markEveningPrompted()
+        setEveningRolloverSource(null)
 
         // Success: close modal and open planning form
         setShowEveningRollover(false)
@@ -274,6 +280,7 @@ export default function PlanningScreen() {
       console.error('[EveningRollover] Failed to mark as prompted:', error)
       // Non-fatal — proceed anyway so user isn't stuck
     }
+    setEveningRolloverSource(null)
     setShowEveningRollover(false)
     setPlanningReminderTriggered(false)
     setIsFormVisible(true)
