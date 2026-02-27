@@ -85,26 +85,24 @@ export function useEveningRolloverTasks({
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
 
-  // All incomplete tasks are eligible — sort MIT first
-  const eligibleTasks = useMemo((): RolloverTask[] => {
-    return [...rawTasks].sort((a, b) => {
+  // Sort MIT first, then partition into mitTask / otherTasks in one pass
+  const { eligibleTasks, mitTask, otherTasks } = useMemo(() => {
+    const sorted = [...rawTasks].sort((a, b) => {
       if (a.is_mit && !b.is_mit) return -1
       if (!a.is_mit && b.is_mit) return 1
       return 0
     })
+    const mit = sorted.find((t) => t.is_mit) ?? null
+    const others = sorted.filter((t) => !t.is_mit)
+    return { eligibleTasks: sorted, mitTask: mit, otherTasks: others }
   }, [rawTasks])
 
-  // Separate MIT from other tasks
-  const { mitTask, otherTasks } = useMemo(() => {
-    const mit = eligibleTasks.find((t) => t.is_mit) ?? null
-    const others = eligibleTasks.filter((t) => !t.is_mit)
-    return { mitTask: mit, otherTasks: others }
-  }, [eligibleTasks])
-
   // Query 2: Check if user was already shown the evening prompt today
-  // Default to true (fail closed) to prevent duplicate prompts on error
+  // Default to true (fail closed) to prevent duplicate prompts on error.
+  // Keyed by `today` so the cache auto-resets at midnight without needing
+  // explicit invalidation — consistent with the tasks query key above.
   const { data: alreadyPrompted = true, isLoading: isLoadingPrompt } = useQuery({
-    queryKey: ['eveningRolloverPromptedToday'],
+    queryKey: ['eveningRolloverPromptedToday', today],
     enabled,
     queryFn: async () => {
       const result = await wasEveningPromptedToday()
@@ -120,7 +118,7 @@ export function useEveningRolloverTasks({
 
   const markEveningPrompted = useCallback(async () => {
     await markEveningPromptedToday()
-    await queryClient.invalidateQueries({ queryKey: ['eveningRolloverPromptedToday'] })
+    await queryClient.invalidateQueries({ queryKey: ['eveningRolloverPromptedToday', today] })
   }, [queryClient])
 
   return {
