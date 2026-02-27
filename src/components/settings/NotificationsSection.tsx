@@ -34,7 +34,6 @@ export function NotificationsSection({
   onOpenSettings,
 }: NotificationsSectionProps) {
   const theme = useAppTheme()
-  const brandColor = theme.colors.brand.primary
 
   // Format time for display
   const formatTimeDisplay = (timeString: string | null) => {
@@ -73,7 +72,7 @@ export function NotificationsSection({
               disabled={isUpdating}
               trackColor={{
                 false: theme.colors.border.primary,
-                true: brandColor,
+                true: theme.colors.brand.primary,
               }}
               thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
               ios_backgroundColor={theme.colors.border.primary}

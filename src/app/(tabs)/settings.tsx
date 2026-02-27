@@ -210,21 +210,23 @@ function SettingsContent() {
       const updated = await updateProfile.mutateAsync({ planning_reminder_enabled: enabled })
 
       if (enabled) {
-        // If permissions not yet determined, request them now
-        let currentPermission = permissionStatus
-        if (currentPermission === 'undetermined') {
+        // Use a local variable — the store's permissionStatus may not update until next render
+        let resolvedPermission = permissionStatus
+        if (resolvedPermission === 'undetermined') {
           const granted = await requestPermissions()
-          currentPermission = granted ? 'granted' : 'denied'
+          resolvedPermission = granted ? 'granted' : 'denied'
         }
 
-        // If still denied after request, nudge user to OS settings
-        if (currentPermission === 'denied') {
+        // If denied, open OS settings so the user can grant permission.
+        // planning_reminder_enabled=true intentionally persists in the DB here —
+        // the warning banner in NotificationsSection guides recovery once permission is granted.
+        if (resolvedPermission === 'denied') {
           await openSettings()
           return
         }
 
-        // Re-enable: reschedule using the saved planning time if permissions granted
-        if (updated.planning_reminder_time && currentPermission === 'granted') {
+        // Re-enable: reschedule using the saved planning time (denied path already returned above)
+        if (updated.planning_reminder_time) {
           const [hours, minutes] = updated.planning_reminder_time.split(':').map(Number)
           await schedulePlanningReminder(hours, minutes)
         }

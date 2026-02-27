@@ -398,7 +398,10 @@ export function useNotifications() {
 
     // Cancel ALL reminders before scheduling new one to prevent duplicates
     // This is more bulletproof than tracking individual IDs which can become stale
-    await NotificationService.cancelAllReminders()
+    const cancelOk = await NotificationService.cancelAllReminders()
+    if (!cancelOk) {
+      console.warn('[Notifications] cancelAllReminders returned false — orphaned notifications may remain')
+    }
 
     // Verify cancel worked
     const afterCancel = await NotificationService.getScheduledNotifications()
