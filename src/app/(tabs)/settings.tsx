@@ -59,8 +59,14 @@ function SettingsContent() {
   const { profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const subscription = useSubscription()
-  const { schedulePlanningReminder, permissionStatus, getPermissionStatus, openSettings } =
-    useNotifications()
+  const {
+    schedulePlanningReminder,
+    cancelPlanningReminder,
+    requestPermissions,
+    permissionStatus,
+    getPermissionStatus,
+    openSettings,
+  } = useNotifications()
   const accountDeletion = useAccountDeletion()
   const { phase } = useAppConfig()
   const { resetTutorial, isActive: isTutorialActive, currentStep } = useTutorialStore()
@@ -184,15 +190,53 @@ function SettingsContent() {
   }
 
   const handleUpdatePlanningTime = async () => {
-    const timeString = format(selectedTime, 'HH:mm:ss')
-    await updateProfile.mutateAsync({ planning_reminder_time: timeString })
+    try {
+      const timeString = format(selectedTime, 'HH:mm:ss')
+      await updateProfile.mutateAsync({ planning_reminder_time: timeString })
 
-    // Reschedule notification if permissions are granted
-    if (permissionStatus === 'granted') {
-      await schedulePlanningReminder(selectedTime.getHours(), selectedTime.getMinutes())
+      // Only reschedule notification if user has opted in and permissions are granted
+      if (profile?.planning_reminder_enabled && permissionStatus === 'granted') {
+        await schedulePlanningReminder(selectedTime.getHours(), selectedTime.getMinutes())
+      }
+
+      setShowPlanningTimeModal(false)
+    } catch {
+      Alert.alert('Error', 'Failed to save planning time. Please try again.')
     }
+  }
 
-    setShowPlanningTimeModal(false)
+  const handleTogglePlanningReminder = async (enabled: boolean) => {
+    try {
+      const updated = await updateProfile.mutateAsync({ planning_reminder_enabled: enabled })
+
+      if (enabled) {
+        // Use a local variable — the store's permissionStatus may not update until next render
+        let resolvedPermission = permissionStatus
+        if (resolvedPermission === 'undetermined') {
+          const granted = await requestPermissions()
+          resolvedPermission = granted ? 'granted' : 'denied'
+        }
+
+        // If denied, open OS settings so the user can grant permission.
+        // planning_reminder_enabled=true intentionally persists in the DB here —
+        // the warning banner in NotificationsSection guides recovery once permission is granted.
+        if (resolvedPermission === 'denied') {
+          await openSettings()
+          return
+        }
+
+        // Re-enable: reschedule using the saved planning time (denied path already returned above)
+        if (updated.planning_reminder_time) {
+          const [hours, minutes] = updated.planning_reminder_time.split(':').map(Number)
+          await schedulePlanningReminder(hours, minutes)
+        }
+      } else {
+        // Disable: cancel the scheduled notification
+        await cancelPlanningReminder()
+      }
+    } catch {
+      Alert.alert('Error', 'Failed to update notification setting. Please try again.')
+    }
   }
 
   const openNameModal = () => {
@@ -261,8 +305,11 @@ function SettingsContent() {
         <NotificationsSection
           isLoading={isLoading}
           planningReminderTime={profile?.planning_reminder_time || null}
+          planningReminderEnabled={profile?.planning_reminder_enabled ?? false}
           permissionStatus={permissionStatus}
+          isUpdating={updateProfile.isPending}
           onEditPlanningTime={openPlanningTimeModal}
+          onTogglePlanningReminder={handleTogglePlanningReminder}
           onOpenSettings={openSettings}
         />
 
