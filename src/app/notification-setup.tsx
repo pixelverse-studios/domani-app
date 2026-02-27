@@ -87,6 +87,7 @@ export default function NotificationSetupScreen() {
 
         await updateProfile.mutateAsync({
           planning_reminder_time: planTimeString,
+          planning_reminder_enabled: true,
           notification_onboarding_completed: true,
           timezone: detectedTimezone,
         })

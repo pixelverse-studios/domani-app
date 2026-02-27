@@ -86,7 +86,7 @@ export function NotificationsSection({
             <SettingsRow
               label="Planning Reminder"
               value={formatTimeDisplay(planningReminderTime)}
-              onPress={onEditPlanningTime}
+              onPress={isUpdating ? undefined : onEditPlanningTime}
               icon={ClipboardClock}
             />
           ) : (
@@ -94,6 +94,7 @@ export function NotificationsSection({
             <TouchableOpacity
               onPress={onEditPlanningTime}
               activeOpacity={0.7}
+              disabled={isUpdating}
               className="flex-row items-center justify-between py-3.5 px-4 rounded-xl mb-2"
               style={{ backgroundColor: theme.colors.card }}
             >
