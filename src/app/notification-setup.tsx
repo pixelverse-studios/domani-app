@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Platform, StyleSheet, View, ScrollView } from 'react-native'
+import { Platform, StyleSheet, View, ScrollView, Switch } from 'react-native'
 import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -52,6 +52,7 @@ export default function NotificationSetupScreen() {
   }, [])
 
   const [planTime, setPlanTime] = useState(defaultPlanTime)
+  const [notificationEnabled, setNotificationEnabled] = useState(true)
   const [loading, setLoading] = useState(false)
 
   // Android picker visibility state
@@ -60,51 +61,43 @@ export default function NotificationSetupScreen() {
   const handleContinue = async () => {
     setLoading(true)
     try {
-      // Initialize notification system
-      await NotificationService.initialize()
+      const planTimeString = format(planTime, 'HH:mm:ss')
+      const detectedTimezone = getDeviceTimezone()
 
-      // Request permissions
-      const granted = await NotificationService.requestPermissions()
-      setPermissionStatus(granted ? 'granted' : 'denied')
+      if (notificationEnabled) {
+        // User wants notifications — initialize, request permissions, and schedule if granted
+        await NotificationService.initialize()
+        const granted = await NotificationService.requestPermissions()
+        setPermissionStatus(granted ? 'granted' : 'denied')
 
-      if (granted) {
-        // Track notifications enabled
-        track('notifications_enabled')
-
-        // Cancel any existing local reminders first
-        await NotificationService.cancelAllReminders()
-
-        // Schedule the planning reminder (local notification)
-        const planHour = planTime.getHours()
-        const planMinute = planTime.getMinutes()
-        const planningId = await NotificationService.schedulePlanningReminder(planHour, planMinute)
-        setPlanningReminderId(planningId)
-
-        // Save time, timezone, and mark onboarding complete
-        // We detect and save timezone here to ensure it's properly set during onboarding
-        const planTimeString = format(planTime, 'HH:mm:ss')
-        const detectedTimezone = getDeviceTimezone()
-
-        await updateProfile.mutateAsync({
-          planning_reminder_time: planTimeString,
-          planning_reminder_enabled: true,
-          notification_onboarding_completed: true,
-          timezone: detectedTimezone,
-        })
-
-        console.log('[NotificationSetup] Saved timezone:', detectedTimezone)
+        if (granted) {
+          track('notifications_enabled')
+          await NotificationService.cancelAllReminders()
+          const planningId = await NotificationService.schedulePlanningReminder(
+            planTime.getHours(),
+            planTime.getMinutes(),
+          )
+          setPlanningReminderId(planningId)
+        } else {
+          // OS denied — track as skipped; planning_reminder_enabled still saves as true
+          // The warning banner in Settings guides recovery once permission is granted
+          track('notifications_skipped')
+        }
       } else {
-        // Track notifications skipped/denied
+        // User opted out — skip permission request and scheduling entirely
         track('notifications_skipped')
-
-        // User denied permissions, still mark onboarding as complete and save timezone
-        const detectedTimezone = getDeviceTimezone()
-        await updateProfile.mutateAsync({
-          notification_onboarding_completed: true,
-          timezone: detectedTimezone,
-        })
-        console.log('[NotificationSetup] Saved timezone (permissions denied):', detectedTimezone)
       }
+
+      // Always save planning time, timezone, and onboarding flag
+      // planning_reminder_enabled reflects the user's toggle choice regardless of OS permission outcome
+      await updateProfile.mutateAsync({
+        planning_reminder_time: planTimeString,
+        planning_reminder_enabled: notificationEnabled,
+        notification_onboarding_completed: true,
+        timezone: detectedTimezone,
+      })
+
+      console.log('[NotificationSetup] Saved timezone:', detectedTimezone)
 
       // Start tutorial for new users who haven't completed it yet
       if (!hasCompletedTutorial) {
@@ -182,6 +175,25 @@ export default function NotificationSetupScreen() {
           <Text style={[styles.sectionDescription, { color: themeColors.sectionDescription }]}>
             When would you like Domani to remind you to plan for tomorrow?
           </Text>
+
+          {/* Notification opt-in toggle */}
+          <View
+            style={[styles.toggleRow, { backgroundColor: themeColors.pickerBackground }]}
+          >
+            <Text style={[styles.toggleLabel, { color: themeColors.sectionTitle }]}>
+              Send me a daily reminder
+            </Text>
+            <Switch
+              value={notificationEnabled}
+              onValueChange={setNotificationEnabled}
+              trackColor={{
+                false: theme.colors.border.primary,
+                true: brandColor,
+              }}
+              thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
+              ios_backgroundColor={theme.colors.border.primary}
+            />
+          </View>
 
           {Platform.OS === 'android' && !showPlanPicker ? (
             <Button
@@ -298,6 +310,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 12,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  toggleLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    flex: 1,
+    marginRight: 12,
   },
   pickerContainer: {
     alignItems: 'center',
