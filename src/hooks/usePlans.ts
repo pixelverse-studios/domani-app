@@ -9,9 +9,7 @@ import type { TaskWithCategory } from '~/types'
 // 5 minutes - plans change with user action but don't need real-time updates
 const PLAN_STALE_TIME = 1000 * 60 * 5
 
-export function usePlanForDate(date: Date) {
-  const dateStr = format(date, 'yyyy-MM-dd')
-
+export function usePlanForDate(dateStr: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['plan', dateStr],
     queryFn: async () => {
@@ -44,47 +42,13 @@ export function usePlanForDate(date: Date) {
       return newPlan
     },
     staleTime: PLAN_STALE_TIME,
+    enabled: options?.enabled ?? true,
   })
 }
 
 export function useTomorrowPlan(options?: { enabled?: boolean }) {
-  const tomorrow = addDays(new Date(), 1)
-  const dateStr = format(tomorrow, 'yyyy-MM-dd')
-
-  return useQuery({
-    queryKey: ['plan', dateStr],
-    queryFn: async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
-
-      // Try to get existing plan for date
-      const { data: existingPlan, error: fetchError } = await supabase
-        .from('plans')
-        .select('*')
-        .eq('planned_for', dateStr)
-        .eq('user_id', user.id)
-        .maybeSingle()
-
-      if (fetchError) throw fetchError
-
-      if (existingPlan) return existingPlan
-
-      // Create new plan for date
-      const { data: newPlan, error: createError } = await supabase
-        .from('plans')
-        .insert({ planned_for: dateStr, user_id: user.id })
-        .select()
-        .single()
-
-      if (createError) throw createError
-
-      return newPlan
-    },
-    enabled: options?.enabled ?? true,
-    staleTime: PLAN_STALE_TIME,
-  })
+  const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd')
+  return usePlanForDate(tomorrow, options)
 }
 
 export function useTodayPlan() {

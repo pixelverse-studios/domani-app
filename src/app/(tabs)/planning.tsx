@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { ScrollView, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { addDays } from 'date-fns'
+import { addDays, format } from 'date-fns'
 
 import {
   PlanningHeader,
@@ -119,8 +119,8 @@ export default function PlanningScreen() {
   }, [selectedTarget])
 
   // Get dates for today and tomorrow
-  const todayDate = useMemo(() => new Date(), [])
-  const tomorrowDate = useMemo(() => addDays(new Date(), 1), [])
+  const todayDate = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
+  const tomorrowDate = useMemo(() => format(addDays(new Date(), 1), 'yyyy-MM-dd'), [])
 
   // Get or create plans for both today and tomorrow (needed for moving tasks between days)
   const { data: todayPlan } = usePlanForDate(todayDate)

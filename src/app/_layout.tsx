@@ -17,7 +17,7 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from '@expo-google-fonts/inter'
-import { View, ActivityIndicator } from 'react-native'
+import { View, ActivityIndicator, Alert } from 'react-native'
 
 import { supabase } from '~/lib/supabase'
 import { ThemeProvider } from '~/providers/ThemeProvider'
@@ -131,6 +131,8 @@ function RootLayoutContent() {
     shouldShowPrompt && !tutorialActive && !rolloverLoading && !loading && !showCelebration
 
   // Evening rollover (app-open path) — morning rollover takes visual precedence
+  // Note: !!tomorrowPlan gates display until the plan upsert completes after eveningAppOpenShouldShow
+  // flips true. There is no loading indicator for this window — the modal simply hasn't appeared yet.
   const showEveningAppOpenRollover =
     eveningAppOpenShouldShow &&
     !tutorialActive &&
@@ -200,7 +202,7 @@ function RootLayoutContent() {
     }) => {
       if (!tomorrowPlan) {
         console.error('[EveningRollover] No tomorrow plan available')
-        await markEveningAppOpenPrompted()
+        await markEveningAppOpenPrompted() // swallows errors internally — safe to await without try/catch
         return
       }
 
@@ -226,7 +228,12 @@ function RootLayoutContent() {
         router.push('/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true')
       } catch (error) {
         console.error('[EveningRollover] Failed to carry forward tasks:', error)
-        throw error
+        Alert.alert(
+          'Something went wrong',
+          "We couldn't carry your tasks forward. Please try again.",
+        )
+        // Don't re-throw — RolloverModal.onCarryForward is not awaited (typed as void)
+        // Modal stays open so the user can retry or choose start fresh
       }
     },
     [
@@ -249,6 +256,8 @@ function RootLayoutContent() {
 
     try {
       await markEveningAppOpenPrompted()
+      // Note: markEveningAppOpenPrompted swallows errors internally (see useEveningRolloverOnAppOpen.ts)
+      // This catch is a safety net in case the internal behaviour changes
     } catch (error) {
       if (__DEV__)
         console.error('[EveningRollover] Failed to mark as prompted:', error)
