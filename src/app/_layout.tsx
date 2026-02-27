@@ -45,16 +45,19 @@ function RootLayoutContent() {
   // Clear React Query cache on sign out to prevent stale data leaking into new accounts.
   // Without this, cached plan IDs from the previous user cause task creation to fail
   // on the first attempt after switching accounts (RLS rejects the stale plan_id).
+  // Note: queryClient is stable for the lifetime of the provider — [] is intentional.
   React.useEffect(() => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
+        if (__DEV__) console.log('[RootLayout] Clearing React Query cache on SIGNED_OUT')
         queryClient.clear()
       }
     })
     return () => subscription.unsubscribe()
-  }, [queryClient])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Initialize notification observer for deep linking
   useNotificationObserver()
