@@ -25,6 +25,7 @@ interface SubscriptionSectionProps {
   trialDaysRemaining: number | null
   onStartTrial: () => void
   onRestore: () => void
+  onUpgrade: () => void
 }
 
 /**
@@ -39,6 +40,7 @@ export function SubscriptionSection({
   trialDaysRemaining,
   onStartTrial,
   onRestore,
+  onUpgrade,
 }: SubscriptionSectionProps) {
   const theme = useAppTheme()
   const statusConfig = STATUS_CONFIG[status]
@@ -93,9 +95,14 @@ export function SubscriptionSection({
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity
+                    onPress={onUpgrade}
+                    disabled={isRestoring}
                     activeOpacity={0.8}
                     className="py-3 rounded-xl items-center"
-                    style={{ backgroundColor: theme.colors.brand.primary }}
+                    style={{
+                      backgroundColor: theme.colors.brand.primary,
+                      opacity: isRestoring ? 0.5 : 1,
+                    }}
                   >
                     <Text className="text-white font-semibold">Upgrade to Pro</Text>
                   </TouchableOpacity>
@@ -116,9 +123,14 @@ export function SubscriptionSection({
                   Unlimited tasks - All features unlocked
                 </Text>
                 <TouchableOpacity
+                  onPress={onUpgrade}
+                  disabled={isRestoring}
                   activeOpacity={0.8}
                   className="py-3 rounded-xl items-center"
-                  style={{ backgroundColor: theme.colors.brand.primary }}
+                  style={{
+                    backgroundColor: theme.colors.brand.primary,
+                    opacity: isRestoring ? 0.5 : 1,
+                  }}
                 >
                   <Text className="text-white font-semibold">Get Lifetime Access</Text>
                 </TouchableOpacity>
