@@ -328,10 +328,7 @@ async function syncSubscriptionToSupabase(userId: string | undefined, customerIn
     const isTrialing = entitlement.periodType === 'TRIAL'
     const tier: 'trialing' | 'lifetime' = isTrialing ? 'trialing' : 'lifetime'
 
-    const { error: tierError } = await supabase
-      .from('profiles')
-      .update({ tier })
-      .eq('id', userId)
+    const { error: tierError } = await supabase.from('profiles').update({ tier }).eq('id', userId)
     if (tierError) throw tierError
   }
 }

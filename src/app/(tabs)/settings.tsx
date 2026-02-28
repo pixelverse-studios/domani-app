@@ -189,9 +189,9 @@ function SettingsContent() {
     setShowTimezoneModal(false)
   }
 
-  const handleUpdatePlanningTime = async () => {
+  const handleUpdatePlanningTime = async (overrideDate?: Date) => {
     try {
-      const timeString = format(selectedTime, 'HH:mm:ss')
+      const timeString = format(overrideDate ?? selectedTime, 'HH:mm:ss')
       await updateProfile.mutateAsync({ planning_reminder_time: timeString })
 
       // Only reschedule notification if user has opted in and permissions are granted

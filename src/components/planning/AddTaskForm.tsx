@@ -311,9 +311,10 @@ export function AddTaskForm({
     setSubmitState('submitting')
 
     try {
-      // Only include reminder if enabled and date is in the future
-      const reminderAt =
-        isReminderEnabled && reminderDate > new Date() ? reminderDate.toISOString() : null
+      // Save the reminder time if enabled, regardless of whether it's in the past.
+      // Past reminders won't fire a notification, but the time is preserved for
+      // display, task rollover, and history purposes.
+      const reminderAt = isReminderEnabled ? reminderDate.toISOString() : null
 
       await onSubmit({
         title: title.trim(),

@@ -3,6 +3,7 @@
 ## Issue Summary
 
 During Android release builds (`./gradlew bundleRelease`), the Sentry source map upload step consistently fails with a 401 "Invalid org token" error, despite:
+
 - The same token working perfectly for iOS builds
 - The token being valid when tested with `sentry-cli` via environment variable
 - Multiple configuration attempts and fresh token generation
@@ -12,6 +13,7 @@ During Android release builds (`./gradlew bundleRelease`), the Sentry source map
 **Status:** Build succeeds with Sentry uploads disabled via `.env.sentry-build-plugin`
 
 **File:** `/Users/phil/PVS-local/Projects/domani/domani-app/.env.sentry-build-plugin`
+
 ```env
 SENTRY_AUTH_TOKEN=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
 ```
@@ -25,6 +27,7 @@ This file provides the token to sentry-cli as an environment variable during the
 ### Token Validation Tests
 
 1. **Direct sentry-cli test (PASSES):**
+
    ```bash
    SENTRY_AUTH_TOKEN="<token>" node_modules/@sentry/cli/bin/sentry-cli info
    # Result: ✅ Successfully authenticates
@@ -50,6 +53,7 @@ auth.token=<token>  # ❌ This approach fails
 ### Why iOS Works
 
 iOS builds use `ios/sentry.properties` with:
+
 ```properties
 auth.token=${SENTRY_AUTH_TOKEN}
 ```
@@ -59,6 +63,7 @@ The Xcode build script (`sentry-xcode.sh`) expands `${SENTRY_AUTH_TOKEN}` from t
 ### Why Android Failed (Initially)
 
 The Sentry Gradle plugin (`node_modules/@sentry/react-native/sentry.gradle`) only sets these environment variables:
+
 1. `SENTRY_PROPERTIES` - path to the properties file
 2. `SENTRY_DOTENV_PATH` - path to `.env.sentry-build-plugin` (if it exists)
 
@@ -99,10 +104,12 @@ The plugin automatically detects `.env.sentry-build-plugin` and passes it to sen
 ### Properties File Parsing Bug Hypothesis
 
 The token contains special characters including:
+
 - Base64 characters: `+`, `/`, `=`
 - Underscore: `_`
 
 **Theory:** sentry-cli's Java properties file parser may be:
+
 1. URL-decoding the token (treating `+` as space)
 2. Truncating at special characters
 3. Not properly handling base64-encoded tokens in properties format
@@ -119,6 +126,7 @@ This is why passing the same token via environment variable works perfectly - it
    - Purpose: Provides token via dotenv approach
 
 2. **`android/sentry.properties`**
+
    ```properties
    defaults.url=https://sentry.io
    defaults.org=pixelverse-studios
@@ -127,6 +135,7 @@ This is why passing the same token via environment variable works perfectly - it
    ```
 
 3. **`android/gradle.properties`**
+
    ```properties
    # Keep this for reference, but not used by sentry-cli directly
    SENTRY_AUTH_TOKEN=<token>
@@ -145,6 +154,7 @@ This is why passing the same token via environment variable works perfectly - it
 ### 1. Reproduce and Document the Bug
 
 **Test script:**
+
 ```bash
 # Test 1: Direct token (should work)
 SENTRY_AUTH_TOKEN="<your-token>" \
@@ -175,6 +185,7 @@ node_modules/@sentry/cli/bin/sentry-cli --version
 ```
 
 Search GitHub issues for:
+
 - `sentry-cli properties file auth token`
 - `sentry-cli 401 properties`
 - sentry-cli Java properties parsing
@@ -203,10 +214,12 @@ Check if `io.sentry.android.gradle` plugin (separate from React Native plugin) h
 ### 4. File Upstream Bug Report
 
 If confirmed as sentry-cli bug, file at:
+
 - https://github.com/getsentry/sentry-cli/issues
 - https://github.com/getsentry/sentry-react-native/issues
 
 **Include:**
+
 - Reproducible test case (from Investigation Task 1)
 - sentry-cli version
 - Token format (redacted)
@@ -218,6 +231,7 @@ If confirmed as sentry-cli bug, file at:
 **Ideal Fix:** sentry-cli correctly parses tokens from properties files
 
 **Workaround Options:**
+
 1. **Current:** Use `.env.sentry-build-plugin` (works but not officially documented)
 2. **Alternative:** Patch sentry.gradle locally and maintain via patch-package
 3. **Upstream:** Contribute PR to @sentry/react-native to add SENTRY_AUTH_TOKEN env var support

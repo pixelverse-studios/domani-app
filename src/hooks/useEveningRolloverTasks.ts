@@ -77,6 +77,7 @@ export function useEveningRolloverTasks({
         .eq('plan_id', plan.id)
         .eq('user_id', user.id)
         .is('completed_at', null)
+        .is('rolled_over_at', null)
 
       if (error) throw error
       if (__DEV__) console.log('[useEveningRolloverTasks] Incomplete tasks:', tasks?.length ?? 0)

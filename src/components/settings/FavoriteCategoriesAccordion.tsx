@@ -373,8 +373,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   headerLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 8,
   },
   headerRight: {
     flexDirection: 'row',

@@ -31,7 +31,10 @@ import { AppState, type AppStateStatus } from 'react-native'
 import { supabase } from '~/lib/supabase'
 import { wasEveningPromptedToday } from '~/lib/rollover'
 import { useNotificationStore } from '~/stores/notificationStore'
-import { useEveningRolloverTasks, type UseEveningRolloverTasksResult } from './useEveningRolloverTasks'
+import {
+  useEveningRolloverTasks,
+  type UseEveningRolloverTasksResult,
+} from './useEveningRolloverTasks'
 
 export type UseEveningRolloverOnAppOpenResult = Omit<UseEveningRolloverTasksResult, 'eligibleTasks'>
 

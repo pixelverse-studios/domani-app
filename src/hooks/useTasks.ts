@@ -28,6 +28,7 @@ export function useTasks(planId: string | undefined) {
         `,
         )
         .eq('plan_id', planId)
+        .is('rolled_over_at', null)
         .order('position')
 
       if (error) throw error

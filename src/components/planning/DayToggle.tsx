@@ -139,6 +139,7 @@ function PillDayToggle({
               ? { fontSize: 14 }
               : { fontSize: 14, color: theme.colors.text.secondary }
           }
+          allowFontScaling={false}
         >
           Today
         </Animated.Text>
@@ -159,6 +160,7 @@ function PillDayToggle({
               ? { fontSize: 14 }
               : { fontSize: 14, color: theme.colors.text.secondary }
           }
+          allowFontScaling={false}
         >
           Tomorrow
         </Animated.Text>
@@ -215,6 +217,7 @@ function MinimalDayToggle({
               fontSize: 16,
               color: selectedTarget === 'today' ? brandColor : theme.colors.text.tertiary,
             }}
+            allowFontScaling={false}
           >
             Today
           </Animated.Text>
@@ -234,6 +237,7 @@ function MinimalDayToggle({
               fontSize: 16,
               color: selectedTarget === 'tomorrow' ? brandColor : theme.colors.text.tertiary,
             }}
+            allowFontScaling={false}
           >
             Tomorrow
           </Animated.Text>
