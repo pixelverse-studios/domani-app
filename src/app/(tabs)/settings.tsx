@@ -416,6 +416,7 @@ function SettingsContent() {
         visible={showPaywallModal}
         onClose={() => setShowPaywallModal(false)}
         offerings={subscription.offerings ?? null}
+        offeringIdentifier={subscription.offeringIdentifier}
         isPurchasing={subscription.isPurchasing}
         isRestoring={subscription.isRestoring}
         onPurchase={async (pkg) => {

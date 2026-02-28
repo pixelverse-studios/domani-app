@@ -19,10 +19,16 @@ interface PaywallModalProps {
   visible: boolean
   onClose: () => void
   offerings: PurchasesOffering | null
+  offeringIdentifier: string
   isPurchasing: boolean
   isRestoring: boolean
   onPurchase: (pkg: PurchasesPackage) => void
   onRestore: () => void
+}
+
+const DISCOUNT_CONFIG: Record<string, { label: string; badge: string }> = {
+  early_adopter: { label: 'Early adopter pricing', badge: '71% off' },
+  friends_family: { label: 'Friends & family pricing', badge: '86% off' },
 }
 
 const VALUE_PROPS = [
@@ -36,6 +42,7 @@ export function PaywallModal({
   visible,
   onClose,
   offerings,
+  offeringIdentifier,
   isPurchasing,
   isRestoring,
   onPurchase,
@@ -50,6 +57,7 @@ export function PaywallModal({
       (pkg) => pkg.packageType === PACKAGE_TYPE.LIFETIME,
     ) ?? offerings?.availablePackages?.[0] ?? null
   const priceString = lifetimePackage?.product?.priceString
+  const discount = DISCOUNT_CONFIG[offeringIdentifier]
 
   useEffect(() => {
     if (visible) {
@@ -130,6 +138,26 @@ export function PaywallModal({
           >
             One purchase. Yours forever.
           </Text>
+
+          {/* Discount badge for early adopter / friends & family */}
+          {discount && (
+            <View
+              style={[
+                styles.discountBadge,
+                { backgroundColor: `${theme.colors.brand.primary}1F` },
+              ]}
+            >
+              <Text
+                className="font-sans-bold text-xs"
+                style={{ color: theme.colors.brand.dark, letterSpacing: 0.3 }}
+              >
+                {discount.badge}
+              </Text>
+              <Text className="font-sans text-xs text-content-secondary ml-1.5">
+                — {discount.label}
+              </Text>
+            </View>
+          )}
 
           {/* Value props */}
           <View style={styles.valueProps}>
@@ -220,6 +248,14 @@ const styles = StyleSheet.create({
     borderRadius: 48,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  discountBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
   },
   valueProps: {
     width: '100%',
