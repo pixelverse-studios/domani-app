@@ -72,7 +72,7 @@ export function SubscriptionSection({
               <>
                 <Text className="text-sm text-content-secondary mb-3">
                   {canStartTrial
-                    ? 'Start a free trial to get full access'
+                    ? 'Explore everything Domani has to offer'
                     : 'Your trial has ended — upgrade to keep using Domani'}
                 </Text>
                 {canStartTrial ? (
