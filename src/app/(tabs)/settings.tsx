@@ -292,7 +292,13 @@ function SettingsContent() {
             isRestoring={subscription.isRestoring}
             trialDaysRemaining={subscription.trialDaysRemaining}
             onStartTrial={() => subscription.startTrial()}
-            onRestore={() => subscription.restore()}
+            onRestore={async () => {
+              try {
+                await subscription.restore()
+              } catch {
+                Alert.alert('Restore Failed', 'Could not restore purchases. Please try again.')
+              }
+            }}
             onUpgrade={() => setShowPaywallModal(true)}
           />
         )}
