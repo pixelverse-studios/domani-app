@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Modal,
   View,
@@ -7,7 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native'
-import { Crown, Check, X, RotateCcw } from 'lucide-react-native'
+import { Crown, Check, X, RotateCcw, AlertCircle } from 'lucide-react-native'
+import { useRouter } from 'expo-router'
 import { PACKAGE_TYPE } from 'react-native-purchases'
 import type { PurchasesOffering, PurchasesPackage } from 'react-native-purchases'
 
@@ -22,8 +23,8 @@ interface PaywallModalProps {
   offeringIdentifier: string
   isPurchasing: boolean
   isRestoring: boolean
-  onPurchase: (pkg: PurchasesPackage) => void
-  onRestore: () => void
+  onPurchase: (pkg: PurchasesPackage) => Promise<unknown>
+  onRestore: () => Promise<unknown>
 }
 
 const DISCOUNT_CONFIG: Record<string, { label: string; badge: string }> = {
@@ -49,8 +50,11 @@ export function PaywallModal({
   onRestore,
 }: PaywallModalProps) {
   const theme = useAppTheme()
+  const router = useRouter()
   const scaleAnim = React.useRef(new Animated.Value(0.9)).current
   const fadeAnim = React.useRef(new Animated.Value(0)).current
+  const [error, setError] = useState<string | null>(null)
+  const [failCount, setFailCount] = useState(0)
 
   const lifetimePackage =
     offerings?.availablePackages?.find(
@@ -59,8 +63,11 @@ export function PaywallModal({
   const priceString = lifetimePackage?.product?.priceString
   const discount = DISCOUNT_CONFIG[offeringIdentifier]
 
+  // Reset error state when modal opens
   useEffect(() => {
     if (visible) {
+      setError(null)
+      setFailCount(0)
       Animated.parallel([
         Animated.spring(scaleAnim, {
           toValue: 1,
@@ -80,9 +87,28 @@ export function PaywallModal({
     }
   }, [visible, scaleAnim, fadeAnim])
 
-  const handlePurchase = () => {
-    if (lifetimePackage) {
-      onPurchase(lifetimePackage)
+  const handlePurchase = async () => {
+    if (!lifetimePackage) return
+    setError(null)
+    try {
+      await onPurchase(lifetimePackage)
+    } catch {
+      const count = failCount + 1
+      setFailCount(count)
+      setError(
+        count >= 2
+          ? 'This keeps happening. Please contact support if the issue persists.'
+          : 'Something went wrong with your purchase. Please try again.',
+      )
+    }
+  }
+
+  const handleRestore = async () => {
+    setError(null)
+    try {
+      await onRestore()
+    } catch {
+      setError('Could not restore purchases. Please try again.')
     }
   }
 
@@ -192,14 +218,48 @@ export function PaywallModal({
             {priceString ? `Get Lifetime Access — ${priceString}` : 'Get Lifetime Access'}
           </GradientButton>
 
+          {/* Inline error message */}
+          {error && (
+            <View style={styles.errorContainer}>
+              <View style={styles.errorRow}>
+                <AlertCircle size={14} color={theme.colors.accent.brick} />
+                <Text
+                  className="font-sans text-xs ml-1.5"
+                  style={{ color: theme.colors.accent.brick, flex: 1 }}
+                >
+                  {error}
+                </Text>
+              </View>
+              {failCount >= 2 && (
+                <TouchableOpacity
+                  onPress={() => {
+                    onClose()
+                    router.push('/contact-support')
+                  }}
+                  activeOpacity={0.7}
+                  style={styles.contactSupport}
+                >
+                  <Text
+                    className="font-sans-medium text-xs"
+                    style={{ color: theme.colors.brand.primary }}
+                  >
+                    Contact Support
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
           {/* One-time purchase badge */}
-          <Text className="font-sans-medium text-xs text-content-tertiary text-center mt-3">
-            One-time purchase. No recurring charges.
-          </Text>
+          {!error && (
+            <Text className="font-sans-medium text-xs text-content-tertiary text-center mt-3">
+              One-time purchase. No recurring charges.
+            </Text>
+          )}
 
           {/* Restore purchases */}
           <TouchableOpacity
-            onPress={onRestore}
+            onPress={handleRestore}
             disabled={isProcessing}
             activeOpacity={0.7}
             style={styles.restoreButton}
@@ -273,6 +333,18 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  errorContainer: {
+    width: '100%',
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  contactSupport: {
+    marginTop: 8,
   },
   restoreButton: {
     flexDirection: 'row',

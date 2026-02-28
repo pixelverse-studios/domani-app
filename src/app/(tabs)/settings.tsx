@@ -420,20 +420,12 @@ function SettingsContent() {
         isPurchasing={subscription.isPurchasing}
         isRestoring={subscription.isRestoring}
         onPurchase={async (pkg) => {
-          try {
-            await subscription.purchase(pkg)
-            setShowPaywallModal(false)
-          } catch {
-            Alert.alert('Purchase Failed', 'Something went wrong. Please try again.')
-          }
+          const result = await subscription.purchase(pkg)
+          if (result) setShowPaywallModal(false)
         }}
         onRestore={async () => {
-          try {
-            await subscription.restore()
-            setShowPaywallModal(false)
-          } catch {
-            Alert.alert('Restore Failed', 'Could not restore purchases. Please try again.')
-          }
+          const result = await subscription.restore()
+          if (result) setShowPaywallModal(false)
         }}
       />
 
