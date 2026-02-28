@@ -96,9 +96,13 @@ export function SubscriptionSection({
                 ) : (
                   <TouchableOpacity
                     onPress={onUpgrade}
+                    disabled={isRestoring}
                     activeOpacity={0.8}
                     className="py-3 rounded-xl items-center"
-                    style={{ backgroundColor: theme.colors.brand.primary }}
+                    style={{
+                      backgroundColor: theme.colors.brand.primary,
+                      opacity: isRestoring ? 0.5 : 1,
+                    }}
                   >
                     <Text className="text-white font-semibold">Upgrade to Pro</Text>
                   </TouchableOpacity>
@@ -120,9 +124,13 @@ export function SubscriptionSection({
                 </Text>
                 <TouchableOpacity
                   onPress={onUpgrade}
+                  disabled={isRestoring}
                   activeOpacity={0.8}
                   className="py-3 rounded-xl items-center"
-                  style={{ backgroundColor: theme.colors.brand.primary }}
+                  style={{
+                    backgroundColor: theme.colors.brand.primary,
+                    opacity: isRestoring ? 0.5 : 1,
+                  }}
                 >
                   <Text className="text-white font-semibold">Get Lifetime Access</Text>
                 </TouchableOpacity>

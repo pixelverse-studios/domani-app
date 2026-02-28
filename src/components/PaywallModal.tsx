@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { Crown, Check, X, RotateCcw } from 'lucide-react-native'
+import { PACKAGE_TYPE } from 'react-native-purchases'
 import type { PurchasesOffering, PurchasesPackage } from 'react-native-purchases'
 
 import { Text } from '~/components/ui/Text'
@@ -44,7 +45,10 @@ export function PaywallModal({
   const scaleAnim = React.useRef(new Animated.Value(0.9)).current
   const fadeAnim = React.useRef(new Animated.Value(0)).current
 
-  const lifetimePackage = offerings?.availablePackages?.[0] ?? null
+  const lifetimePackage =
+    offerings?.availablePackages?.find(
+      (pkg) => pkg.packageType === PACKAGE_TYPE.LIFETIME,
+    ) ?? offerings?.availablePackages?.[0] ?? null
   const priceString = lifetimePackage?.product?.priceString
 
   useEffect(() => {
@@ -171,6 +175,8 @@ export function PaywallModal({
             disabled={isProcessing}
             activeOpacity={0.7}
             style={styles.restoreButton}
+            accessibilityLabel="Restore previous purchases"
+            accessibilityRole="button"
           >
             {isRestoring ? (
               <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
