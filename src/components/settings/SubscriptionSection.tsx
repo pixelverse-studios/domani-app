@@ -25,6 +25,7 @@ interface SubscriptionSectionProps {
   trialDaysRemaining: number | null
   onStartTrial: () => void
   onRestore: () => void
+  onUpgrade: () => void
 }
 
 /**
@@ -39,6 +40,7 @@ export function SubscriptionSection({
   trialDaysRemaining,
   onStartTrial,
   onRestore,
+  onUpgrade,
 }: SubscriptionSectionProps) {
   const theme = useAppTheme()
   const statusConfig = STATUS_CONFIG[status]
@@ -93,6 +95,7 @@ export function SubscriptionSection({
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity
+                    onPress={onUpgrade}
                     activeOpacity={0.8}
                     className="py-3 rounded-xl items-center"
                     style={{ backgroundColor: theme.colors.brand.primary }}
@@ -116,6 +119,7 @@ export function SubscriptionSection({
                   Unlimited tasks - All features unlocked
                 </Text>
                 <TouchableOpacity
+                  onPress={onUpgrade}
                   activeOpacity={0.8}
                   className="py-3 rounded-xl items-center"
                   style={{ backgroundColor: theme.colors.brand.primary }}

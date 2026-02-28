@@ -22,6 +22,7 @@ import {
   DeleteAccountModal,
   SmartCategoriesModal,
 } from '~/components/settings'
+import { PaywallModal } from '~/components/PaywallModal'
 import { TutorialScrollProvider, useTutorialScroll } from '~/components/tutorial'
 import { useAuth } from '~/hooks/useAuth'
 import { useAppTheme } from '~/hooks/useAppTheme'
@@ -111,6 +112,7 @@ function SettingsContent() {
   const [showFarewellOverlay, setShowFarewellOverlay] = useState(false)
   const [showSmartCategoriesModal, setShowSmartCategoriesModal] = useState(false)
   const [pendingSmartCategoriesValue, setPendingSmartCategoriesValue] = useState(false)
+  const [showPaywallModal, setShowPaywallModal] = useState(false)
 
   // Form states
   const [editName, setEditName] = useState('')
@@ -291,6 +293,7 @@ function SettingsContent() {
             trialDaysRemaining={subscription.trialDaysRemaining}
             onStartTrial={() => subscription.startTrial()}
             onRestore={() => subscription.restore()}
+            onUpgrade={() => setShowPaywallModal(true)}
           />
         )}
 
@@ -401,6 +404,16 @@ function SettingsContent() {
         isPending={updateProfile.isPending}
         onConfirm={confirmSmartCategoriesChange}
         onClose={() => setShowSmartCategoriesModal(false)}
+      />
+
+      <PaywallModal
+        visible={showPaywallModal}
+        onClose={() => setShowPaywallModal(false)}
+        offerings={subscription.offerings ?? null}
+        isPurchasing={subscription.isPurchasing}
+        isRestoring={subscription.isRestoring}
+        onPurchase={(pkg) => subscription.purchase(pkg)}
+        onRestore={() => subscription.restore()}
       />
 
       {/* Farewell overlay after scheduling deletion */}
