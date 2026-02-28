@@ -182,8 +182,7 @@ function RootLayoutContent() {
         track('evening_rollover_carried_forward', {
           task_count: params.selectedTaskIds.length,
           mit_carried:
-            !!eveningAppOpenMitTaskId &&
-            params.selectedTaskIds.includes(eveningAppOpenMitTaskId),
+            !!eveningAppOpenMitTaskId && params.selectedTaskIds.includes(eveningAppOpenMitTaskId),
           mit_made_tomorrow: params.makeMitToday,
           kept_reminders: params.keepReminderTimes,
           source: 'app_open',
@@ -224,8 +223,7 @@ function RootLayoutContent() {
       // Note: markEveningAppOpenPrompted swallows errors internally (see useEveningRolloverOnAppOpen.ts)
       // This catch is a safety net in case the internal behaviour changes
     } catch (error) {
-      if (__DEV__)
-        console.error('[EveningRollover] Failed to mark as prompted:', error)
+      if (__DEV__) console.error('[EveningRollover] Failed to mark as prompted:', error)
       // Non-fatal — proceed so user is not stuck
     }
     router.push('/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true')

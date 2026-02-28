@@ -118,6 +118,7 @@ export function useRolloverTasks(): UseRolloverTasksResult {
           'id, title, priority, system_category_id, user_category_id, reminder_at, is_mit, completed_at, position',
         )
         .eq('plan_id', plan.id)
+        .is('rolled_over_at', null)
 
       if (error) throw error
 

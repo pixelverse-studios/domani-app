@@ -290,11 +290,7 @@ export function RolloverModal({
               Carry Forward ({selectedCount})
             </Button>
 
-            <TouchableOpacity
-              onPress={onStartFresh}
-              style={styles.textButton}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity onPress={onStartFresh} style={styles.textButton} activeOpacity={0.7}>
               <Text
                 className="font-sans-medium text-base"
                 style={{ color: theme.colors.text.secondary }}
@@ -364,10 +360,7 @@ function TaskCard({ task, isSelected, onToggle, theme }: TaskCardProps) {
               },
             ]}
           >
-            <Text
-              className="font-sans-medium text-xs capitalize"
-              style={{ color: priorityColor }}
-            >
+            <Text className="font-sans-medium text-xs capitalize" style={{ color: priorityColor }}>
               {priority}
             </Text>
           </View>

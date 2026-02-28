@@ -44,6 +44,7 @@ export default function TabLayout() {
   return (
     <>
       <Tabs
+        safeAreaInsets={{ bottom: 0 }}
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: theme.colors.brand.primary,
@@ -64,6 +65,7 @@ export default function TabLayout() {
                 color: focused ? theme.colors.brand.primary : theme.colors.text.muted,
                 marginBottom: 2,
               }}
+              allowFontScaling={false}
             >
               {children}
             </Text>

@@ -220,7 +220,7 @@ export function ReminderShortcutsSection() {
 
             return (
               <View key={shortcut.id} style={[styles.timePill, { backgroundColor: colors.bg }]}>
-                <Text style={[styles.pillTime, { color: colors.color }]}>
+                <Text style={[styles.pillTime, { color: colors.color }]} allowFontScaling={false}>
                   {formatTimeCompact(shortcut.hour, shortcut.minute)}
                 </Text>
               </View>
@@ -368,8 +368,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 8,
   },
   pillsRow: {
     flexDirection: 'row',
@@ -407,8 +409,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   shortcutLabelRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 8,
   },
   shortcutDot: {
     width: 8,

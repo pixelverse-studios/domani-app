@@ -222,7 +222,13 @@ export default function PlanningScreen() {
         setEveningRolloverSource(null)
       }
     }
-  }, [planningReminderTriggered, eveningLoading, eveningShouldShow, tomorrowPlan, setEveningRolloverSource])
+  }, [
+    planningReminderTriggered,
+    eveningLoading,
+    eveningShouldShow,
+    tomorrowPlan,
+    setEveningRolloverSource,
+  ])
 
   // Evening rollover handlers
   const handleEveningCarryForward = useCallback(
@@ -272,7 +278,14 @@ export default function PlanningScreen() {
         )
       }
     },
-    [tomorrowPlan, carryForwardTasks, markEveningPrompted, track, eveningMitTask, setEveningRolloverSource],
+    [
+      tomorrowPlan,
+      carryForwardTasks,
+      markEveningPrompted,
+      track,
+      eveningMitTask,
+      setEveningRolloverSource,
+    ],
   )
 
   const handleEveningStartFresh = useCallback(async () => {
@@ -292,7 +305,13 @@ export default function PlanningScreen() {
     setShowEveningRollover(false)
     setPlanningReminderTriggered(false)
     setIsFormVisible(true)
-  }, [markEveningPrompted, track, eveningMitTask, eveningOtherTasks.length, setEveningRolloverSource])
+  }, [
+    markEveningPrompted,
+    track,
+    eveningMitTask,
+    eveningOtherTasks.length,
+    setEveningRolloverSource,
+  ])
 
   const handleOpenForm = () => {
     // Initialize form's day toggle from header selection for new tasks

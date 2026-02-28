@@ -342,6 +342,21 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
       }
     }
 
+    // Mark source tasks as rolled over (soft archive — preserves data for analytics)
+    const { error: markError } = await supabase
+      .from('tasks')
+      .update({ rolled_over_at: new Date().toISOString() })
+      .in('id', input.selectedTaskIds)
+      .eq('user_id', user.id)
+
+    if (markError) {
+      // Non-fatal: new tasks already created, log and continue
+      console.error('[carryForwardTasks] Failed to mark tasks as rolled over:', markError)
+      addBreadcrumb('Failed to mark tasks rolled_over_at', 'rollover', {
+        error: markError.message,
+      })
+    }
+
     // Log success breadcrumb for Sentry
     addBreadcrumb('Tasks carried forward', 'rollover', {
       taskCount: createdTasks.length,
