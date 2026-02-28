@@ -6,16 +6,25 @@ import { useRouter } from 'expo-router'
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { seedEveningRolloverTestData } from '~/lib/devTools'
+import { useAppConfigStore } from '~/stores/appConfigStore'
+import type { AppPhase } from '~/types/appConfig'
 
 const PURPLE = '#7c3aed'
 const PURPLE_BG = '#7c3aed18'
 const PURPLE_BORDER = '#7c3aed60'
 
-export function DevToolsSection() {
+interface DevToolsSectionProps {
+  onOpenPaywall?: () => void
+}
+
+export function DevToolsSection({ onOpenPaywall }: DevToolsSectionProps) {
   const theme = useAppTheme()
   const queryClient = useQueryClient()
   const router = useRouter()
   const [isSeedingEvening, setIsSeedingEvening] = useState(false)
+  const phase = useAppConfigStore((s) => s.phase)
+  const setPhaseOverride = useAppConfigStore((s) => s.setPhaseOverride)
+  const isBetaPhase = phase === 'closed_beta' || phase === 'open_beta'
 
   const handleSeedEveningRollover = async () => {
     setIsSeedingEvening(true)
@@ -69,6 +78,53 @@ export function DevToolsSection() {
         </View>
         {isSeedingEvening && <ActivityIndicator size="small" color={PURPLE} />}
       </TouchableOpacity>
+
+      {/* Phase Override Toggle */}
+      <TouchableOpacity
+        onPress={() => {
+          const nextPhase: AppPhase = isBetaPhase ? 'production' : 'open_beta'
+          setPhaseOverride(nextPhase)
+        }}
+        activeOpacity={0.7}
+        style={{
+          backgroundColor: PURPLE_BG,
+          borderWidth: 1,
+          borderColor: PURPLE_BORDER,
+          borderRadius: 12,
+          padding: 14,
+          marginTop: 8,
+        }}
+      >
+        <Text className="font-sans-semibold text-sm" style={{ color: PURPLE }}>
+          {isBetaPhase ? '🔓 Switch to Production Mode' : '🔒 Switch to Beta Mode'}
+        </Text>
+        <Text className="font-sans text-xs mt-0.5" style={{ color: theme.colors.text.tertiary }}>
+          Current: {phase} — {isBetaPhase ? 'subscription UI hidden' : 'subscription UI visible'}
+        </Text>
+      </TouchableOpacity>
+
+      {/* Open Paywall Modal */}
+      {onOpenPaywall && (
+        <TouchableOpacity
+          onPress={onOpenPaywall}
+          activeOpacity={0.7}
+          style={{
+            backgroundColor: PURPLE_BG,
+            borderWidth: 1,
+            borderColor: PURPLE_BORDER,
+            borderRadius: 12,
+            padding: 14,
+            marginTop: 8,
+          }}
+        >
+          <Text className="font-sans-semibold text-sm" style={{ color: PURPLE }}>
+            💳 Open Paywall Modal
+          </Text>
+          <Text className="font-sans text-xs mt-0.5" style={{ color: theme.colors.text.tertiary }}>
+            Preview paywall regardless of subscription state
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   )
 }

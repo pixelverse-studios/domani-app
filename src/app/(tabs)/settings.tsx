@@ -360,7 +360,7 @@ function SettingsContent() {
         />
 
         {/* Dev Tools — only visible in development builds */}
-        {__DEV__ && <DevToolsSection />}
+        {__DEV__ && <DevToolsSection onOpenPaywall={() => setShowPaywallModal(true)} />}
 
         {/* App Version */}
         <Text className="text-center text-sm text-content-tertiary mb-4">

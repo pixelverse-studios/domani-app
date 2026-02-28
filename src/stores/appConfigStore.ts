@@ -27,6 +27,7 @@ interface AppConfigState {
   // Actions
   fetchConfig: () => Promise<void>
   isFeatureEnabled: (feature: keyof FeatureFlags) => boolean
+  setPhaseOverride: (phase: AppPhase) => void
 }
 
 export const useAppConfigStore = create<AppConfigState>()(
@@ -88,6 +89,10 @@ export const useAppConfigStore = create<AppConfigState>()(
 
       isFeatureEnabled: (feature: keyof FeatureFlags) => {
         return get().features[feature] ?? false
+      },
+
+      setPhaseOverride: (phase: AppPhase) => {
+        set({ phase })
       },
     }),
     {
