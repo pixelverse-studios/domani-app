@@ -220,7 +220,7 @@ export function PaywallModal({
 
           {/* Inline error message */}
           {error && (
-            <View style={styles.errorContainer}>
+            <View style={styles.errorContainer} accessibilityRole="alert">
               <View style={styles.errorRow}>
                 <AlertCircle size={14} color={theme.colors.accent.brick} />
                 <Text
