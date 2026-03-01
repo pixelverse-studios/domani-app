@@ -1296,6 +1296,14 @@ export type Database = {
         Args: { p_favorite_category_ids: Json; p_user_id: string }
         Returns: undefined
       }
+      start_user_trial: {
+        Args: Record<string, never>
+        Returns: Database['public']['Tables']['profiles']['Row']
+      }
+      sync_subscription_tier: {
+        Args: { p_tier: Database['public']['Enums']['tier']; p_revenuecat_user_id?: string }
+        Returns: undefined
+      }
     }
     Enums: {
       admin_action: 'create' | 'read' | 'update' | 'delete' | 'export' | 'import' | 'execute'
