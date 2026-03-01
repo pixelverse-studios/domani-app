@@ -16,6 +16,8 @@ import { X } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useSubscription } from '~/hooks/useSubscription'
+import { LockedScreen } from '~/components/LockedScreen'
 import {
   TodayHeader,
   ProgressCard,
@@ -42,6 +44,12 @@ export default function TodayScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const theme = useAppTheme()
+  const { status: subscriptionStatus, isLoading: subscriptionLoading } = useSubscription()
+
+  // Show locked screen when trial has expired
+  if (subscriptionStatus === 'none' && !subscriptionLoading) {
+    return <LockedScreen />
+  }
   const brandColor = theme.colors.brand.primary
   const { data: plan, isLoading: planLoading, refetch: refetchPlan } = useTodayPlan()
   const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useTasks(plan?.id)
