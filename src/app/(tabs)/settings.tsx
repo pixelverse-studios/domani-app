@@ -121,6 +121,9 @@ function SettingsContent() {
   // Beta check
   const isBeta = phase === 'closed_beta' || phase === 'open_beta'
 
+  // Locked state: trial expired, only show payment + account options
+  const isLocked = subscription.status === 'none' && !subscription.isLoading
+
   // ===========================================================================
   // Handlers
   // ===========================================================================
@@ -273,17 +276,19 @@ function SettingsContent() {
         {/* Header */}
         <Text className="text-2xl font-bold text-content-primary mt-4 mb-6">Settings</Text>
 
-        {/* 1. Profile Section */}
-        <ProfileSection
-          isLoading={isLoading}
-          fullName={profile?.full_name}
-          email={profile?.email}
-          isBeta={isBeta}
-          onEditName={openNameModal}
-        />
+        {/* 1. Profile Section — hidden when locked */}
+        {!isLocked && (
+          <ProfileSection
+            isLoading={isLoading}
+            fullName={profile?.full_name}
+            email={profile?.email}
+            isBeta={isBeta}
+            onEditName={openNameModal}
+          />
+        )}
 
-        {/* 2. Subscription Section - only shown when NOT in beta */}
-        {!isBeta && (
+        {/* 2. Subscription Section - shown when NOT in beta, or always when locked */}
+        {(!isBeta || isLocked) && (
           <SubscriptionSection
             isLoading={subscription.isLoading}
             status={subscription.status}
@@ -303,34 +308,35 @@ function SettingsContent() {
           />
         )}
 
-        {/* 3. Categories Section */}
-        <CategoriesSection
-          isLoading={isLoading}
-          autoSortCategories={profile?.auto_sort_categories ?? false}
-          onToggleSmartCategories={handleSmartCategoriesToggle}
-        />
+        {/* 3–6. Categories, Notifications, Preferences, Support — hidden when locked */}
+        {!isLocked && (
+          <>
+            <CategoriesSection
+              isLoading={isLoading}
+              autoSortCategories={profile?.auto_sort_categories ?? false}
+              onToggleSmartCategories={handleSmartCategoriesToggle}
+            />
 
-        {/* 4. Notifications & Reminders Section */}
-        <NotificationsSection
-          isLoading={isLoading}
-          planningReminderTime={profile?.planning_reminder_time || null}
-          planningReminderEnabled={profile?.planning_reminder_enabled ?? false}
-          permissionStatus={permissionStatus}
-          isUpdating={updateProfile.isPending}
-          onEditPlanningTime={openPlanningTimeModal}
-          onTogglePlanningReminder={handleTogglePlanningReminder}
-          onOpenSettings={openSettings}
-        />
+            <NotificationsSection
+              isLoading={isLoading}
+              planningReminderTime={profile?.planning_reminder_time || null}
+              planningReminderEnabled={profile?.planning_reminder_enabled ?? false}
+              permissionStatus={permissionStatus}
+              isUpdating={updateProfile.isPending}
+              onEditPlanningTime={openPlanningTimeModal}
+              onTogglePlanningReminder={handleTogglePlanningReminder}
+              onOpenSettings={openSettings}
+            />
 
-        {/* 5. Preferences Section */}
-        <PreferencesSection
-          isLoading={isLoading}
-          timezone={profile?.timezone || null}
-          onEditTimezone={() => setShowTimezoneModal(true)}
-        />
+            <PreferencesSection
+              isLoading={isLoading}
+              timezone={profile?.timezone || null}
+              onEditTimezone={() => setShowTimezoneModal(true)}
+            />
 
-        {/* 6. Support Section */}
-        <SupportSection onReplayTutorial={handleReplayTutorial} />
+            <SupportSection onReplayTutorial={handleReplayTutorial} />
+          </>
+        )}
 
         {/* Log Out Button */}
         <TouchableOpacity
@@ -359,8 +365,8 @@ function SettingsContent() {
           onCancelDeletion={handleCancelDeletion}
         />
 
-        {/* Dev Tools — only visible in development builds */}
-        {__DEV__ && <DevToolsSection onOpenPaywall={() => setShowPaywallModal(true)} />}
+        {/* Dev Tools — only visible in development builds, hidden when locked */}
+        {__DEV__ && !isLocked && <DevToolsSection onOpenPaywall={() => setShowPaywallModal(true)} />}
 
         {/* App Version */}
         <Text className="text-center text-sm text-content-tertiary mb-4">
