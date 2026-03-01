@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { AppState } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Purchases, { CustomerInfo, PurchasesPackage } from 'react-native-purchases'
 import { supabase } from '~/lib/supabase'
@@ -120,6 +121,33 @@ export function useSubscription() {
 
   // Compute subscription state
   const subscriptionState: SubscriptionState = computeSubscriptionState(profile, customerInfo)
+
+  // Auto-lock when trial expires mid-session: schedule a profile refetch at the
+  // exact expiration time so computeSubscriptionState re-evaluates with a fresh Date.
+  useEffect(() => {
+    if (subscriptionState.status !== 'trialing' || !subscriptionState.trialExpirationDate) return
+
+    const msUntilExpiry = subscriptionState.trialExpirationDate.getTime() - Date.now()
+    if (msUntilExpiry <= 0) return // Already expired — no timer needed
+
+    const timer = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+    }, msUntilExpiry)
+
+    return () => clearTimeout(timer)
+  }, [subscriptionState.status, subscriptionState.trialExpirationDate, queryClient, user?.id])
+
+  // Re-check subscription state when app returns to foreground (handles trial
+  // expiry while app was backgrounded or device was asleep).
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active' && user?.id) {
+        queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
+      }
+    })
+
+    return () => subscription.remove()
+  }, [queryClient, user?.id])
 
   // Start free trial via server-side RPC (validates eligibility)
   const startTrialMutation = useMutation({
