@@ -122,7 +122,11 @@ export function PaywallModal({
     setError(null)
     try {
       const result = await onRestore()
-      if (result) transitionToSuccess()
+      if (result) {
+        transitionToSuccess()
+      } else {
+        setError('No previous purchases found for this account.')
+      }
     } catch {
       setError('Could not restore purchases. Please try again.')
     }
