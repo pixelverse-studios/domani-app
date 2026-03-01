@@ -71,7 +71,11 @@ export function LockedScreen() {
         {/* Purchase CTA */}
         <View style={styles.ctaContainer}>
           <GradientButton
-            onPress={() => setShowPaywall(true)}
+            onPress={() => {
+              setRestoreError(null)
+              setShowPaywall(true)
+            }}
+            disabled={subscription.isLoading}
             fullWidth
             icon={<Crown size={20} color="#fff" />}
           >
@@ -102,7 +106,7 @@ export function LockedScreen() {
 
         {/* Restore error */}
         {restoreError && (
-          <View style={styles.errorRow}>
+          <View style={styles.errorRow} accessibilityRole="alert">
             <AlertCircle size={14} color={theme.colors.accent.brick} />
             <Text
               className="font-sans text-xs ml-1.5"
@@ -119,6 +123,8 @@ export function LockedScreen() {
         onPress={() => router.push('/(tabs)/settings')}
         activeOpacity={0.7}
         style={styles.settingsLink}
+        accessibilityLabel="Account Settings"
+        accessibilityRole="button"
       >
         <Settings size={16} color={theme.colors.text.tertiary} />
         <Text className="text-sm text-content-tertiary ml-1.5">Account Settings</Text>
@@ -132,8 +138,8 @@ export function LockedScreen() {
         offeringIdentifier={subscription.offeringIdentifier}
         isPurchasing={subscription.isPurchasing}
         isRestoring={subscription.isRestoring}
-        onPurchase={async (pkg) => await subscription.purchase(pkg)}
-        onRestore={async () => await subscription.restore()}
+        onPurchase={subscription.purchase}
+        onRestore={subscription.restore}
       />
     </View>
   )
