@@ -420,12 +420,10 @@ function SettingsContent() {
         isPurchasing={subscription.isPurchasing}
         isRestoring={subscription.isRestoring}
         onPurchase={async (pkg) => {
-          const result = await subscription.purchase(pkg)
-          if (result) setShowPaywallModal(false)
+          return await subscription.purchase(pkg)
         }}
         onRestore={async () => {
-          const result = await subscription.restore()
-          if (result) setShowPaywallModal(false)
+          return await subscription.restore()
         }}
       />
 

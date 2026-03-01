@@ -169,14 +169,15 @@ export function useSubscription() {
     },
   })
 
-  // Restore purchases
+  // Restore purchases — returns null if no active entitlement found
   const restoreMutation = useMutation({
     mutationFn: async () => {
       const info = await restorePurchases()
       if (info) {
         await syncSubscriptionToSupabase(user?.id, info)
       }
-      return info
+      const hasEntitlement = !!info?.entitlements.active[ENTITLEMENT_ID]
+      return hasEntitlement ? info : null
     },
     onSuccess: () => {
       refetchCustomerInfo()
