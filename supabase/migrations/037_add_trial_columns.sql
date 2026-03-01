@@ -199,6 +199,9 @@ RETURNS public.profiles AS $$
 DECLARE
     v_profile public.profiles;
 BEGIN
+    -- Signal the protection trigger to allow this privileged write
+    PERFORM set_config('app.bypass_monetisation_guard', 'true', true);
+
     UPDATE public.profiles
     SET
         tier = 'trialing',
@@ -207,7 +210,6 @@ BEGIN
         updated_at = NOW()
     WHERE id = auth.uid()
       AND trial_started_at IS NULL
-      AND tier = 'none'
     RETURNING * INTO v_profile;
 
     IF NOT FOUND THEN
@@ -232,11 +234,22 @@ CREATE OR REPLACE FUNCTION sync_subscription_tier(
     p_revenuecat_user_id TEXT DEFAULT NULL
 )
 RETURNS void AS $$
+DECLARE
+    v_current_tier public.tier;
 BEGIN
-    -- Only allow setting tier to 'trialing' or 'lifetime' (never 'none')
+    -- Never allow setting tier to 'none' via this function
     IF p_tier = 'none' THEN
         RAISE EXCEPTION 'Cannot set tier to none via sync';
     END IF;
+
+    -- Prevent downgrades: lifetime users cannot be changed to trialing
+    SELECT tier INTO v_current_tier FROM public.profiles WHERE id = auth.uid();
+    IF v_current_tier = 'lifetime' AND p_tier != 'lifetime' THEN
+        RAISE EXCEPTION 'Cannot downgrade from lifetime tier';
+    END IF;
+
+    -- Signal the protection trigger to allow this privileged write
+    PERFORM set_config('app.bypass_monetisation_guard', 'true', true);
 
     UPDATE public.profiles
     SET
@@ -255,9 +268,18 @@ GRANT EXECUTE ON FUNCTION sync_subscription_tier(public.tier, TEXT) TO authentic
 
 -- Protect monetisation fields from direct client UPDATE.
 -- The app must use start_user_trial() and sync_subscription_tier() instead.
+-- Those RPC functions set app.bypass_monetisation_guard = 'true' (transaction-scoped)
+-- to signal this trigger to allow the write through.
 CREATE OR REPLACE FUNCTION protect_monetisation_fields()
 RETURNS TRIGGER AS $$
 BEGIN
+    -- Allow writes from privileged RPC functions that set the bypass flag.
+    -- set_config with is_local=true makes this transaction-scoped and auto-cleared.
+    IF current_setting('app.bypass_monetisation_guard', true) = 'true' THEN
+        RETURN NEW;
+    END IF;
+
+    -- Block direct client writes to monetisation fields
     NEW.tier             := OLD.tier;
     NEW.trial_started_at := OLD.trial_started_at;
     NEW.trial_ends_at    := OLD.trial_ends_at;
@@ -267,7 +289,7 @@ $$ LANGUAGE plpgsql
 SET search_path = public, pg_temp;
 
 COMMENT ON FUNCTION protect_monetisation_fields() IS
-'BEFORE UPDATE trigger that prevents clients from modifying tier, trial_started_at, or trial_ends_at directly.';
+'BEFORE UPDATE trigger that prevents clients from modifying tier, trial_started_at, or trial_ends_at directly. Privileged RPC functions bypass this via the app.bypass_monetisation_guard session variable.';
 
 DROP TRIGGER IF EXISTS enforce_monetisation_immutability ON public.profiles;
 

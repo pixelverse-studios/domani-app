@@ -1298,13 +1298,7 @@ export type Database = {
       }
       start_user_trial: {
         Args: Record<string, never>
-        Returns: {
-          id: string
-          tier: Database['public']['Enums']['tier']
-          trial_started_at: string | null
-          trial_ends_at: string | null
-          [key: string]: unknown
-        }
+        Returns: Database['public']['Tables']['profiles']['Row']
       }
       sync_subscription_tier: {
         Args: { p_tier: Database['public']['Enums']['tier']; p_revenuecat_user_id?: string }
