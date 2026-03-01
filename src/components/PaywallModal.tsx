@@ -23,8 +23,8 @@ interface PaywallModalProps {
   offeringIdentifier: string
   isPurchasing: boolean
   isRestoring: boolean
-  onPurchase: (pkg: PurchasesPackage) => Promise<unknown>
-  onRestore: () => Promise<unknown>
+  onPurchase: (pkg: PurchasesPackage) => Promise<unknown | null>
+  onRestore: () => Promise<unknown | null>
 }
 
 const DISCOUNT_CONFIG: Record<string, { label: string; badge: string }> = {
@@ -89,7 +89,7 @@ export function PaywallModal({
       scaleAnim.setValue(0.9)
       fadeAnim.setValue(0)
     }
-  }, [visible, scaleAnim, fadeAnim])
+  }, [visible, scaleAnim, fadeAnim, successScaleAnim])
 
   const transitionToSuccess = () => {
     setShowSuccess(true)
@@ -174,10 +174,17 @@ export function PaywallModal({
               <View style={styles.successChecks}>
                 {VALUE_PROPS.map((prop) => (
                   <View key={prop} style={styles.valuePropRow}>
-                    <Check size={16} color={theme.colors.brand.primary} strokeWidth={3} />
+                    <View
+                      style={[
+                        styles.checkCircle,
+                        { backgroundColor: `${theme.colors.brand.primary}1A` },
+                      ]}
+                    >
+                      <Check size={14} color={theme.colors.brand.primary} strokeWidth={3} />
+                    </View>
                     <Text
-                      className="font-sans text-content-primary ml-2"
-                      style={{ fontSize: 14, lineHeight: 20 }}
+                      className="font-sans text-content-primary ml-3"
+                      style={{ fontSize: 15, lineHeight: 22 }}
                     >
                       {prop}
                     </Text>
@@ -188,6 +195,15 @@ export function PaywallModal({
               <GradientButton onPress={onClose} fullWidth>
                 Start Planning
               </GradientButton>
+
+              {/* Close link for users who don't want to navigate */}
+              <TouchableOpacity
+                onPress={onClose}
+                activeOpacity={0.7}
+                style={{ marginTop: 12 }}
+              >
+                <Text className="font-sans text-sm text-content-tertiary">Dismiss</Text>
+              </TouchableOpacity>
             </Animated.View>
           ) : (
             /* ── Purchase View ── */
