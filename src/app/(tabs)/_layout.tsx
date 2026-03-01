@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useAuth } from '~/hooks/useAuth'
+import { useSubscription } from '~/hooks/useSubscription'
 import { WelcomeOverlay, TutorialSpotlight, useTutorialLifecycle } from '~/components/tutorial'
 import { useTutorialStore } from '~/stores/tutorialStore'
 
@@ -15,6 +16,9 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets()
   const theme = useAppTheme()
   const { user, loading } = useAuth()
+  const { status: subscriptionStatus, isLoading: subscriptionLoading } = useSubscription()
+  const isLocked = subscriptionStatus === 'none' && !subscriptionLoading
+  const hideLockedTabs = isLocked || subscriptionLoading
   const initializeTutorialState = useTutorialStore((state) => state.initializeTutorialState)
 
   // Initialize tutorial state when user is authenticated
@@ -86,6 +90,7 @@ export default function TabLayout() {
           name="planning"
           options={{
             title: 'Planning',
+            href: hideLockedTabs ? null : undefined,
             tabBarIcon: ({ color, size }) => <Calendar size={size} color={color} />,
           }}
         />
@@ -93,6 +98,7 @@ export default function TabLayout() {
           name="feedback"
           options={{
             title: 'Feedback',
+            href: hideLockedTabs ? null : undefined,
             tabBarIcon: ({ color, size }) => <MessageCircle size={size} color={color} />,
           }}
         />
@@ -100,6 +106,7 @@ export default function TabLayout() {
           name="analytics"
           options={{
             title: 'Progress',
+            href: hideLockedTabs ? null : undefined,
             tabBarIcon: ({ color, size }) => <BarChart3 size={size} color={color} />,
           }}
         />
