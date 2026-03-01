@@ -18,6 +18,7 @@ export default function TabLayout() {
   const { user, loading } = useAuth()
   const { status: subscriptionStatus, isLoading: subscriptionLoading } = useSubscription()
   const isLocked = subscriptionStatus === 'none' && !subscriptionLoading
+  const hideLockedTabs = isLocked || subscriptionLoading
   const initializeTutorialState = useTutorialStore((state) => state.initializeTutorialState)
 
   // Initialize tutorial state when user is authenticated
@@ -89,7 +90,7 @@ export default function TabLayout() {
           name="planning"
           options={{
             title: 'Planning',
-            href: isLocked ? null : undefined,
+            href: hideLockedTabs ? null : undefined,
             tabBarIcon: ({ color, size }) => <Calendar size={size} color={color} />,
           }}
         />
@@ -97,7 +98,7 @@ export default function TabLayout() {
           name="feedback"
           options={{
             title: 'Feedback',
-            href: isLocked ? null : undefined,
+            href: hideLockedTabs ? null : undefined,
             tabBarIcon: ({ color, size }) => <MessageCircle size={size} color={color} />,
           }}
         />
@@ -105,7 +106,7 @@ export default function TabLayout() {
           name="analytics"
           options={{
             title: 'Progress',
-            href: isLocked ? null : undefined,
+            href: hideLockedTabs ? null : undefined,
             tabBarIcon: ({ color, size }) => <BarChart3 size={size} color={color} />,
           }}
         />
