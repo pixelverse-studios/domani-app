@@ -150,18 +150,21 @@ export function useSubscription() {
   }, [subscriptionState.status, trialExpiresAt, queryClient, user?.id])
 
   // Re-check subscription state when app returns from background (handles trial
-  // expiry while app was backgrounded or device was asleep). Only fires on
-  // background → active to avoid unnecessary refetches on lock/unlock.
+  // expiry while app was backgrounded or device was asleep). Uses a wasBackground
+  // flag because iOS inserts an `inactive` hop (background → inactive → active),
+  // so a direct previousState === 'background' check would never match.
   useEffect(() => {
     if (!user?.id) return
 
-    let previousState = AppState.currentState
+    let wasBackground = AppState.currentState === 'background'
 
     const subscription = AppState.addEventListener('change', (nextState) => {
-      if (previousState === 'background' && nextState === 'active') {
+      if (nextState === 'background') {
+        wasBackground = true
+      } else if (nextState === 'active' && wasBackground) {
+        wasBackground = false
         queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
       }
-      previousState = nextState
     })
 
     return () => subscription.remove()
