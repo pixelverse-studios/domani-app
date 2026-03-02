@@ -278,6 +278,7 @@ function RootLayoutContent() {
         otherTasks={eveningAppOpenOtherTasks}
         title="Today's Unfinished Tasks"
         subtitle="Before you plan tomorrow, wrap up today"
+        mitToggleLabel="Make this tomorrow's top priority"
         onCarryForward={handleEveningAppOpenCarryForward}
         onStartFresh={handleEveningAppOpenStartFresh}
       />

@@ -16,6 +16,8 @@ interface RolloverModalProps {
   title?: string
   /** Modal subtitle — defaults to "A fresh start - choose what matters today" */
   subtitle?: string
+  /** Label for the MIT carry-forward toggle — defaults to "Make this today's top priority" */
+  mitToggleLabel?: string
   onCarryForward: (params: {
     selectedTaskIds: string[]
     makeMitToday: boolean
@@ -30,6 +32,7 @@ export function RolloverModal({
   otherTasks,
   title = "Yesterday's Unfinished Tasks",
   subtitle = 'A fresh start - choose what matters today',
+  mitToggleLabel = "Make this today's top priority",
   onCarryForward,
   onStartFresh,
 }: RolloverModalProps) {
@@ -72,6 +75,8 @@ export function RolloverModal({
 
   const selectedCount = selectedIds.size
   const isMitSelected = mitTask ? selectedIds.has(mitTask.id) : false
+  const anyTaskHasReminder =
+    mitTask?.reminder_at != null || otherTasks.some((t) => t.reminder_at != null)
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onStartFresh}>
@@ -161,7 +166,7 @@ export function RolloverModal({
                       {makeMitToday && <Check size={14} color="#ffffff" strokeWidth={3} />}
                     </View>
                     <Text className="font-sans text-sm text-content-primary ml-3">
-                      Make this today&apos;s MIT
+                      {mitToggleLabel}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -192,73 +197,77 @@ export function RolloverModal({
               </View>
             )}
 
-            {/* Divider */}
-            <View style={[styles.divider, { backgroundColor: theme.colors.border.divider }]} />
+            {anyTaskHasReminder && (
+              <>
+                {/* Divider */}
+                <View style={[styles.divider, { backgroundColor: theme.colors.border.divider }]} />
 
-            {/* Reminder Times Option */}
-            <View style={styles.section}>
-              <Text className="font-sans-medium text-sm text-content-primary mb-3">
-                Reminder Times
-              </Text>
+                {/* Reminder Times Option */}
+                <View style={styles.section}>
+                  <Text className="font-sans-medium text-sm text-content-primary mb-3">
+                    Reminder Times
+                  </Text>
 
-              <TouchableOpacity
-                onPress={() => setKeepReminderTimes(true)}
-                style={styles.radioOption}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.radioButton,
-                    {
-                      borderColor: keepReminderTimes
-                        ? theme.colors.brand.primary
-                        : theme.colors.border.primary,
-                    },
-                  ]}
-                >
-                  {keepReminderTimes && (
+                  <TouchableOpacity
+                    onPress={() => setKeepReminderTimes(true)}
+                    style={styles.radioOption}
+                    activeOpacity={0.7}
+                  >
                     <View
                       style={[
-                        styles.radioButtonInner,
-                        { backgroundColor: theme.colors.brand.primary },
+                        styles.radioButton,
+                        {
+                          borderColor: keepReminderTimes
+                            ? theme.colors.brand.primary
+                            : theme.colors.border.primary,
+                        },
                       ]}
-                    />
-                  )}
-                </View>
-                <Text className="font-sans text-sm text-content-primary ml-3">
-                  Keep original times
-                </Text>
-              </TouchableOpacity>
+                    >
+                      {keepReminderTimes && (
+                        <View
+                          style={[
+                            styles.radioButtonInner,
+                            { backgroundColor: theme.colors.brand.primary },
+                          ]}
+                        />
+                      )}
+                    </View>
+                    <Text className="font-sans text-sm text-content-primary ml-3">
+                      Keep original times
+                    </Text>
+                  </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => setKeepReminderTimes(false)}
-                style={styles.radioOption}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.radioButton,
-                    {
-                      borderColor: !keepReminderTimes
-                        ? theme.colors.brand.primary
-                        : theme.colors.border.primary,
-                    },
-                  ]}
-                >
-                  {!keepReminderTimes && (
+                  <TouchableOpacity
+                    onPress={() => setKeepReminderTimes(false)}
+                    style={styles.radioOption}
+                    activeOpacity={0.7}
+                  >
                     <View
                       style={[
-                        styles.radioButtonInner,
-                        { backgroundColor: theme.colors.brand.primary },
+                        styles.radioButton,
+                        {
+                          borderColor: !keepReminderTimes
+                            ? theme.colors.brand.primary
+                            : theme.colors.border.primary,
+                        },
                       ]}
-                    />
-                  )}
+                    >
+                      {!keepReminderTimes && (
+                        <View
+                          style={[
+                            styles.radioButtonInner,
+                            { backgroundColor: theme.colors.brand.primary },
+                          ]}
+                        />
+                      )}
+                    </View>
+                    <Text className="font-sans text-sm text-content-primary ml-3">
+                      Set new reminder times
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-                <Text className="font-sans text-sm text-content-primary ml-3">
-                  Set new reminder times
-                </Text>
-              </TouchableOpacity>
-            </View>
+              </>
+            )}
           </ScrollView>
 
           {/* Actions */}
