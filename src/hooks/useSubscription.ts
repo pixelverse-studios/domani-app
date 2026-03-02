@@ -122,28 +122,46 @@ export function useSubscription() {
   // Compute subscription state
   const subscriptionState: SubscriptionState = computeSubscriptionState(profile, customerInfo)
 
+  // Stable primitive for the effect dep array — avoids timer churn from Date object identity.
+  const trialExpiresAt = subscriptionState.trialExpirationDate?.getTime() ?? null
+
   // Auto-lock when trial expires mid-session: schedule a profile refetch at the
   // exact expiration time so computeSubscriptionState re-evaluates with a fresh Date.
   useEffect(() => {
-    if (subscriptionState.status !== 'trialing' || !subscriptionState.trialExpirationDate) return
+    if (subscriptionState.status !== 'trialing' || trialExpiresAt === null) return
 
-    const msUntilExpiry = subscriptionState.trialExpirationDate.getTime() - Date.now()
-    if (msUntilExpiry <= 0) return // Already expired — no timer needed
+    const msUntilExpiry = trialExpiresAt - Date.now()
 
+    // Already expired but profile still shows trialing (e.g. cold launch after expiry) —
+    // force an immediate refresh so the locked state renders without waiting for AppState.
+    if (msUntilExpiry <= 0) {
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+      return
+    }
+
+    // setTimeout overflows for delays > ~24.85 days (2^31-1 ms); clamp to avoid
+    // silent immediate fire. The AppState listener covers the remaining window.
+    const MAX_SAFE_TIMEOUT_MS = 2_147_483_647
     const timer = setTimeout(() => {
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
-    }, msUntilExpiry)
+    }, Math.min(msUntilExpiry, MAX_SAFE_TIMEOUT_MS))
 
     return () => clearTimeout(timer)
-  }, [subscriptionState.status, subscriptionState.trialExpirationDate, queryClient, user?.id])
+  }, [subscriptionState.status, trialExpiresAt, queryClient, user?.id])
 
-  // Re-check subscription state when app returns to foreground (handles trial
-  // expiry while app was backgrounded or device was asleep).
+  // Re-check subscription state when app returns from background (handles trial
+  // expiry while app was backgrounded or device was asleep). Only fires on
+  // background → active to avoid unnecessary refetches on lock/unlock.
   useEffect(() => {
+    if (!user?.id) return
+
+    let previousState = AppState.currentState
+
     const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active' && user?.id) {
+      if (previousState === 'background' && nextState === 'active') {
         queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
       }
+      previousState = nextState
     })
 
     return () => subscription.remove()
