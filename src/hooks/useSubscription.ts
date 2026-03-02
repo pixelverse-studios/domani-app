@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { AppState } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Purchases, { CustomerInfo, PurchasesPackage } from 'react-native-purchases'
 import { supabase } from '~/lib/supabase'
@@ -120,6 +121,54 @@ export function useSubscription() {
 
   // Compute subscription state
   const subscriptionState: SubscriptionState = computeSubscriptionState(profile, customerInfo)
+
+  // Stable primitive for the effect dep array — avoids timer churn from Date object identity.
+  const trialExpiresAt = subscriptionState.trialExpirationDate?.getTime() ?? null
+
+  // Auto-lock when trial expires mid-session: schedule a profile refetch at the
+  // exact expiration time so computeSubscriptionState re-evaluates with a fresh Date.
+  useEffect(() => {
+    if (subscriptionState.status !== 'trialing' || trialExpiresAt === null) return
+
+    const msUntilExpiry = trialExpiresAt - Date.now()
+
+    // Already expired but profile still shows trialing (e.g. cold launch after expiry) —
+    // force an immediate refresh so the locked state renders without waiting for AppState.
+    if (msUntilExpiry <= 0) {
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+      return
+    }
+
+    // setTimeout overflows for delays > ~24.85 days (2^31-1 ms); clamp to avoid
+    // silent immediate fire. The AppState listener covers the remaining window.
+    const MAX_SAFE_TIMEOUT_MS = 2_147_483_647
+    const timer = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+    }, Math.min(msUntilExpiry, MAX_SAFE_TIMEOUT_MS))
+
+    return () => clearTimeout(timer)
+  }, [subscriptionState.status, trialExpiresAt, queryClient, user?.id])
+
+  // Re-check subscription state when app returns from background (handles trial
+  // expiry while app was backgrounded or device was asleep). Uses a wasBackground
+  // flag because iOS inserts an `inactive` hop (background → inactive → active),
+  // so a direct previousState === 'background' check would never match.
+  useEffect(() => {
+    if (!user?.id) return
+
+    let wasBackground = AppState.currentState === 'background'
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'background') {
+        wasBackground = true
+      } else if (nextState === 'active' && wasBackground) {
+        wasBackground = false
+        queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
+      }
+    })
+
+    return () => subscription.remove()
+  }, [queryClient, user?.id])
 
   // Start free trial via server-side RPC (validates eligibility)
   const startTrialMutation = useMutation({
