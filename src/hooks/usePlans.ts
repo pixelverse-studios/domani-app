@@ -9,9 +9,7 @@ import type { TaskWithCategory } from '~/types'
 // 5 minutes - plans change with user action but don't need real-time updates
 const PLAN_STALE_TIME = 1000 * 60 * 5
 
-export function usePlanForDate(date: Date) {
-  const dateStr = format(date, 'yyyy-MM-dd')
-
+export function usePlanForDate(dateStr: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['plan', dateStr],
     queryFn: async () => {
@@ -44,12 +42,13 @@ export function usePlanForDate(date: Date) {
       return newPlan
     },
     staleTime: PLAN_STALE_TIME,
+    enabled: options?.enabled ?? true,
   })
 }
 
-export function useTomorrowPlan() {
-  const tomorrow = addDays(new Date(), 1)
-  return usePlanForDate(tomorrow)
+export function useTomorrowPlan(options?: { enabled?: boolean }) {
+  const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd')
+  return usePlanForDate(tomorrow, options)
 }
 
 export function useTodayPlan() {

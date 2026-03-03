@@ -76,8 +76,7 @@ export function CelebrationModal({ visible, taskCount, onDismiss }: CelebrationM
             className="font-sans text-content-secondary text-center mt-4 px-4"
             style={{ fontSize: 16, lineHeight: 24 }}
           >
-            You completed everything you planned for yesterday. That&apos;s the power of
-            intentional planning.
+            You completed everything on your list. That&apos;s the power of intentional planning.
           </Text>
 
           {/* Task count indicator */}
@@ -89,7 +88,7 @@ export function CelebrationModal({ visible, taskCount, onDismiss }: CelebrationM
 
           {/* Action Button */}
           <Button onPress={onDismiss} variant="primary" size="lg" className="w-full mt-6">
-            Start Today
+            Keep it up
           </Button>
         </Animated.View>
       </View>

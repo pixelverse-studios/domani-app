@@ -284,7 +284,7 @@ export function ReminderSection({
 
           {isPastReminder && (
             <Text className="text-xs text-amber-500 mt-3">
-              This time has passed - reminder will be skipped
+              This time has passed — no notification will be sent
             </Text>
           )}
         </View>

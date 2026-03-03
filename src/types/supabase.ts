@@ -520,6 +520,7 @@ export type Database = {
           created_at: string
           evening_notes: string | null
           id: string
+          locked_at: string | null
           morning_notes: string | null
           planned_for: string
           status: Database['public']['Enums']['plan_status']
@@ -532,6 +533,7 @@ export type Database = {
           created_at?: string
           evening_notes?: string | null
           id?: string
+          locked_at?: string | null
           morning_notes?: string | null
           planned_for: string
           status?: Database['public']['Enums']['plan_status']
@@ -544,6 +546,7 @@ export type Database = {
           created_at?: string
           evening_notes?: string | null
           id?: string
+          locked_at?: string | null
           morning_notes?: string | null
           planned_for?: string
           status?: Database['public']['Enums']['plan_status']
@@ -586,6 +589,7 @@ export type Database = {
           full_name: string | null
           id: string
           notification_onboarding_completed: boolean
+          planning_reminder_enabled: boolean
           planning_reminder_time: string | null
           push_token_invalid_at: string | null
           push_token_last_verified_at: string | null
@@ -593,8 +597,6 @@ export type Database = {
           revenuecat_user_id: string | null
           signup_cohort: Database['public']['Enums']['signup_cohort'] | null
           signup_method: string | null
-          subscription_expires_at: string | null
-          subscription_status: string | null
           tier: Database['public']['Enums']['tier']
           timezone: string | null
           trial_ends_at: string | null
@@ -613,6 +615,7 @@ export type Database = {
           full_name?: string | null
           id: string
           notification_onboarding_completed?: boolean
+          planning_reminder_enabled?: boolean
           planning_reminder_time?: string | null
           push_token_invalid_at?: string | null
           push_token_last_verified_at?: string | null
@@ -620,8 +623,6 @@ export type Database = {
           revenuecat_user_id?: string | null
           signup_cohort?: Database['public']['Enums']['signup_cohort'] | null
           signup_method?: string | null
-          subscription_expires_at?: string | null
-          subscription_status?: string | null
           tier?: Database['public']['Enums']['tier']
           timezone?: string | null
           trial_ends_at?: string | null
@@ -640,6 +641,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           notification_onboarding_completed?: boolean
+          planning_reminder_enabled?: boolean
           planning_reminder_time?: string | null
           push_token_invalid_at?: string | null
           push_token_last_verified_at?: string | null
@@ -647,8 +649,6 @@ export type Database = {
           revenuecat_user_id?: string | null
           signup_cohort?: Database['public']['Enums']['signup_cohort'] | null
           signup_method?: string | null
-          subscription_expires_at?: string | null
-          subscription_status?: string | null
           tier?: Database['public']['Enums']['tier']
           timezone?: string | null
           trial_ends_at?: string | null
@@ -832,6 +832,7 @@ export type Database = {
           position: number
           priority: Database['public']['Enums']['task_priority'] | null
           reminder_at: string | null
+          rolled_over_at: string | null
           system_category_id: string | null
           title: string
           updated_at: string
@@ -852,6 +853,7 @@ export type Database = {
           position?: number
           priority?: Database['public']['Enums']['task_priority'] | null
           reminder_at?: string | null
+          rolled_over_at?: string | null
           system_category_id?: string | null
           title: string
           updated_at?: string
@@ -872,6 +874,7 @@ export type Database = {
           position?: number
           priority?: Database['public']['Enums']['task_priority'] | null
           reminder_at?: string | null
+          rolled_over_at?: string | null
           system_category_id?: string | null
           title?: string
           updated_at?: string
@@ -1203,7 +1206,6 @@ export type Database = {
           full_name: string | null
           id: string | null
           planning_reminder_time: string | null
-          subscription_status: string | null
           tier: Database['public']['Enums']['tier'] | null
           timezone: string | null
           total_plans: number | null
@@ -1315,7 +1317,6 @@ export type Database = {
         | 'read'
       plan_status: 'draft' | 'locked' | 'active' | 'completed'
       signup_cohort: 'friends_family' | 'early_adopter' | 'general'
-      subscription_status_enum: 'none' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired'
       task_priority: 'top' | 'high' | 'medium' | 'low'
       tier: 'none' | 'trialing' | 'lifetime'
     }
@@ -1463,7 +1464,6 @@ export const Constants = {
       ],
       plan_status: ['draft', 'locked', 'active', 'completed'],
       signup_cohort: ['friends_family', 'early_adopter', 'general'],
-      subscription_status_enum: ['none', 'trialing', 'active', 'past_due', 'canceled', 'expired'],
       task_priority: ['top', 'high', 'medium', 'low'],
       tier: ['none', 'trialing', 'lifetime'],
     },

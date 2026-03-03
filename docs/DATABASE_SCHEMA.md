@@ -25,25 +25,23 @@ Complete reference for the Supabase PostgreSQL database.
 
 User profiles linked to Supabase Auth. Created automatically on signup via trigger.
 
-| Column                  | Type        | Nullable | Default | Description                               |
-| ----------------------- | ----------- | -------- | ------- | ----------------------------------------- |
-| id                      | uuid        | NO       | -       | Primary key, matches auth.users.id        |
-| email                   | text        | NO       | -       | User's email                              |
-| full_name               | text        | YES      | -       | Display name                              |
-| avatar_url              | text        | YES      | -       | Profile picture URL                       |
-| tier                    | tier (enum) | NO       | 'free'  | Subscription tier                         |
-| revenuecat_user_id      | text        | YES      | -       | RevenueCat customer ID (unique)           |
-| subscription_status     | text        | YES      | -       | Current subscription status               |
-| subscription_expires_at | timestamptz | YES      | -       | When subscription expires                 |
-| timezone                | text        | YES      | 'UTC'   | User's timezone                           |
-| planning_reminder_time  | time        | YES      | -       | Evening planning notification             |
-| reminder_shortcuts      | jsonb       | YES      | (\*)    | User-customizable reminder time shortcuts |
-| trial_started_at        | timestamptz | YES      | -       | When trial began                          |
-| trial_ends_at           | timestamptz | YES      | -       | When trial expires                        |
-| created_at              | timestamptz | NO       | now()   | -                                         |
-| updated_at              | timestamptz | NO       | now()   | -                                         |
+| Column                 | Type        | Nullable | Default | Description                               |
+| ---------------------- | ----------- | -------- | ------- | ----------------------------------------- |
+| id                     | uuid        | NO       | -       | Primary key, matches auth.users.id        |
+| email                  | text        | NO       | -       | User's email                              |
+| full_name              | text        | YES      | -       | Display name                              |
+| avatar_url             | text        | YES      | -       | Profile picture URL                       |
+| tier                   | tier (enum) | NO       | 'none'  | Subscription tier: none/trialing/lifetime |
+| revenuecat_user_id     | text        | YES      | -       | RevenueCat customer ID (unique)           |
+| timezone               | text        | YES      | 'UTC'   | User's timezone                           |
+| planning_reminder_time | time        | YES      | -       | Evening planning notification             |
+| reminder_shortcuts     | jsonb       | YES      | (\*)    | User-customizable reminder time shortcuts |
+| trial_started_at       | timestamptz | YES      | -       | When trial began                          |
+| trial_ends_at          | timestamptz | YES      | -       | When trial expires                        |
+| created_at             | timestamptz | NO       | now()   | -                                         |
+| updated_at             | timestamptz | NO       | now()   | -                                         |
 
-**Indexes:** `idx_profiles_tier`, `idx_profiles_subscription_status`, `idx_profiles_trial_ends_at`, `idx_profiles_revenuecat`
+**Indexes:** `idx_profiles_tier`, `idx_profiles_trial_ends_at`, `idx_profiles_revenuecat`
 
 ---
 
@@ -359,14 +357,6 @@ Task priority levels.
 
 ```
 'high' | 'medium' | 'low'
-```
-
-### subscription_status_enum
-
-Subscription states (for tracking).
-
-```
-'none' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired'
 ```
 
 ### admin_action

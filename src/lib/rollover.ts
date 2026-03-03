@@ -149,33 +149,97 @@ export async function clearCelebrationState(): Promise<void> {
 }
 
 /**
- * AsyncStorage key for tracking evening rollover prompt (Flow 2)
- * Kept separate from morning rollover to allow both flows to run on the same day.
+ * AsyncStorage key for tracking the evening rollover prompt.
  */
 const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
 
 /**
  * Check if the user was already shown the evening rollover prompt today
  *
+ * Supports both legacy date-only format (YYYY-MM-DD) and new ISO timestamp format.
  * Intentionally lets AsyncStorage errors propagate so the React Query caller
  * can apply its default of `true` (fail-closed: suppress the prompt on error).
  */
 export async function wasEveningPromptedToday(): Promise<boolean> {
-  const lastPrompted = await AsyncStorage.getItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
+  const storedValue = await AsyncStorage.getItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
+  if (!storedValue) return false
+
   const today = format(new Date(), 'yyyy-MM-dd')
-  return lastPrompted === today
+
+  // Handle both old date-only format (YYYY-MM-DD) and new ISO timestamp format
+  if (storedValue.length === 10) {
+    // Old format: date string like "2026-03-03"
+    return storedValue === today
+  }
+
+  // New format: ISO timestamp — parse to local date for comparison
+  // (toISOString() stores UTC which can differ from local date near midnight)
+  const storedDate = format(new Date(storedValue), 'yyyy-MM-dd')
+  return storedDate === today
 }
 
 /**
- * Mark the user as having been shown the evening rollover prompt today
+ * Mark the user as having been shown the evening rollover prompt.
+ * Stores a full ISO timestamp for cycle-aware comparisons.
  */
 export async function markEveningPromptedToday(): Promise<void> {
   try {
-    const today = format(new Date(), 'yyyy-MM-dd')
-    await AsyncStorage.setItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY, today)
+    await AsyncStorage.setItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY, new Date().toISOString())
   } catch (error) {
     console.error('Error marking evening rollover prompt:', error)
   }
+}
+
+/**
+ * Check if the user was prompted within the current 24-hour rollover cycle.
+ *
+ * A cycle starts at the user's planning_reminder_time and runs until the next
+ * occurrence of that time (e.g., 7 PM to 6:59 PM the next day).
+ *
+ * Supports both legacy date-only format (YYYY-MM-DD) and new ISO timestamp format.
+ * Intentionally lets errors propagate (same pattern as wasEveningPromptedToday).
+ *
+ * @param planningReminderTime - Postgres time format "HH:mm:ss"
+ * @returns Promise<boolean> - true if prompted in current cycle, false otherwise
+ */
+export async function wasPromptedInCurrentCycle(
+  planningReminderTime: string,
+): Promise<boolean> {
+  const storedValue = await AsyncStorage.getItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
+  if (!storedValue) return false
+
+  // Parse stored value — handle both old YYYY-MM-DD and new ISO timestamp
+  let lastPrompted: Date
+  if (storedValue.length === 10) {
+    // Old format: treat as start of that day (midnight)
+    lastPrompted = new Date(`${storedValue}T00:00:00`)
+  } else {
+    lastPrompted = new Date(storedValue)
+  }
+
+  // Calculate the current cycle start
+  const parts = planningReminderTime.split(':').map(Number)
+  if (parts.length < 2 || parts.some(isNaN)) return false // malformed time — fail-open
+  const [hours, minutes, seconds] = [parts[0] ?? 0, parts[1] ?? 0, parts[2] ?? 0]
+
+  const now = new Date()
+
+  // Build "today at reminder time"
+  const todayAtReminder = new Date(now)
+  todayAtReminder.setHours(hours, minutes, seconds, 0)
+
+  let cycleStart: Date
+  if (now >= todayAtReminder) {
+    // Current cycle started today at reminder time
+    cycleStart = todayAtReminder
+  } else {
+    // Current cycle started yesterday at reminder time
+    const yesterdayAtReminder = new Date(todayAtReminder)
+    yesterdayAtReminder.setDate(yesterdayAtReminder.getDate() - 1)
+    cycleStart = yesterdayAtReminder
+  }
+
+  return lastPrompted >= cycleStart
 }
 
 /**
@@ -210,9 +274,7 @@ export interface CarryForwardInput {
  *   keepReminderTimes: true,
  * })
  */
-export async function carryForwardTasks(
-  input: CarryForwardInput
-): Promise<TaskWithCategory[]> {
+export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskWithCategory[]> {
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -241,7 +303,7 @@ export async function carryForwardTasks(
       *,
       system_category:system_categories(*),
       user_category:user_categories(*)
-    `
+    `,
     )
     .in('id', input.selectedTaskIds)
     .eq('user_id', user.id)
@@ -273,7 +335,7 @@ export async function carryForwardTasks(
         // Create new reminder for today at the same time
         const nextOccurrence = setMinutes(
           setHours(now, originalReminder.getHours()),
-          originalReminder.getMinutes()
+          originalReminder.getMinutes(),
         )
 
         // Only use if future (don't schedule reminders in the past)
@@ -303,17 +365,14 @@ export async function carryForwardTasks(
           *,
           system_category:system_categories(*),
           user_category:user_categories(*)
-        `
+        `,
         )
         .single()
 
       // FIX 3: IMPORTANT - Check for FREE_TIER_LIMIT error
       if (createError) {
         // Check if this is a free tier limit error
-        if (
-          (createError as any).code === '23514' ||
-          createError.message.includes('task limit')
-        ) {
+        if ((createError as any).code === '23514' || createError.message.includes('task limit')) {
           throw new Error('FREE_TIER_LIMIT')
         }
         throw createError
@@ -348,6 +407,21 @@ export async function carryForwardTasks(
       }
     }
 
+    // Mark source tasks as rolled over (soft archive — preserves data for analytics)
+    const { error: markError } = await supabase
+      .from('tasks')
+      .update({ rolled_over_at: new Date().toISOString() })
+      .in('id', input.selectedTaskIds)
+      .eq('user_id', user.id)
+
+    if (markError) {
+      // Non-fatal: new tasks already created, log and continue
+      console.error('[carryForwardTasks] Failed to mark tasks as rolled over:', markError)
+      addBreadcrumb('Failed to mark tasks rolled_over_at', 'rollover', {
+        error: markError.message,
+      })
+    }
+
     // Log success breadcrumb for Sentry
     addBreadcrumb('Tasks carried forward', 'rollover', {
       taskCount: createdTasks.length,
@@ -375,7 +449,7 @@ export async function carryForwardTasks(
       } catch (cancelError) {
         console.error(
           `[carryForwardTasks] Failed to cancel notification ${notificationId}:`,
-          cancelError
+          cancelError,
         )
       }
     }

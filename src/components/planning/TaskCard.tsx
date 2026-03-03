@@ -18,7 +18,7 @@ import {
   Bell,
   Crown,
 } from 'lucide-react-native'
-import { format, parseISO, isFuture } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
@@ -85,10 +85,9 @@ export function TaskCard({
 
     try {
       const reminderDate = parseISO(task.reminder_at)
-      if (!isFuture(reminderDate)) return null
-
       return {
         time: formatReminderTime(reminderDate),
+        isPast: reminderDate <= new Date(),
       }
     } catch {
       return null
@@ -198,10 +197,22 @@ export function TaskCard({
               {/* Reminder Indicator */}
               {reminderInfo && (
                 <View style={styles.reminderContainer}>
-                  <Bell size={12} color={theme.colors.brand.primary} />
+                  <Bell
+                    size={12}
+                    color={
+                      reminderInfo.isPast
+                        ? theme.colors.text.tertiary
+                        : theme.colors.brand.primary
+                    }
+                  />
                   <Text
                     className="font-sans text-xs ml-1"
-                    style={{ color: theme.colors.brand.primary }}
+                    style={{
+                      color: reminderInfo.isPast
+                        ? theme.colors.text.tertiary
+                        : theme.colors.brand.primary,
+                      textDecorationLine: reminderInfo.isPast ? 'line-through' : 'none',
+                    }}
                     numberOfLines={1}
                   >
                     {reminderInfo.time}

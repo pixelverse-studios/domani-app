@@ -167,7 +167,7 @@ export function useNotificationObserver() {
 
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('planning_reminder_time')
+          .select('planning_reminder_time, planning_reminder_enabled')
           .eq('id', user.id)
           .single()
 
@@ -214,9 +214,14 @@ export function useNotificationObserver() {
           console.warn('[Notifications] WARNING: Some notifications could not be cancelled!')
         }
 
-        // Only schedule new notification if user has a reminder time configured
-        if (!profile?.planning_reminder_time) {
-          console.log('[Notifications] No planning_reminder_time set, cleanup complete')
+        // Only schedule new notification if user has a reminder time configured and
+        // has opted in to planning reminder notifications
+        if (!profile?.planning_reminder_time || !profile?.planning_reminder_enabled) {
+          console.log(
+            '[Notifications] Skipping schedule: time=%s, enabled=%s',
+            profile?.planning_reminder_time || 'NOT SET',
+            profile?.planning_reminder_enabled ? 'true' : 'false',
+          )
           store.setHasValidatedIds(true)
           return
         }
@@ -393,27 +398,40 @@ export function useNotifications() {
 
     // Cancel ALL reminders before scheduling new one to prevent duplicates
     // This is more bulletproof than tracking individual IDs which can become stale
-    await NotificationService.cancelAllReminders()
+    const cancelOk = await NotificationService.cancelAllReminders()
+    if (!cancelOk) {
+      console.warn('[Notifications] cancelAllReminders returned false — orphaned notifications may remain')
+    }
 
     // Verify cancel worked
     const afterCancel = await NotificationService.getScheduledNotifications()
     console.log(`[Notifications] After cancel: ${afterCancel.length} notifications`)
 
-    const identifier = await NotificationService.schedulePlanningReminder(hour, minute)
-    store.setPlanningReminderId(identifier)
+    try {
+      const identifier = await NotificationService.schedulePlanningReminder(hour, minute)
+      store.setPlanningReminderId(identifier)
 
-    // Verify schedule worked
-    const afterSchedule = await NotificationService.getScheduledNotifications()
-    console.log(
-      `[Notifications] After schedule: ${afterSchedule.length} notifications, ID: ${identifier}`,
-    )
+      // Verify schedule worked
+      const afterSchedule = await NotificationService.getScheduledNotifications()
+      console.log(
+        `[Notifications] After schedule: ${afterSchedule.length} notifications, ID: ${identifier}`,
+      )
 
-    return identifier
+      return identifier
+    } catch (error) {
+      // Clear store ID since we know no notification is scheduled
+      store.setPlanningReminderId(null)
+      console.error('[Notifications] Failed to schedule planning reminder:', error)
+      throw error
+    }
   }
 
   const cancelPlanningReminder = async () => {
     // Cancel all to ensure no orphaned notifications
-    await NotificationService.cancelAllReminders()
+    const success = await NotificationService.cancelAllReminders()
+    if (!success) {
+      console.warn('[Notifications] cancelAllReminders returned false — some notifications may remain')
+    }
     store.setPlanningReminderId(null)
   }
 
