@@ -532,6 +532,7 @@ export default function PlanningScreen() {
         otherTasks={eveningOtherTasks}
         title="Today's Unfinished Tasks"
         subtitle="Before you plan tomorrow, wrap up today"
+        mitToggleLabel="Make this tomorrow's top priority"
         onCarryForward={handleEveningCarryForward}
         onStartFresh={handleEveningStartFresh}
       />

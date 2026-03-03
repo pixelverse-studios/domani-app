@@ -16,11 +16,13 @@ interface RolloverModalProps {
   title?: string
   /** Modal subtitle — defaults to "A fresh start - choose what matters today" */
   subtitle?: string
+  /** Label for the MIT carry-forward toggle — defaults to "Make this today's top priority" */
+  mitToggleLabel?: string
   onCarryForward: (params: {
     selectedTaskIds: string[]
     makeMitToday: boolean
     keepReminderTimes: boolean
-  }) => void
+  }) => void | Promise<void>
   onStartFresh: () => void
 }
 
@@ -30,6 +32,7 @@ export function RolloverModal({
   otherTasks,
   title = "Yesterday's Unfinished Tasks",
   subtitle = 'A fresh start - choose what matters today',
+  mitToggleLabel = "Make this today's top priority",
   onCarryForward,
   onStartFresh,
 }: RolloverModalProps) {
@@ -38,6 +41,7 @@ export function RolloverModal({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [makeMitToday, setMakeMitToday] = useState(false)
   const [keepReminderTimes, setKeepReminderTimes] = useState(true)
+  const [isCarryingForward, setIsCarryingForward] = useState(false)
 
   // Reset state when modal closes
   useEffect(() => {
@@ -45,6 +49,7 @@ export function RolloverModal({
       setSelectedIds(new Set())
       setMakeMitToday(false)
       setKeepReminderTimes(true)
+      setIsCarryingForward(false)
     }
   }, [visible])
 
@@ -62,16 +67,23 @@ export function RolloverModal({
     setSelectedIds(newSelected)
   }
 
-  const handleCarryForward = () => {
-    onCarryForward({
-      selectedTaskIds: Array.from(selectedIds),
-      makeMitToday,
-      keepReminderTimes,
-    })
+  const handleCarryForward = async () => {
+    setIsCarryingForward(true)
+    try {
+      await onCarryForward({
+        selectedTaskIds: Array.from(selectedIds),
+        makeMitToday,
+        keepReminderTimes,
+      })
+    } finally {
+      setIsCarryingForward(false)
+    }
   }
 
   const selectedCount = selectedIds.size
   const isMitSelected = mitTask ? selectedIds.has(mitTask.id) : false
+  const anyTaskHasReminder =
+    mitTask?.reminder_at != null || otherTasks.some((t) => t.reminder_at != null)
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onStartFresh}>
@@ -161,7 +173,7 @@ export function RolloverModal({
                       {makeMitToday && <Check size={14} color="#ffffff" strokeWidth={3} />}
                     </View>
                     <Text className="font-sans text-sm text-content-primary ml-3">
-                      Make this today&apos;s MIT
+                      {mitToggleLabel}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -192,73 +204,77 @@ export function RolloverModal({
               </View>
             )}
 
-            {/* Divider */}
-            <View style={[styles.divider, { backgroundColor: theme.colors.border.divider }]} />
+            {anyTaskHasReminder && (
+              <>
+                {/* Divider */}
+                <View style={[styles.divider, { backgroundColor: theme.colors.border.divider }]} />
 
-            {/* Reminder Times Option */}
-            <View style={styles.section}>
-              <Text className="font-sans-medium text-sm text-content-primary mb-3">
-                Reminder Times
-              </Text>
+                {/* Reminder Times Option */}
+                <View style={styles.section}>
+                  <Text className="font-sans-medium text-sm text-content-primary mb-3">
+                    Reminder Times
+                  </Text>
 
-              <TouchableOpacity
-                onPress={() => setKeepReminderTimes(true)}
-                style={styles.radioOption}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.radioButton,
-                    {
-                      borderColor: keepReminderTimes
-                        ? theme.colors.brand.primary
-                        : theme.colors.border.primary,
-                    },
-                  ]}
-                >
-                  {keepReminderTimes && (
+                  <TouchableOpacity
+                    onPress={() => setKeepReminderTimes(true)}
+                    style={styles.radioOption}
+                    activeOpacity={0.7}
+                  >
                     <View
                       style={[
-                        styles.radioButtonInner,
-                        { backgroundColor: theme.colors.brand.primary },
+                        styles.radioButton,
+                        {
+                          borderColor: keepReminderTimes
+                            ? theme.colors.brand.primary
+                            : theme.colors.border.primary,
+                        },
                       ]}
-                    />
-                  )}
-                </View>
-                <Text className="font-sans text-sm text-content-primary ml-3">
-                  Keep original times
-                </Text>
-              </TouchableOpacity>
+                    >
+                      {keepReminderTimes && (
+                        <View
+                          style={[
+                            styles.radioButtonInner,
+                            { backgroundColor: theme.colors.brand.primary },
+                          ]}
+                        />
+                      )}
+                    </View>
+                    <Text className="font-sans text-sm text-content-primary ml-3">
+                      Keep original times
+                    </Text>
+                  </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => setKeepReminderTimes(false)}
-                style={styles.radioOption}
-                activeOpacity={0.7}
-              >
-                <View
-                  style={[
-                    styles.radioButton,
-                    {
-                      borderColor: !keepReminderTimes
-                        ? theme.colors.brand.primary
-                        : theme.colors.border.primary,
-                    },
-                  ]}
-                >
-                  {!keepReminderTimes && (
+                  <TouchableOpacity
+                    onPress={() => setKeepReminderTimes(false)}
+                    style={styles.radioOption}
+                    activeOpacity={0.7}
+                  >
                     <View
                       style={[
-                        styles.radioButtonInner,
-                        { backgroundColor: theme.colors.brand.primary },
+                        styles.radioButton,
+                        {
+                          borderColor: !keepReminderTimes
+                            ? theme.colors.brand.primary
+                            : theme.colors.border.primary,
+                        },
                       ]}
-                    />
-                  )}
+                    >
+                      {!keepReminderTimes && (
+                        <View
+                          style={[
+                            styles.radioButtonInner,
+                            { backgroundColor: theme.colors.brand.primary },
+                          ]}
+                        />
+                      )}
+                    </View>
+                    <Text className="font-sans text-sm text-content-primary ml-3">
+                      Set new reminder times
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-                <Text className="font-sans text-sm text-content-primary ml-3">
-                  Set new reminder times
-                </Text>
-              </TouchableOpacity>
-            </View>
+              </>
+            )}
           </ScrollView>
 
           {/* Actions */}
@@ -266,6 +282,7 @@ export function RolloverModal({
             <Button
               onPress={handleCarryForward}
               disabled={selectedCount === 0}
+              loading={isCarryingForward}
               variant="primary"
               size="lg"
               className="w-full"
