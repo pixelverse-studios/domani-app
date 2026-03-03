@@ -156,25 +156,90 @@ const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
 /**
  * Check if the user was already shown the evening rollover prompt today
  *
+ * Supports both legacy date-only format (YYYY-MM-DD) and new ISO timestamp format.
  * Intentionally lets AsyncStorage errors propagate so the React Query caller
  * can apply its default of `true` (fail-closed: suppress the prompt on error).
  */
 export async function wasEveningPromptedToday(): Promise<boolean> {
-  const lastPrompted = await AsyncStorage.getItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
+  const storedValue = await AsyncStorage.getItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
+  if (!storedValue) return false
+
   const today = format(new Date(), 'yyyy-MM-dd')
-  return lastPrompted === today
+
+  // Handle both old date-only format (YYYY-MM-DD) and new ISO timestamp format
+  if (storedValue.length === 10) {
+    // Old format: date string like "2026-03-03"
+    return storedValue === today
+  }
+
+  // New format: ISO timestamp — parse to local date for comparison
+  // (toISOString() stores UTC which can differ from local date near midnight)
+  const storedDate = format(new Date(storedValue), 'yyyy-MM-dd')
+  return storedDate === today
 }
 
 /**
- * Mark the user as having been shown the evening rollover prompt today
+ * Mark the user as having been shown the evening rollover prompt.
+ * Stores a full ISO timestamp for cycle-aware comparisons.
  */
 export async function markEveningPromptedToday(): Promise<void> {
   try {
-    const today = format(new Date(), 'yyyy-MM-dd')
-    await AsyncStorage.setItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY, today)
+    await AsyncStorage.setItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY, new Date().toISOString())
   } catch (error) {
     console.error('Error marking evening rollover prompt:', error)
   }
+}
+
+/**
+ * Check if the user was prompted within the current 24-hour rollover cycle.
+ *
+ * A cycle starts at the user's planning_reminder_time and runs until the next
+ * occurrence of that time (e.g., 7 PM to 6:59 PM the next day).
+ *
+ * Supports both legacy date-only format (YYYY-MM-DD) and new ISO timestamp format.
+ * Intentionally lets errors propagate (same pattern as wasEveningPromptedToday).
+ *
+ * @param planningReminderTime - Postgres time format "HH:mm:ss"
+ * @returns Promise<boolean> - true if prompted in current cycle, false otherwise
+ */
+export async function wasPromptedInCurrentCycle(
+  planningReminderTime: string,
+): Promise<boolean> {
+  const storedValue = await AsyncStorage.getItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
+  if (!storedValue) return false
+
+  // Parse stored value — handle both old YYYY-MM-DD and new ISO timestamp
+  let lastPrompted: Date
+  if (storedValue.length === 10) {
+    // Old format: treat as start of that day (midnight)
+    lastPrompted = new Date(`${storedValue}T00:00:00`)
+  } else {
+    lastPrompted = new Date(storedValue)
+  }
+
+  // Calculate the current cycle start
+  const parts = planningReminderTime.split(':').map(Number)
+  if (parts.length < 2 || parts.some(isNaN)) return false // malformed time — fail-open
+  const [hours, minutes, seconds] = [parts[0] ?? 0, parts[1] ?? 0, parts[2] ?? 0]
+
+  const now = new Date()
+
+  // Build "today at reminder time"
+  const todayAtReminder = new Date(now)
+  todayAtReminder.setHours(hours, minutes, seconds, 0)
+
+  let cycleStart: Date
+  if (now >= todayAtReminder) {
+    // Current cycle started today at reminder time
+    cycleStart = todayAtReminder
+  } else {
+    // Current cycle started yesterday at reminder time
+    const yesterdayAtReminder = new Date(todayAtReminder)
+    yesterdayAtReminder.setDate(yesterdayAtReminder.getDate() - 1)
+    cycleStart = yesterdayAtReminder
+  }
+
+  return lastPrompted >= cycleStart
 }
 
 /**

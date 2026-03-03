@@ -65,11 +65,12 @@ export type AnalyticsEvent =
         mit_made_tomorrow: boolean
         kept_reminders: boolean
         source: 'notification' | 'app_open'
+        mode?: 'morning' | 'evening'
       }
     }
   | {
       name: 'evening_rollover_started_fresh'
-      properties: { task_count: number; had_mit: boolean; source: 'notification' | 'app_open' }
+      properties: { task_count: number; had_mit: boolean; source: 'notification' | 'app_open'; mode?: 'morning' | 'evening' }
     }
   // Celebration events
   | {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Modal, View, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
-import { Check, Star, X } from 'lucide-react-native'
+import { Check, Clock, Star, X } from 'lucide-react-native'
+import { format, parseISO } from 'date-fns'
 
 import { Button } from '~/components/ui/Button'
 import { Text } from '~/components/ui/Text'
@@ -375,6 +376,18 @@ function TaskCard({ task, isSelected, onToggle, theme }: TaskCardProps) {
               })}
             </View>
           )}
+
+          {/* Reminder Time */}
+          {task.reminder_at && (
+            <View style={styles.reminderBadge}>
+              <Clock size={11} color={theme.colors.text.tertiary} />
+              <Text
+                className="font-sans text-xs text-content-tertiary ml-1"
+              >
+                {format(parseISO(task.reminder_at), 'h:mm a')}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -466,6 +479,10 @@ const styles = StyleSheet.create({
     height: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  reminderBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   mitToggle: {
     flexDirection: 'row',

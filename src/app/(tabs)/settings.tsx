@@ -350,8 +350,8 @@ function SettingsContent() {
           onCancelDeletion={handleCancelDeletion}
         />
 
-        {/* Dev Tools — only visible in development builds */}
-        {__DEV__ && <DevToolsSection />}
+        {/* Dev Tools — TODO: gate behind __DEV__ before public release */}
+        <DevToolsSection />
 
         {/* App Version */}
         <Text className="text-center text-sm text-content-tertiary mb-4">

@@ -6,16 +6,19 @@ import { useRouter } from 'expo-router'
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { seedEveningRolloverTestData } from '~/lib/devTools'
-
-const PURPLE = '#7c3aed'
-const PURPLE_BG = '#7c3aed18'
-const PURPLE_BORDER = '#7c3aed60'
+import { useNotificationStore } from '~/stores/notificationStore'
 
 export function DevToolsSection() {
   const theme = useAppTheme()
   const queryClient = useQueryClient()
   const router = useRouter()
   const [isSeedingEvening, setIsSeedingEvening] = useState(false)
+  const [isTriggeringAppOpen, setIsTriggeringAppOpen] = useState(false)
+  const devTriggerRolloverRecheck = useNotificationStore((s) => s.devTriggerRolloverRecheck)
+
+  const brandColor = theme.colors.brand.primary
+  const brandBg = `${brandColor}15`
+  const brandBorder = `${brandColor}40`
 
   const handleSeedEveningRollover = async () => {
     setIsSeedingEvening(true)
@@ -34,6 +37,21 @@ export function DevToolsSection() {
     }
   }
 
+  const handleTriggerAppOpenRollover = async () => {
+    setIsTriggeringAppOpen(true)
+    try {
+      await seedEveningRolloverTestData()
+      await queryClient.invalidateQueries({ queryKey: ['eveningRolloverTasks'] })
+      await queryClient.invalidateQueries({ queryKey: ['eveningRolloverPromptedToday'] })
+      // Force useEveningRolloverOnAppOpen to reset and re-check
+      devTriggerRolloverRecheck()
+    } catch (error) {
+      Alert.alert('Trigger Failed', error instanceof Error ? error.message : 'Unknown error')
+    } finally {
+      setIsTriggeringAppOpen(false)
+    }
+  }
+
   return (
     <View style={{ marginBottom: 24 }}>
       <Text
@@ -43,15 +61,43 @@ export function DevToolsSection() {
         DEV TOOLS
       </Text>
 
-      {/* Simulate Evening Planning Reminder */}
+      {/* Simulate Evening Planning Reminder (notification-tap path) */}
       <TouchableOpacity
         onPress={handleSeedEveningRollover}
         disabled={isSeedingEvening}
         activeOpacity={0.7}
         style={{
-          backgroundColor: PURPLE_BG,
+          backgroundColor: brandBg,
           borderWidth: 1,
-          borderColor: PURPLE_BORDER,
+          borderColor: brandBorder,
+          borderRadius: 12,
+          padding: 14,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 10,
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <Text className="font-sans-semibold text-sm" style={{ color: brandColor }}>
+            Simulate Evening Reminder
+          </Text>
+          <Text className="font-sans text-xs mt-0.5" style={{ color: theme.colors.text.tertiary }}>
+            Seeds tasks + opens notification-tap rollover flow
+          </Text>
+        </View>
+        {isSeedingEvening && <ActivityIndicator size="small" color={brandColor} />}
+      </TouchableOpacity>
+
+      {/* Trigger App-Open Rollover (unified cycle path) */}
+      <TouchableOpacity
+        onPress={handleTriggerAppOpenRollover}
+        disabled={isTriggeringAppOpen}
+        activeOpacity={0.7}
+        style={{
+          backgroundColor: brandBg,
+          borderWidth: 1,
+          borderColor: brandBorder,
           borderRadius: 12,
           padding: 14,
           flexDirection: 'row',
@@ -60,14 +106,14 @@ export function DevToolsSection() {
         }}
       >
         <View style={{ flex: 1 }}>
-          <Text className="font-sans-semibold text-sm" style={{ color: PURPLE }}>
-            🌙 Simulate Evening Reminder
+          <Text className="font-sans-semibold text-sm" style={{ color: brandColor }}>
+            Trigger App-Open Rollover
           </Text>
           <Text className="font-sans text-xs mt-0.5" style={{ color: theme.colors.text.tertiary }}>
-            Today: 1 MIT + 2 daytime tasks + 1 filtered (11pm) → opens modal
+            Seeds tasks + triggers rollover modal (bypasses time check)
           </Text>
         </View>
-        {isSeedingEvening && <ActivityIndicator size="small" color={PURPLE} />}
+        {isTriggeringAppOpen && <ActivityIndicator size="small" color={brandColor} />}
       </TouchableOpacity>
     </View>
   )
