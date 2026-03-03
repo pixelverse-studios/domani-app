@@ -164,7 +164,10 @@ function RootLayoutContent() {
     }) => {
       if (!tomorrowPlan) {
         console.error('[EveningRollover] No tomorrow plan available')
-        await markEveningAppOpenPrompted() // swallows errors internally — safe to await without try/catch
+        Alert.alert(
+          'Not ready yet',
+          "Tomorrow's plan is still loading. Please try again in a moment.",
+        )
         return
       }
 

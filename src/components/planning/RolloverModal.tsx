@@ -22,7 +22,7 @@ interface RolloverModalProps {
     selectedTaskIds: string[]
     makeMitToday: boolean
     keepReminderTimes: boolean
-  }) => void
+  }) => void | Promise<void>
   onStartFresh: () => void
 }
 
@@ -41,6 +41,7 @@ export function RolloverModal({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [makeMitToday, setMakeMitToday] = useState(false)
   const [keepReminderTimes, setKeepReminderTimes] = useState(true)
+  const [isCarryingForward, setIsCarryingForward] = useState(false)
 
   // Reset state when modal closes
   useEffect(() => {
@@ -48,6 +49,7 @@ export function RolloverModal({
       setSelectedIds(new Set())
       setMakeMitToday(false)
       setKeepReminderTimes(true)
+      setIsCarryingForward(false)
     }
   }, [visible])
 
@@ -65,12 +67,17 @@ export function RolloverModal({
     setSelectedIds(newSelected)
   }
 
-  const handleCarryForward = () => {
-    onCarryForward({
-      selectedTaskIds: Array.from(selectedIds),
-      makeMitToday,
-      keepReminderTimes,
-    })
+  const handleCarryForward = async () => {
+    setIsCarryingForward(true)
+    try {
+      await onCarryForward({
+        selectedTaskIds: Array.from(selectedIds),
+        makeMitToday,
+        keepReminderTimes,
+      })
+    } finally {
+      setIsCarryingForward(false)
+    }
   }
 
   const selectedCount = selectedIds.size
@@ -275,6 +282,7 @@ export function RolloverModal({
             <Button
               onPress={handleCarryForward}
               disabled={selectedCount === 0}
+              loading={isCarryingForward}
               variant="primary"
               size="lg"
               className="w-full"
