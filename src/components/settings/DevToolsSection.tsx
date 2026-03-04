@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
-import { seedEveningRolloverTestData } from '~/lib/devTools'
+import { seedEveningRolloverTestData, previewTaskNotification } from '~/lib/devTools'
 import { clearEveningPromptState } from '~/lib/rollover'
 import { useNotificationStore } from '~/stores/notificationStore'
 
@@ -23,6 +23,7 @@ export function DevToolsSection() {
   const [isSeedingEvening, setIsSeedingEvening] = useState(false)
   const [isTriggeringAppOpen, setIsTriggeringAppOpen] = useState(false)
   const [isResettingRollover, setIsResettingRollover] = useState(false)
+  const [isPreviewingNotifs, setIsPreviewingNotifs] = useState(false)
   const devTriggerRolloverRecheck = useNotificationStore((s) => s.devTriggerRolloverRecheck)
 
   const brandColor = theme.colors.brand.primary
@@ -79,6 +80,18 @@ export function DevToolsSection() {
       Alert.alert('Reset Failed', error instanceof Error ? error.message : 'Unknown error')
     } finally {
       setIsResettingRollover(false)
+    }
+  }
+
+  const handlePreviewNotifications = async () => {
+    setIsPreviewingNotifs(true)
+    try {
+      await previewTaskNotification()
+      Alert.alert('Notification Queued', 'Sample notification arriving in 1 second.')
+    } catch (error) {
+      Alert.alert('Preview Failed', error instanceof Error ? error.message : 'Unknown error')
+    } finally {
+      setIsPreviewingNotifs(false)
     }
   }
 
@@ -172,6 +185,34 @@ export function DevToolsSection() {
           </Text>
         </View>
         {isResettingRollover && <ActivityIndicator size="small" color={brandColor} />}
+      </TouchableOpacity>
+
+      {/* Preview task reminder notifications for all priority levels */}
+      <TouchableOpacity
+        onPress={handlePreviewNotifications}
+        disabled={isPreviewingNotifs}
+        activeOpacity={0.7}
+        style={{
+          backgroundColor: brandBg,
+          borderWidth: 1,
+          borderColor: brandBorder,
+          borderRadius: 12,
+          padding: 14,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginTop: 10,
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <Text className="font-sans-semibold text-sm" style={{ color: brandColor }}>
+            Preview Task Notification
+          </Text>
+          <Text className="font-sans text-xs mt-0.5" style={{ color: theme.colors.text.tertiary }}>
+            Sample reminder with title + notes body
+          </Text>
+        </View>
+        {isPreviewingNotifs && <ActivityIndicator size="small" color={brandColor} />}
       </TouchableOpacity>
     </View>
   )

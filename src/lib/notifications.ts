@@ -323,6 +323,7 @@ export const NotificationService = {
     title: string
     is_mit: boolean
     reminder_at: string
+    notes?: string | null
   }): Promise<string | null> {
     if (!Notifications) return null
 
@@ -341,7 +342,7 @@ export const NotificationService = {
       const identifier = await Notifications.scheduleNotificationAsync({
         content: {
           title: task.title,
-          body: task.is_mit ? 'Your top priority is ready when you are' : 'Ready when you are',
+          body: task.notes || undefined,
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
           data: {
@@ -392,6 +393,7 @@ export const NotificationService = {
       title: string
       is_mit: boolean
       reminder_at: string
+      notes?: string | null
       notification_id: string | null
     }>,
   ): Promise<Map<string, string>> {
