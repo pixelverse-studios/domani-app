@@ -20,6 +20,8 @@ import type { RolloverTask } from './useRolloverTasks'
 interface UseEveningRolloverTasksOptions {
   /** When false (default), all queries are disabled — no network calls made */
   enabled?: boolean
+  /** When true, only query yesterday's plan (morning mode — today's tasks are fresh, not rollover candidates) */
+  isBeforeReminderTime?: boolean
 }
 
 export interface UseEveningRolloverTasksResult {
@@ -39,6 +41,7 @@ export interface UseEveningRolloverTasksResult {
 
 export function useEveningRolloverTasks({
   enabled = false,
+  isBeforeReminderTime = false,
 }: UseEveningRolloverTasksOptions = {}): UseEveningRolloverTasksResult {
   const queryClient = useQueryClient()
   // Stable date strings for the lifetime of this hook instance — prevents midnight
@@ -46,9 +49,17 @@ export function useEveningRolloverTasks({
   const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
   const yesterday = useMemo(() => format(subDays(new Date(), 1), 'yyyy-MM-dd'), [])
 
-  // Query 1: Get today's and yesterday's incomplete tasks (two-step: plans → tasks)
+  // In morning mode (before reminder time), only look at yesterday's plan.
+  // Today's tasks are freshly planned — not rollover candidates.
+  // In evening mode, look at both today and yesterday.
+  const planDates = useMemo(
+    () => (isBeforeReminderTime ? [yesterday] : [today, yesterday]),
+    [isBeforeReminderTime, today, yesterday],
+  )
+
+  // Query 1: Get incomplete tasks from relevant plans (two-step: plans → tasks)
   const { data: rawTasks = [], isLoading: isLoadingTasks } = useQuery({
-    queryKey: ['eveningRolloverTasks', today, yesterday],
+    queryKey: ['eveningRolloverTasks', ...planDates],
     enabled,
     queryFn: async (): Promise<RolloverTask[]> => {
       const {
@@ -56,17 +67,17 @@ export function useEveningRolloverTasks({
       } = await supabase.auth.getUser()
       if (!user) return []
 
-      // Step 1: Get today's and yesterday's plans
+      // Step 1: Get plans for the relevant date(s)
       const { data: plans, error: planError } = await supabase
         .from('plans')
         .select('id')
         .eq('user_id', user.id)
-        .in('planned_for', [today, yesterday])
+        .in('planned_for', planDates)
 
       if (planError) throw planError
       if (!plans || plans.length === 0) {
         if (__DEV__)
-          console.log('[useEveningRolloverTasks] No plans for today/yesterday:', today, yesterday)
+          console.log('[useEveningRolloverTasks] No plans for dates:', planDates)
         return []
       }
 

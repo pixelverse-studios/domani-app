@@ -82,7 +82,7 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
 
   // Dev-only: reset all internal state so runCheck can fire again
   useEffect(() => {
-    if (!__DEV__ || devRecheckCounter === 0) return
+    if (devRecheckCounter === 0) return
     timeCheckPassedRef.current = false
     isCheckingRef.current = false
     reminderTimeRef.current = undefined
@@ -193,7 +193,7 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
     return () => subscription.remove()
   }, [runCheck])
 
-  const rollover = useEveningRolloverTasks({ enabled: timeCheckPassed })
+  const rollover = useEveningRolloverTasks({ enabled: timeCheckPassed, isBeforeReminderTime })
 
   const markEveningPrompted = useCallback(async () => {
     try {
