@@ -350,7 +350,7 @@ function SettingsContent() {
           onCancelDeletion={handleCancelDeletion}
         />
 
-        {/* Dev Tools — TODO: gate behind __DEV__ before public release */}
+        {/* Dev Tools — visible during beta, gate before public release */}
         <DevToolsSection />
 
         {/* App Version */}

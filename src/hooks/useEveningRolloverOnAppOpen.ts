@@ -36,7 +36,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 
 import { supabase } from '~/lib/supabase'
-import { wasPromptedInCurrentCycle } from '~/lib/rollover'
+import { wasPromptedInCurrentCycle, isPastReminderTime } from '~/lib/rollover'
 import { useNotificationStore } from '~/stores/notificationStore'
 import {
   useEveningRolloverTasks,
@@ -49,20 +49,6 @@ export type UseEveningRolloverOnAppOpenResult = Omit<
 > & {
   /** True when current time is before the planning reminder time (morning mode) */
   isBeforeReminderTime: boolean
-}
-
-/**
- * Returns true if the current time is at or past the given planning reminder time.
- * Expects Postgres time format: HH:mm:ss
- */
-function isPastReminderTime(planningReminderTime: string): boolean {
-  const parts = planningReminderTime.split(':').map(Number)
-  if (parts.length < 2 || parts.some(isNaN)) return false
-  const [hours, minutes] = parts
-  const now = new Date()
-  const reminderToday = new Date(now)
-  reminderToday.setHours(hours, minutes, 0, 0)
-  return now >= reminderToday
 }
 
 export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult {
@@ -82,7 +68,7 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
 
   // Dev-only: reset all internal state so runCheck can fire again
   useEffect(() => {
-    if (!__DEV__ || devRecheckCounter === 0) return
+    if (devRecheckCounter === 0) return
     timeCheckPassedRef.current = false
     isCheckingRef.current = false
     reminderTimeRef.current = undefined

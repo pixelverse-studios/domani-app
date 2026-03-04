@@ -149,9 +149,23 @@ export async function clearCelebrationState(): Promise<void> {
 }
 
 /**
+ * Returns true if the current time is at or past the given planning reminder time.
+ * Expects Postgres time format: HH:mm:ss
+ */
+export function isPastReminderTime(planningReminderTime: string): boolean {
+  const parts = planningReminderTime.split(':').map(Number)
+  if (parts.length < 2 || parts.some(isNaN)) return false
+  const [hours, minutes] = parts
+  const now = new Date()
+  const reminderToday = new Date(now)
+  reminderToday.setHours(hours, minutes, 0, 0)
+  return now >= reminderToday
+}
+
+/**
  * AsyncStorage key for tracking the evening rollover prompt.
  */
-const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
+export const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
 
 /**
  * Check if the user was already shown the evening rollover prompt today
@@ -187,6 +201,17 @@ export async function markEveningPromptedToday(): Promise<void> {
     await AsyncStorage.setItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY, new Date().toISOString())
   } catch (error) {
     console.error('Error marking evening rollover prompt:', error)
+  }
+}
+
+/**
+ * Clear the evening rollover prompt state (for testing/debugging)
+ */
+export async function clearEveningPromptState(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
+  } catch (error) {
+    console.error('Error clearing evening rollover prompt state:', error)
   }
 }
 

@@ -33,5 +33,5 @@ export {
   SmartCategoriesModal,
 } from './SettingsModals'
 
-// Dev tools (only rendered when __DEV__ is true)
+// Dev tools (visible in dev and TestFlight builds)
 export { DevToolsSection } from './DevToolsSection'

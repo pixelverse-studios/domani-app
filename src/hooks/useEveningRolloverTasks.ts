@@ -1,9 +1,10 @@
 /**
  * useEveningRolloverTasks Hook
  *
- * Returns all incomplete tasks from today's and yesterday's plans for the
- * evening rollover prompt, giving the user full visibility and a deliberate
- * choice about what carries forward to tomorrow.
+ * Returns incomplete tasks eligible for rollover review. In morning mode
+ * (before the user's planning reminder time), only yesterday's plan is
+ * queried — today's tasks are freshly planned, not rollover candidates.
+ * In evening mode, both today's and yesterday's plans are queried.
  *
  * This hook only runs when `enabled` is true, to avoid unnecessary
  * queries when the user opens the planning screen normally.
@@ -14,7 +15,7 @@ import { format, subDays } from 'date-fns'
 import { useCallback, useMemo } from 'react'
 
 import { supabase } from '~/lib/supabase'
-import { wasEveningPromptedToday, markEveningPromptedToday } from '~/lib/rollover'
+import { wasEveningPromptedToday, markEveningPromptedToday, isPastReminderTime } from '~/lib/rollover'
 import type { RolloverTask } from './useRolloverTasks'
 
 interface UseEveningRolloverTasksOptions {
@@ -46,7 +47,10 @@ export function useEveningRolloverTasks({
   const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
   const yesterday = useMemo(() => format(subDays(new Date(), 1), 'yyyy-MM-dd'), [])
 
-  // Query 1: Get today's and yesterday's incomplete tasks (two-step: plans → tasks)
+  // Query 1: Get incomplete tasks from relevant plans.
+  // Determines morning vs evening mode internally by checking the user's
+  // planning_reminder_time — so both call sites (app-open and notification-tap)
+  // get the correct date filtering without threading props.
   const { data: rawTasks = [], isLoading: isLoadingTasks } = useQuery({
     queryKey: ['eveningRolloverTasks', today, yesterday],
     enabled,
@@ -56,17 +60,40 @@ export function useEveningRolloverTasks({
       } = await supabase.auth.getUser()
       if (!user) return []
 
-      // Step 1: Get today's and yesterday's plans
+      // Fetch the user's planning_reminder_time to determine morning vs evening mode
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('planning_reminder_time')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      // Determine which plan dates to query:
+      // - Morning mode (before reminder time): only yesterday's plan
+      //   (today's tasks are freshly planned, not rollover candidates)
+      // - Evening mode (at/after reminder time, or no reminder set): today + yesterday
+      const isBeforeReminder =
+        !!profile?.planning_reminder_time && !isPastReminderTime(profile.planning_reminder_time)
+      const planDates = isBeforeReminder ? [yesterday] : [today, yesterday]
+
+      if (__DEV__)
+        console.log(
+          '[useEveningRolloverTasks] Mode:',
+          isBeforeReminder ? 'morning' : 'evening',
+          'dates:',
+          planDates,
+        )
+
+      // Step 1: Get plans for the relevant date(s)
       const { data: plans, error: planError } = await supabase
         .from('plans')
         .select('id')
         .eq('user_id', user.id)
-        .in('planned_for', [today, yesterday])
+        .in('planned_for', planDates)
 
       if (planError) throw planError
       if (!plans || plans.length === 0) {
         if (__DEV__)
-          console.log('[useEveningRolloverTasks] No plans for today/yesterday:', today, yesterday)
+          console.log('[useEveningRolloverTasks] No plans for dates:', planDates)
         return []
       }
 

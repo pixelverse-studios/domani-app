@@ -1,15 +1,14 @@
 /**
  * Dev Tools — test data seeding utilities
  *
- * Only used in development builds (__DEV__). Never import from production code.
+ * Used in development and TestFlight builds for testing rollover flows.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { format, setHours, setMinutes, setSeconds } from 'date-fns'
 
 import { supabase } from './supabase'
-
-const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
+import { EVENING_ROLLOVER_PROMPTED_DATE_KEY } from './rollover'
 
 /**
  * Seeds realistic test data for the EVENING rollover modal (Flow 2).
@@ -25,8 +24,6 @@ const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
  * when the caller navigates to planning with trigger=planning_reminder.
  */
 export async function seedEveningRolloverTestData(): Promise<void> {
-  if (!__DEV__) throw new Error('Dev tools only available in development builds')
-
   const {
     data: { user },
   } = await supabase.auth.getUser()
