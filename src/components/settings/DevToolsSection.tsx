@@ -1,13 +1,12 @@
 import React, { useState } from 'react'
 import { View, TouchableOpacity, Alert, ActivityIndicator } from 'react-native'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'expo-router'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { seedEveningRolloverTestData } from '~/lib/devTools'
-import { EVENING_ROLLOVER_PROMPTED_DATE_KEY } from '~/lib/rollover'
+import { clearEveningPromptState } from '~/lib/rollover'
 import { useNotificationStore } from '~/stores/notificationStore'
 
 function invalidateRolloverQueries(queryClient: ReturnType<typeof useQueryClient>) {
@@ -72,7 +71,7 @@ export function DevToolsSection() {
   const handleResetRolloverFlag = async () => {
     setIsResettingRollover(true)
     try {
-      await AsyncStorage.removeItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
+      await clearEveningPromptState()
       await invalidateRolloverQueries(queryClient)
       devTriggerRolloverRecheck()
       Alert.alert('Rollover Reset', 'Rollover will re-check with your existing tasks now.')

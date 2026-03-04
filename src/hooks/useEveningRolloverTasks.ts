@@ -15,7 +15,7 @@ import { format, subDays } from 'date-fns'
 import { useCallback, useMemo } from 'react'
 
 import { supabase } from '~/lib/supabase'
-import { wasEveningPromptedToday, markEveningPromptedToday } from '~/lib/rollover'
+import { wasEveningPromptedToday, markEveningPromptedToday, isPastReminderTime } from '~/lib/rollover'
 import type { RolloverTask } from './useRolloverTasks'
 
 interface UseEveningRolloverTasksOptions {
@@ -36,20 +36,6 @@ export interface UseEveningRolloverTasksResult {
   isLoading: boolean
   /** Mark user as having been prompted for evening rollover today */
   markEveningPrompted: () => Promise<void>
-}
-
-/**
- * Returns true if the current time is at or past the given planning reminder time.
- * Expects Postgres time format: HH:mm:ss
- */
-function isPastReminderTime(planningReminderTime: string): boolean {
-  const parts = planningReminderTime.split(':').map(Number)
-  if (parts.length < 2 || parts.some(isNaN)) return false
-  const [hours, minutes] = parts
-  const now = new Date()
-  const reminderToday = new Date(now)
-  reminderToday.setHours(hours, minutes, 0, 0)
-  return now >= reminderToday
 }
 
 export function useEveningRolloverTasks({
@@ -86,7 +72,7 @@ export function useEveningRolloverTasks({
       //   (today's tasks are freshly planned, not rollover candidates)
       // - Evening mode (at/after reminder time, or no reminder set): today + yesterday
       const isBeforeReminder =
-        profile?.planning_reminder_time && !isPastReminderTime(profile.planning_reminder_time)
+        !!profile?.planning_reminder_time && !isPastReminderTime(profile.planning_reminder_time)
       const planDates = isBeforeReminder ? [yesterday] : [today, yesterday]
 
       if (__DEV__)
