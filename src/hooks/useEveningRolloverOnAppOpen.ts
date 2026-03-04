@@ -193,7 +193,7 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
     return () => subscription.remove()
   }, [runCheck])
 
-  const rollover = useEveningRolloverTasks({ enabled: timeCheckPassed, isBeforeReminderTime })
+  const rollover = useEveningRolloverTasks({ enabled: timeCheckPassed })
 
   const markEveningPrompted = useCallback(async () => {
     try {

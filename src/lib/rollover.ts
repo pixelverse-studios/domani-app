@@ -151,7 +151,7 @@ export async function clearCelebrationState(): Promise<void> {
 /**
  * AsyncStorage key for tracking the evening rollover prompt.
  */
-const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
+export const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
 
 /**
  * Check if the user was already shown the evening rollover prompt today

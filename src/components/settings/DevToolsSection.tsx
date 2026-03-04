@@ -7,9 +7,15 @@ import { useRouter } from 'expo-router'
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { seedEveningRolloverTestData } from '~/lib/devTools'
+import { EVENING_ROLLOVER_PROMPTED_DATE_KEY } from '~/lib/rollover'
 import { useNotificationStore } from '~/stores/notificationStore'
 
-const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
+function invalidateRolloverQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['eveningRolloverTasks'] }),
+    queryClient.invalidateQueries({ queryKey: ['eveningRolloverPromptedToday'] }),
+  ])
+}
 
 export function DevToolsSection() {
   const theme = useAppTheme()
@@ -24,13 +30,22 @@ export function DevToolsSection() {
   const brandBg = `${brandColor}15`
   const brandBorder = `${brandColor}40`
 
+  const confirmDestructiveSeed = (action: () => Promise<void>) => {
+    Alert.alert(
+      'Replace Tasks?',
+      'This will delete all tasks on today\'s plan and replace them with test data.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Continue', style: 'destructive', onPress: action },
+      ],
+    )
+  }
+
   const handleSeedEveningRollover = async () => {
     setIsSeedingEvening(true)
     try {
       await seedEveningRolloverTestData()
-      await queryClient.invalidateQueries({ queryKey: ['eveningRolloverTasks'] })
-      await queryClient.invalidateQueries({ queryKey: ['eveningRolloverPromptedToday'] })
-      // Navigate to planning screen as if tapping the planning reminder notification
+      await invalidateRolloverQueries(queryClient)
       router.push(
         '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true&trigger=planning_reminder',
       )
@@ -45,9 +60,7 @@ export function DevToolsSection() {
     setIsTriggeringAppOpen(true)
     try {
       await seedEveningRolloverTestData()
-      await queryClient.invalidateQueries({ queryKey: ['eveningRolloverTasks'] })
-      await queryClient.invalidateQueries({ queryKey: ['eveningRolloverPromptedToday'] })
-      // Force useEveningRolloverOnAppOpen to reset and re-check
+      await invalidateRolloverQueries(queryClient)
       devTriggerRolloverRecheck()
     } catch (error) {
       Alert.alert('Trigger Failed', error instanceof Error ? error.message : 'Unknown error')
@@ -60,10 +73,9 @@ export function DevToolsSection() {
     setIsResettingRollover(true)
     try {
       await AsyncStorage.removeItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
-      await queryClient.invalidateQueries({ queryKey: ['eveningRolloverTasks'] })
-      await queryClient.invalidateQueries({ queryKey: ['eveningRolloverPromptedToday'] })
+      await invalidateRolloverQueries(queryClient)
       devTriggerRolloverRecheck()
-      Alert.alert('Rollover Reset', 'Rollover will trigger with your existing tasks on next app open.')
+      Alert.alert('Rollover Reset', 'Rollover will re-check with your existing tasks now.')
     } catch (error) {
       Alert.alert('Reset Failed', error instanceof Error ? error.message : 'Unknown error')
     } finally {
@@ -82,7 +94,7 @@ export function DevToolsSection() {
 
       {/* Simulate Evening Planning Reminder (notification-tap path) */}
       <TouchableOpacity
-        onPress={handleSeedEveningRollover}
+        onPress={() => confirmDestructiveSeed(handleSeedEveningRollover)}
         disabled={isSeedingEvening}
         activeOpacity={0.7}
         style={{
@@ -110,7 +122,7 @@ export function DevToolsSection() {
 
       {/* Trigger App-Open Rollover (unified cycle path) */}
       <TouchableOpacity
-        onPress={handleTriggerAppOpenRollover}
+        onPress={() => confirmDestructiveSeed(handleTriggerAppOpenRollover)}
         disabled={isTriggeringAppOpen}
         activeOpacity={0.7}
         style={{

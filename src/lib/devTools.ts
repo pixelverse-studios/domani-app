@@ -8,8 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { format, setHours, setMinutes, setSeconds } from 'date-fns'
 
 import { supabase } from './supabase'
-
-const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
+import { EVENING_ROLLOVER_PROMPTED_DATE_KEY } from './rollover'
 
 /**
  * Seeds realistic test data for the EVENING rollover modal (Flow 2).
