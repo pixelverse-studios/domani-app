@@ -497,8 +497,6 @@ export default function PlanningScreen() {
       >
         <PlanningHeader selectedTarget={selectedTarget} onTargetChange={handleTargetChange} />
 
-        {tasks.length === 0 && <PlanningTip />}
-
         {tasks.length > 0 && <TasksRecap tasks={tasks} />}
 
         {isFormVisible ? (
@@ -525,11 +523,10 @@ export default function PlanningScreen() {
           <AddTaskPlaceholder onPress={handleOpenForm} />
         )}
 
+        <PlanningTip />
+
         {tasks.length > 0 ? (
-          <>
-            <TaskList tasks={tasks} onEditTask={handleEditTask} onDeleteTask={handleDeleteTask} />
-            <PlanningTip />
-          </>
+          <TaskList tasks={tasks} onEditTask={handleEditTask} onDeleteTask={handleDeleteTask} />
         ) : (
           <PlanningEmptyState taskCount={0} />
         )}
