@@ -24,9 +24,10 @@ function getOrdinalSuffix(day: number): string {
 interface PlanningHeaderProps {
   selectedTarget: PlanningTarget
   onTargetChange: (target: PlanningTarget) => void
+  dateSuffix?: React.ReactNode
 }
 
-export function PlanningHeader({ selectedTarget, onTargetChange }: PlanningHeaderProps) {
+export function PlanningHeader({ selectedTarget, onTargetChange, dateSuffix }: PlanningHeaderProps) {
   const theme = useAppTheme()
 
   const targetDate = selectedTarget === 'today' ? new Date() : addDays(new Date(), 1)
@@ -62,10 +63,13 @@ export function PlanningHeader({ selectedTarget, onTargetChange }: PlanningHeade
         >
           {selectedTarget === 'today' ? 'Today' : 'Tomorrow'}
         </Text>
-        {/* Full date */}
-        <Text className="font-sans text-content-secondary" style={{ fontSize: 18 }}>
-          {formattedDate}
-        </Text>
+        {/* Full date + optional suffix content */}
+        <View className="flex-row items-end justify-between">
+          <Text className="font-sans text-content-secondary" style={{ fontSize: 18 }}>
+            {formattedDate}
+          </Text>
+          {dateSuffix}
+        </View>
       </View>
     </View>
   )

@@ -316,10 +316,10 @@ export default function PlanningScreen() {
     [handleCloseForm],
   )
 
-  const handleOpenForm = () => {
+  const handleOpenForm = useCallback(() => {
     setEditingTask(null)
     setIsFormVisible(true)
-  }
+  }, [])
 
   // Reset form when tutorial is replayed (user clicks "Replay Tutorial" from Settings)
   useEffect(() => {
@@ -328,22 +328,25 @@ export default function PlanningScreen() {
     }
   }, [isTutorialActive, currentStep, isFormVisible, handleCloseForm])
 
-  const handleEditTask = (taskId: string) => {
-    const task = tasks.find((t) => t.id === taskId)
-    if (task) {
-      // Sync header to task's day so submission targets the correct plan
-      const taskDay: PlanningTarget = task.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
-      setSelectedTarget(taskDay)
+  const handleEditTask = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((t) => t.id === taskId)
+      if (task) {
+        // Sync header to task's day so submission targets the correct plan
+        const taskDay: PlanningTarget = task.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
+        setSelectedTarget(taskDay)
 
-      setEditingTask(task)
-      setIsFormVisible(true)
-      setShouldAutoFocusTitle(true)
-      // Scroll to top after state updates to bring form into view
-      setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ y: 0, animated: true })
-      }, 100)
-    }
-  }
+        setEditingTask(task)
+        setIsFormVisible(true)
+        setShouldAutoFocusTitle(true)
+        // Scroll to top after state updates to bring form into view
+        setTimeout(() => {
+          scrollViewRef.current?.scrollTo({ y: 0, animated: true })
+        }, 100)
+      }
+    },
+    [tasks, todayPlan?.id],
+  )
 
   // Get system category UUID from form category ID
   const getSystemCategoryId = useCallback(
@@ -495,9 +498,15 @@ export default function PlanningScreen() {
         contentContainerStyle={{ paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled"
       >
-        <PlanningHeader selectedTarget={selectedTarget} onTargetChange={handleTargetChange} />
-
-        {tasks.length > 0 && <TasksRecap tasks={tasks} />}
+        <PlanningHeader
+          selectedTarget={selectedTarget}
+          onTargetChange={handleTargetChange}
+          dateSuffix={
+            tasks.length > 0
+              ? <TasksRecap tasks={tasks} />
+              : undefined
+          }
+        />
 
         {isFormVisible ? (
           <AddTaskForm
