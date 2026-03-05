@@ -4,11 +4,16 @@
  * Used in development and TestFlight builds for testing rollover flows.
  */
 
+import { Platform } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { format, setHours, setMinutes, setSeconds } from 'date-fns'
+import Constants from 'expo-constants'
 
 import { supabase } from './supabase'
 import { EVENING_ROLLOVER_PROMPTED_DATE_KEY } from './rollover'
+
+const isExpoGo = Constants.appOwnership === 'expo'
+const isNotificationsSupported = !(isExpoGo && Platform.OS === 'android')
 
 /**
  * Seeds realistic test data for the EVENING rollover modal (Flow 2).
@@ -117,4 +122,27 @@ export async function seedEveningRolloverTestData(): Promise<void> {
 
   // Step 3: Clear evening prompt flag so the modal can fire
   await AsyncStorage.removeItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
+}
+
+/**
+ * Fire a sample task notification to preview how reminders look on the device.
+ * Includes notes to demonstrate the two-line body truncation.
+ */
+export async function previewTaskNotification(): Promise<void> {
+  if (!isNotificationsSupported) throw new Error('Notifications not supported in this environment')
+  const Notifications = require('expo-notifications') as typeof import('expo-notifications')
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Finish quarterly report',
+      body: 'Pull numbers from Q4 dashboard and send to finance team for review before EOD Friday',
+      sound: true,
+      priority: Notifications.AndroidNotificationPriority.HIGH,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 1,
+      channelId: Platform.OS === 'android' ? 'task-reminders' : undefined,
+    },
+  })
 }

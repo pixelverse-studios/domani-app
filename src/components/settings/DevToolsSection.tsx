@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
-import { seedEveningRolloverTestData } from '~/lib/devTools'
+import { seedEveningRolloverTestData, previewTaskNotification } from '~/lib/devTools'
 import { clearEveningPromptState } from '~/lib/rollover'
 import { useNotificationStore } from '~/stores/notificationStore'
 
@@ -23,6 +23,7 @@ export function DevToolsSection() {
   const [isSeedingEvening, setIsSeedingEvening] = useState(false)
   const [isTriggeringAppOpen, setIsTriggeringAppOpen] = useState(false)
   const [isResettingRollover, setIsResettingRollover] = useState(false)
+  const [isPreviewingNotifs, setIsPreviewingNotifs] = useState(false)
   const devTriggerRolloverRecheck = useNotificationStore((s) => s.devTriggerRolloverRecheck)
 
   const brandColor = theme.colors.brand.primary
@@ -45,8 +46,15 @@ export function DevToolsSection() {
     try {
       await seedEveningRolloverTestData()
       await invalidateRolloverQueries(queryClient)
-      router.push(
-        '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true&trigger=planning_reminder',
+      Alert.alert(
+        'Tasks Seeded',
+        'Navigating to planning screen with rollover modal...',
+        [{
+          text: 'OK',
+          onPress: () => router.push(
+            '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true&trigger=planning_reminder',
+          ),
+        }],
       )
     } catch (error) {
       Alert.alert('Seed Failed', error instanceof Error ? error.message : 'Unknown error')
@@ -59,8 +67,17 @@ export function DevToolsSection() {
     setIsTriggeringAppOpen(true)
     try {
       await seedEveningRolloverTestData()
-      await invalidateRolloverQueries(queryClient)
-      devTriggerRolloverRecheck()
+      // Force bypass all time/cycle checks so the modal always appears
+      devTriggerRolloverRecheck(true)
+      // Invalidate AFTER triggering recheck — queries are only enabled once timeCheckPassed is true
+      // Small delay ensures the recheck effect has fired and enabled the queries before invalidating
+      setTimeout(() => {
+        invalidateRolloverQueries(queryClient)
+      }, 500)
+      Alert.alert(
+        'Rollover Triggered',
+        'Test tasks seeded and rollover modal should appear momentarily. All time checks bypassed.',
+      )
     } catch (error) {
       Alert.alert('Trigger Failed', error instanceof Error ? error.message : 'Unknown error')
     } finally {
@@ -72,13 +89,32 @@ export function DevToolsSection() {
     setIsResettingRollover(true)
     try {
       await clearEveningPromptState()
-      await invalidateRolloverQueries(queryClient)
-      devTriggerRolloverRecheck()
-      Alert.alert('Rollover Reset', 'Rollover will re-check with your existing tasks now.')
+      // Force bypass so it works regardless of time/cycle
+      devTriggerRolloverRecheck(true)
+      // Invalidate AFTER triggering recheck — queries are only enabled once timeCheckPassed is true
+      setTimeout(() => {
+        invalidateRolloverQueries(queryClient)
+      }, 500)
+      Alert.alert(
+        'Rollover Reset',
+        'Prompt flag cleared. Rollover modal should appear with your existing tasks.',
+      )
     } catch (error) {
       Alert.alert('Reset Failed', error instanceof Error ? error.message : 'Unknown error')
     } finally {
       setIsResettingRollover(false)
+    }
+  }
+
+  const handlePreviewNotifications = async () => {
+    setIsPreviewingNotifs(true)
+    try {
+      await previewTaskNotification()
+      Alert.alert('Notification Queued', 'Sample notification arriving in 1 second.')
+    } catch (error) {
+      Alert.alert('Preview Failed', error instanceof Error ? error.message : 'Unknown error')
+    } finally {
+      setIsPreviewingNotifs(false)
     }
   }
 
@@ -172,6 +208,34 @@ export function DevToolsSection() {
           </Text>
         </View>
         {isResettingRollover && <ActivityIndicator size="small" color={brandColor} />}
+      </TouchableOpacity>
+
+      {/* Preview task reminder notifications for all priority levels */}
+      <TouchableOpacity
+        onPress={handlePreviewNotifications}
+        disabled={isPreviewingNotifs}
+        activeOpacity={0.7}
+        style={{
+          backgroundColor: brandBg,
+          borderWidth: 1,
+          borderColor: brandBorder,
+          borderRadius: 12,
+          padding: 14,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginTop: 10,
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <Text className="font-sans-semibold text-sm" style={{ color: brandColor }}>
+            Preview Task Notification
+          </Text>
+          <Text className="font-sans text-xs mt-0.5" style={{ color: theme.colors.text.tertiary }}>
+            Sample reminder with title + notes body
+          </Text>
+        </View>
+        {isPreviewingNotifs && <ActivityIndicator size="small" color={brandColor} />}
       </TouchableOpacity>
     </View>
   )

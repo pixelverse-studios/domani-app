@@ -239,6 +239,7 @@ export function useCreateTask() {
           title: data.title,
           is_mit: data.is_mit,
           reminder_at: data.reminder_at,
+          notes: data.notes,
         })
 
         // Update task with notification ID for later cancellation
@@ -341,6 +342,7 @@ export function useUpdateTask() {
             title: data.title,
             is_mit: data.is_mit,
             reminder_at: data.reminder_at,
+            notes: data.notes,
           })
 
           // Update task with new notification ID

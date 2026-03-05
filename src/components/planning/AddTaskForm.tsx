@@ -30,7 +30,7 @@ import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { CategorySelector } from './CategorySelector'
 import { PrioritySelector, type Priority } from './PrioritySelector'
-import { DayToggle, type PlanningTarget } from './DayToggle'
+import { type PlanningTarget } from './DayToggle'
 import { ReminderSection } from './ReminderSection'
 import { useAppTheme } from '~/hooks/useAppTheme'
 
@@ -48,7 +48,6 @@ interface InitialFormValues {
   categoryLabel?: string
   priority?: Priority | null
   notes?: string | null
-  plannedFor?: PlanningTarget
   reminderAt?: string | null // ISO timestamp
 }
 
@@ -59,7 +58,6 @@ interface AddTaskFormProps {
     category: Category
     priority: Priority
     notes?: string | null
-    plannedFor?: PlanningTarget
     reminderAt?: string | null // ISO timestamp
   }) => Promise<void> | void
   initialValues?: InitialFormValues
@@ -68,10 +66,8 @@ interface AddTaskFormProps {
   existingTopPriorityTask?: { id: string; title: string } | null
   /** ID of the task being edited (to exclude self from TOP check) */
   editingTaskId?: string
-  /** Currently selected planning target (today/tomorrow) */
+  /** Currently selected planning target (today/tomorrow) — controlled by header pill */
   selectedTarget: PlanningTarget
-  /** Callback when target day changes */
-  onTargetChange: (target: PlanningTarget) => void
   /** Auto-focus the title input when form opens (e.g., when editing) */
   autoFocusTitle?: boolean
   /** Callback to scroll parent when transitioning to category step */
@@ -88,7 +84,6 @@ export function AddTaskForm({
   existingTopPriorityTask,
   editingTaskId,
   selectedTarget,
-  onTargetChange,
   autoFocusTitle = false,
   onScrollToCategory,
   onScrollToBottom,
@@ -321,7 +316,6 @@ export function AddTaskForm({
         category: selectedCategory,
         priority: selectedPriority,
         notes: notes.trim() || null,
-        plannedFor: selectedTarget,
         reminderAt,
       })
 
@@ -379,16 +373,6 @@ export function AddTaskForm({
         >
           <X size={24} color={theme.colors.text.tertiary} />
         </TouchableOpacity>
-      </View>
-
-      {/* Day Toggle - Minimal Variant */}
-      <View className="items-center mb-5">
-        <DayToggle
-          selectedTarget={selectedTarget}
-          onTargetChange={onTargetChange}
-          disabled={isFormDisabled}
-          variant="minimal"
-        />
       </View>
 
       {/* Task Title Input */}

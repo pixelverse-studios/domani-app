@@ -55,7 +55,6 @@ interface TaskFormData {
   category: string
   priority: Priority
   notes?: string | null
-  plannedFor?: 'today' | 'tomorrow'
   reminderAt?: string | null
 }
 
@@ -84,11 +83,6 @@ export default function PlanningScreen() {
   const [isFormVisible, setIsFormVisible] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskWithCategory | null>(null)
   const [shouldAutoFocusTitle, setShouldAutoFocusTitle] = useState(false)
-  // Separate state for form's day toggle - decoupled from header to prevent race conditions
-  // Initialize from defaultPlanningFor to avoid showing wrong day when editing from Today screen
-  const [formSelectedDay, setFormSelectedDay] = useState<PlanningTarget>(
-    defaultPlanningFor === 'today' ? 'today' : 'tomorrow',
-  )
 
   const setEveningRolloverSource = useNotificationStore((s) => s.setEveningRolloverSource)
 
@@ -98,20 +92,17 @@ export default function PlanningScreen() {
   const [showEveningRollover, setShowEveningRollover] = useState(false)
 
   // Update target when navigation param changes (tab navigation preserves component state)
-  // This effect must run synchronously before the openForm effect to ensure correct target
+  // Clear param after consuming to prevent stale state on tab re-selection
   useEffect(() => {
     if (defaultPlanningFor) {
       setSelectedTarget(defaultPlanningFor === 'today' ? 'today' : 'tomorrow')
+      // Only clear if not consumed by openForm/editTaskId effects
+      // (they clear it themselves once the task is found or form is opened)
+      if (!openForm && !editTaskId) {
+        router.setParams({ defaultPlanningFor: undefined })
+      }
     }
-  }, [defaultPlanningFor])
-
-  // Sync form's day toggle when defaultPlanningFor changes (handles component already mounted)
-  // This ensures editing from Today screen shows "Today" even if component state persisted "Tomorrow"
-  useEffect(() => {
-    if (defaultPlanningFor && editTaskId) {
-      setFormSelectedDay(defaultPlanningFor === 'today' ? 'today' : 'tomorrow')
-    }
-  }, [defaultPlanningFor, editTaskId])
+  }, [defaultPlanningFor, openForm, editTaskId, router])
 
   // Get dates for today and tomorrow
   const todayDate = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
@@ -154,15 +145,15 @@ export default function PlanningScreen() {
     if (editTaskId && tasks.length > 0) {
       const task = tasks.find((t) => t.id === editTaskId)
       if (task) {
-        // Set form's day toggle to task's actual day (decoupled from header)
+        // Ensure header matches the task's day so the task list context is correct
         const taskDay: PlanningTarget = task.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
-        setFormSelectedDay(taskDay)
+        setSelectedTarget(taskDay)
 
         setEditingTask(task)
         setIsFormVisible(true)
 
-        // Clear editTaskId param to prevent re-triggering when toggling days
-        router.setParams({ editTaskId: undefined })
+        // Clear params to prevent re-triggering and stale state on tab re-selection
+        router.setParams({ editTaskId: undefined, defaultPlanningFor: undefined })
       }
     }
   }, [editTaskId, tasks, todayPlan?.id, router])
@@ -177,23 +168,20 @@ export default function PlanningScreen() {
       if (defaultPlanningFor) {
         setSelectedTarget(targetDay)
       }
-      // Initialize form's day toggle for new task
-      setFormSelectedDay(targetDay)
 
       if (trigger === 'planning_reminder') {
         // Claim the session so the app-open flow knows not to trigger
         setEveningRolloverSource('notification')
         // Gate form behind evening rollover check
         setPlanningReminderTriggered(true)
-        router.setParams({ openForm: undefined, trigger: undefined })
+        router.setParams({ openForm: undefined, trigger: undefined, defaultPlanningFor: undefined })
         return
       }
 
       // Normal flow (no trigger) — open form directly
       setIsFormVisible(true)
-      // Clear only the openForm param to prevent re-triggering on tab switch
-      // Keep defaultPlanningFor so it can be used if needed
-      router.setParams({ openForm: undefined })
+      // Clear params to prevent re-triggering and stale state on tab re-selection
+      router.setParams({ openForm: undefined, defaultPlanningFor: undefined })
     }
   }, [openForm, editTaskId, defaultPlanningFor, trigger, router])
 
@@ -313,18 +301,25 @@ export default function PlanningScreen() {
     setEveningRolloverSource,
   ])
 
-  const handleOpenForm = () => {
-    // Initialize form's day toggle from header selection for new tasks
-    setFormSelectedDay(selectedTarget)
-    setEditingTask(null)
-    setIsFormVisible(true)
-  }
-
-  const handleCloseForm = () => {
+  const handleCloseForm = useCallback(() => {
     setIsFormVisible(false)
     setEditingTask(null)
     setShouldAutoFocusTitle(false)
-  }
+  }, [])
+
+  const handleTargetChange = useCallback(
+    (target: PlanningTarget) => {
+      setSelectedTarget(target)
+      // Always reset form state when switching days — handleCloseForm is idempotent
+      handleCloseForm()
+    },
+    [handleCloseForm],
+  )
+
+  const handleOpenForm = useCallback(() => {
+    setEditingTask(null)
+    setIsFormVisible(true)
+  }, [])
 
   // Reset form when tutorial is replayed (user clicks "Replay Tutorial" from Settings)
   useEffect(() => {
@@ -333,22 +328,25 @@ export default function PlanningScreen() {
     }
   }, [isTutorialActive, currentStep, isFormVisible, handleCloseForm])
 
-  const handleEditTask = (taskId: string) => {
-    const task = tasks.find((t) => t.id === taskId)
-    if (task) {
-      // Set form's day toggle to task's actual day (decoupled from header)
-      const taskDay: PlanningTarget = task.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
-      setFormSelectedDay(taskDay)
+  const handleEditTask = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((t) => t.id === taskId)
+      if (task) {
+        // Sync header to task's day so submission targets the correct plan
+        const taskDay: PlanningTarget = task.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
+        setSelectedTarget(taskDay)
 
-      setEditingTask(task)
-      setIsFormVisible(true)
-      setShouldAutoFocusTitle(true)
-      // Scroll to top after state updates to bring form into view
-      setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ y: 0, animated: true })
-      }, 100)
-    }
-  }
+        setEditingTask(task)
+        setIsFormVisible(true)
+        setShouldAutoFocusTitle(true)
+        // Scroll to top after state updates to bring form into view
+        setTimeout(() => {
+          scrollViewRef.current?.scrollTo({ y: 0, animated: true })
+        }, 100)
+      }
+    },
+    [tasks, todayPlan?.id],
+  )
 
   // Get system category UUID from form category ID
   const getSystemCategoryId = useCallback(
@@ -370,7 +368,7 @@ export default function PlanningScreen() {
       if (editingTask) {
         // Determine if task is moving to a different day
         const originalPlanId = editingTask.plan_id
-        const targetPlanId = task.plannedFor === 'today' ? todayPlan?.id : tomorrowPlan?.id
+        const targetPlanId = selectedTarget === 'today' ? todayPlan?.id : tomorrowPlan?.id
 
         // Build base updates
         const updates: Parameters<typeof updateTask.mutateAsync>[0]['updates'] = {
@@ -394,8 +392,8 @@ export default function PlanningScreen() {
           originalPlanId,
         })
       } else {
-        // Create new task - use the plan for the selected target day
-        const targetPlanId = task.plannedFor === 'today' ? todayPlan?.id : tomorrowPlan?.id
+        // Create new task - use the plan for the header's selected day
+        const targetPlanId = selectedTarget === 'today' ? todayPlan?.id : tomorrowPlan?.id
         if (!targetPlanId) {
           console.error('No plan available for target day')
           return
@@ -452,7 +450,7 @@ export default function PlanningScreen() {
   }, [tasks, editingTask])
 
   // Get initial form values when editing
-  const getEditingFormValues = useCallback(() => {
+  const editingFormValues = useMemo(() => {
     if (!editingTask) return undefined
 
     // Determine category ID for the form
@@ -469,19 +467,15 @@ export default function PlanningScreen() {
       categoryLabel = editingTask.user_category.name
     }
 
-    // Determine which day the task is planned for based on its plan_id
-    const plannedFor: PlanningTarget = editingTask.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
-
     return {
       title: editingTask.title,
       categoryId,
       categoryLabel,
       priority: editingTask.priority as Priority,
       notes: editingTask.notes,
-      plannedFor,
       reminderAt: editingTask.reminder_at,
     }
-  }, [editingTask, todayPlan?.id])
+  }, [editingTask])
 
   const handleDeleteTask = async (taskId: string) => {
     try {
@@ -504,22 +498,25 @@ export default function PlanningScreen() {
         contentContainerStyle={{ paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled"
       >
-        <PlanningHeader selectedTarget={selectedTarget} onTargetChange={setSelectedTarget} />
-
-        {tasks.length === 0 && <PlanningTip />}
-
-        {tasks.length > 0 && <TasksRecap tasks={tasks} />}
+        <PlanningHeader
+          selectedTarget={selectedTarget}
+          onTargetChange={handleTargetChange}
+          dateSuffix={
+            tasks.length > 0
+              ? <TasksRecap tasks={tasks} />
+              : undefined
+          }
+        />
 
         {isFormVisible ? (
           <AddTaskForm
             onClose={handleCloseForm}
             onSubmit={handleSubmitTask}
-            initialValues={getEditingFormValues()}
+            initialValues={editingFormValues}
             isEditing={!!editingTask}
             existingTopPriorityTask={existingTopPriorityTask}
             editingTaskId={editingTask?.id}
-            selectedTarget={formSelectedDay}
-            onTargetChange={setFormSelectedDay}
+            selectedTarget={selectedTarget}
             autoFocusTitle={shouldAutoFocusTitle}
             onScrollToCategory={() => {
               // Scroll down to position category section better during tutorial
@@ -535,11 +532,10 @@ export default function PlanningScreen() {
           <AddTaskPlaceholder onPress={handleOpenForm} />
         )}
 
+        <PlanningTip />
+
         {tasks.length > 0 ? (
-          <>
-            <TaskList tasks={tasks} onEditTask={handleEditTask} onDeleteTask={handleDeleteTask} />
-            <PlanningTip />
-          </>
+          <TaskList tasks={tasks} onEditTask={handleEditTask} onDeleteTask={handleDeleteTask} />
         ) : (
           <PlanningEmptyState taskCount={0} />
         )}
@@ -550,7 +546,7 @@ export default function PlanningScreen() {
         mitTask={eveningMitTask}
         otherTasks={eveningOtherTasks}
         title="Today's Unfinished Tasks"
-        subtitle="Before you plan tomorrow, wrap up today"
+        subtitle="Carry them into tomorrow's plan"
         mitToggleLabel="Make this tomorrow's top priority"
         onCarryForward={handleEveningCarryForward}
         onStartFresh={handleEveningStartFresh}

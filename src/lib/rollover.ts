@@ -414,6 +414,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
           title: taskWithCategory.title,
           is_mit: taskWithCategory.is_mit,
           reminder_at: taskWithCategory.reminder_at,
+          notes: taskWithCategory.notes,
         })
 
         if (notificationId) {
