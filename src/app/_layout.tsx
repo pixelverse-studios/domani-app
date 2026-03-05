@@ -297,7 +297,7 @@ function RootLayoutContent() {
         mitTask={eveningAppOpenMitTask}
         otherTasks={eveningAppOpenOtherTasks}
         title={eveningIsBeforeReminderTime ? "Yesterday's Unfinished Tasks" : "Today's Unfinished Tasks"}
-        subtitle={eveningIsBeforeReminderTime ? "Pick up where you left off" : "Before you plan tomorrow, wrap up today"}
+        subtitle={eveningIsBeforeReminderTime ? "Pick up where you left off" : "Carry them into tomorrow's plan"}
         mitToggleLabel={eveningIsBeforeReminderTime ? "Make this today's top priority" : "Make this tomorrow's top priority"}
         onCarryForward={handleEveningAppOpenCarryForward}
         onStartFresh={handleEveningAppOpenStartFresh}

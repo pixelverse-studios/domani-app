@@ -85,70 +85,92 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
     if (isCheckingRef.current || timeCheckPassedRef.current) return
     isCheckingRef.current = true
 
+    // Dev bypass: skip all preconditions, immediately activate
+    const { devForceBypass: shouldBypass } = useNotificationStore.getState()
+
     try {
-      // 1. Notification-tap flow hasn't claimed the session
-      // Read store state directly (not via hook selector) to avoid adding it as a dep
-      const { eveningRolloverSource } = useNotificationStore.getState()
-      if (eveningRolloverSource === 'notification') {
+      if (shouldBypass) {
         if (__DEV__)
-          console.log('[useEveningRolloverOnAppOpen] Notification tap owns session, skipping')
-        return
+          console.log('[useEveningRolloverOnAppOpen] Dev force bypass — skipping all checks')
+        // Note: devForceBypass is cleared in useEveningRolloverTasks queryFn after it reads it,
+        // so the query can also bypass morning/evening mode detection
       }
 
-      // 2. Get auth user
+      if (!shouldBypass) {
+        // 1. Notification-tap flow hasn't claimed the session
+        // Read store state directly (not via hook selector) to avoid adding it as a dep
+        const { eveningRolloverSource } = useNotificationStore.getState()
+        if (eveningRolloverSource === 'notification') {
+          if (__DEV__)
+            console.log('[useEveningRolloverOnAppOpen] Notification tap owns session, skipping')
+          return
+        }
+      }
+
+      // 2. Get auth user (always needed — can't skip)
       const {
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) return
 
-      // 3. User has a planning_reminder_time set
-      // Fetch reminder time once and cache in a ref — changes infrequently
-      if (reminderTimeRef.current === undefined) {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('planning_reminder_time')
-          .eq('id', user.id)
-          .maybeSingle()
-        if (profileError) {
+      if (!shouldBypass) {
+        // 3. User has a planning_reminder_time set
+        // Fetch reminder time once and cache in a ref — changes infrequently
+        if (reminderTimeRef.current === undefined) {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('planning_reminder_time')
+            .eq('id', user.id)
+            .maybeSingle()
+          if (profileError) {
+            if (__DEV__)
+              console.error('[useEveningRolloverOnAppOpen] Profile query failed:', profileError)
+            return
+          }
+          reminderTimeRef.current = profile?.planning_reminder_time ?? null
+        }
+
+        const reminderTime = reminderTimeRef.current
+        if (!reminderTime) {
           if (__DEV__)
-            console.error('[useEveningRolloverOnAppOpen] Profile query failed:', profileError)
+            console.log('[useEveningRolloverOnAppOpen] No planning_reminder_time set, skipping')
           return
         }
-        reminderTimeRef.current = profile?.planning_reminder_time ?? null
+
+        // 4. User hasn't been prompted in the current cycle
+        // wasPromptedInCurrentCycle intentionally propagates AsyncStorage errors
+        // — catch here and fail-closed (skip rollover on error)
+        let alreadyPrompted: boolean
+        try {
+          alreadyPrompted = await wasPromptedInCurrentCycle(reminderTime)
+        } catch {
+          if (__DEV__)
+            console.error(
+              '[useEveningRolloverOnAppOpen] AsyncStorage error checking prompt status, skipping',
+            )
+          return
+        }
+        if (alreadyPrompted) {
+          if (__DEV__)
+            console.log('[useEveningRolloverOnAppOpen] Already prompted in current cycle, skipping')
+          return
+        }
       }
 
-      const reminderTime = reminderTimeRef.current
-      if (!reminderTime) {
-        if (__DEV__)
-          console.log('[useEveningRolloverOnAppOpen] No planning_reminder_time set, skipping')
-        return
+      // All conditions passed (or bypassed) — determine mode, claim the session
+      // For bypass: fetch reminder time if not cached, default to evening mode
+      let beforeReminder = false
+      if (reminderTimeRef.current === undefined && !shouldBypass) {
+        // Already handled above in non-bypass path
+      } else if (reminderTimeRef.current) {
+        beforeReminder = !isPastReminderTime(reminderTimeRef.current)
       }
 
-      // 4. User hasn't been prompted in the current cycle
-      // wasPromptedInCurrentCycle intentionally propagates AsyncStorage errors
-      // — catch here and fail-closed (skip rollover on error)
-      let alreadyPrompted: boolean
-      try {
-        alreadyPrompted = await wasPromptedInCurrentCycle(reminderTime)
-      } catch {
-        if (__DEV__)
-          console.error(
-            '[useEveningRolloverOnAppOpen] AsyncStorage error checking prompt status, skipping',
-          )
-        return
-      }
-      if (alreadyPrompted) {
-        if (__DEV__)
-          console.log('[useEveningRolloverOnAppOpen] Already prompted in current cycle, skipping')
-        return
-      }
-
-      // All conditions passed — determine mode, claim the session, enable rollover queries
-      const beforeReminder = !isPastReminderTime(reminderTime)
       if (__DEV__)
         console.log(
           '[useEveningRolloverOnAppOpen] Check passed, activating',
           beforeReminder ? '(morning mode)' : '(evening mode)',
+          shouldBypass ? '[DEV BYPASS]' : '',
         )
       setIsBeforeReminderTime(beforeReminder)
       setEveningRolloverSource('app_open')

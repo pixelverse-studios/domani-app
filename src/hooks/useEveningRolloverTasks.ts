@@ -16,6 +16,7 @@ import { useCallback, useMemo } from 'react'
 
 import { supabase } from '~/lib/supabase'
 import { wasEveningPromptedToday, markEveningPromptedToday, isPastReminderTime } from '~/lib/rollover'
+import { useNotificationStore } from '~/stores/notificationStore'
 import type { RolloverTask } from './useRolloverTasks'
 
 interface UseEveningRolloverTasksOptions {
@@ -67,11 +68,18 @@ export function useEveningRolloverTasks({
         .eq('id', user.id)
         .maybeSingle()
 
+      // Dev bypass: always query both days so seeded/real tasks are found regardless of time
+      const { devForceBypass } = useNotificationStore.getState()
+      if (devForceBypass) {
+        useNotificationStore.setState({ devForceBypass: false })
+      }
+
       // Determine which plan dates to query:
       // - Morning mode (before reminder time): only yesterday's plan
       //   (today's tasks are freshly planned, not rollover candidates)
       // - Evening mode (at/after reminder time, or no reminder set): today + yesterday
       const isBeforeReminder =
+        !devForceBypass &&
         !!profile?.planning_reminder_time && !isPastReminderTime(profile.planning_reminder_time)
       const planDates = isBeforeReminder ? [yesterday] : [today, yesterday]
 
