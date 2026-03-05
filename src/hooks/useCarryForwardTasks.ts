@@ -39,16 +39,13 @@ export function useCarryForwardTasks() {
   return useMutation<TaskWithCategory[], Error, CarryForwardInput>({
     mutationFn: carryForwardTasks,
 
-    onSuccess: (createdTasks, variables) => {
-      // Invalidate the target plan's tasks so they refresh
-      queryClient.invalidateQueries({
-        queryKey: ['tasks', variables.targetPlanId],
-      })
+    onSuccess: (createdTasks) => {
+      // Broad invalidation: refreshes both source plan (rolled-over tasks disappear)
+      // and target plan (new tasks appear). Matches useDeleteTask/useToggleTask pattern.
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
 
       // Invalidate rollover tasks query (no longer show carried tasks)
-      queryClient.invalidateQueries({
-        queryKey: ['rolloverTasks'],
-      })
+      queryClient.invalidateQueries({ queryKey: ['rolloverTasks'] })
 
       // TODO: Add analytics tracking for tasks_carried_forward event
       console.log(`[useCarryForwardTasks] Carried forward ${createdTasks.length} tasks`)
