@@ -96,7 +96,8 @@ export default function PlanningScreen() {
   useEffect(() => {
     if (defaultPlanningFor) {
       setSelectedTarget(defaultPlanningFor === 'today' ? 'today' : 'tomorrow')
-      // Only clear if not consumed by openForm/editTaskId effects (they clear it themselves)
+      // Only clear if not consumed by openForm/editTaskId effects
+      // (they clear it themselves once the task is found or form is opened)
       if (!openForm && !editTaskId) {
         router.setParams({ defaultPlanningFor: undefined })
       }
@@ -300,25 +301,24 @@ export default function PlanningScreen() {
     setEveningRolloverSource,
   ])
 
-  const handleTargetChange = (target: PlanningTarget) => {
-    setSelectedTarget(target)
-    // Close form and reset when switching days — form always uses header's day
-    if (isFormVisible) {
-      setIsFormVisible(false)
-      setEditingTask(null)
-      setShouldAutoFocusTitle(false)
-    }
-  }
+  const handleCloseForm = useCallback(() => {
+    setIsFormVisible(false)
+    setEditingTask(null)
+    setShouldAutoFocusTitle(false)
+  }, [])
+
+  const handleTargetChange = useCallback(
+    (target: PlanningTarget) => {
+      setSelectedTarget(target)
+      // Always reset form state when switching days — handleCloseForm is idempotent
+      handleCloseForm()
+    },
+    [handleCloseForm],
+  )
 
   const handleOpenForm = () => {
     setEditingTask(null)
     setIsFormVisible(true)
-  }
-
-  const handleCloseForm = () => {
-    setIsFormVisible(false)
-    setEditingTask(null)
-    setShouldAutoFocusTitle(false)
   }
 
   // Reset form when tutorial is replayed (user clicks "Replay Tutorial" from Settings)
@@ -331,6 +331,10 @@ export default function PlanningScreen() {
   const handleEditTask = (taskId: string) => {
     const task = tasks.find((t) => t.id === taskId)
     if (task) {
+      // Sync header to task's day so submission targets the correct plan
+      const taskDay: PlanningTarget = task.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
+      setSelectedTarget(taskDay)
+
       setEditingTask(task)
       setIsFormVisible(true)
       setShouldAutoFocusTitle(true)
@@ -443,7 +447,7 @@ export default function PlanningScreen() {
   }, [tasks, editingTask])
 
   // Get initial form values when editing
-  const getEditingFormValues = useCallback(() => {
+  const editingFormValues = useMemo(() => {
     if (!editingTask) return undefined
 
     // Determine category ID for the form
@@ -501,7 +505,7 @@ export default function PlanningScreen() {
           <AddTaskForm
             onClose={handleCloseForm}
             onSubmit={handleSubmitTask}
-            initialValues={getEditingFormValues()}
+            initialValues={editingFormValues}
             isEditing={!!editingTask}
             existingTopPriorityTask={existingTopPriorityTask}
             editingTaskId={editingTask?.id}
