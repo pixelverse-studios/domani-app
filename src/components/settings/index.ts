@@ -31,6 +31,7 @@ export {
   PlanningTimeModal,
   DeleteAccountModal,
   SmartCategoriesModal,
+  RecapLayoutModal,
 } from './SettingsModals'
 
 // Dev tools (visible in dev and TestFlight builds)

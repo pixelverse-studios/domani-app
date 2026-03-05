@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { ScrollView, Alert } from 'react-native'
+import { ScrollView, Alert, LayoutAnimation } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { addDays, format } from 'date-fns'
@@ -18,6 +18,7 @@ import { usePlanForDate } from '~/hooks/usePlans'
 import { useCreateTask, useTasks, useDeleteTask, useUpdateTask } from '~/hooks/useTasks'
 import { useSystemCategories } from '~/hooks/useCategories'
 import { useNotificationStore } from '~/stores/notificationStore'
+import { useUIStore } from '~/stores/uiStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAdvancement } from '~/components/tutorial'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
@@ -85,6 +86,16 @@ export default function PlanningScreen() {
   const [shouldAutoFocusTitle, setShouldAutoFocusTitle] = useState(false)
 
   const setEveningRolloverSource = useNotificationStore((s) => s.setEveningRolloverSource)
+  const recapLayout = useUIStore((s) => s.recapLayout)
+
+  // Animate layout changes when recap variant switches
+  const prevRecapLayout = useRef(recapLayout)
+  useEffect(() => {
+    if (prevRecapLayout.current !== recapLayout) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+      prevRecapLayout.current = recapLayout
+    }
+  }, [recapLayout])
 
   // Evening rollover state (Flow 2 — triggered by planning reminder notification)
   // When true, we gate openForm behind the evening rollover check
@@ -316,10 +327,10 @@ export default function PlanningScreen() {
     [handleCloseForm],
   )
 
-  const handleOpenForm = () => {
+  const handleOpenForm = useCallback(() => {
     setEditingTask(null)
     setIsFormVisible(true)
-  }
+  }, [])
 
   // Reset form when tutorial is replayed (user clicks "Replay Tutorial" from Settings)
   useEffect(() => {
@@ -328,22 +339,25 @@ export default function PlanningScreen() {
     }
   }, [isTutorialActive, currentStep, isFormVisible, handleCloseForm])
 
-  const handleEditTask = (taskId: string) => {
-    const task = tasks.find((t) => t.id === taskId)
-    if (task) {
-      // Sync header to task's day so submission targets the correct plan
-      const taskDay: PlanningTarget = task.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
-      setSelectedTarget(taskDay)
+  const handleEditTask = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((t) => t.id === taskId)
+      if (task) {
+        // Sync header to task's day so submission targets the correct plan
+        const taskDay: PlanningTarget = task.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
+        setSelectedTarget(taskDay)
 
-      setEditingTask(task)
-      setIsFormVisible(true)
-      setShouldAutoFocusTitle(true)
-      // Scroll to top after state updates to bring form into view
-      setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ y: 0, animated: true })
-      }, 100)
-    }
-  }
+        setEditingTask(task)
+        setIsFormVisible(true)
+        setShouldAutoFocusTitle(true)
+        // Scroll to top after state updates to bring form into view
+        setTimeout(() => {
+          scrollViewRef.current?.scrollTo({ y: 0, animated: true })
+        }, 100)
+      }
+    },
+    [tasks, todayPlan?.id],
+  )
 
   // Get system category UUID from form category ID
   const getSystemCategoryId = useCallback(
@@ -495,9 +509,19 @@ export default function PlanningScreen() {
         contentContainerStyle={{ paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled"
       >
-        <PlanningHeader selectedTarget={selectedTarget} onTargetChange={handleTargetChange} />
+        <PlanningHeader
+          selectedTarget={selectedTarget}
+          onTargetChange={handleTargetChange}
+          dateSuffix={
+            recapLayout === 'inline' && tasks.length > 0
+              ? <TasksRecap tasks={tasks} variant="inline" />
+              : undefined
+          }
+        />
 
-        {tasks.length > 0 && <TasksRecap tasks={tasks} />}
+        {recapLayout !== 'inline' && tasks.length > 0 && (
+          <TasksRecap tasks={tasks} variant={recapLayout} />
+        )}
 
         {isFormVisible ? (
           <AddTaskForm

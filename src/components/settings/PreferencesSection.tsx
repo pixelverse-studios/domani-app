@@ -1,10 +1,11 @@
 import React from 'react'
 import { View } from 'react-native'
-import { Globe } from 'lucide-react-native'
+import { Globe, LayoutGrid } from 'lucide-react-native'
 
 import { SectionHeader } from './SectionHeader'
 import { SettingsRow } from './SettingsRow'
 import { PreferencesSkeleton } from './SettingsSkeletons'
+import type { RecapLayout } from '~/stores/uiStore'
 
 // Common timezones grouped by region
 const TIMEZONES = [
@@ -22,19 +23,29 @@ const TIMEZONES = [
   { label: 'Sydney (AEST)', value: 'Australia/Sydney', offset: 'GMT+10' },
 ]
 
+const RECAP_LAYOUT_LABELS: Record<RecapLayout, string> = {
+  inline: 'Inline',
+  minimal: 'Minimal',
+  card: 'Card',
+}
+
 interface PreferencesSectionProps {
   isLoading: boolean
   timezone: string | null
+  recapLayout: RecapLayout
   onEditTimezone: () => void
+  onEditRecapLayout: () => void
 }
 
 /**
- * Preferences section with timezone setting
+ * Preferences section with timezone and recap layout settings
  */
 export function PreferencesSection({
   isLoading,
   timezone,
+  recapLayout,
   onEditTimezone,
+  onEditRecapLayout,
 }: PreferencesSectionProps) {
   // Get timezone display label
   const getTimezoneLabel = (value: string | null) => {
@@ -55,6 +66,12 @@ export function PreferencesSection({
             value={getTimezoneLabel(timezone)}
             onPress={onEditTimezone}
             icon={Globe}
+          />
+          <SettingsRow
+            label="Recap Layout"
+            value={RECAP_LAYOUT_LABELS[recapLayout]}
+            onPress={onEditRecapLayout}
+            icon={LayoutGrid}
           />
         </View>
       )}

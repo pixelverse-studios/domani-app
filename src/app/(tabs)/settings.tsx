@@ -21,6 +21,7 @@ import {
   PlanningTimeModal,
   DeleteAccountModal,
   SmartCategoriesModal,
+  RecapLayoutModal,
 } from '~/components/settings'
 import { TutorialScrollProvider, useTutorialScroll } from '~/components/tutorial'
 import { useAuth } from '~/hooks/useAuth'
@@ -30,6 +31,7 @@ import { useSubscription } from '~/hooks/useSubscription'
 import { useNotifications } from '~/hooks/useNotifications'
 import { useAccountDeletion } from '~/hooks/useAccountDeletion'
 import { useAppConfig } from '~/stores/appConfigStore'
+import { useUIStore, type RecapLayout } from '~/stores/uiStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
@@ -69,6 +71,8 @@ function SettingsContent() {
   } = useNotifications()
   const accountDeletion = useAccountDeletion()
   const { phase } = useAppConfig()
+  const recapLayout = useUIStore((s) => s.recapLayout)
+  const setRecapLayout = useUIStore((s) => s.setRecapLayout)
   const { resetTutorial, isActive: isTutorialActive, currentStep } = useTutorialStore()
   const { trackTutorialStarted, resetTracking } = useTutorialAnalytics()
   const tutorialScroll = useTutorialScroll()
@@ -110,6 +114,7 @@ function SettingsContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showFarewellOverlay, setShowFarewellOverlay] = useState(false)
   const [showSmartCategoriesModal, setShowSmartCategoriesModal] = useState(false)
+  const [showRecapLayoutModal, setShowRecapLayoutModal] = useState(false)
   const [pendingSmartCategoriesValue, setPendingSmartCategoriesValue] = useState(false)
 
   // Form states
@@ -166,6 +171,11 @@ function SettingsContent() {
     } catch {
       Alert.alert('Error', 'Failed to cancel deletion. Please try again.')
     }
+  }
+
+  const handleRecapLayoutSelect = (layout: RecapLayout) => {
+    setRecapLayout(layout)
+    setShowRecapLayoutModal(false)
   }
 
   const handleSmartCategoriesToggle = (value: boolean) => {
@@ -317,7 +327,9 @@ function SettingsContent() {
         <PreferencesSection
           isLoading={isLoading}
           timezone={profile?.timezone || null}
+          recapLayout={recapLayout}
           onEditTimezone={() => setShowTimezoneModal(true)}
+          onEditRecapLayout={() => setShowRecapLayoutModal(true)}
         />
 
         {/* 6. Support Section */}
@@ -401,6 +413,13 @@ function SettingsContent() {
         isPending={updateProfile.isPending}
         onConfirm={confirmSmartCategoriesChange}
         onClose={() => setShowSmartCategoriesModal(false)}
+      />
+
+      <RecapLayoutModal
+        visible={showRecapLayoutModal}
+        currentLayout={recapLayout}
+        onSelect={handleRecapLayoutSelect}
+        onClose={() => setShowRecapLayoutModal(false)}
       />
 
       {/* Farewell overlay after scheduling deletion */}
