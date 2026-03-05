@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { ScrollView, Alert, LayoutAnimation } from 'react-native'
+import { ScrollView, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { addDays, format } from 'date-fns'
@@ -18,7 +18,6 @@ import { usePlanForDate } from '~/hooks/usePlans'
 import { useCreateTask, useTasks, useDeleteTask, useUpdateTask } from '~/hooks/useTasks'
 import { useSystemCategories } from '~/hooks/useCategories'
 import { useNotificationStore } from '~/stores/notificationStore'
-import { useUIStore } from '~/stores/uiStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAdvancement } from '~/components/tutorial'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
@@ -86,16 +85,6 @@ export default function PlanningScreen() {
   const [shouldAutoFocusTitle, setShouldAutoFocusTitle] = useState(false)
 
   const setEveningRolloverSource = useNotificationStore((s) => s.setEveningRolloverSource)
-  const recapLayout = useUIStore((s) => s.recapLayout)
-
-  // Animate layout changes when recap variant switches
-  const prevRecapLayout = useRef(recapLayout)
-  useEffect(() => {
-    if (prevRecapLayout.current !== recapLayout) {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-      prevRecapLayout.current = recapLayout
-    }
-  }, [recapLayout])
 
   // Evening rollover state (Flow 2 — triggered by planning reminder notification)
   // When true, we gate openForm behind the evening rollover check
@@ -513,15 +502,11 @@ export default function PlanningScreen() {
           selectedTarget={selectedTarget}
           onTargetChange={handleTargetChange}
           dateSuffix={
-            recapLayout === 'inline' && tasks.length > 0
-              ? <TasksRecap tasks={tasks} variant="inline" />
+            tasks.length > 0
+              ? <TasksRecap tasks={tasks} />
               : undefined
           }
         />
-
-        {recapLayout !== 'inline' && tasks.length > 0 && (
-          <TasksRecap tasks={tasks} variant={recapLayout} />
-        )}
 
         {isFormVisible ? (
           <AddTaskForm

@@ -8,14 +8,13 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native'
-import { X, Check, AlertTriangle, Sparkles, LayoutList, Rows3, CreditCard } from 'lucide-react-native'
+import { X, Check, AlertTriangle, Sparkles } from 'lucide-react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { TIMEZONES } from './PreferencesSection'
-import type { RecapLayout } from '~/stores/uiStore'
 
 // ============================================================================
 // Name Edit Modal
@@ -715,103 +714,3 @@ export function SmartCategoriesModal({
   )
 }
 
-// ============================================================================
-// Recap Layout Modal
-// ============================================================================
-
-const RECAP_LAYOUT_OPTIONS: {
-  value: RecapLayout
-  label: string
-  description: string
-  Icon: typeof LayoutList
-}[] = [
-  {
-    value: 'inline',
-    label: 'Inline',
-    description: 'Compact row beneath the date',
-    Icon: LayoutList,
-  },
-  {
-    value: 'minimal',
-    label: 'Minimal',
-    description: 'Condensed bar with counts',
-    Icon: Rows3,
-  },
-  {
-    value: 'card',
-    label: 'Card',
-    description: 'Full card with category badges',
-    Icon: CreditCard,
-  },
-]
-
-interface RecapLayoutModalProps {
-  visible: boolean
-  currentLayout: RecapLayout
-  onSelect: (layout: RecapLayout) => void
-  onClose: () => void
-}
-
-export function RecapLayoutModal({
-  visible,
-  currentLayout,
-  onSelect,
-  onClose,
-}: RecapLayoutModalProps) {
-  const theme = useAppTheme()
-  const brandColor = theme.colors.brand.primary
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View className="flex-1 bg-black/50 justify-center px-6">
-        <View
-          className="rounded-2xl p-5"
-          style={{ backgroundColor: theme.colors.card }}
-        >
-          <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-lg font-semibold text-content-primary">Recap Layout</Text>
-            <TouchableOpacity onPress={onClose}>
-              <X size={24} color={theme.colors.text.tertiary} />
-            </TouchableOpacity>
-          </View>
-          <Text className="text-sm text-content-secondary mb-4">
-            Choose how your task summary appears on the planning screen.
-          </Text>
-          {RECAP_LAYOUT_OPTIONS.map((option) => {
-            const isSelected = currentLayout === option.value
-            return (
-              <TouchableOpacity
-                key={option.value}
-                onPress={() => onSelect(option.value)}
-                activeOpacity={0.7}
-                className="flex-row items-center py-3.5 px-3 rounded-xl mb-2"
-                style={{
-                  backgroundColor: isSelected ? `${brandColor}15` : theme.colors.background,
-                  borderWidth: 1,
-                  borderColor: isSelected ? `${brandColor}40` : theme.colors.border.primary,
-                }}
-              >
-                <option.Icon
-                  size={20}
-                  color={isSelected ? brandColor : theme.colors.text.tertiary}
-                />
-                <View className="flex-1 ml-3">
-                  <Text
-                    className="font-sans-medium text-base"
-                    style={{ color: isSelected ? brandColor : theme.colors.text.primary }}
-                  >
-                    {option.label}
-                  </Text>
-                  <Text className="font-sans text-xs text-content-tertiary mt-0.5">
-                    {option.description}
-                  </Text>
-                </View>
-                {isSelected && <Check size={18} color={brandColor} />}
-              </TouchableOpacity>
-            )
-          })}
-        </View>
-      </View>
-    </Modal>
-  )
-}
