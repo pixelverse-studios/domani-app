@@ -46,8 +46,15 @@ export function DevToolsSection() {
     try {
       await seedEveningRolloverTestData()
       await invalidateRolloverQueries(queryClient)
-      router.push(
-        '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true&trigger=planning_reminder',
+      Alert.alert(
+        'Tasks Seeded',
+        'Navigating to planning screen with rollover modal...',
+        [{
+          text: 'OK',
+          onPress: () => router.push(
+            '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true&trigger=planning_reminder',
+          ),
+        }],
       )
     } catch (error) {
       Alert.alert('Seed Failed', error instanceof Error ? error.message : 'Unknown error')
@@ -60,8 +67,17 @@ export function DevToolsSection() {
     setIsTriggeringAppOpen(true)
     try {
       await seedEveningRolloverTestData()
-      await invalidateRolloverQueries(queryClient)
-      devTriggerRolloverRecheck()
+      // Force bypass all time/cycle checks so the modal always appears
+      devTriggerRolloverRecheck(true)
+      // Invalidate AFTER triggering recheck — queries are only enabled once timeCheckPassed is true
+      // Small delay ensures the recheck effect has fired and enabled the queries before invalidating
+      setTimeout(() => {
+        invalidateRolloverQueries(queryClient)
+      }, 500)
+      Alert.alert(
+        'Rollover Triggered',
+        'Test tasks seeded and rollover modal should appear momentarily. All time checks bypassed.',
+      )
     } catch (error) {
       Alert.alert('Trigger Failed', error instanceof Error ? error.message : 'Unknown error')
     } finally {
@@ -73,9 +89,16 @@ export function DevToolsSection() {
     setIsResettingRollover(true)
     try {
       await clearEveningPromptState()
-      await invalidateRolloverQueries(queryClient)
-      devTriggerRolloverRecheck()
-      Alert.alert('Rollover Reset', 'Rollover will re-check with your existing tasks now.')
+      // Force bypass so it works regardless of time/cycle
+      devTriggerRolloverRecheck(true)
+      // Invalidate AFTER triggering recheck — queries are only enabled once timeCheckPassed is true
+      setTimeout(() => {
+        invalidateRolloverQueries(queryClient)
+      }, 500)
+      Alert.alert(
+        'Rollover Reset',
+        'Prompt flag cleared. Rollover modal should appear with your existing tasks.',
+      )
     } catch (error) {
       Alert.alert('Reset Failed', error instanceof Error ? error.message : 'Unknown error')
     } finally {
