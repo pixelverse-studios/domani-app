@@ -23,6 +23,11 @@
  * Exposes `isBeforeReminderTime` so the consumer can adjust copy/behaviour
  * when the rollover fires in the morning vs. evening.
  *
+ * Exposes `shouldPromptPlanning` for the case where time checks pass in
+ * evening mode but there are no incomplete tasks to roll over. The consumer
+ * can use this to redirect straight to tomorrow's planning screen instead
+ * of showing an empty rollover modal.
+ *
  * Performance note: planning_reminder_time is cached in a ref after the first
  * successful fetch. Subsequent foreground checks reuse the cached value rather than
  * issuing a new DB round trip.
@@ -45,7 +50,7 @@ import {
 
 export type UseEveningRolloverOnAppOpenResult = Omit<
   UseEveningRolloverTasksResult,
-  'eligibleTasks'
+  'eligibleTasks' | 'isFetched'
 > & {
   /** True when current time is before the planning reminder time (morning mode) */
   isBeforeReminderTime: boolean
@@ -205,6 +210,10 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
 
   const rollover = useEveningRolloverTasks({ enabled: timeCheckPassed })
 
+  // Use isFetched (from React Query) to know queries have resolved at least once.
+  // This handles both network fetches and cache hits, unlike tracking isLoading
+  // transitions which misses the cache-hit scenario where isLoading is never true.
+
   const markEveningPrompted = useCallback(async () => {
     try {
       await rollover.markEveningPrompted()
@@ -218,11 +227,12 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
     }
   }, [rollover.markEveningPrompted, setEveningRolloverSource])
 
-  // Time checks passed, queries finished, no tasks to roll over, and it's evening
+  // Time checks passed, queries resolved, no tasks to roll over, and it's evening.
+  // Note: !rollover.shouldShow is intentionally omitted — when eligibleTasks is empty
+  // and isFetched is true, shouldShow is guaranteed to be false.
   const shouldPromptPlanning =
     timeCheckPassed &&
-    !rollover.isLoading &&
-    !rollover.shouldShow &&
+    rollover.isFetched &&
     rollover.eligibleTasks.length === 0 &&
     !isBeforeReminderTime
 
