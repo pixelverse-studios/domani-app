@@ -342,7 +342,7 @@ export const NotificationService = {
       const identifier = await Notifications.scheduleNotificationAsync({
         content: {
           title: task.title,
-          body: task.notes || ' ',
+          body: task.notes || undefined,
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
           data: {
