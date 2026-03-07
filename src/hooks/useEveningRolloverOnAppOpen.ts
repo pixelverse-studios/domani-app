@@ -49,6 +49,8 @@ export type UseEveningRolloverOnAppOpenResult = Omit<
 > & {
   /** True when current time is before the planning reminder time (morning mode) */
   isBeforeReminderTime: boolean
+  /** True when time checks passed but there are no tasks to roll over (evening only) */
+  shouldPromptPlanning: boolean
 }
 
 export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult {
@@ -216,6 +218,14 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
     }
   }, [rollover.markEveningPrompted, setEveningRolloverSource])
 
+  // Time checks passed, queries finished, no tasks to roll over, and it's evening
+  const shouldPromptPlanning =
+    timeCheckPassed &&
+    !rollover.isLoading &&
+    !rollover.shouldShow &&
+    rollover.eligibleTasks.length === 0 &&
+    !isBeforeReminderTime
+
   return {
     // Gate shouldShow on timeCheckPassed so nothing leaks through while queries load
     shouldShow: timeCheckPassed && rollover.shouldShow,
@@ -224,5 +234,6 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
     otherTasks: rollover.otherTasks,
     markEveningPrompted,
     isBeforeReminderTime,
+    shouldPromptPlanning,
   }
 }

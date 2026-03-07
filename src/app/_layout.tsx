@@ -100,6 +100,7 @@ function RootLayoutContent() {
     otherTasks: eveningAppOpenOtherTasks,
     markEveningPrompted: markEveningAppOpenPrompted,
     isBeforeReminderTime: eveningIsBeforeReminderTime,
+    shouldPromptPlanning: eveningShouldPromptPlanning,
   } = useEveningRolloverOnAppOpen()
 
   const { data: tomorrowPlan } = useTomorrowPlan({
@@ -156,6 +157,22 @@ function RootLayoutContent() {
     eveningAppOpenLoading,
     eveningIsBeforeReminderTime,
   ])
+
+  // Evening "Plan Tomorrow" redirect — when time checks pass but there are no tasks to roll over,
+  // silently navigate to the planning screen with tomorrow selected and form open
+  React.useEffect(() => {
+    if (
+      eveningShouldPromptPlanning &&
+      !tutorialActive &&
+      !loading &&
+      !showCelebration
+    ) {
+      if (__DEV__)
+        console.log('[_layout] Evening prompt planning — redirecting to planning/tomorrow')
+      markEveningAppOpenPrompted()
+      router.push('/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true')
+    }
+  }, [eveningShouldPromptPlanning, tutorialActive, loading, showCelebration, markEveningAppOpenPrompted, router])
 
   // Track when celebration modal is shown
   React.useEffect(() => {
