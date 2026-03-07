@@ -33,6 +33,7 @@ import { useAppConfigStore } from '~/stores/appConfigStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
 import { useCelebrationStore } from '~/stores/celebrationStore'
+import { useNotificationStore } from '~/stores/notificationStore'
 import { useEveningRolloverOnAppOpen } from '~/hooks/useEveningRolloverOnAppOpen'
 import { useTomorrowPlan, usePlanForDate } from '~/hooks/usePlans'
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
@@ -100,6 +101,7 @@ function RootLayoutContent() {
     otherTasks: eveningAppOpenOtherTasks,
     markEveningPrompted: markEveningAppOpenPrompted,
     isBeforeReminderTime: eveningIsBeforeReminderTime,
+    shouldPromptPlanning: eveningShouldPromptPlanning,
   } = useEveningRolloverOnAppOpen()
 
   const { data: tomorrowPlan } = useTomorrowPlan({
@@ -145,6 +147,7 @@ function RootLayoutContent() {
         eveningAppOpenShouldShow,
         eveningAppOpenLoading,
         eveningIsBeforeReminderTime,
+        eveningShouldPromptPlanning,
       })
     }
   }, [
@@ -155,7 +158,43 @@ function RootLayoutContent() {
     eveningAppOpenShouldShow,
     eveningAppOpenLoading,
     eveningIsBeforeReminderTime,
+    eveningShouldPromptPlanning,
   ])
+
+  // Evening "Plan Tomorrow" redirect — when time checks pass but there are no tasks to roll over,
+  // silently navigate to the planning screen with the appropriate day selected and form open.
+  // The ref prevents duplicate router.push calls if the effect re-fires before navigation completes.
+  const planningRedirectFiredRef = React.useRef(false)
+
+  // Dev-only: reset the redirect guard when dev tools trigger a recheck
+  const devRecheckCounter = useNotificationStore((s) => s.devRolloverRecheckCounter)
+  React.useEffect(() => {
+    if (devRecheckCounter > 0) planningRedirectFiredRef.current = false
+  }, [devRecheckCounter])
+
+  React.useEffect(() => {
+    if (
+      eveningShouldPromptPlanning &&
+      !tutorialActive &&
+      !loading &&
+      !showCelebration &&
+      !planningRedirectFiredRef.current
+    ) {
+      planningRedirectFiredRef.current = true
+      if (__DEV__)
+        console.log('[_layout] Evening prompt planning — redirecting to planning/tomorrow')
+      ;(async () => {
+        try {
+          await markEveningAppOpenPrompted()
+          const planningFor = eveningIsBeforeReminderTime ? 'today' : 'tomorrow'
+          router.push(`/(tabs)/planning?defaultPlanningFor=${planningFor}&openForm=true`)
+        } catch (error) {
+          if (__DEV__) console.error('[_layout] Planning redirect failed:', error)
+          // planningRedirectFiredRef already set — won't retry, which is correct
+        }
+      })()
+    }
+  }, [eveningShouldPromptPlanning, tutorialActive, loading, showCelebration, eveningIsBeforeReminderTime, markEveningAppOpenPrompted, router])
 
   // Track when celebration modal is shown
   React.useEffect(() => {

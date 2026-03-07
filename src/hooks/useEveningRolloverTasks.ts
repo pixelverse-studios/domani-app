@@ -35,6 +35,8 @@ export interface UseEveningRolloverTasksResult {
   shouldShow: boolean
   /** True while any query is loading */
   isLoading: boolean
+  /** True once both queries have resolved at least once (includes cache hits) */
+  isFetched: boolean
   /** Mark user as having been prompted for evening rollover today */
   markEveningPrompted: () => Promise<void>
 }
@@ -52,7 +54,7 @@ export function useEveningRolloverTasks({
   // Determines morning vs evening mode internally by checking the user's
   // planning_reminder_time — so both call sites (app-open and notification-tap)
   // get the correct date filtering without threading props.
-  const { data: rawTasks = [], isLoading: isLoadingTasks } = useQuery({
+  const { data: rawTasks = [], isLoading: isLoadingTasks, isFetched: isFetchedTasks } = useQuery({
     queryKey: ['eveningRolloverTasks', today, yesterday],
     enabled,
     queryFn: async (): Promise<RolloverTask[]> => {
@@ -147,7 +149,7 @@ export function useEveningRolloverTasks({
   // Default to true (fail closed) to prevent duplicate prompts on error.
   // Keyed by `today` so the cache auto-resets at midnight without needing
   // explicit invalidation — consistent with the tasks query key above.
-  const { data: alreadyPrompted = true, isLoading: isLoadingPrompt } = useQuery({
+  const { data: alreadyPrompted = true, isLoading: isLoadingPrompt, isFetched: isFetchedPrompt } = useQuery({
     queryKey: ['eveningRolloverPromptedToday', today],
     enabled,
     queryFn: async () => {
@@ -159,6 +161,7 @@ export function useEveningRolloverTasks({
   })
 
   const isLoading = isLoadingTasks || isLoadingPrompt
+  const isFetched = isFetchedTasks && isFetchedPrompt
 
   const shouldShow = !isLoading && !alreadyPrompted && eligibleTasks.length > 0
 
@@ -173,6 +176,7 @@ export function useEveningRolloverTasks({
     otherTasks,
     shouldShow,
     isLoading,
+    isFetched,
     markEveningPrompted,
   }
 }
