@@ -51,6 +51,7 @@ export function useUpdateProfile() {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['profile', user?.id], data)
+      queryClient.invalidateQueries({ queryKey: ['planningReminderTime'] })
     },
   })
 }

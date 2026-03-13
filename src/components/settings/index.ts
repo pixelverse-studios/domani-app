@@ -32,6 +32,3 @@ export {
   DeleteAccountModal,
   SmartCategoriesModal,
 } from './SettingsModals'
-
-// Dev tools (visible in dev and TestFlight builds)
-export { DevToolsSection } from './DevToolsSection'
