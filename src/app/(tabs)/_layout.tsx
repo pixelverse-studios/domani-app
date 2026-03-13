@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { View, Text, ActivityIndicator } from 'react-native'
+import { View, Text, ActivityIndicator, Platform } from 'react-native'
 import { Tabs, Redirect } from 'expo-router'
 import { CheckCircle, Calendar, MessageCircle, BarChart3, Settings } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -10,9 +10,12 @@ import { WelcomeOverlay, TutorialSpotlight, useTutorialLifecycle } from '~/compo
 import { useTutorialStore } from '~/stores/tutorialStore'
 
 const TAB_BAR_CONTENT_HEIGHT = 56
+const ANDROID_MIN_BOTTOM_PADDING = 16
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets()
+  const bottomPadding =
+    Platform.OS === 'android' ? Math.max(insets.bottom, ANDROID_MIN_BOTTOM_PADDING) : insets.bottom
   const theme = useAppTheme()
   const { user, loading } = useAuth()
   const initializeTutorialState = useTutorialStore((state) => state.initializeTutorialState)
@@ -53,8 +56,8 @@ export default function TabLayout() {
             backgroundColor: theme.colors.background,
             borderTopColor: theme.colors.border.primary,
             borderTopWidth: 1,
-            height: TAB_BAR_CONTENT_HEIGHT + insets.bottom,
-            paddingBottom: insets.bottom,
+            height: TAB_BAR_CONTENT_HEIGHT + bottomPadding,
+            paddingBottom: bottomPadding,
             paddingTop: 8,
           },
           tabBarLabel: ({ focused, children }) => (
