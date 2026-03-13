@@ -15,7 +15,7 @@ import { format, subDays } from 'date-fns'
 import { useCallback, useMemo } from 'react'
 
 import { supabase } from '~/lib/supabase'
-import { wasEveningPromptedToday, markEveningPromptedToday, isPastReminderTime } from '~/lib/rollover'
+import { wasPromptedInCurrentCycle, markEveningPromptedToday, isPastReminderTime } from '~/lib/rollover'
 import { useNotificationStore } from '~/stores/notificationStore'
 import type { RolloverTask } from './useRolloverTasks'
 
@@ -50,6 +50,26 @@ export function useEveningRolloverTasks({
   const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
   const yesterday = useMemo(() => format(subDays(new Date(), 1), 'yyyy-MM-dd'), [])
 
+  // Query 0: Fetch the user's planning_reminder_time — shared by both the tasks
+  // query (morning vs evening mode) and the prompt-check query (cycle-aware dedup).
+  const { data: planningReminderTime } = useQuery({
+    queryKey: ['planningReminderTime'],
+    enabled,
+    queryFn: async (): Promise<string | null> => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return null
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('planning_reminder_time')
+        .eq('id', user.id)
+        .maybeSingle()
+      return profile?.planning_reminder_time ?? null
+    },
+    staleTime: 1000 * 60 * 60, // 1 hour — rarely changes
+  })
+
   // Query 1: Get incomplete tasks from relevant plans.
   // Determines morning vs evening mode internally by checking the user's
   // planning_reminder_time — so both call sites (app-open and notification-tap)
@@ -63,12 +83,7 @@ export function useEveningRolloverTasks({
       } = await supabase.auth.getUser()
       if (!user) return []
 
-      // Fetch the user's planning_reminder_time to determine morning vs evening mode
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('planning_reminder_time')
-        .eq('id', user.id)
-        .maybeSingle()
+      const reminderTime = planningReminderTime
 
       // Dev bypass: always query both days so seeded/real tasks are found regardless of time
       const { devForceBypass } = useNotificationStore.getState()
@@ -82,7 +97,7 @@ export function useEveningRolloverTasks({
       // - Evening mode (at/after reminder time, or no reminder set): today + yesterday
       const isBeforeReminder =
         !devForceBypass &&
-        !!profile?.planning_reminder_time && !isPastReminderTime(profile.planning_reminder_time)
+        !!reminderTime && !isPastReminderTime(reminderTime)
       const planDates = isBeforeReminder ? [yesterday] : [today, yesterday]
 
       if (__DEV__)
@@ -145,16 +160,18 @@ export function useEveningRolloverTasks({
     return { eligibleTasks: sorted, mitTask: featuredMit, otherTasks: others }
   }, [rawTasks])
 
-  // Query 2: Check if user was already shown the evening prompt today
+  // Query 2: Check if user was already prompted in the current rollover cycle.
+  // Uses cycle-aware check so a morning rollover prompt (before reminder time)
+  // doesn't block the evening planning prompt (after reminder time) on the same day.
   // Default to true (fail closed) to prevent duplicate prompts on error.
-  // Keyed by `today` so the cache auto-resets at midnight without needing
-  // explicit invalidation — consistent with the tasks query key above.
   const { data: alreadyPrompted = true, isLoading: isLoadingPrompt, isFetched: isFetchedPrompt } = useQuery({
-    queryKey: ['eveningRolloverPromptedToday', today],
-    enabled,
+    queryKey: ['eveningRolloverPromptedInCycle', today, planningReminderTime],
+    enabled: enabled && planningReminderTime !== undefined,
     queryFn: async () => {
-      const result = await wasEveningPromptedToday()
-      if (__DEV__) console.log('[useEveningRolloverTasks] wasEveningPromptedToday:', result)
+      // If no reminder time configured, fall back to cycle-aware with a default
+      // that effectively checks the full calendar day
+      const result = await wasPromptedInCurrentCycle(planningReminderTime ?? '00:00:00')
+      if (__DEV__) console.log('[useEveningRolloverTasks] wasPromptedInCurrentCycle:', result, 'reminderTime:', planningReminderTime)
       return result
     },
     staleTime: 1000 * 60 * 60, // 1 hour
@@ -167,8 +184,8 @@ export function useEveningRolloverTasks({
 
   const markEveningPrompted = useCallback(async () => {
     await markEveningPromptedToday()
-    await queryClient.invalidateQueries({ queryKey: ['eveningRolloverPromptedToday', today] })
-  }, [queryClient, today])
+    await queryClient.invalidateQueries({ queryKey: ['eveningRolloverPromptedInCycle'] })
+  }, [queryClient])
 
   return {
     eligibleTasks,
