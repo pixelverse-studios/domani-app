@@ -75,8 +75,8 @@ export function useEveningRolloverTasks({
   // planning_reminder_time — so both call sites (app-open and notification-tap)
   // get the correct date filtering without threading props.
   const { data: rawTasks = [], isLoading: isLoadingTasks, isFetched: isFetchedTasks } = useQuery({
-    queryKey: ['eveningRolloverTasks', today, yesterday],
-    enabled,
+    queryKey: ['eveningRolloverTasks', today, yesterday, planningReminderTime],
+    enabled: enabled && planningReminderTime !== undefined,
     queryFn: async (): Promise<RolloverTask[]> => {
       const {
         data: { user },
