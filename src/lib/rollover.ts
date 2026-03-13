@@ -165,32 +165,7 @@ export function isPastReminderTime(planningReminderTime: string): boolean {
 /**
  * AsyncStorage key for tracking the evening rollover prompt.
  */
-export const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
-
-/**
- * Check if the user was already shown the evening rollover prompt today
- *
- * Supports both legacy date-only format (YYYY-MM-DD) and new ISO timestamp format.
- * Intentionally lets AsyncStorage errors propagate so the React Query caller
- * can apply its default of `true` (fail-closed: suppress the prompt on error).
- */
-export async function wasEveningPromptedToday(): Promise<boolean> {
-  const storedValue = await AsyncStorage.getItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
-  if (!storedValue) return false
-
-  const today = format(new Date(), 'yyyy-MM-dd')
-
-  // Handle both old date-only format (YYYY-MM-DD) and new ISO timestamp format
-  if (storedValue.length === 10) {
-    // Old format: date string like "2026-03-03"
-    return storedValue === today
-  }
-
-  // New format: ISO timestamp — parse to local date for comparison
-  // (toISOString() stores UTC which can differ from local date near midnight)
-  const storedDate = format(new Date(storedValue), 'yyyy-MM-dd')
-  return storedDate === today
-}
+const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
 
 /**
  * Mark the user as having been shown the evening rollover prompt.
