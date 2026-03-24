@@ -489,14 +489,23 @@ export function AddTaskForm({
           disabled={isFormDisabled}
           activeOpacity={0.6}
           className="flex-row items-center justify-center mt-5 py-2"
+          style={{ gap: 8 }}
         >
+          <View
+            className="w-4 h-4 rounded items-center justify-center"
+            style={{
+              backgroundColor: moveToOtherDay ? theme.colors.brand.primary : 'transparent',
+              borderWidth: moveToOtherDay ? 0 : 1.5,
+              borderColor: theme.colors.text.tertiary,
+            }}
+          >
+            {moveToOtherDay && <Check size={11} color="#fff" strokeWidth={3} />}
+          </View>
           <Text
             className="text-xs font-sans-medium"
             style={{ color: moveToOtherDay ? theme.colors.brand.primary : theme.colors.text.tertiary }}
           >
-            {moveToOtherDay
-              ? `Moving to ${selectedTarget === 'today' ? 'tomorrow' : 'today'} ✓`
-              : `Move to ${selectedTarget === 'today' ? 'tomorrow' : 'today'}`}
+            Move to {selectedTarget === 'today' ? 'tomorrow' : 'today'}
           </Text>
         </TouchableOpacity>
       )}
