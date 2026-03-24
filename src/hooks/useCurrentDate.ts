@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 import { format, addDays, subDays } from 'date-fns'
 
@@ -48,8 +48,8 @@ export function useCurrentDate() {
     }
   }, [refreshDate])
 
-  const tomorrow = format(addDays(new Date(today), 1), 'yyyy-MM-dd')
-  const yesterday = format(subDays(new Date(today), 1), 'yyyy-MM-dd')
+  const tomorrow = useMemo(() => format(addDays(new Date(today), 1), 'yyyy-MM-dd'), [today])
+  const yesterday = useMemo(() => format(subDays(new Date(today), 1), 'yyyy-MM-dd'), [today])
 
   return { today, tomorrow, yesterday }
 }
