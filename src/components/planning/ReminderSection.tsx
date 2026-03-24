@@ -275,7 +275,7 @@ export function ReminderSection({
                       }
                     }}
                     themeVariant="light"
-                    style={{ height: 200 }}
+                    style={{ height: 200, alignSelf: 'center' }}
                   />
                 </TouchableOpacity>
               </TouchableOpacity>
