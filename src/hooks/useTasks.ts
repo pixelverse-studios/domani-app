@@ -366,6 +366,55 @@ export function useUpdateTask() {
 
       return { data, originalPlanId }
     },
+    onMutate: async ({ taskId, updates, originalPlanId }) => {
+      // Only do optimistic update when moving between plans
+      if (!updates.plan_id || !originalPlanId || updates.plan_id === originalPlanId) return
+
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['tasks', originalPlanId] })
+      await queryClient.cancelQueries({ queryKey: ['tasks', updates.plan_id] })
+
+      // Snapshot previous values for rollback
+      const previousOriginal = queryClient.getQueryData<TaskWithCategory[]>([
+        'tasks',
+        originalPlanId,
+      ])
+      const previousTarget = queryClient.getQueryData<TaskWithCategory[]>([
+        'tasks',
+        updates.plan_id,
+      ])
+
+      // Remove task from original plan cache
+      if (previousOriginal) {
+        queryClient.setQueryData<TaskWithCategory[]>(
+          ['tasks', originalPlanId],
+          previousOriginal.filter((t) => t.id !== taskId),
+        )
+      }
+
+      // Add task to target plan cache (with updated fields)
+      if (previousOriginal) {
+        const movedTask = previousOriginal.find((t) => t.id === taskId)
+        if (movedTask) {
+          const updatedTask = { ...movedTask, ...updates }
+          queryClient.setQueryData<TaskWithCategory[]>(
+            ['tasks', updates.plan_id],
+            [...(previousTarget || []), updatedTask],
+          )
+        }
+      }
+
+      return { previousOriginal, previousTarget }
+    },
+    onError: (_err, { updates, originalPlanId }, context) => {
+      // Rollback on error
+      if (context?.previousOriginal && originalPlanId) {
+        queryClient.setQueryData(['tasks', originalPlanId], context.previousOriginal)
+      }
+      if (context?.previousTarget && updates.plan_id) {
+        queryClient.setQueryData(['tasks', updates.plan_id], context.previousTarget)
+      }
+    },
     onSuccess: ({ data, originalPlanId }) => {
       // Invalidate the new plan's tasks
       queryClient.invalidateQueries({ queryKey: ['tasks', data.plan_id] })
