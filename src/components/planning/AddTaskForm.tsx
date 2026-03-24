@@ -9,7 +9,7 @@ import {
   Platform,
   UIManager,
 } from 'react-native'
-import { X, Check, ChevronRight, FileText, ArrowRightLeft } from 'lucide-react-native'
+import { X, Check, ChevronRight, FileText } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { addDays, setHours, setMinutes } from 'date-fns'
 import Animated, {
@@ -487,30 +487,16 @@ export function AddTaskForm({
         <TouchableOpacity
           onPress={() => setMoveToOtherDay((prev) => !prev)}
           disabled={isFormDisabled}
-          activeOpacity={0.7}
-          className="flex-row items-center mt-4 py-3 px-4 rounded-xl"
-          style={{
-            backgroundColor: moveToOtherDay ? `${theme.colors.brand.primary}1A` : theme.colors.background,
-            borderWidth: moveToOtherDay ? 2 : 1,
-            borderColor: moveToOtherDay ? theme.colors.brand.primary : theme.colors.border.primary,
-          }}
+          activeOpacity={0.6}
+          className="flex-row items-center justify-center mt-5 py-2"
         >
-          <View
-            className="w-5 h-5 rounded items-center justify-center mr-3"
-            style={{
-              backgroundColor: moveToOtherDay ? theme.colors.brand.primary : 'transparent',
-              borderWidth: moveToOtherDay ? 0 : 2,
-              borderColor: theme.colors.border.primary,
-            }}
-          >
-            {moveToOtherDay && <Check size={14} color="#fff" />}
-          </View>
-          <ArrowRightLeft size={16} color={moveToOtherDay ? theme.colors.brand.primary : theme.colors.text.tertiary} />
           <Text
-            className="text-sm font-sans-medium ml-2"
-            style={{ color: moveToOtherDay ? theme.colors.brand.primary : theme.colors.text.secondary }}
+            className="text-xs font-sans-medium"
+            style={{ color: moveToOtherDay ? theme.colors.brand.primary : theme.colors.text.tertiary }}
           >
-            Move to {selectedTarget === 'today' ? 'tomorrow' : 'today'}
+            {moveToOtherDay
+              ? `Moving to ${selectedTarget === 'today' ? 'tomorrow' : 'today'} ✓`
+              : `Move to ${selectedTarget === 'today' ? 'tomorrow' : 'today'}`}
           </Text>
         </TouchableOpacity>
       )}
