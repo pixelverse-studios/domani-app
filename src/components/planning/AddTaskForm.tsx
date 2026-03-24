@@ -30,7 +30,7 @@ import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { CategorySelector } from './CategorySelector'
 import { PrioritySelector, type Priority } from './PrioritySelector'
-import { type PlanningTarget } from './DayToggle'
+import { DayToggle, type PlanningTarget } from './DayToggle'
 import { ReminderSection } from './ReminderSection'
 import { useAppTheme } from '~/hooks/useAppTheme'
 
@@ -59,6 +59,7 @@ interface AddTaskFormProps {
     priority: Priority
     notes?: string | null
     reminderAt?: string | null // ISO timestamp
+    plannedFor?: PlanningTarget // Only set when editing (form-level day override)
   }) => Promise<void> | void
   initialValues?: InitialFormValues
   isEditing?: boolean
@@ -126,6 +127,9 @@ export function AddTaskForm({
   const [notes, setNotes] = useState(initialValues?.notes ?? '')
   const [isNotesExpanded, setIsNotesExpanded] = useState(!!initialValues?.notes)
 
+  // Day selector state (only used when editing)
+  const [formTarget, setFormTarget] = useState<PlanningTarget>(selectedTarget)
+
   // Reminder state
   const [isReminderEnabled, setIsReminderEnabled] = useState(!!initialValues?.reminderAt)
   const [reminderDate, setReminderDate] = useState<Date>(() => {
@@ -151,6 +155,9 @@ export function AddTaskForm({
       setNotes(initialValues.notes ?? '')
       setIsNotesExpanded(!!initialValues.notes)
       notesChevronRotation.value = initialValues.notes ? 1 : 0
+
+      // Sync day selector to match the task's current day
+      setFormTarget(selectedTarget)
 
       // Sync reminder state
       setIsReminderEnabled(!!initialValues.reminderAt)
@@ -317,6 +324,7 @@ export function AddTaskForm({
         priority: selectedPriority,
         notes: notes.trim() || null,
         reminderAt,
+        ...(isEditing && { plannedFor: formTarget }),
       })
 
       // Show success state
@@ -374,6 +382,18 @@ export function AddTaskForm({
           <X size={24} color={theme.colors.text.tertiary} />
         </TouchableOpacity>
       </View>
+
+      {/* Day Selector — only shown when editing so user can move task between days */}
+      {isEditing && (
+        <View className="mb-4">
+          <DayToggle
+            selectedTarget={formTarget}
+            onTargetChange={setFormTarget}
+            variant="minimal"
+            disabled={isFormDisabled}
+          />
+        </View>
+      )}
 
       {/* Task Title Input */}
       <View ref={titleTargetRef} onLayout={measureTitleTarget}>
@@ -468,7 +488,7 @@ export function AddTaskForm({
         isReminderEnabled={isReminderEnabled}
         onReminderEnabledChange={setIsReminderEnabled}
         disabled={isFormDisabled}
-        selectedTarget={selectedTarget}
+        selectedTarget={isEditing ? formTarget : selectedTarget}
       />
 
       {/* Action Buttons - Tutorial target for complete_form step */}
