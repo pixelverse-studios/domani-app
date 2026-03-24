@@ -30,7 +30,7 @@ import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { CategorySelector } from './CategorySelector'
 import { PrioritySelector, type Priority } from './PrioritySelector'
-import { DayToggle, type PlanningTarget } from './DayToggle'
+import { type PlanningTarget } from './DayToggle'
 import { ReminderSection } from './ReminderSection'
 import { useAppTheme } from '~/hooks/useAppTheme'
 
@@ -127,8 +127,8 @@ export function AddTaskForm({
   const [notes, setNotes] = useState(initialValues?.notes ?? '')
   const [isNotesExpanded, setIsNotesExpanded] = useState(!!initialValues?.notes)
 
-  // Day selector state (only used when editing)
-  const [formTarget, setFormTarget] = useState<PlanningTarget>(selectedTarget)
+  // Move to other day checkbox (only used when editing)
+  const [moveToOtherDay, setMoveToOtherDay] = useState(false)
 
   // Reminder state
   const [isReminderEnabled, setIsReminderEnabled] = useState(!!initialValues?.reminderAt)
@@ -156,8 +156,8 @@ export function AddTaskForm({
       setIsNotesExpanded(!!initialValues.notes)
       notesChevronRotation.value = initialValues.notes ? 1 : 0
 
-      // Sync day selector to match the task's current day
-      setFormTarget(selectedTarget)
+      // Reset move checkbox when switching to a different task
+      setMoveToOtherDay(false)
 
       // Sync reminder state
       setIsReminderEnabled(!!initialValues.reminderAt)
@@ -221,8 +221,8 @@ export function AddTaskForm({
     setNotes('')
     setIsNotesExpanded(false)
     notesChevronRotation.value = 0
-    // Reset day selector and reminder
-    setFormTarget(selectedTarget)
+    // Reset move checkbox and reminder
+    setMoveToOtherDay(false)
     setIsReminderEnabled(false)
     const baseDate = selectedTarget === 'tomorrow' ? addDays(new Date(), 1) : new Date()
     setReminderDate(setMinutes(setHours(baseDate, 9), 0))
@@ -325,7 +325,9 @@ export function AddTaskForm({
         priority: selectedPriority,
         notes: notes.trim() || null,
         reminderAt,
-        ...(isEditing && { plannedFor: formTarget }),
+        ...(isEditing && moveToOtherDay && {
+          plannedFor: selectedTarget === 'today' ? 'tomorrow' as PlanningTarget : 'today' as PlanningTarget,
+        }),
       })
 
       // Show success state
@@ -383,18 +385,6 @@ export function AddTaskForm({
           <X size={24} color={theme.colors.text.tertiary} />
         </TouchableOpacity>
       </View>
-
-      {/* Day Selector — only shown when editing so user can move task between days */}
-      {isEditing && (
-        <View className="mb-4">
-          <DayToggle
-            selectedTarget={formTarget}
-            onTargetChange={setFormTarget}
-            variant="minimal"
-            disabled={isFormDisabled}
-          />
-        </View>
-      )}
 
       {/* Task Title Input */}
       <View ref={titleTargetRef} onLayout={measureTitleTarget}>
@@ -489,8 +479,36 @@ export function AddTaskForm({
         isReminderEnabled={isReminderEnabled}
         onReminderEnabledChange={setIsReminderEnabled}
         disabled={isFormDisabled}
-        selectedTarget={isEditing ? formTarget : selectedTarget}
+        selectedTarget={selectedTarget}
       />
+
+      {/* Move to other day — only shown when editing */}
+      {isEditing && (
+        <TouchableOpacity
+          onPress={() => setMoveToOtherDay((prev) => !prev)}
+          disabled={isFormDisabled}
+          activeOpacity={0.6}
+          className="flex-row items-center mt-5 py-2"
+          style={{ gap: 8 }}
+        >
+          <View
+            className="w-4 h-4 rounded items-center justify-center"
+            style={{
+              backgroundColor: moveToOtherDay ? theme.colors.brand.primary : 'transparent',
+              borderWidth: moveToOtherDay ? 0 : 1.5,
+              borderColor: theme.colors.text.tertiary,
+            }}
+          >
+            {moveToOtherDay && <Check size={11} color="#fff" strokeWidth={3} />}
+          </View>
+          <Text
+            className="text-xs font-sans-medium"
+            style={{ color: moveToOtherDay ? theme.colors.brand.primary : theme.colors.text.tertiary }}
+          >
+            Move to {selectedTarget === 'today' ? 'tomorrow' : 'today'}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {/* Action Buttons - Tutorial target for complete_form step */}
       <View

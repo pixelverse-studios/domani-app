@@ -48,8 +48,11 @@ export function useCurrentDate() {
     }
   }, [refreshDate])
 
-  const tomorrow = useMemo(() => format(addDays(new Date(today), 1), 'yyyy-MM-dd'), [today])
-  const yesterday = useMemo(() => format(subDays(new Date(today), 1), 'yyyy-MM-dd'), [today])
+  // Parse with explicit time to avoid UTC midnight interpretation
+  // new Date("2026-03-24") parses as UTC midnight, which in US timezones
+  // rolls back to the previous day. Adding T00:00:00 forces local parsing.
+  const tomorrow = useMemo(() => format(addDays(new Date(`${today}T00:00:00`), 1), 'yyyy-MM-dd'), [today])
+  const yesterday = useMemo(() => format(subDays(new Date(`${today}T00:00:00`), 1), 'yyyy-MM-dd'), [today])
 
   return { today, tomorrow, yesterday }
 }

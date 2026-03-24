@@ -26,6 +26,7 @@ import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
 import { useCurrentDate } from '~/hooks/useCurrentDate'
 import { useEveningRolloverTasks } from '~/hooks/useEveningRolloverTasks'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
+import { supabase } from '~/lib/supabase'
 import type { TaskWithCategory } from '~/types'
 
 // Tutorial timing constants
@@ -370,7 +371,36 @@ export default function PlanningScreen() {
         // Use the form's plannedFor (day selector in edit mode) rather than the header pill
         const editTarget = task.plannedFor ?? selectedTarget
         const originalPlanId = editingTask.plan_id
-        const targetPlanId = editTarget === 'today' ? todayPlan?.id : tomorrowPlan?.id
+
+        // Resolve target plan - use cached plan if available, otherwise fetch/create
+        let targetPlanId = editTarget === 'today' ? todayPlan?.id : tomorrowPlan?.id
+
+        if (!targetPlanId && task.plannedFor) {
+          // Plan not cached yet - fetch or create it directly
+          const targetDate = editTarget === 'today' ? todayDate : tomorrowDate
+          const {
+            data: { user },
+          } = await supabase.auth.getUser()
+          if (user) {
+            const { data: existingPlan } = await supabase
+              .from('plans')
+              .select('id')
+              .eq('planned_for', targetDate)
+              .eq('user_id', user.id)
+              .maybeSingle()
+
+            if (existingPlan) {
+              targetPlanId = existingPlan.id
+            } else {
+              const { data: newPlan } = await supabase
+                .from('plans')
+                .insert({ planned_for: targetDate, user_id: user.id })
+                .select('id')
+                .single()
+              targetPlanId = newPlan?.id
+            }
+          }
+        }
 
         // Build base updates
         const updates: Parameters<typeof updateTask.mutateAsync>[0]['updates'] = {
