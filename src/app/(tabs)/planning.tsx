@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { ScrollView, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { addDays, format } from 'date-fns'
 
 import {
   PlanningHeader,
@@ -24,6 +23,7 @@ import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
+import { useCurrentDate } from '~/hooks/useCurrentDate'
 import { useEveningRolloverTasks } from '~/hooks/useEveningRolloverTasks'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import type { TaskWithCategory } from '~/types'
@@ -105,9 +105,8 @@ export default function PlanningScreen() {
     }
   }, [defaultPlanningFor, openForm, editTaskId, router])
 
-  // Get dates for today and tomorrow
-  const todayDate = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
-  const tomorrowDate = useMemo(() => format(addDays(new Date(), 1), 'yyyy-MM-dd'), [])
+  // Get dates for today and tomorrow — refreshes on foreground and at midnight
+  const { today: todayDate, tomorrow: tomorrowDate } = useCurrentDate()
 
   // Get or create plans for both today and tomorrow (needed for moving tasks between days)
   const { data: todayPlan } = usePlanForDate(todayDate)
