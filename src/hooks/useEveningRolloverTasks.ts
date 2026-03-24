@@ -11,11 +11,11 @@
  */
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { format, subDays } from 'date-fns'
 import { useCallback, useMemo } from 'react'
 
 import { supabase } from '~/lib/supabase'
 import { wasPromptedInCurrentCycle, markEveningPromptedToday, isPastReminderTime } from '~/lib/rollover'
+import { useCurrentDate } from '~/hooks/useCurrentDate'
 import { useNotificationStore } from '~/stores/notificationStore'
 import type { RolloverTask } from './useRolloverTasks'
 
@@ -45,10 +45,8 @@ export function useEveningRolloverTasks({
   enabled = false,
 }: UseEveningRolloverTasksOptions = {}): UseEveningRolloverTasksResult {
   const queryClient = useQueryClient()
-  // Stable date strings for the lifetime of this hook instance — prevents midnight
-  // boundary issues and avoids recreating the query key on every render
-  const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
-  const yesterday = useMemo(() => format(subDays(new Date(), 1), 'yyyy-MM-dd'), [])
+  // Refreshes on foreground and at midnight — prevents stale dates after overnight sleep
+  const { today, yesterday } = useCurrentDate()
 
   // Query 0: Fetch the user's planning_reminder_time — shared by both the tasks
   // query (morning vs evening mode) and the prompt-check query (cycle-aware dedup).

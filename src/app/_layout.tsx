@@ -4,7 +4,7 @@ import '../../global.css'
 import { initSentry } from '~/lib/sentry'
 initSentry()
 
-import React, { useMemo } from 'react'
+import React from 'react'
 import { Stack, useRouter } from 'expo-router'
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { StatusBar } from 'expo-status-bar'
@@ -18,7 +18,7 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter'
 import { View, ActivityIndicator, Alert } from 'react-native'
-import { format } from 'date-fns'
+import { useCurrentDate } from '~/hooks/useCurrentDate'
 
 import { supabase } from '~/lib/supabase'
 import { ThemeProvider } from '~/providers/ThemeProvider'
@@ -107,7 +107,7 @@ function RootLayoutContent() {
   const { data: tomorrowPlan } = useTomorrowPlan({
     enabled: eveningAppOpenShouldShow && !eveningIsBeforeReminderTime,
   })
-  const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
+  const { today } = useCurrentDate()
   const { data: todayPlan } = usePlanForDate(today, {
     enabled: eveningAppOpenShouldShow && eveningIsBeforeReminderTime,
   })
