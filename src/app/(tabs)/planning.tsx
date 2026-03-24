@@ -56,6 +56,7 @@ interface TaskFormData {
   priority: Priority
   notes?: string | null
   reminderAt?: string | null
+  plannedFor?: PlanningTarget // Set by form when editing (day override)
 }
 
 export default function PlanningScreen() {
@@ -367,8 +368,10 @@ export default function PlanningScreen() {
     try {
       if (editingTask) {
         // Determine if task is moving to a different day
+        // Use the form's plannedFor (day selector in edit mode) rather than the header pill
+        const editTarget = task.plannedFor ?? selectedTarget
         const originalPlanId = editingTask.plan_id
-        const targetPlanId = selectedTarget === 'today' ? todayPlan?.id : tomorrowPlan?.id
+        const targetPlanId = editTarget === 'today' ? todayPlan?.id : tomorrowPlan?.id
 
         // Build base updates
         const updates: Parameters<typeof updateTask.mutateAsync>[0]['updates'] = {
