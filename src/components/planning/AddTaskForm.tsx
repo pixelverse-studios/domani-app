@@ -165,7 +165,7 @@ export function AddTaskForm({
         setReminderDate(new Date(initialValues.reminderAt))
       }
     }
-  }, [initialValues, notesChevronRotation])
+  }, [initialValues, notesChevronRotation, selectedTarget])
 
   // Auto-focus title input when requested (e.g., when editing a task)
   useEffect(() => {
@@ -221,7 +221,8 @@ export function AddTaskForm({
     setNotes('')
     setIsNotesExpanded(false)
     notesChevronRotation.value = 0
-    // Reset reminder
+    // Reset day selector and reminder
+    setFormTarget(selectedTarget)
     setIsReminderEnabled(false)
     const baseDate = selectedTarget === 'tomorrow' ? addDays(new Date(), 1) : new Date()
     setReminderDate(setMinutes(setHours(baseDate, 9), 0))
