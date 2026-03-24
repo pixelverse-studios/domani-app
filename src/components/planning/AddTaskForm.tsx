@@ -488,7 +488,7 @@ export function AddTaskForm({
           onPress={() => setMoveToOtherDay((prev) => !prev)}
           disabled={isFormDisabled}
           activeOpacity={0.6}
-          className="flex-row items-center justify-center mt-5 py-2"
+          className="flex-row items-center mt-5 py-2"
           style={{ gap: 8 }}
         >
           <View
