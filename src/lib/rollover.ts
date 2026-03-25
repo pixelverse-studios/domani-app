@@ -283,7 +283,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
   // FIX 1: CRITICAL - Verify user owns the target plan
   const { data: targetPlan, error: planError } = await supabase
     .from('plans')
-    .select('user_id')
+    .select('user_id, planned_for')
     .eq('id', input.targetPlanId)
     .single()
 
@@ -358,6 +358,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
           estimated_duration_minutes: originalTask.estimated_duration_minutes,
           notes: originalTask.notes,
           reminder_at: newReminderAt,
+          scheduled_date: targetPlan.planned_for,
           // Do NOT set: is_mit (auto-set by trigger), completed_at, notification_id
         })
         .select(
