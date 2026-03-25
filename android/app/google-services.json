@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "509141362881",
+    "project_id": "domani-bb927",
+    "storage_bucket": "domani-bb927.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:509141362881:android:8c64e2ab6ba9a814370c40",
+        "android_client_info": {
+          "package_name": "com.baitedz.domaniapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRNL07GpUss8r1_uShaQxx8gf-XwOTDOo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
