@@ -205,6 +205,14 @@ export function useCreateTask() {
       // Note: is_mit is automatically set by DB trigger based on priority
       // TOP priority tasks are automatically marked as MIT
       // If another TOP task exists, it will be demoted to HIGH by the trigger
+
+      // Dual-write: resolve plan date for scheduled_date column
+      const { data: plan } = await supabase
+        .from('plans')
+        .select('planned_for')
+        .eq('id', planId)
+        .single()
+
       const { data, error } = await supabase
         .from('tasks')
         .insert({
@@ -218,6 +226,7 @@ export function useCreateTask() {
           estimated_duration_minutes: estimatedDurationMinutes,
           notes,
           reminder_at: reminderAt,
+          scheduled_date: plan?.planned_for ?? new Date().toISOString().split('T')[0],
         })
         .select(
           `
