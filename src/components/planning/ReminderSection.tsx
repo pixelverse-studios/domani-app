@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import { View, TouchableOpacity, Platform, LayoutAnimation, UIManager, Modal } from 'react-native'
-import { Bell, Clock, Settings2, Zap } from 'lucide-react-native'
+import { Bell, Clock } from 'lucide-react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { format, addDays, setHours, setMinutes, isBefore } from 'date-fns'
 import Animated from 'react-native-reanimated'
@@ -133,11 +133,6 @@ export function ReminderSection({
       {/* Expanded Pickers with Quick Presets */}
       {isReminderEnabled && (
         <View className="mt-4">
-          {/* Shortcuts Header - matching Priority/Category style */}
-          <View className="flex-row items-center mb-3">
-            <Zap size={16} color={iconColor} />
-            <Text className="font-sans-medium text-content-primary ml-2">Shortcuts</Text>
-          </View>
           <View className="flex-row" style={{ gap: 6 }}>
             {timePresets.map((preset) => {
               const isSelected =
@@ -168,7 +163,7 @@ export function ReminderSection({
             })}
           </View>
 
-          {/* Custom Time Row */}
+          {/* Custom Time Chip */}
           {(() => {
             const isCustomTime = !timePresets.some(
               (preset) =>
@@ -177,42 +172,33 @@ export function ReminderSection({
             )
 
             return (
-              <View className="flex-row items-center justify-between mt-3">
+              <View className="flex-row mt-3">
                 <TouchableOpacity
                   onPress={() => setShowTimePicker(true)}
                   disabled={disabled}
                   className="flex-row items-center py-2.5 px-4 rounded-xl"
                   style={{
-                    backgroundColor: isCustomTime ? chipActiveBg : chipBg,
-                    borderWidth: isCustomTime ? 2 : 1,
+                    backgroundColor: isCustomTime ? `${brandColor}0D` : chipBg,
+                    borderWidth: 1,
                     borderColor: isCustomTime ? brandColor : borderColor,
                     gap: 6,
                   }}
                 >
-                  <Settings2 size={14} color={isCustomTime ? brandColor : iconColor} />
+                  <Clock size={14} color={isCustomTime ? brandColor : iconColor} />
                   <Text
-                    className="text-xs font-sans-medium"
+                    className="text-sm font-sans-semibold"
                     style={{ color: isCustomTime ? brandColor : iconColor }}
                   >
                     Custom
                   </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => setShowTimePicker(true)}
-                  disabled={disabled}
-                  className="flex-row items-center px-4 py-2.5 rounded-xl"
-                  style={{
-                    backgroundColor: chipBg,
-                    borderWidth: 1,
-                    borderColor: borderColor,
-                    gap: 8,
-                  }}
-                >
-                  <Clock size={16} color={iconColor} />
-                  <Text className="text-sm font-sans-semibold" style={{ color: brandColor }}>
-                    {format(reminderDate, TIME_FORMAT)}
-                  </Text>
+                  {isCustomTime && (
+                    <>
+                      <View style={{ width: 1, height: 16, backgroundColor: brandColor, opacity: 0.35, marginHorizontal: 4 }} />
+                      <Text className="text-sm font-sans-semibold" style={{ color: brandColor }}>
+                        {format(reminderDate, TIME_FORMAT)}
+                      </Text>
+                    </>
+                  )}
                 </TouchableOpacity>
               </View>
             )
