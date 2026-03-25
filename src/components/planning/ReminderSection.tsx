@@ -10,6 +10,11 @@ import { useAppTheme } from '~/hooks/useAppTheme'
 import { useProfile } from '~/hooks/useProfile'
 import { DEFAULT_SHORTCUTS, type ReminderShortcut } from '~/components/settings'
 
+// Detect device 24-hour preference
+const is24Hour = !new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12
+const TIME_FORMAT = is24Hour ? 'HH:mm' : 'h:mm a'
+const DATE_TIME_FORMAT = is24Hour ? "EEE, MMM d 'at' HH:mm" : "EEE, MMM d 'at' h:mm a"
+
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -98,7 +103,7 @@ export function ReminderSection({
             </Text>
             {isReminderEnabled && (
               <Text className="text-xs text-content-secondary mt-0.5">
-                {format(reminderDate, "EEE, MMM d 'at' h:mm a")}
+                {format(reminderDate, DATE_TIME_FORMAT)}
               </Text>
             )}
           </View>
@@ -156,7 +161,7 @@ export function ReminderSection({
                   }}
                 >
                   <Text className="text-sm font-sans-semibold" style={{ color: textColor }}>
-                    {format(setMinutes(setHours(new Date(), preset.hour), preset.minute), 'h:mm a')}
+                    {format(setMinutes(setHours(new Date(), preset.hour), preset.minute), TIME_FORMAT)}
                   </Text>
                 </TouchableOpacity>
               )
@@ -206,7 +211,7 @@ export function ReminderSection({
                 >
                   <Clock size={16} color={iconColor} />
                   <Text className="text-sm font-sans-semibold" style={{ color: brandColor }}>
-                    {format(reminderDate, 'h:mm a')}
+                    {format(reminderDate, TIME_FORMAT)}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -219,6 +224,7 @@ export function ReminderSection({
               value={reminderDate}
               mode="time"
               display="default"
+              is24Hour={is24Hour}
               onChange={(_, date) => {
                 setShowTimePicker(false)
                 if (date) {
@@ -267,6 +273,7 @@ export function ReminderSection({
                     value={reminderDate}
                     mode="time"
                     display="spinner"
+                    is24Hour={is24Hour}
                     onChange={(_, date) => {
                       if (date) {
                         const newDate = new Date(reminderDate)
