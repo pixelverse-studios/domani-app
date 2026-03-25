@@ -29,6 +29,10 @@ npm start          # Start Expo dev server
 npm run ios        # Run on iOS simulator
 npm run android    # Run on Android emulator
 npm run db:types   # Regenerate Supabase types
+npm run db:start   # Start local Supabase (Docker) — test migrations here first
+npm run db:stop    # Stop local Supabase
+npm run db:reset   # Reset local DB to current migrations
+npm run db:push    # Push migrations to remote Supabase
 npm run typecheck  # TypeScript validation
 npm run lint       # ESLint
 npm run format     # Prettier
@@ -123,9 +127,9 @@ This ensures nothing falls through the cracks between development sessions.
 
 **Current versions (update after each build):**
 
-- Android versionCode: 108
-- Android versionName: 1.0.30
-- app.json version: 1.0.30
+- Android versionCode: 109
+- Android versionName: 1.0.31
+- app.json version: 1.0.31
 - iOS uses EAS auto-increment
 
 ## Linear Ticket Creation
