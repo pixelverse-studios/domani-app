@@ -5,7 +5,9 @@ import { Text, ConfirmationModal } from '~/components/ui'
 import { useTutorialTarget } from '~/components/tutorial'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { TaskCard } from './TaskCard'
+import { CARD_GAP } from './task-layouts'
 import { sortTasksByPriority } from '~/utils/sortTasks'
+import { useLayoutStore } from '~/stores/layoutStore'
 import type { TaskWithCategory } from '~/types'
 
 interface TaskListProps {
@@ -59,26 +61,29 @@ export function TaskList({ tasks, onEditTask, onDeleteTask }: TaskListProps) {
   // Check if we should highlight a task for tutorial
   const isTutorialTaskStep = isActive && currentStep === 'task_created' && tutorialTaskId
 
+  const isGrid = useLayoutStore((s) => s.taskLayout) === 'grid'
+
   return (
     <View className="mx-5 mt-6">
       {/* Header */}
       <Text className="font-sans-semibold text-lg text-content-primary mb-4">{headerText}</Text>
 
       {/* Task Cards */}
-      {sortedTasks.map((task) => {
-        const isTutorialTask = isTutorialTaskStep && task.id === tutorialTaskId
+      <View style={isGrid ? { flexDirection: 'row', flexWrap: 'wrap', gap: CARD_GAP } : undefined}>
+        {sortedTasks.map((task) => {
+          const isTutorialTask = isTutorialTaskStep && task.id === tutorialTaskId
 
-        // Always wrap in View for consistent JSX structure to prevent React re-mounts
-        return (
-          <View
-            key={task.id}
-            ref={isTutorialTask ? taskCreatedRef : undefined}
-            onLayout={isTutorialTask ? measureTaskCreated : undefined}
-          >
-            <TaskCard task={task} onEdit={onEditTask} onDelete={handleDeletePress} />
-          </View>
-        )
-      })}
+          return (
+            <View
+              key={task.id}
+              ref={isTutorialTask ? taskCreatedRef : undefined}
+              onLayout={isTutorialTask ? measureTaskCreated : undefined}
+            >
+              <TaskCard task={task} onEdit={onEditTask} onDelete={handleDeletePress} />
+            </View>
+          )
+        })}
+      </View>
 
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
