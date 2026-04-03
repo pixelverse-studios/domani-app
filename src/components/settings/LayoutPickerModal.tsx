@@ -135,17 +135,19 @@ function LayoutMiniPreview({
     )
   }
 
-  if (layoutId === 'board') {
+  if (layoutId === 'grid') {
+    const colors = [priorityColor, theme.priority.medium.color, theme.priority.low.color, theme.priority.high.color]
     return (
-      <View style={{ borderRadius: 8, backgroundColor: `${priorityColor}0D`, borderWidth: 1, borderColor: `${priorityColor}33`, overflow: 'hidden' }}>
-        <View style={{ height: 3, backgroundColor: priorityColor }} />
-        <View style={{ padding: 8 }}>
-          <View style={{ width: '65%', height: 8, borderRadius: 4, backgroundColor: textPrimary, opacity: 0.6, marginBottom: 6 }} />
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View style={{ width: '30%', height: 5, borderRadius: 3, backgroundColor: textSecondary, opacity: 0.3 }} />
-            <View style={{ width: 20, height: 8, borderRadius: 3, backgroundColor: `${priorityColor}26` }} />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+        {[0.7, 0.5, 0.6, 0.45].map((w, i) => (
+          <View key={i} style={{ width: '48%', borderRadius: 6, backgroundColor: cardBg, borderWidth: 1, borderColor, overflow: 'hidden' }}>
+            <View style={{ height: 2, backgroundColor: colors[i] }} />
+            <View style={{ padding: 6 }}>
+              <View style={{ width: `${w * 100}%`, height: 6, borderRadius: 3, backgroundColor: textPrimary, opacity: 0.5, marginBottom: 4 }} />
+              <View style={{ width: '40%', height: 4, borderRadius: 2, backgroundColor: textSecondary, opacity: 0.3 }} />
+            </View>
           </View>
-        </View>
+        ))}
       </View>
     )
   }

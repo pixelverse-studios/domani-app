@@ -29,7 +29,7 @@ import {
   CompactTaskCard,
   MinimalTaskCard,
   DetailedTaskCard,
-  BoardTaskCard,
+  GridTaskCard,
   ChecklistTaskCard,
 } from './task-layouts'
 
@@ -67,7 +67,7 @@ export function TaskCard(props: TaskCardProps) {
   if (taskLayout === 'compact') return <CompactTaskCard {...props} />
   if (taskLayout === 'minimal') return <MinimalTaskCard {...props} />
   if (taskLayout === 'detailed') return <DetailedTaskCard {...props} />
-  if (taskLayout === 'board') return <BoardTaskCard {...props} />
+  if (taskLayout === 'grid') return <GridTaskCard {...props} />
   if (taskLayout === 'checklist') return <ChecklistTaskCard {...props} />
 
   return <DefaultTaskCard {...props} />

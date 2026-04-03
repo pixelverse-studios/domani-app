@@ -1,6 +1,6 @@
 export { CompactTaskCard } from './CompactTaskCard'
 export { MinimalTaskCard } from './MinimalTaskCard'
 export { DetailedTaskCard } from './DetailedTaskCard'
-export { BoardTaskCard } from './BoardTaskCard'
+export { GridTaskCard, CARD_GAP } from './GridTaskCard'
 export { ChecklistTaskCard } from './ChecklistTaskCard'
 export type { TaskCardProps } from './shared'
