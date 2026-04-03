@@ -135,6 +135,34 @@ function LayoutMiniPreview({
     )
   }
 
+  if (layoutId === 'board') {
+    return (
+      <View style={{ borderRadius: 8, backgroundColor: `${priorityColor}0D`, borderWidth: 1, borderColor: `${priorityColor}33`, overflow: 'hidden' }}>
+        <View style={{ height: 3, backgroundColor: priorityColor }} />
+        <View style={{ padding: 8 }}>
+          <View style={{ width: '65%', height: 8, borderRadius: 4, backgroundColor: textPrimary, opacity: 0.6, marginBottom: 6 }} />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ width: '30%', height: 5, borderRadius: 3, backgroundColor: textSecondary, opacity: 0.3 }} />
+            <View style={{ width: 20, height: 8, borderRadius: 3, backgroundColor: `${priorityColor}26` }} />
+          </View>
+        </View>
+      </View>
+    )
+  }
+
+  if (layoutId === 'checklist') {
+    return (
+      <View style={{ gap: 2 }}>
+        {[0.55, 0.7, 0.4].map((w, i) => (
+          <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 1.5, borderColor: i === 0 ? priorityColor : i === 1 ? theme.priority.medium.color : theme.priority.low.color, marginRight: 8 }} />
+            <View style={{ width: `${w * 100}%`, height: 6, borderRadius: 3, backgroundColor: textPrimary, opacity: 0.5 }} />
+          </View>
+        ))}
+      </View>
+    )
+  }
+
   // detailed
   return (
     <View style={{ borderRadius: 8, backgroundColor: cardBg, borderWidth: 1, borderColor, borderLeftWidth: 3, borderLeftColor: priorityColor, padding: 10 }}>
