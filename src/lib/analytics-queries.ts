@@ -188,8 +188,9 @@ export async function fetchDailyCompletions(
   startDate.setHours(0, 0, 0, 0)
 
   const startDateStr = startDate.toISOString().split('T')[0]
+  const todayStr = today.toISOString().split('T')[0]
 
-  // Fetch tasks with category info, filtered by scheduled_date
+  // Fetch tasks with category info, filtered by scheduled_date range
   const { data: tasks, error } = await supabase
     .from('tasks')
     .select(
@@ -212,7 +213,9 @@ export async function fetchDailyCompletions(
     `,
     )
     .eq('user_id', userId)
+    .not('scheduled_date', 'is', null)
     .gte('scheduled_date', startDateStr)
+    .lte('scheduled_date', todayStr)
 
   if (error || !tasks) {
     return []
@@ -388,12 +391,6 @@ export async function fetchExecutionStreak(userId: string): Promise<number | nul
     }
 
     const entry = dateMap.get(date)!
-    if (entry.total === 0) {
-      // No tasks — skip but don't break
-      expectedDate.setDate(expectedDate.getDate() - 1)
-      continue
-    }
-
     if (entry.completed < entry.total) {
       // Not all completed — streak broken
       break
