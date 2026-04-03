@@ -24,6 +24,8 @@ import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import type { TaskWithCategory } from '~/types'
 import { getCategoryIcon } from '~/utils/categoryIcons'
+import { useLayoutStore } from '~/stores/layoutStore'
+import { CompactTaskCard, MinimalTaskCard, DetailedTaskCard } from './task-layouts'
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -53,7 +55,17 @@ function formatReminderTime(date: Date): string {
   return format(date, 'h:mm a') // "1:30 PM"
 }
 
-export function TaskCard({
+export function TaskCard(props: TaskCardProps) {
+  const taskLayout = useLayoutStore((s) => s.taskLayout)
+
+  if (taskLayout === 'compact') return <CompactTaskCard {...props} />
+  if (taskLayout === 'minimal') return <MinimalTaskCard {...props} />
+  if (taskLayout === 'detailed') return <DetailedTaskCard {...props} />
+
+  return <DefaultTaskCard {...props} />
+}
+
+function DefaultTaskCard({
   task,
   onEdit,
   onDelete,

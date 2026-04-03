@@ -22,6 +22,7 @@ import {
   DeleteAccountModal,
   SmartCategoriesModal,
 } from '~/components/settings'
+import { LayoutPickerModal } from '~/components/settings/LayoutPickerModal'
 import { TutorialScrollProvider, useTutorialScroll } from '~/components/tutorial'
 import { useAuth } from '~/hooks/useAuth'
 import { useAppTheme } from '~/hooks/useAppTheme'
@@ -110,6 +111,7 @@ function SettingsContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showFarewellOverlay, setShowFarewellOverlay] = useState(false)
   const [showSmartCategoriesModal, setShowSmartCategoriesModal] = useState(false)
+  const [showLayoutModal, setShowLayoutModal] = useState(false)
   const [pendingSmartCategoriesValue, setPendingSmartCategoriesValue] = useState(false)
 
   // Form states
@@ -318,6 +320,7 @@ function SettingsContent() {
           isLoading={isLoading}
           timezone={profile?.timezone || null}
           onEditTimezone={() => setShowTimezoneModal(true)}
+          onEditLayout={() => setShowLayoutModal(true)}
         />
 
         {/* 6. Support Section */}
@@ -398,6 +401,11 @@ function SettingsContent() {
         isPending={updateProfile.isPending}
         onConfirm={confirmSmartCategoriesChange}
         onClose={() => setShowSmartCategoriesModal(false)}
+      />
+
+      <LayoutPickerModal
+        visible={showLayoutModal}
+        onClose={() => setShowLayoutModal(false)}
       />
 
       {/* Farewell overlay after scheduling deletion */}
