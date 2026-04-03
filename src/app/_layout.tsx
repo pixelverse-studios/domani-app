@@ -35,7 +35,6 @@ import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
 import { useCelebrationStore } from '~/stores/celebrationStore'
 import { useNotificationStore } from '~/stores/notificationStore'
 import { useEveningRolloverOnAppOpen } from '~/hooks/useEveningRolloverOnAppOpen'
-import { useTomorrowPlan, usePlanForDate } from '~/hooks/usePlans'
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
 import { RolloverModal, CelebrationModal } from '~/components/planning'
 import { ErrorBoundary } from '~/components/ErrorBoundary'
@@ -47,8 +46,6 @@ function RootLayoutContent() {
   const queryClient = useQueryClient()
 
   // Clear React Query cache on sign out to prevent stale data leaking into new accounts.
-  // Without this, cached plan IDs from the previous user cause task creation to fail
-  // on the first attempt after switching accounts (RLS rejects the stale plan_id).
   // Note: queryClient is stable for the lifetime of the provider — [] is intentional.
   React.useEffect(() => {
     const {
@@ -104,14 +101,8 @@ function RootLayoutContent() {
     shouldPromptPlanning: eveningShouldPromptPlanning,
   } = useEveningRolloverOnAppOpen()
 
-  const { data: tomorrowPlan } = useTomorrowPlan({
-    enabled: eveningAppOpenShouldShow && !eveningIsBeforeReminderTime,
-  })
-  const { today } = useCurrentDate()
-  const { data: todayPlan } = usePlanForDate(today, {
-    enabled: eveningAppOpenShouldShow && eveningIsBeforeReminderTime,
-  })
-  const rolloverTargetPlan = eveningIsBeforeReminderTime ? todayPlan : tomorrowPlan
+  const { today, tomorrow } = useCurrentDate()
+  const rolloverTargetDate = eveningIsBeforeReminderTime ? today : tomorrow
 
   const { mutateAsync: carryForwardTasks } = useCarryForwardTasks()
 
@@ -126,14 +117,11 @@ function RootLayoutContent() {
   const showCelebration = celebrationVisible && !tutorialActive && !loading
 
   // Evening rollover (app-open path)
-  // Note: !!rolloverTargetPlan gates display until the plan upsert completes after eveningAppOpenShouldShow
-  // flips true. There is no loading indicator for this window — the modal simply hasn't appeared yet.
   const showEveningAppOpenRollover =
     eveningAppOpenShouldShow &&
     !tutorialActive &&
     !eveningAppOpenLoading &&
     !loading &&
-    !!rolloverTargetPlan &&
     !showCelebration
 
   // Debug: log rollover/celebration state on every change (DEV only)
@@ -213,20 +201,10 @@ function RootLayoutContent() {
       makeMitToday: boolean
       keepReminderTimes: boolean
     }) => {
-      if (!rolloverTargetPlan) {
-        console.error('[EveningRollover] No target plan available')
-        const planLabel = eveningIsBeforeReminderTime ? "Today's" : "Tomorrow's"
-        Alert.alert(
-          'Not ready yet',
-          `${planLabel} plan is still loading. Please try again in a moment.`,
-        )
-        return
-      }
-
       try {
         await carryForwardTasks({
           selectedTaskIds: params.selectedTaskIds,
-          targetPlanId: rolloverTargetPlan.id,
+          targetDate: rolloverTargetDate,
           shouldMakeMIT: params.makeMitToday,
           keepReminderTimes: params.keepReminderTimes,
         })
@@ -255,7 +233,7 @@ function RootLayoutContent() {
       }
     },
     [
-      rolloverTargetPlan,
+      rolloverTargetDate,
       carryForwardTasks,
       markEveningAppOpenPrompted,
       track,
