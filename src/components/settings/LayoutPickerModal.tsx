@@ -188,6 +188,7 @@ export function LayoutPickerModal({ visible, onClose }: LayoutPickerModalProps) 
 
   const handleSelect = (layout: TaskLayout) => {
     setTaskLayout(layout)
+    onClose()
   }
 
   return (

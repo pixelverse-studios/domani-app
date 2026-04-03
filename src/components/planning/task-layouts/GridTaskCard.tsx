@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, TouchableOpacity, StyleSheet, Dimensions } from 'react-native'
+import { View, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native'
 import { Pencil, Trash2, Circle, CheckCircle, Crown } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
@@ -8,7 +8,6 @@ import { useTaskCardData, type TaskCardProps } from './shared'
 
 const CARD_GAP = 8
 const CARD_MARGIN = 20 // matches parent mx-5 (20px)
-const CARD_WIDTH = (Dimensions.get('window').width - CARD_MARGIN * 2 - CARD_GAP) / 2
 
 export function GridTaskCard({
   task,
@@ -31,12 +30,15 @@ export function GridTaskCard({
     buttonBg,
   } = useTaskCardData(task)
 
+  const { width: windowWidth } = useWindowDimensions()
+  const cardWidth = (windowWidth - CARD_MARGIN * 2 - CARD_GAP) / 2
+
   return (
     <View
       style={[
         styles.card,
         {
-          width: CARD_WIDTH,
+          width: cardWidth,
           backgroundColor: theme.colors.card,
           borderColor: theme.colors.border.primary,
         },

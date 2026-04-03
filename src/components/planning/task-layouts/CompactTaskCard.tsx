@@ -68,7 +68,7 @@ export function CompactTaskCard({
             <View style={[styles.priorityDot, { backgroundColor: priorityColor }]} />
             <Text className="font-sans text-xs text-content-tertiary capitalize">{priority}</Text>
 
-            <View style={styles.metaSeparator} />
+            <View style={[styles.metaSeparator, { backgroundColor: theme.colors.border.primary }]} />
 
             {getCategoryIcon({
               category: category
@@ -83,7 +83,7 @@ export function CompactTaskCard({
 
             {reminderInfo && (
               <>
-                <View style={styles.metaSeparator} />
+                <View style={[styles.metaSeparator, { backgroundColor: theme.colors.border.primary }]} />
                 <Bell
                   size={10}
                   color={
@@ -160,7 +160,6 @@ const styles = StyleSheet.create({
   metaSeparator: {
     width: 1,
     height: 10,
-    backgroundColor: '#E8E4DD',
     marginHorizontal: 8,
   },
   actions: {

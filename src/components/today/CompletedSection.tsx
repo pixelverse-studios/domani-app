@@ -3,10 +3,47 @@ import { View, TouchableOpacity } from 'react-native'
 import { CheckCircle, ChevronUp, ChevronDown } from 'lucide-react-native'
 
 import { TaskCard } from '~/components/planning/TaskCard'
+import { CARD_GAP } from '~/components/planning/task-layouts'
 import { Text, ConfirmationModal } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { sortTasksByPriority } from '~/utils/sortTasks'
+import { useLayoutStore } from '~/stores/layoutStore'
 import type { TaskWithCategory } from '~/types'
+
+function CompletedTasksList({
+  tasks,
+  onToggle,
+  onEdit,
+  onDeletePress,
+}: {
+  tasks: TaskWithCategory[]
+  onToggle: (taskId: string, completed: boolean) => void
+  onEdit: (taskId: string) => void
+  onDeletePress: (task: TaskWithCategory) => void
+}) {
+  const isGrid = useLayoutStore((s) => s.taskLayout) === 'grid'
+
+  return (
+    <View className="mt-3">
+      <View style={isGrid ? { flexDirection: 'row', flexWrap: 'wrap', gap: CARD_GAP, marginHorizontal: 20 } : undefined}>
+        {tasks.map((task) => (
+          <View key={task.id} style={isGrid ? undefined : { marginHorizontal: 20 }}>
+            <TaskCard
+              task={task}
+              showCheckbox
+              onToggleComplete={onToggle}
+              onEdit={onEdit}
+              onDelete={(taskId) => {
+                const foundTask = tasks.find((t) => t.id === taskId)
+                if (foundTask) onDeletePress(foundTask)
+              }}
+            />
+          </View>
+        ))}
+      </View>
+    </View>
+  )
+}
 
 interface CompletedSectionProps {
   tasks: TaskWithCategory[]
@@ -101,22 +138,12 @@ export function CompletedSection({
 
       {/* Expanded content */}
       {isExpanded && (
-        <View className="mt-3">
-          {completedTasks.map((task) => (
-            <View key={task.id} style={{ marginHorizontal: 20 }}>
-              <TaskCard
-                task={task}
-                showCheckbox
-                onToggleComplete={onToggle}
-                onEdit={handleEdit}
-                onDelete={(taskId) => {
-                  const foundTask = completedTasks.find((t) => t.id === taskId)
-                  if (foundTask) handleDeletePress(foundTask)
-                }}
-              />
-            </View>
-          ))}
-        </View>
+        <CompletedTasksList
+          tasks={completedTasks}
+          onToggle={onToggle}
+          onEdit={handleEdit}
+          onDeletePress={handleDeletePress}
+        />
       )}
 
       {/* Delete Confirmation Modal */}
