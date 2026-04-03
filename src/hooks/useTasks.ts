@@ -4,6 +4,7 @@ import { supabase } from '~/lib/supabase'
 import { addBreadcrumb } from '~/lib/sentry'
 import { NotificationService } from '~/lib/notifications'
 import { wasCelebratedToday, markCelebratedToday } from '~/lib/rollover'
+import { getOrCreatePlanId } from '~/lib/plans'
 import { useCelebrationStore } from '~/stores/celebrationStore'
 import { useIncrementCategoryUsage } from '~/hooks/useCategories'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
@@ -11,30 +12,6 @@ import type { TaskWithCategory, TaskPriority } from '~/types'
 
 // 5 minutes - tasks change with user action but don't need real-time updates
 const TASKS_STALE_TIME = 1000 * 60 * 5
-
-/**
- * Resolve or create a plan for a given date (dual-write helper).
- * Temporary — removed when DEV-587 drops the plans table.
- */
-async function getOrCreatePlanId(date: string, userId: string): Promise<string> {
-  const { data: existing } = await supabase
-    .from('plans')
-    .select('id')
-    .eq('planned_for', date)
-    .eq('user_id', userId)
-    .maybeSingle()
-
-  if (existing) return existing.id
-
-  const { data: created, error } = await supabase
-    .from('plans')
-    .insert({ planned_for: date, user_id: userId })
-    .select('id')
-    .single()
-
-  if (error) throw error
-  return created.id
-}
 
 export function useTasks(date: string | undefined) {
   return useQuery({
@@ -347,10 +324,9 @@ export function useUpdateTask() {
         const {
           data: { user },
         } = await supabase.auth.getUser()
-        if (user) {
-          const planId = await getOrCreatePlanId(updates.scheduled_date, user.id)
-          dbUpdates.plan_id = planId
-        }
+        if (!user) throw new Error('Not authenticated')
+        const planId = await getOrCreatePlanId(updates.scheduled_date, user.id)
+        dbUpdates.plan_id = planId
       }
 
       const { data, error } = await supabase

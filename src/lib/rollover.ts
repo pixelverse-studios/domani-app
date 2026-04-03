@@ -13,6 +13,7 @@ import { format, parseISO, setHours, setMinutes } from 'date-fns'
 
 import { supabase } from './supabase'
 import { NotificationService } from './notifications'
+import { getOrCreatePlanId } from './plans'
 import { addBreadcrumb } from './sentry'
 import type { TaskWithCategory, TaskPriority } from '~/types'
 
@@ -269,7 +270,7 @@ export interface CarryForwardInput {
  * @example
  * const createdTasks = await carryForwardTasks({
  *   selectedTaskIds: ['task-id-1', 'task-id-2'],
- *   targetPlanId: 'today-plan-id',
+ *   targetDate: '2026-04-03',
  *   shouldMakeMIT: true,
  *   keepReminderTimes: true,
  * })
@@ -281,25 +282,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
   if (!user) throw new Error('Not authenticated')
 
   // Resolve plan_id for dual-write (removed in DEV-587)
-  const { data: existingPlan } = await supabase
-    .from('plans')
-    .select('id')
-    .eq('planned_for', input.targetDate)
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  let targetPlanId: string
-  if (existingPlan) {
-    targetPlanId = existingPlan.id
-  } else {
-    const { data: newPlan, error: planError } = await supabase
-      .from('plans')
-      .insert({ planned_for: input.targetDate, user_id: user.id })
-      .select('id')
-      .single()
-    if (planError || !newPlan) throw new Error('Failed to create plan for target date')
-    targetPlanId = newPlan.id
-  }
+  const targetPlanId = await getOrCreatePlanId(input.targetDate, user.id)
 
   // FIX 2: CRITICAL - Add explicit user_id check to source tasks query
   // Fetch original tasks with all data including category relations
