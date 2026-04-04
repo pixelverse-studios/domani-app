@@ -143,26 +143,20 @@ This ensures nothing falls through the cracks between development sessions.
 
 1. Ensure `.env.local` is present with staging Supabase values
 2. Push any pending migrations to staging: `npm run db:staging:push`
-3. **Clean prebuild** to bake in staging env vars: `npx expo prebuild --clean`
-4. **Verify env before building:** `npx expo config --type public 2>&1 | grep SUPABASE_URL`
-   - Must show `ftgltnzejaxasdvfkqut` (staging). If it shows `exxnnlhxcjujxnnwwrxv` (production), `.env.local` is not being loaded — check it exists and re-run prebuild.
-5. Increment version numbers (same as production)
-6. Build the app — it will connect to the staging database
-7. Distribute to testers
+3. Increment version numbers (same as production)
+4. Build the app — it will connect to the staging database
+5. Distribute to testers
 
 ### Production Build
 
 1. **Rename `.env.local`** → `.env.local.bak` so the app uses production Supabase values from `.env`
 2. Push any pending migrations to production: `npm run db:push` (only after staging verification)
-3. **Clean prebuild** to bake in production env vars: `npx expo prebuild --clean`
-4. **Verify env before building:** `npx expo config --type public 2>&1 | grep SUPABASE_URL`
-   - Must show `exxnnlhxcjujxnnwwrxv` (production). If it shows `ftgltnzejaxasdvfkqut` (staging), `.env.local` was not renamed — check and re-run prebuild.
-5. Increment version numbers:
+3. Increment version numbers:
    - **Android:** Update `versionCode` (integer, must increment) and `versionName` in `android/app/build.gradle`
    - **iOS:** Update via `app.json` or Xcode (EAS handles this automatically with `autoIncrement`)
-6. Commit the version bump before building
-7. Build the app
-8. **Restore `.env.local`** from `.env.local.bak` after building
+4. Commit the version bump before building
+5. Build the app
+6. **Restore `.env.local`** from `.env.local.bak` after building
 
 ### Version File Locations
 

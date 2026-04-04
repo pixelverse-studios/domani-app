@@ -27,7 +27,7 @@ import type { TaskWithCategory } from '~/types'
  * const handleCarryForward = () => {
  *   mutate({
  *     selectedTaskIds: ['id1', 'id2'],
- *     targetPlanId: todayPlanId,
+ *     targetDate: '2026-04-03',
  *     shouldMakeMIT: true,
  *     keepReminderTimes: false,
  *   })

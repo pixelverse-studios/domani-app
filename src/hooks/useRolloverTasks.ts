@@ -5,7 +5,7 @@
  * prompt should be shown to the user.
  *
  * This hook:
- * - Queries yesterday's plan with all tasks in a single round trip
+ * - Queries yesterday's tasks directly by scheduled_date
  * - Separates MIT (Most Important Task) from other tasks
  * - Checks if user was already prompted today
  * - Provides a function to mark user as prompted
@@ -84,8 +84,7 @@ export function useRolloverTasks(): UseRolloverTasksResult {
   // Calculate yesterday's date once for all queries
   const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd')
 
-  // Single query: two-step plan → tasks lookup, both in one queryFn
-  // Tasks link to plans via plan_id (tasks have no planned_for column)
+  // Query yesterday's tasks directly by scheduled_date
   const { data: rawTasks = [], isLoading: isLoadingTasks } = useQuery({
     queryKey: ['rolloverTasks', yesterday],
     queryFn: async (): Promise<
@@ -96,28 +95,13 @@ export function useRolloverTasks(): UseRolloverTasksResult {
       } = await supabase.auth.getUser()
       if (!user) return []
 
-      // Step 1: Get yesterday's plan
-      const { data: plan, error: planError } = await supabase
-        .from('plans')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('planned_for', yesterday)
-        .maybeSingle()
-
-      if (planError) throw planError
-
-      if (!plan) {
-        if (__DEV__) console.log('[useRolloverTasks] No plan found for yesterday:', yesterday)
-        return []
-      }
-
-      // Step 2: Get all tasks from that plan
       const { data: tasks, error } = await supabase
         .from('tasks')
         .select(
           'id, title, priority, system_category_id, user_category_id, reminder_at, is_mit, completed_at, position',
         )
-        .eq('plan_id', plan.id)
+        .eq('scheduled_date', yesterday)
+        .eq('user_id', user.id)
         .is('rolled_over_at', null)
 
       if (error) throw error
@@ -125,7 +109,7 @@ export function useRolloverTasks(): UseRolloverTasksResult {
       const all = (tasks || []) as Array<
         RolloverTask & { completed_at: string | null; position: number | null }
       >
-      if (__DEV__) console.log('[useRolloverTasks] Plan:', plan.id, '| Tasks:', all.length)
+      if (__DEV__) console.log('[useRolloverTasks] Yesterday:', yesterday, '| Tasks:', all.length)
       return all
     },
     staleTime: 1000 * 60 * 5, // 5 minutes

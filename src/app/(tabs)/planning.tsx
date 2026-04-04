@@ -13,7 +13,6 @@ import {
   TasksRecap,
   RolloverModal,
 } from '~/components/planning'
-import { usePlanForDate } from '~/hooks/usePlans'
 import { useCreateTask, useTasks, useDeleteTask, useUpdateTask } from '~/hooks/useTasks'
 import { useSystemCategories } from '~/hooks/useCategories'
 import { useNotificationStore } from '~/stores/notificationStore'
@@ -109,13 +108,9 @@ export default function PlanningScreen() {
   // Get dates for today and tomorrow — refreshes on foreground and at midnight
   const { today: todayDate, tomorrow: tomorrowDate } = useCurrentDate()
 
-  // Get or create plans for both today and tomorrow (needed for moving tasks between days)
-  const { data: todayPlan } = usePlanForDate(todayDate)
-  const { data: tomorrowPlan } = usePlanForDate(tomorrowDate)
-
-  // The plan for the currently selected target
-  const plan = selectedTarget === 'today' ? todayPlan : tomorrowPlan
-  const { data: tasks = [] } = useTasks(plan?.id)
+  // Query tasks directly by date
+  const selectedDate = selectedTarget === 'today' ? todayDate : tomorrowDate
+  const { data: tasks = [] } = useTasks(selectedDate)
   const { data: systemCategories = [] } = useSystemCategories()
   const createTask = useCreateTask()
   const updateTask = useUpdateTask()
@@ -147,7 +142,7 @@ export default function PlanningScreen() {
       const task = tasks.find((t) => t.id === editTaskId)
       if (task) {
         // Ensure header matches the task's day so the task list context is correct
-        const taskDay: PlanningTarget = task.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
+        const taskDay: PlanningTarget = task.scheduled_date === todayDate ? 'today' : 'tomorrow'
         setSelectedTarget(taskDay)
 
         setEditingTask(task)
@@ -157,7 +152,7 @@ export default function PlanningScreen() {
         router.setParams({ editTaskId: undefined, defaultPlanningFor: undefined })
       }
     }
-  }, [editTaskId, tasks, todayPlan?.id, router])
+  }, [editTaskId, tasks, todayDate, router])
 
   // Handle openForm param - auto-open form when navigating from Today's "Add New Task"
   // When trigger==='planning_reminder', gate form behind evening rollover check first
@@ -187,15 +182,11 @@ export default function PlanningScreen() {
   }, [openForm, editTaskId, defaultPlanningFor, trigger, router])
 
   // Once evening rollover data is ready, decide whether to show modal or open form directly
-  // Also wait for tomorrowPlan to be available before showing modal (prevents null guard issues)
   useEffect(() => {
     if (!planningReminderTriggered || eveningLoading) return
 
     if (eveningShouldShow) {
-      if (tomorrowPlan) {
-        setShowEveningRollover(true)
-      }
-      // If tomorrowPlan isn't ready yet, wait — effect re-runs when tomorrowPlan resolves
+      setShowEveningRollover(true)
     } else {
       // No eligible tasks or already prompted — skip rollover, open form directly
       // Reset source so the app-open flow isn't blocked for the rest of the session
@@ -203,19 +194,10 @@ export default function PlanningScreen() {
       setEveningRolloverSource(null)
       setIsFormVisible(true)
     }
-
-    return () => {
-      // If we claimed the session but tomorrowPlan never resolved (e.g. network error),
-      // release the claim on unmount so the app-open flow isn't permanently blocked
-      if (planningReminderTriggered && !tomorrowPlan) {
-        setEveningRolloverSource(null)
-      }
-    }
   }, [
     planningReminderTriggered,
     eveningLoading,
     eveningShouldShow,
-    tomorrowPlan,
     setEveningRolloverSource,
   ])
 
@@ -226,18 +208,10 @@ export default function PlanningScreen() {
       makeMitToday: boolean
       keepReminderTimes: boolean
     }) => {
-      if (!tomorrowPlan) {
-        Alert.alert(
-          'Not ready yet',
-          "Tomorrow's plan is still loading. Please try again in a moment.",
-        )
-        return
-      }
-
       try {
         await carryForwardTasks({
           selectedTaskIds: params.selectedTaskIds,
-          targetPlanId: tomorrowPlan.id,
+          targetDate: tomorrowDate,
           shouldMakeMIT: params.makeMitToday,
           keepReminderTimes: params.keepReminderTimes,
         })
@@ -268,7 +242,7 @@ export default function PlanningScreen() {
       }
     },
     [
-      tomorrowPlan,
+      tomorrowDate,
       carryForwardTasks,
       markEveningPrompted,
       track,
@@ -333,8 +307,8 @@ export default function PlanningScreen() {
     (taskId: string) => {
       const task = tasks.find((t) => t.id === taskId)
       if (task) {
-        // Sync header to task's day so submission targets the correct plan
-        const taskDay: PlanningTarget = task.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
+        // Sync header to task's day so submission targets the correct date
+        const taskDay: PlanningTarget = task.scheduled_date === todayDate ? 'today' : 'tomorrow'
         setSelectedTarget(taskDay)
 
         setEditingTask(task)
@@ -346,7 +320,7 @@ export default function PlanningScreen() {
         }, 100)
       }
     },
-    [tasks, todayPlan?.id],
+    [tasks, todayDate],
   )
 
   // Get system category UUID from form category ID
@@ -370,37 +344,8 @@ export default function PlanningScreen() {
         // Determine if task is moving to a different day
         // Use the form's plannedFor (day selector in edit mode) rather than the header pill
         const editTarget = task.plannedFor ?? selectedTarget
-        const originalPlanId = editingTask.plan_id
-
-        // Resolve target plan - use cached plan if available, otherwise fetch/create
-        let targetPlanId = editTarget === 'today' ? todayPlan?.id : tomorrowPlan?.id
-
-        if (!targetPlanId && task.plannedFor) {
-          // Plan not cached yet - fetch or create it directly
-          const targetDate = editTarget === 'today' ? todayDate : tomorrowDate
-          const {
-            data: { user },
-          } = await supabase.auth.getUser()
-          if (user) {
-            const { data: existingPlan } = await supabase
-              .from('plans')
-              .select('id')
-              .eq('planned_for', targetDate)
-              .eq('user_id', user.id)
-              .maybeSingle()
-
-            if (existingPlan) {
-              targetPlanId = existingPlan.id
-            } else {
-              const { data: newPlan } = await supabase
-                .from('plans')
-                .insert({ planned_for: targetDate, user_id: user.id })
-                .select('id')
-                .single()
-              targetPlanId = newPlan?.id
-            }
-          }
-        }
+        const targetDate = editTarget === 'today' ? todayDate : tomorrowDate
+        const originalDate = editingTask.scheduled_date
 
         // Build base updates
         const updates: Parameters<typeof updateTask.mutateAsync>[0]['updates'] = {
@@ -412,27 +357,23 @@ export default function PlanningScreen() {
           reminder_at: task.reminderAt ?? null,
         }
 
-        // If day changed, add plan_id to updates
-        if (targetPlanId && targetPlanId !== originalPlanId) {
-          updates.plan_id = targetPlanId
+        // If day changed, add scheduled_date to updates
+        if (targetDate !== originalDate) {
+          updates.scheduled_date = targetDate
         }
 
         // Update existing task
         await updateTask.mutateAsync({
           taskId: editingTask.id,
           updates,
-          originalPlanId,
+          originalDate,
         })
       } else {
-        // Create new task - use the plan for the header's selected day
-        const targetPlanId = selectedTarget === 'today' ? todayPlan?.id : tomorrowPlan?.id
-        if (!targetPlanId) {
-          console.error('No plan available for target day')
-          return
-        }
+        // Create new task for the header's selected day
+        const targetDate = selectedTarget === 'today' ? todayDate : tomorrowDate
 
         const newTask = await createTask.mutateAsync({
-          planId: targetPlanId,
+          scheduledDate: targetDate,
           title: task.title,
           priority: task.priority,
           systemCategoryId: systemCategoryId,

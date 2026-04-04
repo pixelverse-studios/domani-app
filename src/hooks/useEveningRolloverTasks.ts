@@ -2,9 +2,9 @@
  * useEveningRolloverTasks Hook
  *
  * Returns incomplete tasks eligible for rollover review. In morning mode
- * (before the user's planning reminder time), only yesterday's plan is
+ * (before the user's planning reminder time), only yesterday's tasks are
  * queried — today's tasks are freshly planned, not rollover candidates.
- * In evening mode, both today's and yesterday's plans are queried.
+ * In evening mode, both today's and yesterday's tasks are queried.
  *
  * This hook only runs when `enabled` is true, to avoid unnecessary
  * queries when the user opens the planning screen normally.
@@ -106,28 +106,11 @@ export function useEveningRolloverTasks({
           planDates,
         )
 
-      // Step 1: Get plans for the relevant date(s)
-      const { data: plans, error: planError } = await supabase
-        .from('plans')
-        .select('id')
-        .eq('user_id', user.id)
-        .in('planned_for', planDates)
-
-      if (planError) throw planError
-      if (!plans || plans.length === 0) {
-        if (__DEV__)
-          console.log('[useEveningRolloverTasks] No plans for dates:', planDates)
-        return []
-      }
-
-      const planIds = plans.map((p) => p.id)
-
-      // Step 2: Get all incomplete tasks for those plans
-      // Explicitly scope by user_id for defence-in-depth alongside RLS
+      // Query incomplete tasks directly by scheduled_date
       const { data: tasks, error } = await supabase
         .from('tasks')
         .select('id, title, priority, system_category_id, user_category_id, reminder_at, is_mit')
-        .in('plan_id', planIds)
+        .in('scheduled_date', planDates)
         .eq('user_id', user.id)
         .is('completed_at', null)
         .is('rolled_over_at', null)

@@ -13,6 +13,7 @@ import { format, parseISO, setHours, setMinutes } from 'date-fns'
 
 import { supabase } from './supabase'
 import { NotificationService } from './notifications'
+import { getOrCreatePlanId } from './plans'
 import { addBreadcrumb } from './sentry'
 import type { TaskWithCategory, TaskPriority } from '~/types'
 
@@ -248,8 +249,8 @@ export async function wasPromptedInCurrentCycle(
 export interface CarryForwardInput {
   /** IDs of tasks to carry forward */
   selectedTaskIds: string[]
-  /** ID of the plan to add tasks to (today's plan) */
-  targetPlanId: string
+  /** Target date to carry tasks to (YYYY-MM-DD) */
+  targetDate: string
   /** If true, the carried MIT becomes today's MIT (priority = 'top') */
   shouldMakeMIT: boolean
   /** If true, preserve original reminder times (adjusted to today) */
@@ -269,7 +270,7 @@ export interface CarryForwardInput {
  * @example
  * const createdTasks = await carryForwardTasks({
  *   selectedTaskIds: ['task-id-1', 'task-id-2'],
- *   targetPlanId: 'today-plan-id',
+ *   targetDate: '2026-04-03',
  *   shouldMakeMIT: true,
  *   keepReminderTimes: true,
  * })
@@ -280,19 +281,8 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
   } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  // FIX 1: CRITICAL - Verify user owns the target plan
-  const { data: targetPlan, error: planError } = await supabase
-    .from('plans')
-    .select('user_id')
-    .eq('id', input.targetPlanId)
-    .single()
-
-  if (planError || !targetPlan) {
-    throw new Error('Unauthorized: Target plan does not belong to user')
-  }
-  if (targetPlan.user_id !== user.id) {
-    throw new Error('Unauthorized: Target plan does not belong to user')
-  }
+  // Resolve plan_id for dual-write (removed in DEV-587)
+  const targetPlanId = await getOrCreatePlanId(input.targetDate, user.id)
 
   // FIX 2: CRITICAL - Add explicit user_id check to source tasks query
   // Fetch original tasks with all data including category relations
@@ -344,11 +334,11 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
         }
       }
 
-      // Create new task in target plan
+      // Create new task for target date
       const { data: newTask, error: createError } = await supabase
         .from('tasks')
         .insert({
-          plan_id: input.targetPlanId,
+          plan_id: targetPlanId,
           user_id: user.id,
           title: originalTask.title,
           description: originalTask.description,
@@ -358,6 +348,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
           estimated_duration_minutes: originalTask.estimated_duration_minutes,
           notes: originalTask.notes,
           reminder_at: newReminderAt,
+          scheduled_date: input.targetDate,
           // Do NOT set: is_mit (auto-set by trigger), completed_at, notification_id
         })
         .select(
