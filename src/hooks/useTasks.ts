@@ -4,7 +4,6 @@ import { supabase } from '~/lib/supabase'
 import { addBreadcrumb } from '~/lib/sentry'
 import { NotificationService } from '~/lib/notifications'
 import { wasCelebratedToday, markCelebratedToday } from '~/lib/rollover'
-import { getOrCreatePlanId } from '~/lib/plans'
 import { useCelebrationStore } from '~/stores/celebrationStore'
 import { useIncrementCategoryUsage } from '~/hooks/useCategories'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
@@ -107,10 +106,7 @@ export function useToggleTask() {
       try {
         if (!variables.completed) return
 
-        const tasks = queryClient.getQueryData<TaskWithCategory[]>([
-          'tasks',
-          data.scheduled_date,
-        ])
+        const tasks = queryClient.getQueryData<TaskWithCategory[]>(['tasks', data.scheduled_date])
         if (!tasks || tasks.length === 0) return
 
         const allComplete = tasks.every((t) => t.completed_at !== null)
@@ -206,13 +202,9 @@ export function useCreateTask() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
-      // Dual-write: resolve plan_id for backwards compatibility (removed in DEV-587)
-      const planId = await getOrCreatePlanId(scheduledDate, user.id)
-
       const { data, error } = await supabase
         .from('tasks')
         .insert({
-          plan_id: planId,
           user_id: user.id,
           title,
           description,
@@ -318,20 +310,9 @@ export function useUpdateTask() {
         .eq('id', taskId)
         .single()
 
-      // If moving to a different day, also update plan_id for dual-write (removed in DEV-587)
-      const dbUpdates = { ...updates } as Record<string, unknown>
-      if (updates.scheduled_date && originalDate && updates.scheduled_date !== originalDate) {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-        if (!user) throw new Error('Not authenticated')
-        const planId = await getOrCreatePlanId(updates.scheduled_date, user.id)
-        dbUpdates.plan_id = planId
-      }
-
       const { data, error } = await supabase
         .from('tasks')
-        .update(dbUpdates)
+        .update(updates)
         .eq('id', taskId)
         .select()
         .single()
@@ -381,17 +362,15 @@ export function useUpdateTask() {
     },
     onMutate: async ({ taskId, updates, originalDate }) => {
       // Only do optimistic update when moving between days
-      if (!updates.scheduled_date || !originalDate || updates.scheduled_date === originalDate) return
+      if (!updates.scheduled_date || !originalDate || updates.scheduled_date === originalDate)
+        return
 
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['tasks', originalDate] })
       await queryClient.cancelQueries({ queryKey: ['tasks', updates.scheduled_date] })
 
       // Snapshot previous values for rollback
-      const previousOriginal = queryClient.getQueryData<TaskWithCategory[]>([
-        'tasks',
-        originalDate,
-      ])
+      const previousOriginal = queryClient.getQueryData<TaskWithCategory[]>(['tasks', originalDate])
       const previousTarget = queryClient.getQueryData<TaskWithCategory[]>([
         'tasks',
         updates.scheduled_date,

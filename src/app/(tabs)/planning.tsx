@@ -194,12 +194,7 @@ export default function PlanningScreen() {
       setEveningRolloverSource(null)
       setIsFormVisible(true)
     }
-  }, [
-    planningReminderTriggered,
-    eveningLoading,
-    eveningShouldShow,
-    setEveningRolloverSource,
-  ])
+  }, [planningReminderTriggered, eveningLoading, eveningShouldShow, setEveningRolloverSource])
 
   // Evening rollover handlers
   const handleEveningCarryForward = useCallback(
@@ -345,7 +340,7 @@ export default function PlanningScreen() {
         // Use the form's plannedFor (day selector in edit mode) rather than the header pill
         const editTarget = task.plannedFor ?? selectedTarget
         const targetDate = editTarget === 'today' ? todayDate : tomorrowDate
-        const originalDate = editingTask.scheduled_date
+        const originalDate = editingTask.scheduled_date ?? todayDate
 
         // Build base updates
         const updates: Parameters<typeof updateTask.mutateAsync>[0]['updates'] = {
@@ -474,11 +469,7 @@ export default function PlanningScreen() {
         <PlanningHeader
           selectedTarget={selectedTarget}
           onTargetChange={handleTargetChange}
-          dateSuffix={
-            tasks.length > 0
-              ? <TasksRecap tasks={tasks} />
-              : undefined
-          }
+          dateSuffix={tasks.length > 0 ? <TasksRecap tasks={tasks} /> : undefined}
         />
 
         {isFormVisible ? (
