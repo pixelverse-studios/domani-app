@@ -20,6 +20,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 import { format, setHours, setMinutes } from 'date-fns'
 
 import { Text } from '~/components/ui'
+import { TimePickerModal } from '~/components/ui/TimePickerModal'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { getTheme } from '~/theme/themes'
 import { useTutorialTarget } from '~/components/tutorial'
@@ -292,62 +293,20 @@ export function ReminderShortcutsSection() {
         />
       )}
 
-      {/* Time Picker Modal - iOS */}
-      {showTimePicker && Platform.OS === 'ios' && (
-        <Modal transparent animationType="fade" visible={showTimePicker}>
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={handleCloseModal}
-            className="flex-1 justify-end"
-            style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
-          >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={() => {}} // Prevent closing when tapping the picker
-              className="rounded-t-2xl pb-8"
-              style={{ backgroundColor: theme.colors.card }}
-            >
-              <View
-                className="flex-row justify-between items-center px-4 py-3 border-b"
-                style={{ borderColor: borderColor }}
-              >
-                <TouchableOpacity onPress={handleCloseModal}>
-                  <Text className="text-base" style={{ color: iconColor }}>
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
-                <Text className="text-base font-sans-semibold text-content-primary">
-                  {editingShortcut
-                    ? `${SHORTCUT_LABELS[editingShortcut.index] || `Shortcut ${editingShortcut.index + 1}`} Time`
-                    : 'Select Time'}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    handleTimeChange(selectedTime)
-                    handleCloseModal()
-                  }}
-                >
-                  <Text className="text-base font-sans-semibold" style={{ color: brandColor }}>
-                    Done
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker
-                value={selectedTime}
-                mode="time"
-                display="spinner"
-                onChange={(_, date) => {
-                  if (date) {
-                    setSelectedTime(date)
-                  }
-                }}
-                themeVariant="light"
-                style={{ height: 200 }}
-              />
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </Modal>
-      )}
+      <TimePickerModal
+        visible={showTimePicker && Platform.OS === 'ios'}
+        value={selectedTime}
+        title={
+          editingShortcut
+            ? `${SHORTCUT_LABELS[editingShortcut.index] || `Shortcut ${editingShortcut.index + 1}`} Time`
+            : 'Select Time'
+        }
+        onConfirm={(date) => {
+          handleTimeChange(date)
+          handleCloseModal()
+        }}
+        onCancel={handleCloseModal}
+      />
     </View>
   )
 }

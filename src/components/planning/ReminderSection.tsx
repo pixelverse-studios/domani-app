@@ -6,6 +6,7 @@ import { format, addDays, setHours, setMinutes, isBefore } from 'date-fns'
 import Animated from 'react-native-reanimated'
 
 import { Text } from '~/components/ui'
+import { TimePickerModal } from '~/components/ui/TimePickerModal'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useProfile } from '~/hooks/useProfile'
 import { DEFAULT_SHORTCUTS, type ReminderShortcut } from '~/components/settings'
@@ -223,57 +224,18 @@ export function ReminderSection({
             />
           )}
 
-          {showTimePicker && Platform.OS === 'ios' && (
-            <Modal transparent animationType="fade" visible={showTimePicker}>
-              <TouchableOpacity
-                activeOpacity={1}
-                onPress={() => setShowTimePicker(false)}
-                className="flex-1 justify-end"
-                style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
-              >
-                <TouchableOpacity
-                  activeOpacity={1}
-                  onPress={() => {}} // Prevent closing when tapping the picker
-                  className="rounded-t-2xl pb-8"
-                  style={{ backgroundColor: theme.colors.card }}
-                >
-                  <View
-                    className="flex-row justify-between items-center px-4 py-3 border-b"
-                    style={{ borderColor: borderColor }}
-                  >
-                    <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                      <Text className="text-base" style={{ color: iconColor }}>
-                        Cancel
-                      </Text>
-                    </TouchableOpacity>
-                    <Text className="text-base font-sans-semibold text-content-primary">
-                      Select Time
-                    </Text>
-                    <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                      <Text className="text-base font-sans-semibold" style={{ color: brandColor }}>
-                        Done
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                  <DateTimePicker
-                    value={reminderDate}
-                    mode="time"
-                    display="spinner"
-                    is24Hour={is24Hour}
-                    onChange={(_, date) => {
-                      if (date) {
-                        const newDate = new Date(reminderDate)
-                        newDate.setHours(date.getHours(), date.getMinutes())
-                        onReminderDateChange(newDate)
-                      }
-                    }}
-                    themeVariant="light"
-                    style={{ height: 200, alignSelf: 'center' }}
-                  />
-                </TouchableOpacity>
-              </TouchableOpacity>
-            </Modal>
-          )}
+          <TimePickerModal
+            visible={showTimePicker && Platform.OS === 'ios'}
+            value={reminderDate}
+            is24Hour={is24Hour}
+            onConfirm={(date) => {
+              const newDate = new Date(reminderDate)
+              newDate.setHours(date.getHours(), date.getMinutes())
+              onReminderDateChange(newDate)
+              setShowTimePicker(false)
+            }}
+            onCancel={() => setShowTimePicker(false)}
+          />
 
           {isPastReminder && (
             <Text className="text-xs text-amber-500 mt-3">
