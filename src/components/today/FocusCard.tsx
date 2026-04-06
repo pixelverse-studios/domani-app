@@ -4,7 +4,8 @@ import { Target, PartyPopper, Sparkles } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
-import { useLayoutStore, type TaskLayout } from '~/stores/layoutStore'
+import { useCardStyle } from '~/hooks/useCardStyle'
+import { useLayoutStore } from '~/stores/layoutStore'
 import type { TaskWithCategory, DayType, DayTheme } from '~/types'
 
 // Theme to focus phrase mapping
@@ -27,60 +28,6 @@ interface FocusCardProps {
   completedTasks: number
 }
 
-function useCardStyle(layout: TaskLayout) {
-  const theme = useAppTheme()
-  const brandColor = theme.colors.brand.primary
-
-  const styles: Record<TaskLayout, object> = {
-    default: {
-      backgroundColor: theme.colors.card,
-      borderWidth: 1,
-      borderColor: theme.colors.border.primary,
-      borderRadius: 16,
-      padding: 24,
-    },
-    compact: {
-      backgroundColor: theme.colors.card,
-      borderWidth: 1,
-      borderColor: theme.colors.border.primary,
-      borderRadius: 10,
-      padding: 16,
-    },
-    minimal: {
-      backgroundColor: 'transparent',
-      borderBottomWidth: 1,
-      borderBottomColor: `${theme.colors.border.primary}66`,
-      borderRadius: 0,
-      padding: 16,
-      paddingHorizontal: 4,
-    },
-    detailed: {
-      backgroundColor: theme.colors.card,
-      borderWidth: 1,
-      borderColor: theme.colors.border.primary,
-      borderRadius: 16,
-      borderLeftWidth: 4,
-      borderLeftColor: brandColor,
-      padding: 24,
-    },
-    grid: {
-      backgroundColor: theme.colors.card,
-      borderWidth: 1,
-      borderColor: theme.colors.border.primary,
-      borderRadius: 14,
-      padding: 20,
-      overflow: 'hidden' as const,
-    },
-    checklist: {
-      backgroundColor: 'transparent',
-      borderRadius: 0,
-      padding: 16,
-      paddingHorizontal: 4,
-    },
-  }
-
-  return styles[layout]
-}
 
 export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: FocusCardProps) {
   const theme = useAppTheme()
@@ -187,9 +134,7 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
             {content.message}
           </Text>
           {content.subtitle && (
-            <Text
-              className={`${isCompact ? 'text-sm' : 'text-base'} text-content-secondary mt-1`}
-            >
+            <Text className={`${isCompact ? 'text-sm' : 'text-base'} text-content-secondary mt-1`}>
               {content.subtitle}
             </Text>
           )}
