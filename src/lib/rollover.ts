@@ -13,7 +13,6 @@ import { format, parseISO, setHours, setMinutes } from 'date-fns'
 
 import { supabase } from './supabase'
 import { NotificationService } from './notifications'
-import { getOrCreatePlanId } from './plans'
 import { addBreadcrumb } from './sentry'
 import type { TaskWithCategory, TaskPriority } from '~/types'
 
@@ -203,9 +202,7 @@ export async function clearEveningPromptState(): Promise<void> {
  * @param planningReminderTime - Postgres time format "HH:mm:ss"
  * @returns Promise<boolean> - true if prompted in current cycle, false otherwise
  */
-export async function wasPromptedInCurrentCycle(
-  planningReminderTime: string,
-): Promise<boolean> {
+export async function wasPromptedInCurrentCycle(planningReminderTime: string): Promise<boolean> {
   const storedValue = await AsyncStorage.getItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
   if (!storedValue) return false
 
@@ -281,10 +278,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
   } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  // Resolve plan_id for dual-write (removed in DEV-587)
-  const targetPlanId = await getOrCreatePlanId(input.targetDate, user.id)
-
-  // FIX 2: CRITICAL - Add explicit user_id check to source tasks query
+  // Scope to authenticated user's tasks only
   // Fetch original tasks with all data including category relations
   const { data: selectedTasks, error: fetchError } = await supabase
     .from('tasks')
@@ -338,7 +332,6 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
       const { data: newTask, error: createError } = await supabase
         .from('tasks')
         .insert({
-          plan_id: targetPlanId,
           user_id: user.id,
           title: originalTask.title,
           description: originalTask.description,
