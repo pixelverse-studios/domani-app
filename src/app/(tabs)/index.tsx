@@ -80,7 +80,26 @@ export default function TodayScreen() {
     checkNamePrompt()
   }, [profile, profileLoading])
 
-  // Show locked screen when trial has expired (after all hooks)
+  const [refreshing, setRefreshing] = React.useState(false)
+
+  // Calculate progress
+  const completedCount = useMemo(() => {
+    return tasks.filter((task: TaskWithCategory) => task.completed_at).length
+  }, [tasks])
+
+  // Extract MIT task (top priority, not completed)
+  const mitTask = useMemo(() => {
+    return tasks.find((task) => task.priority === 'top' && !task.completed_at) ?? null
+  }, [tasks])
+
+  // Calculate day theme from tasks excluding MIT
+  const dayTheme = useMemo(() => {
+    const nonMitTasks = tasks.filter((task) => task.priority !== 'top')
+    return inferDayType(nonMitTasks)
+  }, [tasks])
+
+  // Show locked screen when trial has expired (after ALL hooks are declared
+  // to satisfy Rules of Hooks — hook count must be stable across renders)
   if (subscriptionStatus === 'none' && !subscriptionLoading) {
     return <LockedScreen />
   }
@@ -102,25 +121,7 @@ export default function TodayScreen() {
   }
 
   const isLoading = tasksLoading || profileLoading
-  const [refreshing, setRefreshing] = React.useState(false)
-
-  // Calculate progress
-  const completedCount = useMemo(() => {
-    return tasks.filter((task: TaskWithCategory) => task.completed_at).length
-  }, [tasks])
-
   const totalCount = tasks.length
-
-  // Extract MIT task (top priority, not completed)
-  const mitTask = useMemo(() => {
-    return tasks.find((task) => task.priority === 'top' && !task.completed_at) ?? null
-  }, [tasks])
-
-  // Calculate day theme from tasks excluding MIT
-  const dayTheme = useMemo(() => {
-    const nonMitTasks = tasks.filter((task) => task.priority !== 'top')
-    return inferDayType(nonMitTasks)
-  }, [tasks])
 
   const handleToggleTask = async (taskId: string, completed: boolean) => {
     try {
