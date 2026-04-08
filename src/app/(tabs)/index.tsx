@@ -16,8 +16,13 @@ import { X } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
-import { useSubscription } from '~/hooks/useSubscription'
+import {
+  useSubscription,
+  isLocked as computeIsLocked,
+  needsToStartTrial,
+} from '~/hooks/useSubscription'
 import { LockedScreen } from '~/components/LockedScreen'
+import { PreTrialScreen } from '~/components/PreTrialScreen'
 import {
   TodayHeader,
   ProgressCard,
@@ -98,10 +103,16 @@ export default function TodayScreen() {
     return inferDayType(nonMitTasks)
   }, [tasks])
 
-  // Show locked screen when trial has expired (after ALL hooks are declared
-  // to satisfy Rules of Hooks — hook count must be stable across renders)
-  if (subscriptionStatus === 'none' && !subscriptionLoading) {
-    return <LockedScreen />
+  // Gate the Today screen for users who haven't started a trial or whose
+  // trial has expired. Placed AFTER all hook declarations to satisfy the
+  // Rules of Hooks — hook count must be stable across renders.
+  if (!subscriptionLoading) {
+    if (computeIsLocked(subscriptionStatus)) {
+      return <LockedScreen />
+    }
+    if (needsToStartTrial(subscriptionStatus)) {
+      return <PreTrialScreen />
+    }
   }
 
   const handleSaveName = async () => {

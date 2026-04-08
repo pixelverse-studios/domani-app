@@ -8,10 +8,13 @@ import { SectionHeader } from './SectionHeader'
 import { SubscriptionSkeleton } from './SettingsSkeletons'
 import type { SubscriptionStatus } from '~/hooks/useSubscription'
 
-// Subscription status display config
+// Subscription status display config. Every status in the exhaustive union
+// must have an entry; TypeScript enforces this via `Record<SubscriptionStatus, …>`.
 const STATUS_CONFIG: Record<SubscriptionStatus, { label: string; color: string; bgColor: string }> =
   {
-    none: { label: 'No Active Plan', color: '#94a3b8', bgColor: 'bg-slate-500/20' },
+    beta: { label: 'Beta Tester', color: '#f59e0b', bgColor: 'bg-amber-500/20' },
+    pre_trial: { label: 'No Active Plan', color: '#94a3b8', bgColor: 'bg-slate-500/20' },
+    expired: { label: 'Trial Ended', color: '#94a3b8', bgColor: 'bg-slate-500/20' },
     trialing: { label: 'Trial', color: '#22c55e', bgColor: 'bg-green-500/20' },
     lifetime: { label: 'Lifetime', color: '#f59e0b', bgColor: 'bg-amber-500/20' },
   }
@@ -19,7 +22,6 @@ const STATUS_CONFIG: Record<SubscriptionStatus, { label: string; color: string; 
 interface SubscriptionSectionProps {
   isLoading: boolean
   status: SubscriptionStatus
-  canStartTrial: boolean
   isStartingTrial: boolean
   isRestoring: boolean
   trialDaysRemaining: number | null
@@ -29,12 +31,14 @@ interface SubscriptionSectionProps {
 }
 
 /**
- * Subscription section for production mode (not shown during beta)
+ * Subscription section shown on the Settings screen. Branches explicitly on
+ * the discriminated `SubscriptionStatus` — there is no `canStartTrial` boolean,
+ * since eligibility is now encoded directly in the status (`pre_trial` means
+ * eligible to start, `expired` means not).
  */
 export function SubscriptionSection({
   isLoading,
   status,
-  canStartTrial,
   isStartingTrial,
   isRestoring,
   trialDaysRemaining,
@@ -67,50 +71,62 @@ export function SubscriptionSection({
               </View>
             </View>
 
-            {/* No active tier - show trial option */}
-            {status === 'none' && (
+            {/* Beta — full access, no CTAs */}
+            {status === 'beta' && (
+              <Text className="text-sm text-content-secondary">
+                You have full access to everything during the beta. Thanks for helping test
+                Domani!
+              </Text>
+            )}
+
+            {/* Pre-trial — user has never started a trial, offer Start Trial CTA */}
+            {status === 'pre_trial' && (
               <>
                 <Text className="text-sm text-content-secondary mb-3">
-                  {canStartTrial
-                    ? 'Explore everything Domani has to offer'
-                    : 'Your trial has ended — upgrade to keep using Domani'}
+                  Explore everything Domani has to offer
                 </Text>
-                {canStartTrial ? (
-                  <TouchableOpacity
-                    onPress={onStartTrial}
-                    disabled={isStartingTrial}
-                    activeOpacity={0.8}
-                    className="bg-green-500 py-3 rounded-xl items-center flex-row justify-center mb-2"
-                  >
-                    {isStartingTrial ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <>
-                        <Sparkles size={18} color="#fff" />
-                        <Text className="text-white font-semibold ml-2">
-                          Start 14-Day Free Trial
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    onPress={onUpgrade}
-                    disabled={isRestoring}
-                    activeOpacity={0.8}
-                    className="py-3 rounded-xl items-center"
-                    style={{
-                      backgroundColor: theme.colors.brand.primary,
-                      opacity: isRestoring ? 0.5 : 1,
-                    }}
-                  >
-                    <Text className="text-white font-semibold">Upgrade to Pro</Text>
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                  onPress={onStartTrial}
+                  disabled={isStartingTrial}
+                  activeOpacity={0.8}
+                  className="bg-green-500 py-3 rounded-xl items-center flex-row justify-center mb-2"
+                >
+                  {isStartingTrial ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Sparkles size={18} color="#fff" />
+                      <Text className="text-white font-semibold ml-2">
+                        Start 14-Day Free Trial
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
               </>
             )}
 
-            {/* Trialing - show days remaining */}
+            {/* Expired — trial was used and ended, offer Upgrade CTA */}
+            {status === 'expired' && (
+              <>
+                <Text className="text-sm text-content-secondary mb-3">
+                  Your trial has ended — upgrade to keep using Domani
+                </Text>
+                <TouchableOpacity
+                  onPress={onUpgrade}
+                  disabled={isRestoring}
+                  activeOpacity={0.8}
+                  className="py-3 rounded-xl items-center"
+                  style={{
+                    backgroundColor: theme.colors.brand.primary,
+                    opacity: isRestoring ? 0.5 : 1,
+                  }}
+                >
+                  <Text className="text-white font-semibold">Get Lifetime Access</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {/* Trialing — show days remaining + Upgrade CTA */}
             {status === 'trialing' && (
               <>
                 <View className="flex-row items-center mb-3">
@@ -137,7 +153,7 @@ export function SubscriptionSection({
               </>
             )}
 
-            {/* Lifetime */}
+            {/* Lifetime — purchased, no CTAs */}
             {status === 'lifetime' && (
               <Text className="text-sm text-content-secondary">
                 Unlimited tasks - All features unlocked forever
@@ -145,8 +161,10 @@ export function SubscriptionSection({
             )}
           </View>
 
-          {/* Restore purchases - only show for non-lifetime users */}
-          {(status === 'none' || status === 'trialing') && (
+          {/* Restore purchases — only shown for states where a prior purchase
+              could plausibly exist (expired or trialing). Beta/pre_trial have
+              nothing to restore; lifetime already has the purchase applied. */}
+          {(status === 'expired' || status === 'trialing') && (
             <TouchableOpacity
               onPress={onRestore}
               disabled={isRestoring}

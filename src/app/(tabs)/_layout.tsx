@@ -6,7 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useAuth } from '~/hooks/useAuth'
-import { useSubscription } from '~/hooks/useSubscription'
+import {
+  useSubscription,
+  isLocked as computeIsLocked,
+  needsToStartTrial,
+} from '~/hooks/useSubscription'
 import { WelcomeOverlay, TutorialSpotlight, useTutorialLifecycle } from '~/components/tutorial'
 import { useTutorialStore } from '~/stores/tutorialStore'
 
@@ -20,8 +24,13 @@ export default function TabLayout() {
   const theme = useAppTheme()
   const { user, loading } = useAuth()
   const { status: subscriptionStatus, isLoading: subscriptionLoading } = useSubscription()
-  const isLocked = subscriptionStatus === 'none' && !subscriptionLoading
-  const hideLockedTabs = isLocked || subscriptionLoading
+  // Hide non-essential tabs for any gated state (expired OR pre_trial), so the
+  // user only sees Today + Settings until they start a trial or upgrade.
+  // Also hide while loading to avoid a flash of fully-enabled tabs.
+  const hideLockedTabs =
+    subscriptionLoading ||
+    computeIsLocked(subscriptionStatus) ||
+    needsToStartTrial(subscriptionStatus)
   const initializeTutorialState = useTutorialStore((state) => state.initializeTutorialState)
 
   // Initialize tutorial state when user is authenticated
