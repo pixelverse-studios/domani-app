@@ -713,3 +713,4 @@ export function SmartCategoriesModal({
     </Modal>
   )
 }
+

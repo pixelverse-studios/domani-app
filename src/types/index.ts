@@ -13,7 +13,6 @@ import type { Tables, TablesInsert, TablesUpdate, Enums } from './supabase'
 
 // Convenience type aliases for common tables
 export type Profile = Tables<'profiles'>
-export type Plan = Tables<'plans'>
 export type Task = Tables<'tasks'>
 export type SystemCategory = Tables<'system_categories'>
 export type UserCategory = Tables<'user_categories'>
@@ -23,7 +22,6 @@ export type BetaFeedback = Tables<'beta_feedback'>
 
 // Insert types
 export type ProfileInsert = TablesInsert<'profiles'>
-export type PlanInsert = TablesInsert<'plans'>
 export type TaskInsert = TablesInsert<'tasks'>
 export type UserCategoryInsert = TablesInsert<'user_categories'>
 export type UserCategoryPreferenceInsert = TablesInsert<'user_category_preferences'>
@@ -32,13 +30,11 @@ export type BetaFeedbackInsert = TablesInsert<'beta_feedback'>
 
 // Update types
 export type ProfileUpdate = TablesUpdate<'profiles'>
-export type PlanUpdate = TablesUpdate<'plans'>
 export type TaskUpdate = TablesUpdate<'tasks'>
 export type UserCategoryUpdate = TablesUpdate<'user_categories'>
 
 // Enum types
 export type Tier = Enums<'tier'>
-export type PlanStatus = Enums<'plan_status'>
 
 // Priority type - matches database enum
 export type TaskPriority = Enums<'task_priority'>

@@ -284,7 +284,7 @@ export function useNotificationObserver() {
         // Fetch tasks with pending reminders (reminder_at in the future, not completed)
         const { data: tasksWithReminders, error } = await supabase
           .from('tasks')
-          .select('id, title, is_mit, reminder_at, notification_id')
+          .select('id, title, is_mit, reminder_at, notes, notification_id')
           .eq('user_id', user.id)
           .gt('reminder_at', new Date().toISOString())
           .is('completed_at', null)
@@ -310,6 +310,7 @@ export function useNotificationObserver() {
             title: t.title,
             is_mit: t.is_mit,
             reminder_at: t.reminder_at!,
+            notes: t.notes,
             notification_id: t.notification_id,
           })),
         )

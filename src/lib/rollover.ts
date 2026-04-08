@@ -149,32 +149,95 @@ export async function clearCelebrationState(): Promise<void> {
 }
 
 /**
+ * Returns true if the current time is at or past the given planning reminder time.
+ * Expects Postgres time format: HH:mm:ss
+ */
+export function isPastReminderTime(planningReminderTime: string): boolean {
+  const parts = planningReminderTime.split(':').map(Number)
+  if (parts.length < 2 || parts.some(isNaN)) return false
+  const [hours, minutes] = parts
+  const now = new Date()
+  const reminderToday = new Date(now)
+  reminderToday.setHours(hours, minutes, 0, 0)
+  return now >= reminderToday
+}
+
+/**
  * AsyncStorage key for tracking the evening rollover prompt.
  */
 const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
 
 /**
- * Check if the user was already shown the evening rollover prompt today
- *
- * Intentionally lets AsyncStorage errors propagate so the React Query caller
- * can apply its default of `true` (fail-closed: suppress the prompt on error).
- */
-export async function wasEveningPromptedToday(): Promise<boolean> {
-  const lastPrompted = await AsyncStorage.getItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
-  const today = format(new Date(), 'yyyy-MM-dd')
-  return lastPrompted === today
-}
-
-/**
- * Mark the user as having been shown the evening rollover prompt today
+ * Mark the user as having been shown the evening rollover prompt.
+ * Stores a full ISO timestamp for cycle-aware comparisons.
  */
 export async function markEveningPromptedToday(): Promise<void> {
   try {
-    const today = format(new Date(), 'yyyy-MM-dd')
-    await AsyncStorage.setItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY, today)
+    await AsyncStorage.setItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY, new Date().toISOString())
   } catch (error) {
     console.error('Error marking evening rollover prompt:', error)
   }
+}
+
+/**
+ * Clear the evening rollover prompt state (for testing/debugging)
+ */
+export async function clearEveningPromptState(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
+  } catch (error) {
+    console.error('Error clearing evening rollover prompt state:', error)
+  }
+}
+
+/**
+ * Check if the user was prompted within the current 24-hour rollover cycle.
+ *
+ * A cycle starts at the user's planning_reminder_time and runs until the next
+ * occurrence of that time (e.g., 7 PM to 6:59 PM the next day).
+ *
+ * Supports both legacy date-only format (YYYY-MM-DD) and new ISO timestamp format.
+ * Intentionally lets errors propagate (same pattern as wasEveningPromptedToday).
+ *
+ * @param planningReminderTime - Postgres time format "HH:mm:ss"
+ * @returns Promise<boolean> - true if prompted in current cycle, false otherwise
+ */
+export async function wasPromptedInCurrentCycle(planningReminderTime: string): Promise<boolean> {
+  const storedValue = await AsyncStorage.getItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
+  if (!storedValue) return false
+
+  // Parse stored value — handle both old YYYY-MM-DD and new ISO timestamp
+  let lastPrompted: Date
+  if (storedValue.length === 10) {
+    // Old format: treat as start of that day (midnight)
+    lastPrompted = new Date(`${storedValue}T00:00:00`)
+  } else {
+    lastPrompted = new Date(storedValue)
+  }
+
+  // Calculate the current cycle start
+  const parts = planningReminderTime.split(':').map(Number)
+  if (parts.length < 2 || parts.some(isNaN)) return false // malformed time — fail-open
+  const [hours, minutes, seconds] = [parts[0] ?? 0, parts[1] ?? 0, parts[2] ?? 0]
+
+  const now = new Date()
+
+  // Build "today at reminder time"
+  const todayAtReminder = new Date(now)
+  todayAtReminder.setHours(hours, minutes, seconds, 0)
+
+  let cycleStart: Date
+  if (now >= todayAtReminder) {
+    // Current cycle started today at reminder time
+    cycleStart = todayAtReminder
+  } else {
+    // Current cycle started yesterday at reminder time
+    const yesterdayAtReminder = new Date(todayAtReminder)
+    yesterdayAtReminder.setDate(yesterdayAtReminder.getDate() - 1)
+    cycleStart = yesterdayAtReminder
+  }
+
+  return lastPrompted >= cycleStart
 }
 
 /**
@@ -183,8 +246,8 @@ export async function markEveningPromptedToday(): Promise<void> {
 export interface CarryForwardInput {
   /** IDs of tasks to carry forward */
   selectedTaskIds: string[]
-  /** ID of the plan to add tasks to (today's plan) */
-  targetPlanId: string
+  /** Target date to carry tasks to (YYYY-MM-DD) */
+  targetDate: string
   /** If true, the carried MIT becomes today's MIT (priority = 'top') */
   shouldMakeMIT: boolean
   /** If true, preserve original reminder times (adjusted to today) */
@@ -204,7 +267,7 @@ export interface CarryForwardInput {
  * @example
  * const createdTasks = await carryForwardTasks({
  *   selectedTaskIds: ['task-id-1', 'task-id-2'],
- *   targetPlanId: 'today-plan-id',
+ *   targetDate: '2026-04-03',
  *   shouldMakeMIT: true,
  *   keepReminderTimes: true,
  * })
@@ -215,21 +278,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
   } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  // FIX 1: CRITICAL - Verify user owns the target plan
-  const { data: targetPlan, error: planError } = await supabase
-    .from('plans')
-    .select('user_id')
-    .eq('id', input.targetPlanId)
-    .single()
-
-  if (planError || !targetPlan) {
-    throw new Error('Unauthorized: Target plan does not belong to user')
-  }
-  if (targetPlan.user_id !== user.id) {
-    throw new Error('Unauthorized: Target plan does not belong to user')
-  }
-
-  // FIX 2: CRITICAL - Add explicit user_id check to source tasks query
+  // Scope to authenticated user's tasks only
   // Fetch original tasks with all data including category relations
   const { data: selectedTasks, error: fetchError } = await supabase
     .from('tasks')
@@ -279,11 +328,10 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
         }
       }
 
-      // Create new task in target plan
+      // Create new task for target date
       const { data: newTask, error: createError } = await supabase
         .from('tasks')
         .insert({
-          plan_id: input.targetPlanId,
           user_id: user.id,
           title: originalTask.title,
           description: originalTask.description,
@@ -293,6 +341,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
           estimated_duration_minutes: originalTask.estimated_duration_minutes,
           notes: originalTask.notes,
           reminder_at: newReminderAt,
+          scheduled_date: input.targetDate,
           // Do NOT set: is_mit (auto-set by trigger), completed_at, notification_id
         })
         .select(
@@ -324,6 +373,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
           title: taskWithCategory.title,
           is_mit: taskWithCategory.is_mit,
           reminder_at: taskWithCategory.reminder_at,
+          notes: taskWithCategory.notes,
         })
 
         if (notificationId) {

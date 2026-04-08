@@ -23,6 +23,7 @@ export { NotificationsSection } from './NotificationsSection'
 export { PreferencesSection, TIMEZONES } from './PreferencesSection'
 export { SupportSection } from './SupportSection'
 export { DangerZoneSection } from './DangerZoneSection'
+export { DevToolsSection } from './DevToolsSection'
 
 // Modals
 export {
@@ -32,6 +33,3 @@ export {
   DeleteAccountModal,
   SmartCategoriesModal,
 } from './SettingsModals'
-
-// Dev tools (only rendered when __DEV__ is true)
-export { DevToolsSection } from './DevToolsSection'

@@ -6,12 +6,37 @@ import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 
 const PLANNING_TIPS = [
+  // Energy management
   'Schedule your most important tasks in the morning when your energy is highest.',
+  'Tackle your hardest task first. The rest of the day feels easier.',
+  'Match tasks to your energy — creative work when sharp, admin when winding down.',
+
+  // Focus and scope
   'Limit yourself to 3 key tasks per day to maintain focus and avoid overwhelm.',
   'Break large tasks into smaller, actionable steps you can complete in one session.',
-  'Leave buffer time between tasks for unexpected interruptions.',
+  'If a task feels too big to start, make the first step embarrassingly small.',
+  'Single-tasking beats multitasking every time. Give one thing your full attention.',
+
+  // Planning habits
   'End each day by planning tomorrow — it helps you start with clarity.',
-  'Tackle your hardest task first. The rest of the day feels easier.',
+  'Planning the night before frees your morning brain for doing, not deciding.',
+  'Review yesterday before planning today. What worked? What didn\'t?',
+  'A plan is a guide, not a contract. Adjust as the day unfolds.',
+
+  // Time and structure
+  'Leave buffer time between tasks for unexpected interruptions.',
+  'Time-box tasks to prevent them from expanding to fill your whole day.',
+  'Group similar tasks together — context-switching drains more energy than the work itself.',
+
+  // Prioritization
+  'Your Most Important Task deserves your best hours. Protect that time.',
+  'Not everything urgent is important. Prioritize what moves you forward.',
+  'Saying no to one thing means saying yes to what matters most.',
+
+  // Momentum and mindset
+  'Done is better than perfect. Ship it, then improve.',
+  'Small wins build momentum. Start with something completable.',
+  'Celebrate finishing your plan — consistency compounds over time.',
 ]
 
 export function PlanningTip() {

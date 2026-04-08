@@ -12,11 +12,11 @@ import type { TaskWithCategory, TaskPriority } from '~/types'
 // 5 minutes - tasks change with user action but don't need real-time updates
 const TASKS_STALE_TIME = 1000 * 60 * 5
 
-export function useTasks(planId: string | undefined) {
+export function useTasks(date: string | undefined) {
   return useQuery({
-    queryKey: ['tasks', planId],
+    queryKey: ['tasks', date],
     queryFn: async () => {
-      if (!planId) return []
+      if (!date) return []
 
       const { data, error } = await supabase
         .from('tasks')
@@ -27,7 +27,7 @@ export function useTasks(planId: string | undefined) {
           user_category:user_categories(*)
         `,
         )
-        .eq('plan_id', planId)
+        .eq('scheduled_date', date)
         .is('rolled_over_at', null)
         .order('position')
 
@@ -35,7 +35,7 @@ export function useTasks(planId: string | undefined) {
 
       return data as TaskWithCategory[]
     },
-    enabled: !!planId,
+    enabled: !!date,
     staleTime: TASKS_STALE_TIME,
   })
 }
@@ -106,7 +106,7 @@ export function useToggleTask() {
       try {
         if (!variables.completed) return
 
-        const tasks = queryClient.getQueryData<TaskWithCategory[]>(['tasks', data.plan_id])
+        const tasks = queryClient.getQueryData<TaskWithCategory[]>(['tasks', data.scheduled_date])
         if (!tasks || tasks.length === 0) return
 
         const allComplete = tasks.every((t) => t.completed_at !== null)
@@ -166,7 +166,7 @@ export function useToggleTask() {
 }
 
 interface CreateTaskInput {
-  planId: string
+  scheduledDate: string
   title: string
   description?: string
   systemCategoryId?: string
@@ -186,7 +186,7 @@ export function useCreateTask() {
 
   return useMutation({
     mutationFn: async ({
-      planId,
+      scheduledDate,
       title,
       description,
       systemCategoryId,
@@ -202,13 +202,9 @@ export function useCreateTask() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
-      // Note: is_mit is automatically set by DB trigger based on priority
-      // TOP priority tasks are automatically marked as MIT
-      // If another TOP task exists, it will be demoted to HIGH by the trigger
       const { data, error } = await supabase
         .from('tasks')
         .insert({
-          plan_id: planId,
           user_id: user.id,
           title,
           description,
@@ -218,6 +214,7 @@ export function useCreateTask() {
           estimated_duration_minutes: estimatedDurationMinutes,
           notes,
           reminder_at: reminderAt,
+          scheduled_date: scheduledDate,
         })
         .select(
           `
@@ -239,6 +236,7 @@ export function useCreateTask() {
           title: data.title,
           is_mit: data.is_mit,
           reminder_at: data.reminder_at,
+          notes: data.notes,
         })
 
         // Update task with notification ID for later cancellation
@@ -251,7 +249,7 @@ export function useCreateTask() {
       return data as TaskWithCategory
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', data.plan_id] })
+      queryClient.invalidateQueries({ queryKey: ['tasks', data.scheduled_date] })
       addBreadcrumb('Task created', 'task', {
         taskId: data.id,
         priority: data.priority,
@@ -285,7 +283,7 @@ export function useUpdateTask() {
     mutationFn: async ({
       taskId,
       updates,
-      originalPlanId,
+      originalDate,
     }: {
       taskId: string
       updates: Partial<{
@@ -297,13 +295,13 @@ export function useUpdateTask() {
         estimated_duration_minutes: number
         position: number
         notes: string | null
-        plan_id: string // Support moving task to different plan (day change)
+        scheduled_date: string // Support moving task to different day
         reminder_at: string | null // Update reminder time
         // Note: is_mit is automatically controlled by priority via DB trigger
         // Setting priority to 'top' will auto-set is_mit=true and demote other TOP tasks to HIGH
       }>
-      /** Original plan ID for cache invalidation when task moves to different plan */
-      originalPlanId?: string
+      /** Original scheduled_date for cache invalidation when task moves to different day */
+      originalDate?: string
     }) => {
       // Get existing task to check for notification changes
       const { data: existingTask } = await supabase
@@ -312,9 +310,6 @@ export function useUpdateTask() {
         .eq('id', taskId)
         .single()
 
-      // Note: When priority is updated to 'top', DB trigger will:
-      // 1. Set is_mit = true on this task
-      // 2. Demote any other TOP priority tasks to HIGH
       const { data, error } = await supabase
         .from('tasks')
         .update(updates)
@@ -341,6 +336,7 @@ export function useUpdateTask() {
             title: data.title,
             is_mit: data.is_mit,
             reminder_at: data.reminder_at,
+            notes: data.notes,
           })
 
           // Update task with new notification ID
@@ -362,14 +358,61 @@ export function useUpdateTask() {
         }
       }
 
-      return { data, originalPlanId }
+      return { data, originalDate }
     },
-    onSuccess: ({ data, originalPlanId }) => {
-      // Invalidate the new plan's tasks
-      queryClient.invalidateQueries({ queryKey: ['tasks', data.plan_id] })
-      // If task moved to different plan, also invalidate the original plan's tasks
-      if (originalPlanId && originalPlanId !== data.plan_id) {
-        queryClient.invalidateQueries({ queryKey: ['tasks', originalPlanId] })
+    onMutate: async ({ taskId, updates, originalDate }) => {
+      // Only do optimistic update when moving between days
+      if (!updates.scheduled_date || !originalDate || updates.scheduled_date === originalDate)
+        return
+
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['tasks', originalDate] })
+      await queryClient.cancelQueries({ queryKey: ['tasks', updates.scheduled_date] })
+
+      // Snapshot previous values for rollback
+      const previousOriginal = queryClient.getQueryData<TaskWithCategory[]>(['tasks', originalDate])
+      const previousTarget = queryClient.getQueryData<TaskWithCategory[]>([
+        'tasks',
+        updates.scheduled_date,
+      ])
+
+      // Remove task from original day cache
+      if (previousOriginal) {
+        queryClient.setQueryData<TaskWithCategory[]>(
+          ['tasks', originalDate],
+          previousOriginal.filter((t) => t.id !== taskId),
+        )
+      }
+
+      // Add task to target day cache (with updated fields)
+      if (previousOriginal) {
+        const movedTask = previousOriginal.find((t) => t.id === taskId)
+        if (movedTask) {
+          const updatedTask = { ...movedTask, ...updates }
+          queryClient.setQueryData<TaskWithCategory[]>(
+            ['tasks', updates.scheduled_date],
+            [...(previousTarget || []), updatedTask],
+          )
+        }
+      }
+
+      return { previousOriginal, previousTarget }
+    },
+    onError: (_err, { updates, originalDate }, context) => {
+      // Rollback on error
+      if (context?.previousOriginal && originalDate) {
+        queryClient.setQueryData(['tasks', originalDate], context.previousOriginal)
+      }
+      if (context?.previousTarget && updates.scheduled_date) {
+        queryClient.setQueryData(['tasks', updates.scheduled_date], context.previousTarget)
+      }
+    },
+    onSuccess: ({ data, originalDate }) => {
+      // Invalidate the new day's tasks
+      queryClient.invalidateQueries({ queryKey: ['tasks', data.scheduled_date] })
+      // If task moved to different day, also invalidate the original day's tasks
+      if (originalDate && originalDate !== data.scheduled_date) {
+        queryClient.invalidateQueries({ queryKey: ['tasks', originalDate] })
       }
     },
   })

@@ -4,6 +4,8 @@ import { Target, PartyPopper, Sparkles } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useCardStyle } from '~/hooks/useCardStyle'
+import { useLayoutStore } from '~/stores/layoutStore'
 import type { TaskWithCategory, DayType, DayTheme } from '~/types'
 
 // Theme to focus phrase mapping
@@ -26,9 +28,12 @@ interface FocusCardProps {
   completedTasks: number
 }
 
+
 export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: FocusCardProps) {
   const theme = useAppTheme()
   const brandColor = theme.colors.brand.primary
+  const layout = useLayoutStore((s) => s.taskLayout)
+  const cardStyle = useCardStyle(layout)
 
   // Determine the focus message based on state
   const getFocusContent = () => {
@@ -92,30 +97,46 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
   }
 
   const content = getFocusContent()
+  const isCompact = layout === 'compact' || layout === 'minimal' || layout === 'checklist'
+  const iconSize = isCompact ? 44 : 64
+  const iconInnerSize = isCompact ? 24 : 32
 
   return (
-    <View
-      className="rounded-2xl p-6 mx-5 min-h-[132px] justify-center"
-      style={{
-        backgroundColor: theme.colors.card,
-        borderWidth: 1,
-        borderColor: theme.colors.border.primary,
-      }}
-    >
+    <View className="mx-5 min-h-[100px] justify-center" style={cardStyle}>
+      {layout === 'grid' && (
+        <View
+          style={{
+            height: 3,
+            backgroundColor: brandColor,
+            marginTop: -20,
+            marginHorizontal: -20,
+            marginBottom: 16,
+          }}
+        />
+      )}
       <View className="flex-row items-center gap-4">
         <View
-          className="w-16 h-16 rounded-full items-center justify-center"
-          style={{ backgroundColor: content.iconBgColor }}
+          className="rounded-full items-center justify-center"
+          style={{ width: iconSize, height: iconSize, backgroundColor: content.iconBgColor }}
         >
-          {content.icon}
+          {React.cloneElement(content.icon as React.ReactElement<{ size: number }>, {
+            size: iconInnerSize,
+          })}
         </View>
         <View className="flex-1">
-          <Text className="text-sm text-content-secondary mb-1">{content.label}</Text>
-          <Text className="text-xl font-medium text-content-primary" numberOfLines={2}>
+          <Text className={`${isCompact ? 'text-xs' : 'text-sm'} text-content-secondary mb-1`}>
+            {content.label}
+          </Text>
+          <Text
+            className={`${isCompact ? 'text-base' : 'text-xl'} font-medium text-content-primary`}
+            numberOfLines={2}
+          >
             {content.message}
           </Text>
           {content.subtitle && (
-            <Text className="text-base text-content-secondary mt-1">{content.subtitle}</Text>
+            <Text className={`${isCompact ? 'text-sm' : 'text-base'} text-content-secondary mt-1`}>
+              {content.subtitle}
+            </Text>
           )}
         </View>
       </View>

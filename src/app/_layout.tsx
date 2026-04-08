@@ -18,6 +18,7 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter'
 import { View, ActivityIndicator, Alert } from 'react-native'
+import { useCurrentDate } from '~/hooks/useCurrentDate'
 
 import { supabase } from '~/lib/supabase'
 import { ThemeProvider } from '~/providers/ThemeProvider'
@@ -32,8 +33,8 @@ import { useAppConfigStore } from '~/stores/appConfigStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
 import { useCelebrationStore } from '~/stores/celebrationStore'
+import { useNotificationStore } from '~/stores/notificationStore'
 import { useEveningRolloverOnAppOpen } from '~/hooks/useEveningRolloverOnAppOpen'
-import { useTomorrowPlan } from '~/hooks/usePlans'
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
 import { RolloverModal, CelebrationModal } from '~/components/planning'
 import { ErrorBoundary } from '~/components/ErrorBoundary'
@@ -45,8 +46,6 @@ function RootLayoutContent() {
   const queryClient = useQueryClient()
 
   // Clear React Query cache on sign out to prevent stale data leaking into new accounts.
-  // Without this, cached plan IDs from the previous user cause task creation to fail
-  // on the first attempt after switching accounts (RLS rejects the stale plan_id).
   // Note: queryClient is stable for the lifetime of the provider — [] is intentional.
   React.useEffect(() => {
     const {
@@ -98,9 +97,13 @@ function RootLayoutContent() {
     mitTask: eveningAppOpenMitTask,
     otherTasks: eveningAppOpenOtherTasks,
     markEveningPrompted: markEveningAppOpenPrompted,
+    isBeforeReminderTime: eveningIsBeforeReminderTime,
+    shouldPromptPlanning: eveningShouldPromptPlanning,
   } = useEveningRolloverOnAppOpen()
 
-  const { data: tomorrowPlan } = useTomorrowPlan({ enabled: eveningAppOpenShouldShow })
+  const { today, tomorrow } = useCurrentDate()
+  const rolloverTargetDate = eveningIsBeforeReminderTime ? today : tomorrow
+
   const { mutateAsync: carryForwardTasks } = useCarryForwardTasks()
 
   // Scalar id used in useCallback dep arrays to avoid referencing the full task object
@@ -114,14 +117,11 @@ function RootLayoutContent() {
   const showCelebration = celebrationVisible && !tutorialActive && !loading
 
   // Evening rollover (app-open path)
-  // Note: !!tomorrowPlan gates display until the plan upsert completes after eveningAppOpenShouldShow
-  // flips true. There is no loading indicator for this window — the modal simply hasn't appeared yet.
   const showEveningAppOpenRollover =
     eveningAppOpenShouldShow &&
     !tutorialActive &&
     !eveningAppOpenLoading &&
     !loading &&
-    !!tomorrowPlan &&
     !showCelebration
 
   // Debug: log rollover/celebration state on every change (DEV only)
@@ -134,6 +134,8 @@ function RootLayoutContent() {
         showEveningAppOpenRollover,
         eveningAppOpenShouldShow,
         eveningAppOpenLoading,
+        eveningIsBeforeReminderTime,
+        eveningShouldPromptPlanning,
       })
     }
   }, [
@@ -143,7 +145,44 @@ function RootLayoutContent() {
     showEveningAppOpenRollover,
     eveningAppOpenShouldShow,
     eveningAppOpenLoading,
+    eveningIsBeforeReminderTime,
+    eveningShouldPromptPlanning,
   ])
+
+  // Evening "Plan Tomorrow" redirect — when time checks pass but there are no tasks to roll over,
+  // silently navigate to the planning screen with the appropriate day selected and form open.
+  // The ref prevents duplicate router.push calls if the effect re-fires before navigation completes.
+  const planningRedirectFiredRef = React.useRef(false)
+
+  // Dev-only: reset the redirect guard when dev tools trigger a recheck
+  const devRecheckCounter = useNotificationStore((s) => s.devRolloverRecheckCounter)
+  React.useEffect(() => {
+    if (devRecheckCounter > 0) planningRedirectFiredRef.current = false
+  }, [devRecheckCounter])
+
+  React.useEffect(() => {
+    if (
+      eveningShouldPromptPlanning &&
+      !tutorialActive &&
+      !loading &&
+      !showCelebration &&
+      !planningRedirectFiredRef.current
+    ) {
+      planningRedirectFiredRef.current = true
+      if (__DEV__)
+        console.log('[_layout] Evening prompt planning — redirecting to planning/tomorrow')
+      ;(async () => {
+        try {
+          await markEveningAppOpenPrompted()
+          const planningFor = eveningIsBeforeReminderTime ? 'today' : 'tomorrow'
+          router.push(`/(tabs)/planning?defaultPlanningFor=${planningFor}&openForm=true`)
+        } catch (error) {
+          if (__DEV__) console.error('[_layout] Planning redirect failed:', error)
+          // planningRedirectFiredRef already set — won't retry, which is correct
+        }
+      })()
+    }
+  }, [eveningShouldPromptPlanning, tutorialActive, loading, showCelebration, eveningIsBeforeReminderTime, markEveningAppOpenPrompted, router])
 
   // Track when celebration modal is shown
   React.useEffect(() => {
@@ -162,16 +201,10 @@ function RootLayoutContent() {
       makeMitToday: boolean
       keepReminderTimes: boolean
     }) => {
-      if (!tomorrowPlan) {
-        console.error('[EveningRollover] No tomorrow plan available')
-        await markEveningAppOpenPrompted() // swallows errors internally — safe to await without try/catch
-        return
-      }
-
       try {
         await carryForwardTasks({
           selectedTaskIds: params.selectedTaskIds,
-          targetPlanId: tomorrowPlan.id,
+          targetDate: rolloverTargetDate,
           shouldMakeMIT: params.makeMitToday,
           keepReminderTimes: params.keepReminderTimes,
         })
@@ -183,10 +216,12 @@ function RootLayoutContent() {
           mit_made_tomorrow: params.makeMitToday,
           kept_reminders: params.keepReminderTimes,
           source: 'app_open',
+          mode: eveningIsBeforeReminderTime ? 'morning' : 'evening',
         })
 
         await markEveningAppOpenPrompted()
-        router.push('/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true')
+        const planningFor = eveningIsBeforeReminderTime ? 'today' : 'tomorrow'
+        router.push(`/(tabs)/planning?defaultPlanningFor=${planningFor}&openForm=true`)
       } catch (error) {
         console.error('[EveningRollover] Failed to carry forward tasks:', error)
         Alert.alert(
@@ -198,11 +233,12 @@ function RootLayoutContent() {
       }
     },
     [
-      tomorrowPlan,
+      rolloverTargetDate,
       carryForwardTasks,
       markEveningAppOpenPrompted,
       track,
       eveningAppOpenMitTaskId,
+      eveningIsBeforeReminderTime,
       router,
     ],
   )
@@ -213,6 +249,7 @@ function RootLayoutContent() {
       task_count: (eveningAppOpenMitTaskId ? 1 : 0) + eveningAppOpenOtherTasks.length,
       had_mit: !!eveningAppOpenMitTaskId,
       source: 'app_open',
+      mode: eveningIsBeforeReminderTime ? 'morning' : 'evening',
     })
 
     try {
@@ -223,12 +260,14 @@ function RootLayoutContent() {
       if (__DEV__) console.error('[EveningRollover] Failed to mark as prompted:', error)
       // Non-fatal — proceed so user is not stuck
     }
-    router.push('/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true')
+    const planningFor = eveningIsBeforeReminderTime ? 'today' : 'tomorrow'
+    router.push(`/(tabs)/planning?defaultPlanningFor=${planningFor}&openForm=true`)
   }, [
     markEveningAppOpenPrompted,
     track,
     eveningAppOpenMitTaskId,
     eveningAppOpenOtherTasks.length,
+    eveningIsBeforeReminderTime,
     router,
   ])
 
@@ -274,8 +313,9 @@ function RootLayoutContent() {
         visible={showEveningAppOpenRollover}
         mitTask={eveningAppOpenMitTask}
         otherTasks={eveningAppOpenOtherTasks}
-        title="Today's Unfinished Tasks"
-        subtitle="Before you plan tomorrow, wrap up today"
+        title={eveningIsBeforeReminderTime ? "Yesterday's Unfinished Tasks" : "Today's Unfinished Tasks"}
+        subtitle={eveningIsBeforeReminderTime ? "Pick up where you left off" : "Carry them into tomorrow's plan"}
+        mitToggleLabel={eveningIsBeforeReminderTime ? "Make this today's top priority" : "Make this tomorrow's top priority"}
         onCarryForward={handleEveningAppOpenCarryForward}
         onStartFresh={handleEveningAppOpenStartFresh}
       />

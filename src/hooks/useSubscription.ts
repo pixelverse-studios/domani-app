@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react'
 import { AppState } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Purchases, { CustomerInfo, PurchasesPackage } from 'react-native-purchases'
+import { addDays } from 'date-fns'
+
 import { supabase } from '~/lib/supabase'
 import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
@@ -26,6 +28,8 @@ interface SubscriptionState {
   trialExpirationDate: Date | null
   canStartTrial: boolean
 }
+
+const TRIAL_DURATION_DAYS = 14
 
 export function useSubscription() {
   const { user } = useAuth()
@@ -170,13 +174,25 @@ export function useSubscription() {
     return () => subscription.remove()
   }, [queryClient, user?.id])
 
-  // Start free trial via server-side RPC (validates eligibility)
+  // Start free trial (local trial, not RevenueCat)
   const startTrialMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated')
       if (!subscriptionState.canStartTrial) throw new Error('Trial already used')
 
-      const { data, error } = await supabase.rpc('start_user_trial')
+      const now = new Date()
+      const trialEnd = addDays(now, TRIAL_DURATION_DAYS)
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({
+          tier: 'trialing',
+          trial_started_at: now.toISOString(),
+          trial_ends_at: trialEnd.toISOString(),
+        })
+        .eq('id', user.id)
+        .select()
+        .single()
 
       if (error) throw error
       return data
@@ -341,31 +357,28 @@ function computeSubscriptionState(
 }
 
 /**
- * Sync RevenueCat purchase status to Supabase via server-side RPC.
- * Lifetime-only model: purchases are either lifetime or trialing.
- * Uses sync_subscription_tier() to bypass the monetisation field protection trigger.
+ * Sync RevenueCat purchase status to Supabase
+ * Lifetime-only model: purchases are either lifetime or trialing
  */
 async function syncSubscriptionToSupabase(userId: string | undefined, customerInfo: CustomerInfo) {
   if (!userId) return
 
   const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID]
 
+  // Always update revenuecat_user_id so the customer is linked
+  const { error: rcError } = await supabase
+    .from('profiles')
+    .update({ revenuecat_user_id: customerInfo.originalAppUserId })
+    .eq('id', userId)
+  if (rcError) throw rcError
+
+  // Only update tier when there is an active entitlement — never write 'none'
+  // unconditionally, as a RevenueCat propagation delay could downgrade a valid user
   if (entitlement) {
     const isTrialing = entitlement.periodType === 'TRIAL'
     const tier: 'trialing' | 'lifetime' = isTrialing ? 'trialing' : 'lifetime'
 
-    const { error } = await supabase.rpc('sync_subscription_tier', {
-      p_tier: tier,
-      p_revenuecat_user_id: customerInfo.originalAppUserId,
-    })
-    if (error) throw error
-  } else {
-    // No active entitlement — just link the RevenueCat user ID.
-    // revenuecat_user_id is not a protected field, so direct update is fine.
-    const { error } = await supabase
-      .from('profiles')
-      .update({ revenuecat_user_id: customerInfo.originalAppUserId })
-      .eq('id', userId)
-    if (error) throw error
+    const { error: tierError } = await supabase.from('profiles').update({ tier }).eq('id', userId)
+    if (tierError) throw tierError
   }
 }

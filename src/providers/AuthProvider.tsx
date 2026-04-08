@@ -6,6 +6,7 @@ import * as AuthSession from 'expo-auth-session'
 import * as AppleAuthentication from 'expo-apple-authentication'
 
 import { supabase, sendAccountEmail } from '~/lib/supabase'
+import { sendDiscordNotification } from '~/lib/discord'
 import { captureException, addBreadcrumb } from '~/lib/sentry'
 
 // Configure web browser for OAuth
@@ -173,12 +174,17 @@ const validateUserExists = async (userId: string): Promise<boolean> => {
 }
 
 // Ensure user has a profile row and set timezone if not already set
-const ensureProfileExists = async (userId: string, email: string, fullName?: string | null) => {
+const ensureProfileExists = async (
+  userId: string,
+  email: string,
+  fullName?: string | null,
+  signupMethod?: string,
+) => {
   try {
     console.log('[AuthProvider] Checking profile for user:', userId)
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('id, timezone')
+      .select('id, timezone, created_at')
       .eq('id', userId)
       .single()
 
@@ -203,6 +209,14 @@ const ensureProfileExists = async (userId: string, email: string, fullName?: str
           )
         } else {
           console.log('[AuthProvider] Profile created successfully')
+          // New user — send Discord notification
+          sendDiscordNotification({
+            type: 'new_signup',
+            email,
+            name: fullName,
+            signupMethod,
+            timezone: deviceTimezone,
+          })
         }
       } else {
         // Some other error (not "no rows") - log it
@@ -210,6 +224,20 @@ const ensureProfileExists = async (userId: string, email: string, fullName?: str
       }
     } else if (profile) {
       console.log('[AuthProvider] Profile found:', profile.id, 'timezone:', profile.timezone)
+
+      // Check if this is a brand new signup (created within the last 60 seconds)
+      const createdAt = new Date(profile.created_at).getTime()
+      const isNewSignup = Date.now() - createdAt < 60_000
+      if (isNewSignup) {
+        sendDiscordNotification({
+          type: 'new_signup',
+          email,
+          name: fullName,
+          signupMethod,
+          timezone: profile.timezone ?? undefined,
+        })
+      }
+
       // Profile exists - check if timezone needs to be set
       // Treat null, undefined, or 'UTC' as "not set" since UTC is the old default
       if (!profile.timezone || profile.timezone === 'UTC') {
@@ -342,7 +370,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             () => setAccountReactivated(true),
           )
         }
-        ensureProfileExists(session.user.id, session.user.email!, fullName)
+        const signupMethod = session.user.app_metadata?.provider
+        ensureProfileExists(session.user.id, session.user.email!, fullName, signupMethod)
       }
     })
 

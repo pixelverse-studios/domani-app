@@ -54,7 +54,7 @@ export interface AnalyticsSummary {
 }
 
 /**
- * Check if the user has any analytics data (any completed plans or tasks)
+ * Check if the user has any analytics data (any tasks)
  */
 export async function checkHasAnalyticsData(userId: string): Promise<boolean> {
   const { count, error } = await supabase
@@ -188,17 +188,18 @@ export async function fetchDailyCompletions(
   startDate.setHours(0, 0, 0, 0)
 
   const startDateStr = startDate.toISOString().split('T')[0]
+  const todayStr = today.toISOString().split('T')[0]
 
-  // Fetch tasks with their plan dates and category info (both system and user categories)
+  // Fetch tasks with category info, filtered by scheduled_date range
   const { data: tasks, error } = await supabase
     .from('tasks')
     .select(
       `
       id,
       completed_at,
+      scheduled_date,
       system_category_id,
       user_category_id,
-      plan_id,
       system_categories (
         id,
         name,
@@ -208,14 +209,13 @@ export async function fetchDailyCompletions(
         id,
         name,
         color
-      ),
-      plans!inner (
-        planned_for
       )
     `,
     )
     .eq('user_id', userId)
-    .gte('plans.planned_for', startDateStr)
+    .not('scheduled_date', 'is', null)
+    .gte('scheduled_date', startDateStr)
+    .lte('scheduled_date', todayStr)
 
   if (error || !tasks) {
     return []
@@ -241,10 +241,9 @@ export async function fetchDailyCompletions(
 
   // Process tasks
   for (const task of tasks) {
-    const plan = task.plans as { planned_for: string } | null
-    if (!plan) continue
+    if (!task.scheduled_date) continue
 
-    const dateStr = plan.planned_for
+    const dateStr = task.scheduled_date
     const dayData = dailyMap.get(dateStr)
     if (!dayData) continue
 
@@ -297,44 +296,42 @@ export async function fetchDailyCompletions(
 }
 
 /**
- * Fetch planning streak - consecutive days the user created a plan
+ * Fetch planning streak - consecutive days the user had tasks scheduled
  *
- * Counts backwards from today, checking for plans on each date.
- * A day counts if a plan exists for that date (regardless of task completion).
+ * Counts backwards from today, checking for tasks on each date.
+ * A day counts if at least one task exists with that scheduled_date.
  */
 export async function fetchPlanningStreak(userId: string): Promise<number | null> {
-  // Get today's date
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayStr = today.toISOString().split('T')[0]
 
-  // Fetch all plan dates for the user, ordered by date descending
-  const { data: plans, error } = await supabase
-    .from('plans')
-    .select('planned_for')
+  // Fetch distinct scheduled_date values for the user
+  const { data: tasks, error } = await supabase
+    .from('tasks')
+    .select('scheduled_date')
     .eq('user_id', userId)
-    .lte('planned_for', todayStr) // Include today and past
-    .order('planned_for', { ascending: false })
+    .not('scheduled_date', 'is', null)
+    .lte('scheduled_date', todayStr)
 
-  if (error || !plans) {
+  if (error || !tasks) {
     return null
   }
 
-  // Get unique dates (in case of duplicates)
-  const planDates = new Set(plans.map((p) => p.planned_for))
+  // Get unique dates
+  const taskDates = new Set(tasks.map((t) => t.scheduled_date))
 
-  // Calculate streak - count consecutive days with plans
+  // Calculate streak - count consecutive days with tasks
   let streak = 0
   const checkDate = new Date(today)
 
   while (true) {
     const checkDateStr = checkDate.toISOString().split('T')[0]
 
-    if (planDates.has(checkDateStr)) {
+    if (taskDates.has(checkDateStr)) {
       streak++
       checkDate.setDate(checkDate.getDate() - 1)
     } else {
-      // Gap found - streak ends
       break
     }
   }
@@ -345,71 +342,61 @@ export async function fetchPlanningStreak(userId: string): Promise<number | null
 /**
  * Fetch execution streak - consecutive days where ALL tasks were completed
  *
- * A "perfect day" is a day where the user had a plan with at least one task,
- * and ALL tasks in that plan were completed.
+ * A "perfect day" is a day where the user had at least one task scheduled,
+ * and ALL tasks for that date were completed.
  *
  * Counts backwards from yesterday (today is still in progress).
  */
 export async function fetchExecutionStreak(userId: string): Promise<number | null> {
-  // Get today's date in user's local context (we'll use UTC for now)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayStr = today.toISOString().split('T')[0]
 
-  // Fetch all plans with task counts for the user, ordered by date descending
-  // We need: planned_for, total tasks, completed tasks
-  const { data: plans, error } = await supabase
-    .from('plans')
-    .select(
-      `
-      id,
-      planned_for,
-      tasks (
-        id,
-        completed_at
-      )
-    `,
-    )
+  // Fetch all past tasks grouped by scheduled_date
+  const { data: tasks, error } = await supabase
+    .from('tasks')
+    .select('scheduled_date, completed_at')
     .eq('user_id', userId)
-    .lt('planned_for', todayStr) // Only past days (today is still in progress)
-    .order('planned_for', { ascending: false })
+    .not('scheduled_date', 'is', null)
+    .lt('scheduled_date', todayStr) // Only past days (today is still in progress)
 
-  if (error || !plans) {
+  if (error || !tasks) {
     return null
   }
+
+  // Group tasks by date
+  const dateMap = new Map<string, { total: number; completed: number }>()
+  for (const task of tasks) {
+    if (!task.scheduled_date) continue
+    const entry = dateMap.get(task.scheduled_date) || { total: 0, completed: 0 }
+    entry.total++
+    if (task.completed_at !== null) entry.completed++
+    dateMap.set(task.scheduled_date, entry)
+  }
+
+  // Sort dates descending
+  const sortedDates = Array.from(dateMap.keys()).sort((a, b) => b.localeCompare(a))
 
   // Calculate streak - count consecutive perfect days
   let streak = 0
   const expectedDate = new Date(today)
   expectedDate.setDate(expectedDate.getDate() - 1) // Start from yesterday
 
-  for (const plan of plans) {
-    const planDate = new Date(plan.planned_for)
-    planDate.setHours(0, 0, 0, 0)
-
-    // Check if this plan is for the expected date in the streak
+  for (const date of sortedDates) {
     const expectedDateStr = expectedDate.toISOString().split('T')[0]
-    if (plan.planned_for !== expectedDateStr) {
+
+    if (date !== expectedDateStr) {
       // Gap in dates - streak is broken
       break
     }
 
-    // Check if this was a perfect day (has tasks and all completed)
-    const tasks = plan.tasks as { id: string; completed_at: string | null }[]
-    if (tasks.length === 0) {
-      // No tasks planned - doesn't count as perfect, but also doesn't break streak
-      // Move to previous day and continue
-      expectedDate.setDate(expectedDate.getDate() - 1)
-      continue
-    }
-
-    const allCompleted = tasks.every((task) => task.completed_at !== null)
-    if (!allCompleted) {
-      // Not all tasks completed - streak broken
+    const entry = dateMap.get(date)!
+    if (entry.completed < entry.total) {
+      // Not all completed — streak broken
       break
     }
 
-    // Perfect day! Increment streak and move to previous day
+    // Perfect day!
     streak++
     expectedDate.setDate(expectedDate.getDate() - 1)
   }

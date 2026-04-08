@@ -30,9 +30,9 @@ import {
   EmptyState,
 } from '~/components/today'
 import { inferDayType } from '~/utils/dayTypeInference'
-import { useTodayPlan } from '~/hooks/usePlans'
 import { useTasks, useToggleTask, useDeleteTask } from '~/hooks/useTasks'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
+import { useCurrentDate } from '~/hooks/useCurrentDate'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useTutorialTarget } from '~/components/tutorial'
 import type { TaskWithCategory } from '~/types'
@@ -46,8 +46,8 @@ export default function TodayScreen() {
   const theme = useAppTheme()
   const { status: subscriptionStatus, isLoading: subscriptionLoading } = useSubscription()
   const brandColor = theme.colors.brand.primary
-  const { data: plan, isLoading: planLoading, refetch: refetchPlan } = useTodayPlan()
-  const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useTasks(plan?.id)
+  const { today: todayDate } = useCurrentDate()
+  const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useTasks(todayDate)
   const { profile, isLoading: profileLoading } = useProfile()
   const toggleTask = useToggleTask()
   const deleteTask = useDeleteTask()
@@ -101,7 +101,7 @@ export default function TodayScreen() {
     setShowNameModal(false)
   }
 
-  const isLoading = planLoading || tasksLoading || profileLoading
+  const isLoading = tasksLoading || profileLoading
   const [refreshing, setRefreshing] = React.useState(false)
 
   // Calculate progress
@@ -154,7 +154,7 @@ export default function TodayScreen() {
 
   const handleRefresh = async () => {
     setRefreshing(true)
-    await Promise.all([refetchPlan(), refetchTasks()])
+    await refetchTasks()
     setRefreshing(false)
   }
 

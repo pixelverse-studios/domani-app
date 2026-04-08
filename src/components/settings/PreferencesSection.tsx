@@ -1,10 +1,11 @@
 import React from 'react'
 import { View } from 'react-native'
-import { Globe } from 'lucide-react-native'
+import { Globe, LayoutGrid } from 'lucide-react-native'
 
 import { SectionHeader } from './SectionHeader'
 import { SettingsRow } from './SettingsRow'
 import { PreferencesSkeleton } from './SettingsSkeletons'
+import { useLayoutStore, TASK_LAYOUTS } from '~/stores/layoutStore'
 
 // Common timezones grouped by region
 const TIMEZONES = [
@@ -26,6 +27,7 @@ interface PreferencesSectionProps {
   isLoading: boolean
   timezone: string | null
   onEditTimezone: () => void
+  onEditLayout: () => void
 }
 
 /**
@@ -35,8 +37,11 @@ export function PreferencesSection({
   isLoading,
   timezone,
   onEditTimezone,
+  onEditLayout,
 }: PreferencesSectionProps) {
-  // Get timezone display label
+  const taskLayout = useLayoutStore((s) => s.taskLayout)
+  const layoutLabel = TASK_LAYOUTS.find((l) => l.id === taskLayout)?.label ?? 'Standard'
+
   const getTimezoneLabel = (value: string | null) => {
     if (!value) return 'Not set'
     const tz = TIMEZONES.find((t) => t.value === value)
@@ -55,6 +60,12 @@ export function PreferencesSection({
             value={getTimezoneLabel(timezone)}
             onPress={onEditTimezone}
             icon={Globe}
+          />
+          <SettingsRow
+            label="Task Layout"
+            value={layoutLabel}
+            onPress={onEditLayout}
+            icon={LayoutGrid}
           />
         </View>
       )}

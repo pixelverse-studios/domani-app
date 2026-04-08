@@ -15,14 +15,16 @@ import {
   PreferencesSection,
   SupportSection,
   DangerZoneSection,
-  DevToolsSection,
+
   NameModal,
   TimezoneModal,
   PlanningTimeModal,
   DeleteAccountModal,
   SmartCategoriesModal,
+  DevToolsSection,
 } from '~/components/settings'
 import { PaywallModal } from '~/components/PaywallModal'
+import { LayoutPickerModal } from '~/components/settings/LayoutPickerModal'
 import { TutorialScrollProvider, useTutorialScroll } from '~/components/tutorial'
 import { useAuth } from '~/hooks/useAuth'
 import { useAppTheme } from '~/hooks/useAppTheme'
@@ -111,6 +113,7 @@ function SettingsContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showFarewellOverlay, setShowFarewellOverlay] = useState(false)
   const [showSmartCategoriesModal, setShowSmartCategoriesModal] = useState(false)
+  const [showLayoutModal, setShowLayoutModal] = useState(false)
   const [pendingSmartCategoriesValue, setPendingSmartCategoriesValue] = useState(false)
   const [showPaywallModal, setShowPaywallModal] = useState(false)
 
@@ -332,6 +335,7 @@ function SettingsContent() {
               isLoading={isLoading}
               timezone={profile?.timezone || null}
               onEditTimezone={() => setShowTimezoneModal(true)}
+              onEditLayout={() => setShowLayoutModal(true)}
             />
 
             <SupportSection onReplayTutorial={handleReplayTutorial} />
@@ -431,6 +435,11 @@ function SettingsContent() {
         onRestore={async () => {
           return await subscription.restore()
         }}
+      />
+
+      <LayoutPickerModal
+        visible={showLayoutModal}
+        onClose={() => setShowLayoutModal(false)}
       />
 
       {/* Farewell overlay after scheduling deletion */}
