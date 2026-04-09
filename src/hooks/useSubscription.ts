@@ -23,7 +23,9 @@ import {
 /**
  * Exhaustive subscription status state machine.
  *
- * - `beta`      → phase is beta; full access, short-circuits all other checks
+ * - `beta`      → phase is beta; full access, short-circuits most other checks
+ *                 (but `lifetime` still takes precedence — see
+ *                 `computeSubscriptionState` for the exact resolution order)
  * - `lifetime`  → purchased lifetime; full access
  * - `trialing`  → trial active within window; full access
  * - `pre_trial` → never started a trial; gated at app entry, explicit user
@@ -35,6 +37,14 @@ import {
  * - `pre_trial` never auto-transitions to anything without explicit user action
  * - Transitions are one-way: pre_trial → trialing → (lifetime | expired);
  *   expired → lifetime via purchase/restore only
+ *
+ * Consumer guidance:
+ * - For "can this user access the main app content?" checks, prefer the
+ *   `hasFullAccess(status)` helper — it's the single source of truth used
+ *   by `_layout.tsx` (tab gating) and `settings.tsx` (section gating).
+ * - `isLocked(status)` and `needsToStartTrial(status)` are narrow predicates
+ *   for the two specific gated states and are used by `index.tsx` to pick
+ *   which gate screen to render.
  */
 export type SubscriptionStatus = 'beta' | 'lifetime' | 'trialing' | 'pre_trial' | 'expired'
 
