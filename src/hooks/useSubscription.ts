@@ -82,6 +82,50 @@ export function hasFullAccess(status: SubscriptionStatus): boolean {
 
 const TRIAL_DURATION_DAYS = 14
 
+/**
+ * Lightweight read-only subscription status hook.
+ *
+ * Returns only `{ status, isLoading }` without wiring up any of the
+ * heavy lifecycle side effects that `useSubscription()` owns:
+ * - No RevenueCat initialization
+ * - No AppState foreground listener
+ * - No trial-expiry timer
+ * - No mutations (startTrial, purchase, restore)
+ * - No customerInfo / offerings queries
+ *
+ * Use this when a consumer only needs to branch on the subscription
+ * status for conditional rendering (e.g. showing/hiding a beta-only
+ * banner) and doesn't need any of the action methods. Prefer this
+ * over `useSubscription()` for status-only reads to avoid spinning up
+ * per-component AppState listeners and trial timers.
+ *
+ * ## Trade-offs vs useSubscription()
+ *
+ * This hook does NOT consult RevenueCat's `customerInfo` when
+ * computing status, so for users whose entitlement exists in RC but
+ * whose Supabase `profile.tier` hasn't synced yet, this hook may
+ * report `pre_trial` or `expired` where the full hook would report
+ * `trialing` or `lifetime`. For all other states (`beta`, DB-backed
+ * `trialing`, DB-backed `lifetime`, fallthrough `pre_trial`/`expired`),
+ * it returns the same value as `useSubscription().status`.
+ *
+ * For consumers that only need to check `status === 'beta'` — the
+ * primary current use case — this is always correct, because the
+ * beta branch doesn't depend on customerInfo.
+ */
+export function useSubscriptionStatus(): {
+  status: SubscriptionStatus
+  isLoading: boolean
+} {
+  const { profile, isLoading: profileLoading } = useProfile()
+  const { phase } = useAppConfig()
+  const isBeta = phase === 'closed_beta' || phase === 'open_beta'
+
+  const { status } = computeSubscriptionState(profile, null, isBeta)
+
+  return { status, isLoading: profileLoading }
+}
+
 export function useSubscription() {
   const { user } = useAuth()
   const { profile, isLoading: profileLoading } = useProfile()
