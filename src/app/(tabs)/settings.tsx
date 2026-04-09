@@ -29,7 +29,7 @@ import { TutorialScrollProvider, useTutorialScroll } from '~/components/tutorial
 import { useAuth } from '~/hooks/useAuth'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
-import { useSubscription } from '~/hooks/useSubscription'
+import { useSubscription, hasFullAccess } from '~/hooks/useSubscription'
 import { useNotifications } from '~/hooks/useNotifications'
 import { useAccountDeletion } from '~/hooks/useAccountDeletion'
 import { useAppConfig } from '~/stores/appConfigStore'
@@ -121,11 +121,17 @@ function SettingsContent() {
   const [editName, setEditName] = useState('')
   const [selectedTime, setSelectedTime] = useState(new Date())
 
-  // Beta check
+  // Beta check (kept as a local convenience; the subscription state machine
+  // already collapses beta into status='beta'). Used by ProfileSection for the
+  // "Beta Tester" badge styling.
   const isBeta = phase === 'closed_beta' || phase === 'open_beta'
 
-  // Locked state: trial expired, only show payment + account options
-  const isLocked = subscription.status === 'none' && !subscription.isLoading
+  // Gate the "normal" settings sections when the user needs to act on their
+  // subscription state (expired → purchase required, pre_trial → trial required).
+  // Derived from the state-machine helper so adding a new non-access status
+  // in the future automatically includes it here without an extra edit.
+  // During loading, nothing is gated to avoid a flash of limited content.
+  const isGated = !subscription.isLoading && !hasFullAccess(subscription.status)
 
   // ===========================================================================
   // Handlers
@@ -279,40 +285,39 @@ function SettingsContent() {
         {/* Header */}
         <Text className="text-2xl font-bold text-content-primary mt-4 mb-6">Settings</Text>
 
-        {/* 1. Profile Section — hidden when locked */}
-        {!isLocked && (
-          <ProfileSection
-            isLoading={isLoading}
-            fullName={profile?.full_name}
-            email={profile?.email}
-            isBeta={isBeta}
-            onEditName={openNameModal}
-          />
-        )}
+        {/* 1. Profile Section — always visible so signed-in users can see which account they're on */}
+        <ProfileSection
+          isLoading={isLoading}
+          fullName={profile?.full_name}
+          email={profile?.email}
+          isBeta={isBeta}
+          onEditName={openNameModal}
+        />
 
-        {/* 2. Subscription Section - shown when NOT in beta, or always when locked */}
-        {(!isBeta || isLocked) && (
-          <SubscriptionSection
-            isLoading={subscription.isLoading}
-            status={subscription.status}
-            canStartTrial={subscription.canStartTrial}
-            isStartingTrial={subscription.isStartingTrial}
-            isRestoring={subscription.isRestoring}
-            trialDaysRemaining={subscription.trialDaysRemaining}
-            onStartTrial={() => subscription.startTrial()}
-            onRestore={async () => {
-              try {
-                await subscription.restore()
-              } catch {
-                Alert.alert('Restore Failed', 'Could not restore purchases. Please try again.')
-              }
-            }}
-            onUpgrade={() => setShowPaywallModal(true)}
-          />
-        )}
+        {/* 2. Subscription Section - always shown; SubscriptionSection renders
+            an appropriate variant per status (including a "Full Access" row
+            for beta testers). */}
+        <SubscriptionSection
+          isLoading={subscription.isLoading}
+          status={subscription.status}
+          isStartingTrial={subscription.isStartingTrial}
+          isRestoring={subscription.isRestoring}
+          trialDaysRemaining={subscription.trialDaysRemaining}
+          onStartTrial={() => subscription.startTrial()}
+          onRestore={async () => {
+            try {
+              await subscription.restore()
+            } catch {
+              Alert.alert('Restore Failed', 'Could not restore purchases. Please try again.')
+            }
+          }}
+          onUpgrade={() => setShowPaywallModal(true)}
+        />
 
-        {/* 3–6. Categories, Notifications, Preferences, Support — hidden when locked */}
-        {!isLocked && (
+        {/* 3–6. Categories, Notifications, Preferences, Support — hidden for
+            gated states (expired/pre_trial) so locked/limbo users see only
+            the subscription CTA and account management. */}
+        {!isGated && (
           <>
             <CategoriesSection
               isLoading={isLoading}
@@ -369,8 +374,10 @@ function SettingsContent() {
           onCancelDeletion={handleCancelDeletion}
         />
 
-        {/* Dev Tools — only visible in development builds, hidden when locked */}
-        {__DEV__ && !isLocked && <DevToolsSection onOpenPaywall={() => setShowPaywallModal(true)} />}
+        {/* Dev Tools — only visible in development builds. Always shown
+            regardless of subscription state so you can toggle phase/preview
+            paywall even while gated. */}
+        {__DEV__ && <DevToolsSection onOpenPaywall={() => setShowPaywallModal(true)} />}
 
         {/* App Version */}
         <Text className="text-center text-sm text-content-tertiary mb-4">

@@ -8,6 +8,7 @@ import { supabase } from '~/lib/supabase'
 import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
 import { useAppConfig } from '~/stores/appConfigStore'
+import type { Profile } from '~/types'
 import {
   initializeRevenueCat,
   loginRevenueCat,
@@ -19,24 +20,79 @@ import {
   ENTITLEMENT_ID,
 } from '~/lib/revenuecat'
 
-export type SubscriptionStatus = 'none' | 'trialing' | 'lifetime'
+/**
+ * Exhaustive subscription status state machine.
+ *
+ * - `beta`      → phase is beta; full access, short-circuits most other checks
+ *                 (but `lifetime` still takes precedence — see
+ *                 `computeSubscriptionState` for the exact resolution order)
+ * - `lifetime`  → purchased lifetime; full access
+ * - `trialing`  → trial active within window; full access
+ * - `pre_trial` → never started a trial; gated at app entry, explicit user
+ *                 action required to transition to `trialing`. NEVER auto-started.
+ * - `expired`   → trial was used and ended with no purchase; locked
+ *
+ * Invariants:
+ * - `isLocked(status) ⇔ status === 'expired'` — one-way derivation
+ * - `pre_trial` never auto-transitions to anything without explicit user action
+ * - Transitions are one-way: pre_trial → trialing → (lifetime | expired);
+ *   expired → lifetime via purchase/restore only
+ *
+ * Consumer guidance:
+ * - For "can this user access the main app content?" checks, prefer the
+ *   `hasFullAccess(status)` helper — it's the single source of truth used
+ *   by `_layout.tsx` (tab gating) and `settings.tsx` (section gating).
+ * - `isLocked(status)` and `needsToStartTrial(status)` are narrow predicates
+ *   for the two specific gated states and are used by `index.tsx` to pick
+ *   which gate screen to render.
+ */
+export type SubscriptionStatus = 'beta' | 'lifetime' | 'trialing' | 'pre_trial' | 'expired'
 
 interface SubscriptionState {
   status: SubscriptionStatus
-  isTrialing: boolean
   trialDaysRemaining: number | null
   trialExpirationDate: Date | null
-  canStartTrial: boolean
+}
+
+/**
+ * The user is locked out of the app. Only true for users whose trial has
+ * ended without purchase. Pre-trial users are NOT locked — they are gated
+ * at the app entry but have full access to the trial-start flow.
+ */
+export function isLocked(status: SubscriptionStatus): boolean {
+  return status === 'expired'
+}
+
+/**
+ * The user needs to explicitly start their free trial before entering the app.
+ * Distinct from `isLocked`: pre_trial users have never used a trial, while
+ * locked users have already used theirs.
+ */
+export function needsToStartTrial(status: SubscriptionStatus): boolean {
+  return status === 'pre_trial'
+}
+
+/**
+ * The user can access the app's main content. True for beta testers,
+ * lifetime purchasers, and users currently within their trial window.
+ */
+export function hasFullAccess(status: SubscriptionStatus): boolean {
+  return status === 'beta' || status === 'lifetime' || status === 'trialing'
 }
 
 const TRIAL_DURATION_DAYS = 14
 
 export function useSubscription() {
   const { user } = useAuth()
-  const { profile } = useProfile()
+  const { profile, isLoading: profileLoading } = useProfile()
   const queryClient = useQueryClient()
   const [isInitialized, setIsInitialized] = useState(false)
   const previousUserId = useRef<string | undefined>(undefined)
+  // Tracks whether a trial-start mutation is currently in flight so that
+  // unrelated profile-invalidation triggers (e.g. the AppState foreground
+  // listener) don't race the optimistic update and overwrite it with stale
+  // pre-mutation data.
+  const isStartTrialPendingRef = useRef(false)
   const { phase } = useAppConfig()
 
   // Check if we're in beta (skip RevenueCat entirely during beta)
@@ -123,8 +179,13 @@ export function useSubscription() {
     retry: false, // Don't retry if RevenueCat is not configured
   })
 
-  // Compute subscription state
-  const subscriptionState: SubscriptionState = computeSubscriptionState(profile, customerInfo)
+  // Compute subscription state. Beta phase short-circuits everything else;
+  // see computeSubscriptionState for the full state machine.
+  const subscriptionState: SubscriptionState = computeSubscriptionState(
+    profile,
+    customerInfo,
+    isBeta,
+  )
 
   // Stable primitive for the effect dep array — avoids timer churn from Date object identity.
   const trialExpiresAt = subscriptionState.trialExpirationDate?.getTime() ?? null
@@ -167,6 +228,11 @@ export function useSubscription() {
         wasBackground = true
       } else if (nextState === 'active' && wasBackground) {
         wasBackground = false
+        // Don't invalidate while a trial-start mutation is in flight —
+        // doing so would race the optimistic cache update and could
+        // overwrite the optimistic trialing state with a stale refetch
+        // completing before the DB write commits.
+        if (isStartTrialPendingRef.current) return
         queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
       }
     })
@@ -174,11 +240,19 @@ export function useSubscription() {
     return () => subscription.remove()
   }, [queryClient, user?.id])
 
-  // Start free trial (local trial, not RevenueCat)
+  // Start free trial (local trial, not RevenueCat).
+  //
+  // Uses an optimistic cache update so the transition from pre_trial →
+  // trialing is instantaneous. Without the optimistic update there's a
+  // brief window between the DB write succeeding and React Query refetching
+  // the profile, during which the stale cache still reports tier='none'
+  // and the PreTrialScreen flashes back into view for one render cycle.
   const startTrialMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated')
-      if (!subscriptionState.canStartTrial) throw new Error('Trial already used')
+      if (subscriptionState.status !== 'pre_trial') {
+        throw new Error('Trial cannot be started from current state')
+      }
 
       const now = new Date()
       const trialEnd = addDays(now, TRIAL_DURATION_DAYS)
@@ -197,8 +271,51 @@ export function useSubscription() {
       if (error) throw error
       return data
     },
+    onMutate: async () => {
+      // Mark a trial-start as in-flight so the AppState foreground listener
+      // skips its invalidation until the mutation settles. Cleared in
+      // onSettled regardless of success or failure.
+      isStartTrialPendingRef.current = true
+
+      if (!user?.id) return { previousProfile: undefined }
+
+      // Cancel any in-flight profile refetches so they don't overwrite our
+      // optimistic value.
+      await queryClient.cancelQueries({ queryKey: ['profile', user.id] })
+
+      const previousProfile = queryClient.getQueryData<Profile>(['profile', user.id])
+      const now = new Date()
+      const trialEnd = addDays(now, TRIAL_DURATION_DAYS)
+
+      queryClient.setQueryData<Profile>(['profile', user.id], (old) =>
+        old
+          ? {
+              ...old,
+              tier: 'trialing',
+              trial_started_at: now.toISOString(),
+              trial_ends_at: trialEnd.toISOString(),
+            }
+          : old,
+      )
+
+      return { previousProfile }
+    },
+    onError: (_err, _vars, context) => {
+      // Roll back the optimistic update if the mutation failed.
+      if (user?.id && context?.previousProfile !== undefined) {
+        queryClient.setQueryData<Profile>(
+          ['profile', user.id],
+          context.previousProfile,
+        )
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+    },
+    onSettled: () => {
+      // Always clear the in-flight flag so the AppState listener resumes
+      // normal behavior, whether the mutation succeeded or failed.
+      isStartTrialPendingRef.current = false
     },
   })
 
@@ -238,7 +355,8 @@ export function useSubscription() {
     ...subscriptionState,
     offerings,
     offeringIdentifier, // Which pricing tier the user qualifies for
-    isLoading: isLoadingCustomerInfo || isLoadingOfferings || !isInitialized,
+    isLoading:
+      isLoadingCustomerInfo || isLoadingOfferings || !isInitialized || profileLoading,
     startTrial: startTrialMutation.mutateAsync,
     isStartingTrial: startTrialMutation.isPending,
     purchase: purchaseMutation.mutateAsync,
@@ -250,29 +368,58 @@ export function useSubscription() {
 }
 
 /**
- * Compute subscription state from profile and RevenueCat data
- * Lifetime-only model: no subscriptions, just lifetime purchases and trials
+ * Compute subscription state from profile, RevenueCat data, and beta phase.
+ *
+ * The resolution order is:
+ *  1. `beta` phase short-circuits everything → status='beta'
+ *  2. DB tier='lifetime' → status='lifetime'
+ *  3. DB tier='trialing' within trial window → status='trialing'
+ *  4. RevenueCat entitlement (trial or lifetime) → status='trialing' | 'lifetime'
+ *  5. Local trial_ends_at fallback (still in future) → status='trialing'
+ *  6. Otherwise, disambiguate pre_trial vs expired using `trial_started_at`:
+ *     - trial_started_at IS NULL → status='pre_trial' (never started a trial)
+ *     - trial_started_at IS NOT NULL → status='expired' (trial was used and ended)
  */
 function computeSubscriptionState(
   profile: ReturnType<typeof useProfile>['profile'],
   customerInfo: CustomerInfo | null | undefined,
+  isBeta: boolean,
 ): SubscriptionState {
-  const now = new Date()
-
-  // Check lifetime tier first (manual upgrade or RevenueCat lifetime purchase)
+  // Lifetime takes precedence over everything, including beta phase. Users
+  // who actually paid should see their true entitlement regardless of which
+  // build they're running — otherwise a lifetime purchaser in a beta build
+  // would see a misleading "Beta Tester" status and lose visibility into
+  // the permanent access they paid for.
   if (profile?.tier === 'lifetime') {
     return {
       status: 'lifetime',
-      isTrialing: false,
       trialDaysRemaining: null,
       trialExpirationDate: null,
-      canStartTrial: false,
     }
   }
 
+  // Beta phase overrides everything else — beta testers always have full
+  // access regardless of tier/trial columns. Single source of truth for
+  // "during beta, no one (without a real purchase) is gated".
+  if (isBeta) {
+    return {
+      status: 'beta',
+      trialDaysRemaining: null,
+      trialExpirationDate: null,
+    }
+  }
+
+  const now = new Date()
+
   // Offline fallback: if profile says trialing but RevenueCat is unavailable,
   // use local trial_ends_at to determine if the trial is still active.
-  // If expired, fall through to the 'none' default so access is correctly revoked.
+  // If expired, fall through to the final pre_trial/expired disambiguation.
+  //
+  // Edge case: if tier='trialing' but trial_ends_at IS NULL, we treat it as
+  // an open-ended trial (no expiry date known) and return trialing with a
+  // null trialDaysRemaining. This state should not normally occur — the
+  // trial-start flow always writes both columns together — but the code
+  // handles it gracefully rather than bailing out.
   if (profile?.tier === 'trialing') {
     const trialExpirationDate = profile.trial_ends_at ? new Date(profile.trial_ends_at) : null
     if (!trialExpirationDate || trialExpirationDate > now) {
@@ -284,10 +431,8 @@ function computeSubscriptionState(
         : null
       return {
         status: 'trialing',
-        isTrialing: true,
         trialDaysRemaining,
         trialExpirationDate,
-        canStartTrial: false,
       }
     }
   }
@@ -295,10 +440,10 @@ function computeSubscriptionState(
   // Check RevenueCat entitlements (lifetime purchase or trial)
   const entitlement = customerInfo?.entitlements.active[ENTITLEMENT_ID]
   if (entitlement) {
-    const isTrialing = entitlement.periodType === 'TRIAL'
+    const isEntitlementTrialing = entitlement.periodType === 'TRIAL'
 
     // For lifetime purchases, no expiration; for trials, track expiration
-    if (isTrialing) {
+    if (isEntitlementTrialing) {
       const trialExpirationDate = entitlement.expirationDate
         ? new Date(entitlement.expirationDate)
         : null
@@ -311,48 +456,42 @@ function computeSubscriptionState(
 
       return {
         status: 'trialing',
-        isTrialing: true,
         trialDaysRemaining,
         trialExpirationDate,
-        canStartTrial: false,
       }
     }
 
     // Lifetime purchase via RevenueCat
     return {
       status: 'lifetime',
-      isTrialing: false,
       trialDaysRemaining: null,
       trialExpirationDate: null,
-      canStartTrial: false,
     }
   }
 
-  // Check local trial (app-managed trial)
+  // Check local trial (app-managed trial) — fallback when DB tier disagrees
+  // with trial_ends_at. Only treat as trialing if the window is still open.
   if (profile?.trial_ends_at) {
     const trialEnd = new Date(profile.trial_ends_at)
     if (trialEnd > now) {
       const daysRemaining = Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
       return {
         status: 'trialing',
-        isTrialing: true,
         trialDaysRemaining: daysRemaining,
         trialExpirationDate: trialEnd,
-        canStartTrial: false,
       }
     }
   }
 
-  // Check if user already used their trial
+  // Disambiguate the final state using trial_started_at:
+  // - Never started a trial → 'pre_trial' (welcome/start flow)
+  // - Started a trial and it ended → 'expired' (locked, purchase required)
   const hasUsedTrial = !!profile?.trial_started_at
 
-  // Default: no active tier (trial expired or never started)
   return {
-    status: 'none',
-    isTrialing: false,
+    status: hasUsedTrial ? 'expired' : 'pre_trial',
     trialDaysRemaining: null,
     trialExpirationDate: null,
-    canStartTrial: !hasUsedTrial,
   }
 }
 
