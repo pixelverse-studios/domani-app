@@ -14,6 +14,7 @@ import { MessageCircle, Bug, Lightbulb, Heart, Rocket, Send } from 'lucide-react
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useCreateBetaFeedback, type FeedbackCategory } from '~/hooks/useBetaFeedback'
+import { useSubscriptionStatus } from '~/hooks/useSubscription'
 import {
   CategoryGrid,
   SubjectField,
@@ -39,6 +40,9 @@ export default function FeedbackScreen() {
   const theme = useAppTheme()
   const brandColor = theme.colors.brand.primary
   const createFeedback = useCreateBetaFeedback()
+  // Lightweight read-only status — avoids spinning up a second AppState
+  // listener / trial timer just to check for the beta banner.
+  const { status: subscriptionStatus } = useSubscriptionStatus()
 
   // Form state
   const [selectedCategory, setSelectedCategory] = useState<FeedbackCategory | null>(null)
@@ -233,13 +237,17 @@ export default function FeedbackScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Beta Tester Banner */}
-        <InfoBanner
-          icon={Rocket}
-          title="You're a Beta Tester!"
-          description="Your feedback directly shapes Domani's future. Every submission is read by our team and helps prioritize what we build next."
-          variant="purple"
-        />
+        {/* Beta Tester Banner — only shown while the app is in a beta phase.
+            Gated via the subscription state machine (DEV-696) so the check is
+            consistent with how other beta-specific UI is gated elsewhere. */}
+        {subscriptionStatus === 'beta' && (
+          <InfoBanner
+            icon={Rocket}
+            title="You're a Beta Tester!"
+            description="Your feedback directly shapes Domani's future. Every submission is read by our team and helps prioritize what we build next."
+            variant="purple"
+          />
+        )}
 
         {/* Bottom Padding */}
         <View style={{ height: insets.bottom + 16 }} />

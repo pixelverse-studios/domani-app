@@ -45,3 +45,14 @@ export const PHASE_DISPLAY: Record<AppPhase, { label: string; variant: 'beta' | 
   open_beta: { label: 'Beta', variant: 'beta' },
   production: { label: '', variant: 'default' },
 }
+
+/**
+ * True when the app is in a beta phase (closed or open). Single source
+ * of truth for "is the user in beta" checks across the app, so adding a
+ * new phase variant (e.g. a future 'private_beta') only requires
+ * updating this function rather than hunting down scattered string
+ * comparisons.
+ */
+export function isBetaPhase(phase: AppPhase): boolean {
+  return phase === 'closed_beta' || phase === 'open_beta'
+}
