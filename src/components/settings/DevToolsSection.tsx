@@ -94,7 +94,10 @@ export function DevToolsSection({ onOpenPaywall }: DevToolsSectionProps) {
         </Text>
       </TouchableOpacity>
 
-      {/* Reset Trial — returns profile to pre_trial state so the trial-start
+      {/* Reset Trial — clears the profile's tier and trial columns, then
+          invalidates the profile query. Once the refetch completes, the
+          state machine recomputes: with trial_started_at null, the user
+          resolves to pre_trial (not expired), so the full trial-start
           flow can be exercised again without manual DB edits. */}
       <TouchableOpacity
         onPress={handleResetTrial}

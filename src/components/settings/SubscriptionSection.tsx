@@ -78,6 +78,23 @@ export function SubscriptionSection({
   }
   const currentStatusConfig = statusConfig[status]
 
+  // Type-level exhaustiveness nudge: the JSX branches below
+  // ({status === 'beta' && …}, etc.) are NOT individually type-checked by
+  // TypeScript — a new SubscriptionStatus could be added without rendering
+  // anything for it and tsc would stay silent. This Record forces the
+  // author to at least touch this file when adding a status, which should
+  // prompt them to update the branches as well.
+  //
+  // Keep this in sync with every case in the JSX below.
+  const _exhaustiveStatusCheck: Record<SubscriptionStatus, true> = {
+    beta: true,
+    lifetime: true,
+    trialing: true,
+    pre_trial: true,
+    expired: true,
+  }
+  void _exhaustiveStatusCheck
+
   return (
     <>
       <SectionHeader title="Your Plan" />

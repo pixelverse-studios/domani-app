@@ -8,6 +8,7 @@ import { supabase } from '~/lib/supabase'
 import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
 import { useAppConfig } from '~/stores/appConfigStore'
+import type { Profile } from '~/types'
 import {
   initializeRevenueCat,
   loginRevenueCat,
@@ -77,6 +78,11 @@ export function useSubscription() {
   const queryClient = useQueryClient()
   const [isInitialized, setIsInitialized] = useState(false)
   const previousUserId = useRef<string | undefined>(undefined)
+  // Tracks whether a trial-start mutation is currently in flight so that
+  // unrelated profile-invalidation triggers (e.g. the AppState foreground
+  // listener) don't race the optimistic update and overwrite it with stale
+  // pre-mutation data.
+  const isStartTrialPendingRef = useRef(false)
   const { phase } = useAppConfig()
 
   // Check if we're in beta (skip RevenueCat entirely during beta)
@@ -212,6 +218,11 @@ export function useSubscription() {
         wasBackground = true
       } else if (nextState === 'active' && wasBackground) {
         wasBackground = false
+        // Don't invalidate while a trial-start mutation is in flight —
+        // doing so would race the optimistic cache update and could
+        // overwrite the optimistic trialing state with a stale refetch
+        // completing before the DB write commits.
+        if (isStartTrialPendingRef.current) return
         queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
       }
     })
@@ -251,27 +262,30 @@ export function useSubscription() {
       return data
     },
     onMutate: async () => {
+      // Mark a trial-start as in-flight so the AppState foreground listener
+      // skips its invalidation until the mutation settles. Cleared in
+      // onSettled regardless of success or failure.
+      isStartTrialPendingRef.current = true
+
       if (!user?.id) return { previousProfile: undefined }
 
       // Cancel any in-flight profile refetches so they don't overwrite our
       // optimistic value.
       await queryClient.cancelQueries({ queryKey: ['profile', user.id] })
 
-      const previousProfile = queryClient.getQueryData(['profile', user.id])
+      const previousProfile = queryClient.getQueryData<Profile>(['profile', user.id])
       const now = new Date()
       const trialEnd = addDays(now, TRIAL_DURATION_DAYS)
 
-      queryClient.setQueryData(
-        ['profile', user.id],
-        (old: Record<string, unknown> | undefined) =>
-          old
-            ? {
-                ...old,
-                tier: 'trialing',
-                trial_started_at: now.toISOString(),
-                trial_ends_at: trialEnd.toISOString(),
-              }
-            : old,
+      queryClient.setQueryData<Profile>(['profile', user.id], (old) =>
+        old
+          ? {
+              ...old,
+              tier: 'trialing',
+              trial_started_at: now.toISOString(),
+              trial_ends_at: trialEnd.toISOString(),
+            }
+          : old,
       )
 
       return { previousProfile }
@@ -279,11 +293,19 @@ export function useSubscription() {
     onError: (_err, _vars, context) => {
       // Roll back the optimistic update if the mutation failed.
       if (user?.id && context?.previousProfile !== undefined) {
-        queryClient.setQueryData(['profile', user.id], context.previousProfile)
+        queryClient.setQueryData<Profile>(
+          ['profile', user.id],
+          context.previousProfile,
+        )
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+    },
+    onSettled: () => {
+      // Always clear the in-flight flag so the AppState listener resumes
+      // normal behavior, whether the mutation succeeded or failed.
+      isStartTrialPendingRef.current = false
     },
   })
 
@@ -353,10 +375,22 @@ function computeSubscriptionState(
   customerInfo: CustomerInfo | null | undefined,
   isBeta: boolean,
 ): SubscriptionState {
-  // Beta phase overrides everything — beta testers always have full access
-  // regardless of profile.tier value. This is the single source of truth for
-  // "during beta, no one is gated", and it frees this branch from having to
-  // reason about tier/trial columns at all.
+  // Lifetime takes precedence over everything, including beta phase. Users
+  // who actually paid should see their true entitlement regardless of which
+  // build they're running — otherwise a lifetime purchaser in a beta build
+  // would see a misleading "Beta Tester" status and lose visibility into
+  // the permanent access they paid for.
+  if (profile?.tier === 'lifetime') {
+    return {
+      status: 'lifetime',
+      trialDaysRemaining: null,
+      trialExpirationDate: null,
+    }
+  }
+
+  // Beta phase overrides everything else — beta testers always have full
+  // access regardless of tier/trial columns. Single source of truth for
+  // "during beta, no one (without a real purchase) is gated".
   if (isBeta) {
     return {
       status: 'beta',
@@ -367,18 +401,15 @@ function computeSubscriptionState(
 
   const now = new Date()
 
-  // Check lifetime tier first (manual upgrade or RevenueCat lifetime purchase)
-  if (profile?.tier === 'lifetime') {
-    return {
-      status: 'lifetime',
-      trialDaysRemaining: null,
-      trialExpirationDate: null,
-    }
-  }
-
   // Offline fallback: if profile says trialing but RevenueCat is unavailable,
   // use local trial_ends_at to determine if the trial is still active.
   // If expired, fall through to the final pre_trial/expired disambiguation.
+  //
+  // Edge case: if tier='trialing' but trial_ends_at IS NULL, we treat it as
+  // an open-ended trial (no expiry date known) and return trialing with a
+  // null trialDaysRemaining. This state should not normally occur — the
+  // trial-start flow always writes both columns together — but the code
+  // handles it gracefully rather than bailing out.
   if (profile?.tier === 'trialing') {
     const trialExpirationDate = profile.trial_ends_at ? new Date(profile.trial_ends_at) : null
     if (!trialExpirationDate || trialExpirationDate > now) {

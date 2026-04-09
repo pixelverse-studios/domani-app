@@ -30,7 +30,12 @@ export function PreTrialScreen() {
     setStartError(null)
     try {
       await subscription.startTrial()
-    } catch {
+    } catch (err) {
+      // Log the underlying error so we can distinguish guard-check failures
+      // (e.g. "Trial cannot be started from current state", which should be
+      // unreachable in practice but would indicate a state-machine bug) from
+      // genuine DB/network failures. User still sees a generic message.
+      console.error('[PreTrialScreen] startTrial failed:', err)
       setStartError('Could not start your free trial. Please try again.')
     }
   }

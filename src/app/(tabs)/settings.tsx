@@ -29,7 +29,7 @@ import { TutorialScrollProvider, useTutorialScroll } from '~/components/tutorial
 import { useAuth } from '~/hooks/useAuth'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
-import { useSubscription } from '~/hooks/useSubscription'
+import { useSubscription, hasFullAccess } from '~/hooks/useSubscription'
 import { useNotifications } from '~/hooks/useNotifications'
 import { useAccountDeletion } from '~/hooks/useAccountDeletion'
 import { useAppConfig } from '~/stores/appConfigStore'
@@ -128,10 +128,10 @@ function SettingsContent() {
 
   // Gate the "normal" settings sections when the user needs to act on their
   // subscription state (expired → purchase required, pre_trial → trial required).
+  // Derived from the state-machine helper so adding a new non-access status
+  // in the future automatically includes it here without an extra edit.
   // During loading, nothing is gated to avoid a flash of limited content.
-  const isGated =
-    !subscription.isLoading &&
-    (subscription.status === 'expired' || subscription.status === 'pre_trial')
+  const isGated = !subscription.isLoading && !hasFullAccess(subscription.status)
 
   // ===========================================================================
   // Handlers
