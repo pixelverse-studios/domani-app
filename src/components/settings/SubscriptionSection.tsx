@@ -8,17 +8,6 @@ import { SectionHeader } from './SectionHeader'
 import { SubscriptionSkeleton } from './SettingsSkeletons'
 import type { SubscriptionStatus } from '~/hooks/useSubscription'
 
-// Subscription status display config. Every status in the exhaustive union
-// must have an entry; TypeScript enforces this via `Record<SubscriptionStatus, …>`.
-const STATUS_CONFIG: Record<SubscriptionStatus, { label: string; color: string; bgColor: string }> =
-  {
-    beta: { label: 'Beta Tester', color: '#f59e0b', bgColor: 'bg-amber-500/20' },
-    pre_trial: { label: 'No Active Plan', color: '#94a3b8', bgColor: 'bg-slate-500/20' },
-    expired: { label: 'Trial Ended', color: '#94a3b8', bgColor: 'bg-slate-500/20' },
-    trialing: { label: 'Trial', color: '#22c55e', bgColor: 'bg-green-500/20' },
-    lifetime: { label: 'Lifetime', color: '#f59e0b', bgColor: 'bg-amber-500/20' },
-  }
-
 interface SubscriptionSectionProps {
   isLoading: boolean
   status: SubscriptionStatus
@@ -47,7 +36,47 @@ export function SubscriptionSection({
   onUpgrade,
 }: SubscriptionSectionProps) {
   const theme = useAppTheme()
-  const statusConfig = STATUS_CONFIG[status]
+
+  // Subscription status display config. Lives inside the component so it can
+  // reference theme colors. `Record<SubscriptionStatus, …>` enforces an entry
+  // for every status in the union at compile time.
+  //
+  // The trial state uses `theme.colors.accent.trial` (brand primary sage at
+  // 70% opacity) for the label/icon color, with a lighter sage-derived bg for
+  // the badge pill.
+  const statusConfig: Record<
+    SubscriptionStatus,
+    { label: string; color: string; bgStyle: { backgroundColor: string } }
+  > = {
+    beta: {
+      label: 'Beta Tester',
+      color: '#f59e0b',
+      bgStyle: { backgroundColor: 'rgba(245, 158, 11, 0.2)' },
+    },
+    pre_trial: {
+      label: 'No Active Plan',
+      color: '#94a3b8',
+      bgStyle: { backgroundColor: 'rgba(148, 163, 184, 0.2)' },
+    },
+    expired: {
+      label: 'Trial Ended',
+      color: '#94a3b8',
+      bgStyle: { backgroundColor: 'rgba(148, 163, 184, 0.2)' },
+    },
+    trialing: {
+      label: 'Trial',
+      color: theme.colors.accent.trial,
+      // Brand primary sage at ~15% opacity for the badge pill bg — pairs
+      // with the 70% accent.trial foreground for contrast.
+      bgStyle: { backgroundColor: `${theme.colors.brand.primary}26` },
+    },
+    lifetime: {
+      label: 'Lifetime',
+      color: '#f59e0b',
+      bgStyle: { backgroundColor: 'rgba(245, 158, 11, 0.2)' },
+    },
+  }
+  const currentStatusConfig = statusConfig[status]
 
   return (
     <>
@@ -59,14 +88,17 @@ export function SubscriptionSection({
           <View className="rounded-xl p-4 mb-2" style={{ backgroundColor: theme.colors.card }}>
             <View className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center">
-                <Crown size={20} color={statusConfig.color} />
+                <Crown size={20} color={currentStatusConfig.color} />
                 <Text className="text-base font-medium text-content-primary ml-2">
                   Current Plan
                 </Text>
               </View>
-              <View className={`px-3 py-1 rounded-full ${statusConfig.bgColor}`}>
-                <Text style={{ color: statusConfig.color }} className="text-sm font-semibold">
-                  {statusConfig.label}
+              <View className="px-3 py-1 rounded-full" style={currentStatusConfig.bgStyle}>
+                <Text
+                  style={{ color: currentStatusConfig.color }}
+                  className="text-sm font-semibold"
+                >
+                  {currentStatusConfig.label}
                 </Text>
               </View>
             </View>
@@ -89,7 +121,11 @@ export function SubscriptionSection({
                   onPress={onStartTrial}
                   disabled={isStartingTrial}
                   activeOpacity={0.8}
-                  className="bg-green-500 py-3 rounded-xl items-center flex-row justify-center mb-2"
+                  className="py-3 rounded-xl items-center flex-row justify-center mb-2"
+                  style={{
+                    backgroundColor: theme.colors.accent.trial,
+                    opacity: isStartingTrial ? 0.5 : 1,
+                  }}
                 >
                   {isStartingTrial ? (
                     <ActivityIndicator color="#fff" />
@@ -130,8 +166,11 @@ export function SubscriptionSection({
             {status === 'trialing' && (
               <>
                 <View className="flex-row items-center mb-3">
-                  <Sparkles size={16} color="#22c55e" />
-                  <Text className="text-sm text-green-500 font-medium ml-2">
+                  <Sparkles size={16} color={theme.colors.accent.trial} />
+                  <Text
+                    className="text-sm font-medium ml-2"
+                    style={{ color: theme.colors.accent.trial }}
+                  >
                     {trialDaysRemaining} days remaining in trial
                   </Text>
                 </View>

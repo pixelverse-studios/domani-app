@@ -43,6 +43,7 @@ export interface Theme {
     accent: {
       terracotta: string
       brick: string
+      trial: string
     }
   }
   priority: {
@@ -107,6 +108,7 @@ const sage: Theme = {
     accent: {
       terracotta: '#D77A61', // Muted warm orange for "remaining" counts
       brick: '#C17B6F', // Muted brick red for delete/danger actions
+      trial: '#4a9e55', // Warm dulled green — used for trial-state UI (buttons, icons, badges)
     },
   },
   priority: {
