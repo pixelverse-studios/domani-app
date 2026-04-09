@@ -8,6 +8,7 @@ import { supabase } from '~/lib/supabase'
 import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
 import { useAppConfig } from '~/stores/appConfigStore'
+import { isBetaPhase } from '~/types/appConfig'
 import type { Profile } from '~/types'
 import {
   initializeRevenueCat,
@@ -119,9 +120,8 @@ export function useSubscriptionStatus(): {
 } {
   const { profile, isLoading: profileLoading } = useProfile()
   const { phase } = useAppConfig()
-  const isBeta = phase === 'closed_beta' || phase === 'open_beta'
 
-  const { status } = computeSubscriptionState(profile, null, isBeta)
+  const { status } = computeSubscriptionState(profile, null, isBetaPhase(phase))
 
   return { status, isLoading: profileLoading }
 }
@@ -140,7 +140,7 @@ export function useSubscription() {
   const { phase } = useAppConfig()
 
   // Check if we're in beta (skip RevenueCat entirely during beta)
-  const isBeta = phase === 'closed_beta' || phase === 'open_beta'
+  const isBeta = isBetaPhase(phase)
 
   // Initialize RevenueCat when user changes (skip during beta)
   useEffect(() => {

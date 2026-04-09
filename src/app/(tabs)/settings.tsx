@@ -33,6 +33,7 @@ import { useSubscription, hasFullAccess } from '~/hooks/useSubscription'
 import { useNotifications } from '~/hooks/useNotifications'
 import { useAccountDeletion } from '~/hooks/useAccountDeletion'
 import { useAppConfig } from '~/stores/appConfigStore'
+import { isBetaPhase } from '~/types/appConfig'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
@@ -124,7 +125,7 @@ function SettingsContent() {
   // Beta check (kept as a local convenience; the subscription state machine
   // already collapses beta into status='beta'). Used by ProfileSection for the
   // "Beta Tester" badge styling.
-  const isBeta = phase === 'closed_beta' || phase === 'open_beta'
+  const isBeta = isBetaPhase(phase)
 
   // Gate the "normal" settings sections when the user needs to act on their
   // subscription state (expired → purchase required, pre_trial → trial required).

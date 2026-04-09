@@ -7,7 +7,7 @@ import { useAppTheme } from '~/hooks/useAppTheme'
 import { useAppConfigStore } from '~/stores/appConfigStore'
 import { useAuth } from '~/hooks/useAuth'
 import { supabase } from '~/lib/supabase'
-import type { AppPhase } from '~/types/appConfig'
+import { isBetaPhase, type AppPhase } from '~/types/appConfig'
 
 interface DevToolsSectionProps {
   onOpenPaywall?: () => void
@@ -19,7 +19,7 @@ export function DevToolsSection({ onOpenPaywall }: DevToolsSectionProps) {
   const queryClient = useQueryClient()
   const phase = useAppConfigStore((s) => s.phase)
   const setPhaseOverride = useAppConfigStore((s) => s.setPhaseOverride)
-  const isBetaPhase = phase === 'closed_beta' || phase === 'open_beta'
+  const inBetaPhase = isBetaPhase(phase)
 
   const [isResettingTrial, setIsResettingTrial] = useState(false)
 
@@ -80,17 +80,17 @@ export function DevToolsSection({ onOpenPaywall }: DevToolsSectionProps) {
       {/* Phase Override Toggle */}
       <TouchableOpacity
         onPress={() => {
-          const nextPhase: AppPhase = isBetaPhase ? 'production' : 'open_beta'
+          const nextPhase: AppPhase = inBetaPhase ? 'production' : 'open_beta'
           setPhaseOverride(nextPhase)
         }}
         activeOpacity={0.7}
         style={buttonStyle}
       >
         <Text className="font-sans-semibold text-sm" style={{ color: theme.colors.text.primary }}>
-          {isBetaPhase ? 'Switch to Production Mode' : 'Switch to Beta Mode'}
+          {inBetaPhase ? 'Switch to Production Mode' : 'Switch to Beta Mode'}
         </Text>
         <Text className="font-sans text-xs mt-0.5" style={{ color: theme.colors.text.tertiary }}>
-          Current: {phase} — {isBetaPhase ? 'subscription UI hidden' : 'subscription UI visible'}
+          Current: {phase} — {inBetaPhase ? 'subscription UI hidden' : 'subscription UI visible'}
         </Text>
       </TouchableOpacity>
 
