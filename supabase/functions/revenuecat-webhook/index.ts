@@ -218,10 +218,40 @@ Deno.serve(async (req) => {
         break
       }
       case 'REFUND': {
-        // TODO(DEV-46): revoke access — set tier='none', refunded_at=now
-        console.log('[revenuecat-webhook] refund event received (handler pending DEV-46)', {
-          app_user_id: event.app_user_id,
-          event_id: event.id,
+        // Revoke lifetime access. Apple or Google issued a refund, so
+        // the user's entitlement is no longer valid. Sets tier back to
+        // 'none' (which the client state machine resolves to 'expired'
+        // since trial_started_at is still set from their original
+        // trial), clears purchased_at, and records refunded_at for
+        // analytics and abuse detection.
+        //
+        // Like the purchase handler, this is naturally idempotent —
+        // refunding an already-refunded user is a harmless no-op.
+        const userId = event.app_user_id
+
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            tier: 'none',
+            purchased_at: null,
+            refunded_at: event.event_timestamp_ms
+              ? new Date(event.event_timestamp_ms).toISOString()
+              : new Date().toISOString(),
+          })
+          .eq('id', userId)
+
+        if (error) {
+          console.error('[revenuecat-webhook] failed to revoke access:', {
+            userId,
+            error,
+            eventId: event.id,
+          })
+          return jsonResponse({ error: 'Database error' }, 500)
+        }
+
+        console.log('[revenuecat-webhook] revoked access (refund)', {
+          userId,
+          eventId: event.id,
         })
         break
       }
