@@ -168,23 +168,57 @@ Deno.serve(async (req) => {
   )
 
   // --- Event routing -----------------------------------------------------
-  // This scaffold dispatches to the right handler but does not yet
-  // implement any of them. Follow-up tickets wire in the actual
-  // database writes.
   try {
     switch (event.type) {
       case 'INITIAL_PURCHASE':
       case 'NON_RENEWING_PURCHASE': {
-        // TODO(DEV-45): set profile.tier='lifetime', profile.purchased_at=now
-        console.log('[revenuecat-webhook] purchase event received (handler pending DEV-45)', {
-          type: event.type,
-          app_user_id: event.app_user_id,
-          event_id: event.id,
+        // Grant lifetime access. RevenueCat's app_user_id is the
+        // Supabase auth user ID (set during loginRevenueCat in the
+        // client). The UPDATE is naturally idempotent — writing
+        // tier='lifetime' twice is a no-op — so duplicate events
+        // from RC's retry machinery are safe.
+        //
+        // Note: if a `protect_monetisation_fields` BEFORE UPDATE
+        // trigger exists (from 037_add_trial_columns.sql), it will
+        // block direct tier writes unless the session variable
+        // `app.bypass_monetisation_guard` is set. As of this
+        // implementation, the trigger does NOT exist on staging
+        // (confirmed by client-side Start Trial working without
+        // bypass). If the trigger is added to production in the
+        // future, this handler will need an RPC wrapper or a raw
+        // SQL `set_config(...)` call before the UPDATE.
+        const userId = event.app_user_id
+
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            tier: 'lifetime',
+            purchased_at: event.event_timestamp_ms
+              ? new Date(event.event_timestamp_ms).toISOString()
+              : new Date().toISOString(),
+            trial_ends_at: null,
+          })
+          .eq('id', userId)
+
+        if (error) {
+          console.error('[revenuecat-webhook] failed to grant lifetime access:', {
+            userId,
+            error,
+            eventType: event.type,
+            eventId: event.id,
+          })
+          return jsonResponse({ error: 'Database error' }, 500)
+        }
+
+        console.log('[revenuecat-webhook] granted lifetime access', {
+          userId,
+          eventType: event.type,
+          eventId: event.id,
         })
         break
       }
       case 'REFUND': {
-        // TODO(DEV-46): set profile.tier='none', profile.refunded_at=now
+        // TODO(DEV-46): revoke access — set tier='none', refunded_at=now
         console.log('[revenuecat-webhook] refund event received (handler pending DEV-46)', {
           app_user_id: event.app_user_id,
           event_id: event.id,
@@ -208,10 +242,6 @@ Deno.serve(async (req) => {
     console.error('[revenuecat-webhook] handler error:', err)
     return jsonResponse({ error: 'Internal server error' }, 500)
   }
-
-  // Reference the client so future handlers (DEV-45/46) have it wired
-  // up and ready; suppress unused-variable lint for the scaffold.
-  void supabase
 
   return jsonResponse({ received: true, type: event.type })
 })
