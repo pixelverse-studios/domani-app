@@ -5,4 +5,4 @@
 -- service_role bypasses RLS but still needs explicit table-level
 -- GRANTs to read and write rows.
 
-GRANT SELECT, UPDATE ON public.profiles TO service_role;
+GRANT SELECT, INSERT, UPDATE ON public.profiles TO service_role;

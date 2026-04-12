@@ -193,7 +193,9 @@ Deno.serve(async (req) => {
           .from('profiles')
           .update({
             tier: 'lifetime',
-            purchased_at: new Date().toISOString(),
+            purchased_at: event.event_timestamp_ms
+              ? new Date(event.event_timestamp_ms).toISOString()
+              : new Date().toISOString(),
             trial_ends_at: null,
           })
           .eq('id', userId)
