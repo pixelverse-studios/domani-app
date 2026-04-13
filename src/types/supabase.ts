@@ -498,8 +498,10 @@ export type Database = {
           notification_onboarding_completed: boolean
           planning_reminder_enabled: boolean
           planning_reminder_time: string | null
+          purchased_at: string | null
           push_token_invalid_at: string | null
           push_token_last_verified_at: string | null
+          refunded_at: string | null
           reminder_shortcuts: Json | null
           revenuecat_user_id: string | null
           signup_cohort: Database['public']['Enums']['signup_cohort'] | null
@@ -525,8 +527,10 @@ export type Database = {
           notification_onboarding_completed?: boolean
           planning_reminder_enabled?: boolean
           planning_reminder_time?: string | null
+          purchased_at?: string | null
           push_token_invalid_at?: string | null
           push_token_last_verified_at?: string | null
+          refunded_at?: string | null
           reminder_shortcuts?: Json | null
           revenuecat_user_id?: string | null
           signup_cohort?: Database['public']['Enums']['signup_cohort'] | null
@@ -552,8 +556,10 @@ export type Database = {
           notification_onboarding_completed?: boolean
           planning_reminder_enabled?: boolean
           planning_reminder_time?: string | null
+          purchased_at?: string | null
           push_token_invalid_at?: string | null
           push_token_last_verified_at?: string | null
+          refunded_at?: string | null
           reminder_shortcuts?: Json | null
           revenuecat_user_id?: string | null
           signup_cohort?: Database['public']['Enums']['signup_cohort'] | null
@@ -966,10 +972,6 @@ export type Database = {
       }
     }
     Functions: {
-      can_add_task_to_plan: {
-        Args: { p_plan_id: string; p_user_id: string }
-        Returns: boolean
-      }
       cancel_account_deletion: {
         Args: { p_user_id: string }
         Returns: undefined
@@ -978,10 +980,6 @@ export type Database = {
       delete_expired_accounts: { Args: never; Returns: undefined }
       delete_user_by_email: { Args: { target_email: string }; Returns: string }
       get_favorite_category_ids: { Args: { p_user_id: string }; Returns: Json }
-      get_remaining_task_slots: {
-        Args: { p_plan_id: string; p_user_id: string }
-        Returns: number
-      }
       get_user_cohort: { Args: { p_user_id: string }; Returns: string }
       get_user_role_level: { Args: { p_user_id: string }; Returns: number }
       get_user_tier: { Args: { p_user_id: string }; Returns: string }
