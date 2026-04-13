@@ -39,6 +39,13 @@ const VALUE_PROPS = [
   'No subscriptions, ever',
 ]
 
+const SUCCESS_PROPS = [
+  'Plan tomorrow, tonight',
+  'Small daily wins build lasting habits',
+  'Built to keep you focused, not busy',
+  'The strategy top performers swear by',
+]
+
 export function PaywallModal({
   visible,
   onClose,
@@ -59,9 +66,9 @@ export function PaywallModal({
   const successScaleAnim = React.useRef(new Animated.Value(0.8)).current
 
   const lifetimePackage =
-    offerings?.availablePackages?.find(
-      (pkg) => pkg.packageType === PACKAGE_TYPE.LIFETIME,
-    ) ?? offerings?.availablePackages?.[0] ?? null
+    offerings?.availablePackages?.find((pkg) => pkg.packageType === PACKAGE_TYPE.LIFETIME) ??
+    offerings?.availablePackages?.[0] ??
+    null
   const priceString = lifetimePackage?.product?.priceString
   const discount = DISCOUNT_CONFIG[offeringIdentifier]
 
@@ -176,7 +183,7 @@ export function PaywallModal({
               </Text>
 
               <View style={styles.successChecks}>
-                {VALUE_PROPS.map((prop) => (
+                {SUCCESS_PROPS.map((prop) => (
                   <View key={prop} style={styles.valuePropRow}>
                     <View
                       style={[
@@ -201,11 +208,7 @@ export function PaywallModal({
               </GradientButton>
 
               {/* Close link for users who don't want to navigate */}
-              <TouchableOpacity
-                onPress={onClose}
-                activeOpacity={0.7}
-                style={{ marginTop: 12 }}
-              >
+              <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={{ marginTop: 12 }}>
                 <Text className="font-sans text-sm text-content-tertiary">Dismiss</Text>
               </TouchableOpacity>
             </Animated.View>
@@ -356,9 +359,7 @@ export function PaywallModal({
                 ) : (
                   <>
                     <RotateCcw size={14} color={theme.colors.text.tertiary} />
-                    <Text className="text-sm text-content-secondary ml-1.5">
-                      Restore Purchases
-                    </Text>
+                    <Text className="text-sm text-content-secondary ml-1.5">Restore Purchases</Text>
                   </>
                 )}
               </TouchableOpacity>

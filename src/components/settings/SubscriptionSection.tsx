@@ -63,6 +63,11 @@ export function SubscriptionSection({
       color: '#94a3b8',
       bgStyle: { backgroundColor: 'rgba(148, 163, 184, 0.2)' },
     },
+    refunded: {
+      label: 'Refunded',
+      color: '#94a3b8',
+      bgStyle: { backgroundColor: 'rgba(148, 163, 184, 0.2)' },
+    },
     trialing: {
       label: 'Trial',
       color: theme.colors.accent.trial,
@@ -92,6 +97,7 @@ export function SubscriptionSection({
     trialing: true,
     pre_trial: true,
     expired: true,
+    refunded: true,
   }
   void _exhaustiveStatusCheck
 
@@ -123,8 +129,7 @@ export function SubscriptionSection({
             {/* Beta — full access, no CTAs */}
             {status === 'beta' && (
               <Text className="text-sm text-content-secondary">
-                You have full access to everything during the beta. Thanks for helping test
-                Domani!
+                You have full access to everything during the beta. Thanks for helping test Domani!
               </Text>
             )}
 
@@ -149,9 +154,7 @@ export function SubscriptionSection({
                   ) : (
                     <>
                       <Sparkles size={18} color="#fff" />
-                      <Text className="text-white font-semibold ml-2">
-                        Start 14-Day Free Trial
-                      </Text>
+                      <Text className="text-white font-semibold ml-2">Start 14-Day Free Trial</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -163,6 +166,27 @@ export function SubscriptionSection({
               <>
                 <Text className="text-sm text-content-secondary mb-3">
                   Your trial has ended — upgrade to keep using Domani
+                </Text>
+                <TouchableOpacity
+                  onPress={onUpgrade}
+                  disabled={isRestoring}
+                  activeOpacity={0.8}
+                  className="py-3 rounded-xl items-center"
+                  style={{
+                    backgroundColor: theme.colors.brand.primary,
+                    opacity: isRestoring ? 0.5 : 1,
+                  }}
+                >
+                  <Text className="text-white font-semibold">Get Lifetime Access</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {/* Refunded — purchase was refunded, offer re-purchase CTA */}
+            {status === 'refunded' && (
+              <>
+                <Text className="text-sm text-content-secondary mb-3">
+                  Your purchase was refunded — get lifetime access to continue using Domani
                 </Text>
                 <TouchableOpacity
                   onPress={onUpgrade}
@@ -218,9 +242,9 @@ export function SubscriptionSection({
           </View>
 
           {/* Restore purchases — only shown for states where a prior purchase
-              could plausibly exist (expired or trialing). Beta/pre_trial have
-              nothing to restore; lifetime already has the purchase applied. */}
-          {(status === 'expired' || status === 'trialing') && (
+              could plausibly exist (expired, refunded, or trialing). Beta/pre_trial
+              have nothing to restore; lifetime already has the purchase applied. */}
+          {(status === 'expired' || status === 'refunded' || status === 'trialing') && (
             <TouchableOpacity
               onPress={onRestore}
               disabled={isRestoring}

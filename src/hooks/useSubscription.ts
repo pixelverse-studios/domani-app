@@ -32,12 +32,14 @@ import {
  * - `pre_trial` → never started a trial; gated at app entry, explicit user
  *                 action required to transition to `trialing`. NEVER auto-started.
  * - `expired`   → trial was used and ended with no purchase; locked
+ * - `refunded`  → purchased lifetime then got refunded; locked
  *
  * Invariants:
- * - `isLocked(status) ⇔ status === 'expired'` — one-way derivation
+ * - `isLocked(status) ⇔ status === 'expired' || status === 'refunded'`
  * - `pre_trial` never auto-transitions to anything without explicit user action
  * - Transitions are one-way: pre_trial → trialing → (lifetime | expired);
- *   expired → lifetime via purchase/restore only
+ *   expired → lifetime via purchase/restore only;
+ *   refunded → lifetime via re-purchase/restore only
  *
  * Consumer guidance:
  * - For "can this user access the main app content?" checks, prefer the
@@ -47,7 +49,13 @@ import {
  *   for the two specific gated states and are used by `index.tsx` to pick
  *   which gate screen to render.
  */
-export type SubscriptionStatus = 'beta' | 'lifetime' | 'trialing' | 'pre_trial' | 'expired'
+export type SubscriptionStatus =
+  | 'beta'
+  | 'lifetime'
+  | 'trialing'
+  | 'pre_trial'
+  | 'expired'
+  | 'refunded'
 
 interface SubscriptionState {
   status: SubscriptionStatus
@@ -56,12 +64,13 @@ interface SubscriptionState {
 }
 
 /**
- * The user is locked out of the app. Only true for users whose trial has
- * ended without purchase. Pre-trial users are NOT locked — they are gated
- * at the app entry but have full access to the trial-start flow.
+ * The user is locked out of the app. True for users whose trial has ended
+ * without purchase OR whose purchase was refunded. Pre-trial users are NOT
+ * locked — they are gated at the app entry but have full access to the
+ * trial-start flow.
  */
 export function isLocked(status: SubscriptionStatus): boolean {
-  return status === 'expired'
+  return status === 'expired' || status === 'refunded'
 }
 
 /**
@@ -251,9 +260,12 @@ export function useSubscription() {
     // setTimeout overflows for delays > ~24.85 days (2^31-1 ms); clamp to avoid
     // silent immediate fire. The AppState listener covers the remaining window.
     const MAX_SAFE_TIMEOUT_MS = 2_147_483_647
-    const timer = setTimeout(() => {
-      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
-    }, Math.min(msUntilExpiry, MAX_SAFE_TIMEOUT_MS))
+    const timer = setTimeout(
+      () => {
+        queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+      },
+      Math.min(msUntilExpiry, MAX_SAFE_TIMEOUT_MS),
+    )
 
     return () => clearTimeout(timer)
   }, [subscriptionState.status, trialExpiresAt, queryClient, user?.id])
@@ -347,10 +359,7 @@ export function useSubscription() {
     onError: (_err, _vars, context) => {
       // Roll back the optimistic update if the mutation failed.
       if (user?.id && context?.previousProfile !== undefined) {
-        queryClient.setQueryData<Profile>(
-          ['profile', user.id],
-          context.previousProfile,
-        )
+        queryClient.setQueryData<Profile>(['profile', user.id], context.previousProfile)
       }
     },
     onSuccess: () => {
@@ -399,8 +408,7 @@ export function useSubscription() {
     ...subscriptionState,
     offerings,
     offeringIdentifier, // Which pricing tier the user qualifies for
-    isLoading:
-      isLoadingCustomerInfo || isLoadingOfferings || !isInitialized || profileLoading,
+    isLoading: isLoadingCustomerInfo || isLoadingOfferings || !isInitialized || profileLoading,
     startTrial: startTrialMutation.mutateAsync,
     isStartingTrial: startTrialMutation.isPending,
     purchase: purchaseMutation.mutateAsync,
@@ -420,7 +428,8 @@ export function useSubscription() {
  *  3. DB tier='trialing' within trial window → status='trialing'
  *  4. RevenueCat entitlement (trial or lifetime) → status='trialing' | 'lifetime'
  *  5. Local trial_ends_at fallback (still in future) → status='trialing'
- *  6. Otherwise, disambiguate pre_trial vs expired using `trial_started_at`:
+ *  6. refunded_at IS NOT NULL → status='refunded' (purchase was refunded)
+ *  7. Otherwise, disambiguate pre_trial vs expired using `trial_started_at`:
  *     - trial_started_at IS NULL → status='pre_trial' (never started a trial)
  *     - trial_started_at IS NOT NULL → status='expired' (trial was used and ended)
  */
@@ -524,6 +533,16 @@ function computeSubscriptionState(
         trialDaysRemaining: daysRemaining,
         trialExpirationDate: trialEnd,
       }
+    }
+  }
+
+  // Refunded users: purchased and then got a refund. Distinct from trial
+  // expiry — they didn't lose a trial, they lost a purchase.
+  if (profile?.refunded_at) {
+    return {
+      status: 'refunded',
+      trialDaysRemaining: null,
+      trialExpirationDate: null,
     }
   }
 
