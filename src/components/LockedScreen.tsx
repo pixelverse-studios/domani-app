@@ -15,6 +15,7 @@ export function LockedScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const subscription = useSubscription()
+  const isRefunded = subscription.status === 'refunded'
   const [showPaywall, setShowPaywall] = useState(false)
   const [restoreError, setRestoreError] = useState<string | null>(null)
 
@@ -44,10 +45,7 @@ export function LockedScreen() {
       <View style={styles.content}>
         {/* Icon */}
         <View
-          style={[
-            styles.iconContainer,
-            { backgroundColor: `${theme.colors.text.tertiary}1A` },
-          ]}
+          style={[styles.iconContainer, { backgroundColor: `${theme.colors.text.tertiary}1A` }]}
         >
           <Lock size={48} color={theme.colors.text.tertiary} strokeWidth={1.5} />
         </View>
@@ -57,7 +55,7 @@ export function LockedScreen() {
           className="text-2xl font-sans-bold text-content-primary text-center mt-6"
           style={{ lineHeight: 32 }}
         >
-          Your trial has ended
+          {isRefunded ? 'Your access has been revoked' : 'Your trial has ended'}
         </Text>
 
         {/* Subtext */}
@@ -65,7 +63,9 @@ export function LockedScreen() {
           className="font-sans text-content-secondary text-center mt-3"
           style={{ fontSize: 15, lineHeight: 22, paddingHorizontal: 16 }}
         >
-          Get lifetime access to keep planning your days with Domani — one purchase, yours forever.
+          {isRefunded
+            ? 'Your previous purchase was refunded. Get lifetime access to continue using Domani.'
+            : 'Get lifetime access to keep planning your days with Domani — one purchase, yours forever.'}
         </Text>
 
         {/* Purchase CTA */}
@@ -97,9 +97,7 @@ export function LockedScreen() {
           ) : (
             <>
               <RotateCcw size={14} color={theme.colors.text.tertiary} />
-              <Text className="text-sm text-content-secondary ml-1.5">
-                Restore Purchases
-              </Text>
+              <Text className="text-sm text-content-secondary ml-1.5">Restore Purchases</Text>
             </>
           )}
         </TouchableOpacity>
