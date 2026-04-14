@@ -1,12 +1,12 @@
 import React from 'react'
 import { View, TouchableOpacity, StyleSheet } from 'react-native'
-import { Check, ArrowRightLeft, ArrowRight, ChevronRight } from 'lucide-react-native'
+import { Check, ArrowRightLeft, ArrowRight, ChevronRight, CalendarDays } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { type PlanningTarget } from './DayToggle'
 
-export type MoveToDayVariant = 'checkbox' | 'chip' | 'pair' | 'link'
+export type MoveToDayVariant = 'checkbox' | 'chip' | 'pair' | 'card'
 
 interface MoveToDayToggleProps {
   variant: MoveToDayVariant
@@ -19,7 +19,7 @@ interface MoveToDayToggleProps {
 export function MoveToDayToggle(props: MoveToDayToggleProps) {
   if (props.variant === 'chip') return <SwapChip {...props} />
   if (props.variant === 'pair') return <DayPair {...props} />
-  if (props.variant === 'link') return <QuietLink {...props} />
+  if (props.variant === 'card') return <DirectionalCard {...props} />
   return <CheckboxVariant {...props} />
 }
 
@@ -144,50 +144,46 @@ function DayPair({ moving, onToggle, currentDay, disabled }: MoveToDayToggleProp
   )
 }
 
-function QuietLink({ moving, onToggle, currentDay, disabled }: MoveToDayToggleProps) {
+function DirectionalCard({ moving, onToggle, currentDay, disabled }: MoveToDayToggleProps) {
   const theme = useAppTheme()
   const target = otherDay(currentDay)
   const brand = theme.colors.brand.primary
 
-  if (moving) {
-    return (
-      <View className="flex-row items-center mt-5" style={{ gap: 10 }}>
-        <View className="flex-row items-center" style={{ gap: 6 }}>
-          <Check size={14} color={brand} strokeWidth={2.5} />
-          <Text className="font-sans-medium text-sm" style={{ color: brand }}>
-            Moving to {target}
-          </Text>
-        </View>
-        <Text
-          className="font-sans text-sm"
-          style={{ color: theme.colors.text.tertiary }}
-        >
-          ·
-        </Text>
-        <TouchableOpacity onPress={onToggle} disabled={disabled} activeOpacity={0.6}>
-          <Text
-            className="font-sans-medium text-sm underline"
-            style={{ color: theme.colors.text.tertiary }}
-          >
-            Undo
-          </Text>
-        </TouchableOpacity>
-      </View>
-    )
-  }
+  const borderColor = moving ? brand : theme.colors.border.primary
+  const bgColor = moving ? `${brand}14` : 'transparent'
+  const textColor = moving ? brand : theme.colors.text.secondary
+  const iconColor = moving ? brand : theme.colors.text.tertiary
+  const badgeBg = moving ? `${brand}22` : theme.colors.interactive.hover
 
   return (
     <TouchableOpacity
       onPress={onToggle}
       disabled={disabled}
-      activeOpacity={0.6}
-      className="flex-row items-center mt-5 self-start"
-      style={{ gap: 4 }}
+      activeOpacity={0.75}
+      style={[
+        styles.card,
+        { borderColor, backgroundColor: bgColor },
+      ]}
     >
-      <Text className="font-sans-medium text-sm" style={{ color: brand }}>
-        Move to {target}
-      </Text>
-      <ChevronRight size={15} color={brand} strokeWidth={2.5} />
+      <View style={[styles.cardBadge, { backgroundColor: badgeBg }]}>
+        <CalendarDays size={15} color={iconColor} strokeWidth={2} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text
+          className="font-sans text-xs"
+          style={{ color: theme.colors.text.tertiary, marginBottom: 1 }}
+        >
+          {moving ? 'Will move to' : 'Tap to reschedule'}
+        </Text>
+        <Text className="font-sans-medium text-sm" style={{ color: textColor }}>
+          {capitalize(target)}
+        </Text>
+      </View>
+      {moving ? (
+        <Check size={18} color={brand} strokeWidth={2.5} />
+      ) : (
+        <ChevronRight size={18} color={theme.colors.text.tertiary} strokeWidth={2} />
+      )}
     </TouchableOpacity>
   )
 }
@@ -211,6 +207,23 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
+  card: {
+    marginTop: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  cardBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 })
 
 interface VariantPickerProps {
@@ -224,7 +237,7 @@ export function MoveToDayVariantPicker({ variant, onChange }: VariantPickerProps
     { value: 'checkbox', label: 'A · Checkbox' },
     { value: 'chip', label: 'B · Chip' },
     { value: 'pair', label: 'C · Pair' },
-    { value: 'link', label: 'D · Link' },
+    { value: 'card', label: 'D · Card' },
   ]
 
   return (
