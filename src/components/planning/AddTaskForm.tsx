@@ -502,7 +502,7 @@ export function AddTaskForm({
             {moveToOtherDay && <Check size={11} color="#fff" strokeWidth={3} />}
           </View>
           <Text
-            className="text-xs font-sans-medium"
+            className="text-sm font-sans-medium"
             style={{ color: moveToOtherDay ? theme.colors.brand.primary : theme.colors.text.tertiary }}
           >
             Move to {selectedTarget === 'today' ? 'tomorrow' : 'today'}
