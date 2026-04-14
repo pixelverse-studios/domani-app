@@ -1,12 +1,12 @@
 import React from 'react'
 import { View, TouchableOpacity, StyleSheet } from 'react-native'
-import { Check, ArrowRightLeft, ArrowRight } from 'lucide-react-native'
+import { Check, ArrowRightLeft, ArrowRight, ChevronRight } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { type PlanningTarget } from './DayToggle'
 
-export type MoveToDayVariant = 'checkbox' | 'chip' | 'pair'
+export type MoveToDayVariant = 'checkbox' | 'chip' | 'pair' | 'link'
 
 interface MoveToDayToggleProps {
   variant: MoveToDayVariant
@@ -19,6 +19,7 @@ interface MoveToDayToggleProps {
 export function MoveToDayToggle(props: MoveToDayToggleProps) {
   if (props.variant === 'chip') return <SwapChip {...props} />
   if (props.variant === 'pair') return <DayPair {...props} />
+  if (props.variant === 'link') return <QuietLink {...props} />
   return <CheckboxVariant {...props} />
 }
 
@@ -143,6 +144,54 @@ function DayPair({ moving, onToggle, currentDay, disabled }: MoveToDayToggleProp
   )
 }
 
+function QuietLink({ moving, onToggle, currentDay, disabled }: MoveToDayToggleProps) {
+  const theme = useAppTheme()
+  const target = otherDay(currentDay)
+  const brand = theme.colors.brand.primary
+
+  if (moving) {
+    return (
+      <View className="flex-row items-center mt-5" style={{ gap: 10 }}>
+        <View className="flex-row items-center" style={{ gap: 6 }}>
+          <Check size={14} color={brand} strokeWidth={2.5} />
+          <Text className="font-sans-medium text-sm" style={{ color: brand }}>
+            Moving to {target}
+          </Text>
+        </View>
+        <Text
+          className="font-sans text-sm"
+          style={{ color: theme.colors.text.tertiary }}
+        >
+          ·
+        </Text>
+        <TouchableOpacity onPress={onToggle} disabled={disabled} activeOpacity={0.6}>
+          <Text
+            className="font-sans-medium text-sm underline"
+            style={{ color: theme.colors.text.tertiary }}
+          >
+            Undo
+          </Text>
+        </TouchableOpacity>
+      </View>
+    )
+  }
+
+  return (
+    <TouchableOpacity
+      onPress={onToggle}
+      disabled={disabled}
+      activeOpacity={0.6}
+      className="flex-row items-center mt-5 self-start"
+      style={{ gap: 4 }}
+    >
+      <Text className="font-sans-medium text-sm" style={{ color: brand }}>
+        Move to {target}
+      </Text>
+      <ChevronRight size={15} color={brand} strokeWidth={2.5} />
+    </TouchableOpacity>
+  )
+}
+
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
@@ -175,6 +224,7 @@ export function MoveToDayVariantPicker({ variant, onChange }: VariantPickerProps
     { value: 'checkbox', label: 'A · Checkbox' },
     { value: 'chip', label: 'B · Chip' },
     { value: 'pair', label: 'C · Pair' },
+    { value: 'link', label: 'D · Link' },
   ]
 
   return (
