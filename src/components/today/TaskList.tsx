@@ -18,6 +18,7 @@ interface TaskListProps {
 export function TaskList({ tasks, onToggle, onTaskPress, onDeleteTask }: TaskListProps) {
   const [taskToDelete, setTaskToDelete] = useState<TaskWithCategory | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const isGrid = useLayoutStore((s) => s.taskLayout) === 'grid'
 
   const incompleteTasks = useMemo(
     () => sortTasksByPriority(tasks.filter((task) => !task.completed_at)),
@@ -61,8 +62,6 @@ export function TaskList({ tasks, onToggle, onTaskPress, onDeleteTask }: TaskLis
       </View>
     )
   }
-
-  const isGrid = useLayoutStore((s) => s.taskLayout) === 'grid'
 
   return (
     <View className="mt-2">
