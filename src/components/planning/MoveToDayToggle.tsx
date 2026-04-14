@@ -6,7 +6,7 @@ import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { type PlanningTarget } from './DayToggle'
 
-export type MoveToDayVariant = 'checkbox' | 'card' | 'prompt' | 'blend'
+export type MoveToDayVariant = 'checkbox' | 'card' | 'prompt' | 'blend' | 'stack'
 
 interface MoveToDayToggleProps {
   variant: MoveToDayVariant
@@ -20,6 +20,7 @@ export function MoveToDayToggle(props: MoveToDayToggleProps) {
   if (props.variant === 'card') return <DirectionalCard {...props} />
   if (props.variant === 'prompt') return <SamiPrompt {...props} />
   if (props.variant === 'blend') return <InvitationCard {...props} />
+  if (props.variant === 'stack') return <StackCard {...props} />
   return <CheckboxVariant {...props} />
 }
 
@@ -216,6 +217,65 @@ function InvitationCard({ moving, onToggle, currentDay, disabled }: MoveToDayTog
   )
 }
 
+function StackCard({ moving, onToggle, currentDay, disabled }: MoveToDayToggleProps) {
+  const theme = useAppTheme()
+  const target = otherDay(currentDay)
+  const brand = theme.colors.brand.primary
+
+  const helper =
+    currentDay === 'today'
+      ? 'Not finishing this today?'
+      : 'Want to tackle this today instead?'
+
+  const borderColor = moving ? brand : theme.colors.border.primary
+  const bgColor = moving ? `${brand}14` : 'transparent'
+
+  return (
+    <TouchableOpacity
+      onPress={onToggle}
+      disabled={disabled}
+      activeOpacity={0.75}
+      style={[
+        styles.card,
+        { borderColor, backgroundColor: bgColor, gap: 0 },
+      ]}
+    >
+      <View style={{ flex: 1 }}>
+        {moving ? (
+          <>
+            <Text className="font-sans text-xs" style={{ color: brand, marginBottom: 1 }}>
+              Moving to {target}
+            </Text>
+            <Text
+              className="font-sans-medium text-sm underline"
+              style={{ color: theme.colors.text.tertiary }}
+            >
+              Tap to undo
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text
+              className="font-sans text-xs"
+              style={{ color: theme.colors.text.tertiary, marginBottom: 1 }}
+            >
+              {helper}
+            </Text>
+            <Text className="font-sans-semibold text-sm" style={{ color: brand }}>
+              Move to {capitalize(target)}
+            </Text>
+          </>
+        )}
+      </View>
+      {moving ? (
+        <Check size={18} color={brand} strokeWidth={2.5} />
+      ) : (
+        <ChevronRight size={18} color={theme.colors.text.tertiary} strokeWidth={2} />
+      )}
+    </TouchableOpacity>
+  )
+}
+
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
@@ -268,6 +328,7 @@ export function MoveToDayVariantPicker({ variant, onChange }: VariantPickerProps
     { value: 'card', label: 'Card' },
     { value: 'prompt', label: 'Sami' },
     { value: 'blend', label: 'Blend' },
+    { value: 'stack', label: 'Stack' },
   ]
 
   return (
