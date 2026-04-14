@@ -18,7 +18,7 @@ export type SystemCategory = Tables<'system_categories'>
 export type UserCategory = Tables<'user_categories'>
 export type UserCategoryPreference = Tables<'user_category_preferences'>
 export type SupportRequest = Tables<'support_requests'>
-export type BetaFeedback = Tables<'beta_feedback'>
+export type Feedback = Tables<'beta_feedback'>
 
 // Insert types
 export type ProfileInsert = TablesInsert<'profiles'>
@@ -26,7 +26,7 @@ export type TaskInsert = TablesInsert<'tasks'>
 export type UserCategoryInsert = TablesInsert<'user_categories'>
 export type UserCategoryPreferenceInsert = TablesInsert<'user_category_preferences'>
 export type SupportRequestInsert = TablesInsert<'support_requests'>
-export type BetaFeedbackInsert = TablesInsert<'beta_feedback'>
+export type FeedbackInsert = TablesInsert<'beta_feedback'>
 
 // Update types
 export type ProfileUpdate = TablesUpdate<'profiles'>
