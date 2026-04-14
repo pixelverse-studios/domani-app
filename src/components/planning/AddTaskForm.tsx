@@ -31,6 +31,7 @@ import { useTutorialStore } from '~/stores/tutorialStore'
 import { CategorySelector } from './CategorySelector'
 import { PrioritySelector, type Priority } from './PrioritySelector'
 import { type PlanningTarget } from './DayToggle'
+import { MoveToDayToggle } from './MoveToDayToggle'
 import { ReminderSection } from './ReminderSection'
 import { useAppTheme } from '~/hooks/useAppTheme'
 
@@ -127,7 +128,7 @@ export function AddTaskForm({
   const [notes, setNotes] = useState(initialValues?.notes ?? '')
   const [isNotesExpanded, setIsNotesExpanded] = useState(!!initialValues?.notes)
 
-  // Move to other day checkbox (only used when editing)
+  // Move to other day toggle (only used when editing)
   const [moveToOtherDay, setMoveToOtherDay] = useState(false)
 
   // Reminder state
@@ -484,30 +485,12 @@ export function AddTaskForm({
 
       {/* Move to other day — only shown when editing */}
       {isEditing && (
-        <TouchableOpacity
-          onPress={() => setMoveToOtherDay((prev) => !prev)}
+        <MoveToDayToggle
+          moving={moveToOtherDay}
+          onToggle={() => setMoveToOtherDay((prev) => !prev)}
+          currentDay={selectedTarget}
           disabled={isFormDisabled}
-          activeOpacity={0.6}
-          className="flex-row items-center mt-5 py-2"
-          style={{ gap: 8 }}
-        >
-          <View
-            className="w-4 h-4 rounded items-center justify-center"
-            style={{
-              backgroundColor: moveToOtherDay ? theme.colors.brand.primary : 'transparent',
-              borderWidth: moveToOtherDay ? 0 : 1.5,
-              borderColor: theme.colors.text.tertiary,
-            }}
-          >
-            {moveToOtherDay && <Check size={11} color="#fff" strokeWidth={3} />}
-          </View>
-          <Text
-            className="text-xs font-sans-medium"
-            style={{ color: moveToOtherDay ? theme.colors.brand.primary : theme.colors.text.tertiary }}
-          >
-            Move to {selectedTarget === 'today' ? 'tomorrow' : 'today'}
-          </Text>
-        </TouchableOpacity>
+        />
       )}
 
       {/* Action Buttons - Tutorial target for complete_form step */}
