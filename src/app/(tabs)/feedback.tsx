@@ -13,7 +13,7 @@ import { MessageCircle, Bug, Lightbulb, Heart, Rocket, Send } from 'lucide-react
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
-import { useCreateBetaFeedback, type FeedbackCategory } from '~/hooks/useBetaFeedback'
+import { useCreateFeedback, type FeedbackCategory } from '~/hooks/useFeedback'
 import { useSubscriptionStatus } from '~/hooks/useSubscription'
 import {
   CategoryGrid,
@@ -39,7 +39,7 @@ export default function FeedbackScreen() {
   const insets = useSafeAreaInsets()
   const theme = useAppTheme()
   const brandColor = theme.colors.brand.primary
-  const createFeedback = useCreateBetaFeedback()
+  const createFeedback = useCreateFeedback()
   // Lightweight read-only status — avoids spinning up a second AppState
   // listener / trial timer just to check for the beta banner.
   const { status: subscriptionStatus } = useSubscriptionStatus()

@@ -6,22 +6,22 @@ import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { getDeviceMetadata } from '~/utils/deviceInfo'
-import type { BetaFeedback } from '~/types'
+import type { Feedback } from '~/types'
 
 export type FeedbackCategory = 'bug_report' | 'feature_idea' | 'what_i_love' | 'general'
 
-interface CreateBetaFeedbackInput {
+interface CreateFeedbackInput {
   category: FeedbackCategory
   message: string
 }
 
-export function useCreateBetaFeedback() {
+export function useCreateFeedback() {
   const { user } = useAuth()
   const { profile } = useProfile()
   const { track } = useAnalytics()
 
   return useMutation({
-    mutationFn: async (input: CreateBetaFeedbackInput): Promise<BetaFeedback> => {
+    mutationFn: async (input: CreateFeedbackInput): Promise<Feedback> => {
       if (!user?.id) throw new Error('Not authenticated')
       if (!profile?.email) throw new Error('No email found')
 
@@ -55,14 +55,14 @@ export function useCreateBetaFeedback() {
 
       // Send Discord notification (fire and forget)
       sendDiscordNotification({
-        type: 'beta_feedback',
+        type: 'feedback',
         email: profile.email,
         category: input.category,
         message: input.message,
         deviceMetadata,
       })
 
-      return data as BetaFeedback
+      return data as Feedback
     },
   })
 }

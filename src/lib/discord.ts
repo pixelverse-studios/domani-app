@@ -15,8 +15,8 @@ interface SupportRequestPayload {
   deviceMetadata?: DeviceMetadata
 }
 
-interface BetaFeedbackPayload {
-  type: 'beta_feedback'
+interface FeedbackPayload {
+  type: 'feedback'
   email: string
   category: string
   message: string
@@ -31,12 +31,12 @@ interface NewSignupPayload {
   timezone?: string
 }
 
-type WebhookPayload = SupportRequestPayload | BetaFeedbackPayload | NewSignupPayload
+type WebhookPayload = SupportRequestPayload | FeedbackPayload | NewSignupPayload
 
 // Discord embed colors (decimal format)
 const COLORS = {
   support_request: 15548997, // Red (#ED4245)
-  beta_feedback: 10181046, // Purple (#9B59B6)
+  feedback: 10181046, // Purple (#9B59B6)
   new_signup: 5763719, // Green (#57F287)
 } as const
 
@@ -63,9 +63,9 @@ const TYPE_CONFIG = {
     categoryLabels: SUPPORT_CATEGORY_LABELS,
     contentField: 'Description',
   },
-  beta_feedback: {
+  feedback: {
     emoji: '💬',
-    title: 'New Beta Feedback',
+    title: 'New User Feedback',
     categoryLabels: FEEDBACK_CATEGORY_LABELS,
     contentField: 'Message',
   },
@@ -95,7 +95,7 @@ function buildSignupEmbed(payload: NewSignupPayload) {
   }
 }
 
-function buildFeedbackEmbed(payload: SupportRequestPayload | BetaFeedbackPayload) {
+function buildFeedbackEmbed(payload: SupportRequestPayload | FeedbackPayload) {
   const config = TYPE_CONFIG[payload.type]
   const categoryLabel = config.categoryLabels[payload.category] || payload.category
   const content = payload.type === 'support_request' ? payload.description : payload.message
@@ -134,7 +134,7 @@ function buildFeedbackEmbed(payload: SupportRequestPayload | BetaFeedbackPayload
     fields,
     timestamp: new Date().toISOString(),
     footer: {
-      text: payload.type === 'support_request' ? 'Domani Support' : 'Domani Beta Feedback',
+      text: payload.type === 'support_request' ? 'Domani Support' : 'Domani Feedback',
     },
   }
 }
