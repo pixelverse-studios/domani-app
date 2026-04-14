@@ -31,11 +31,7 @@ import { useTutorialStore } from '~/stores/tutorialStore'
 import { CategorySelector } from './CategorySelector'
 import { PrioritySelector, type Priority } from './PrioritySelector'
 import { type PlanningTarget } from './DayToggle'
-import {
-  MoveToDayToggle,
-  MoveToDayVariantPicker,
-  type MoveToDayVariant,
-} from './MoveToDayToggle'
+import { MoveToDayToggle } from './MoveToDayToggle'
 import { ReminderSection } from './ReminderSection'
 import { useAppTheme } from '~/hooks/useAppTheme'
 
@@ -132,11 +128,8 @@ export function AddTaskForm({
   const [notes, setNotes] = useState(initialValues?.notes ?? '')
   const [isNotesExpanded, setIsNotesExpanded] = useState(!!initialValues?.notes)
 
-  // Move to other day checkbox (only used when editing)
+  // Move to other day toggle (only used when editing)
   const [moveToOtherDay, setMoveToOtherDay] = useState(false)
-
-  // Dev: preview variant picker for "move to other day" — remove once chosen
-  const [moveVariant, setMoveVariant] = useState<MoveToDayVariant>('checkbox')
 
   // Reminder state
   const [isReminderEnabled, setIsReminderEnabled] = useState(!!initialValues?.reminderAt)
@@ -492,16 +485,12 @@ export function AddTaskForm({
 
       {/* Move to other day — only shown when editing */}
       {isEditing && (
-        <>
-          <MoveToDayVariantPicker variant={moveVariant} onChange={setMoveVariant} />
-          <MoveToDayToggle
-            variant={moveVariant}
-            moving={moveToOtherDay}
-            onToggle={() => setMoveToOtherDay((prev) => !prev)}
-            currentDay={selectedTarget}
-            disabled={isFormDisabled}
-          />
-        </>
+        <MoveToDayToggle
+          moving={moveToOtherDay}
+          onToggle={() => setMoveToOtherDay((prev) => !prev)}
+          currentDay={selectedTarget}
+          disabled={isFormDisabled}
+        />
       )}
 
       {/* Action Buttons - Tutorial target for complete_form step */}
