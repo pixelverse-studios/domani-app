@@ -3,6 +3,7 @@ import { View, TouchableOpacity, StyleSheet } from 'react-native'
 import { Circle, CheckCircle, Pencil, Trash2, Bell, Crown, FileText } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
+import { getCategoryIcon } from '~/utils/categoryIcons'
 import { useTaskCardData, type TaskCardProps } from './shared'
 
 export function ChecklistTaskCard({
@@ -17,6 +18,9 @@ export function ChecklistTaskCard({
     isCompleted,
     priority,
     priorityColor,
+    category,
+    categoryName,
+    isUserCategory,
     hasNotes,
     reminderInfo,
     iconColor,
@@ -48,33 +52,53 @@ export function ChecklistTaskCard({
         </View>
       )}
 
-      {/* Title */}
-      <Text
-        className={`font-sans text-sm flex-1 ${
-          isCompleted ? 'text-content-muted line-through' : 'text-content-primary'
-        }`}
-        numberOfLines={1}
-        style={styles.title}
-      >
-        {task.title}
-      </Text>
+      {/* Title + meta */}
+      <View style={styles.content}>
+        <Text
+          className={`font-sans text-sm ${
+            isCompleted ? 'text-content-muted line-through' : 'text-content-primary'
+          }`}
+          numberOfLines={1}
+        >
+          {task.title}
+        </Text>
 
-      {hasNotes && (
-        <FileText size={12} color={iconColor} style={styles.notesIcon} />
-      )}
-
-      {/* Reminder badge */}
-      {reminderInfo && !reminderInfo.isPast && (
-        <View style={styles.reminderBadge}>
-          <Bell size={9} color={theme.colors.brand.primary} />
+        <View style={styles.meta}>
+          {getCategoryIcon({
+            category: category
+              ? { name: categoryName, icon: category.icon || undefined }
+              : null,
+            color: isUserCategory ? theme.colors.brand.light : iconColor,
+            size: 11,
+          })}
           <Text
-            className="font-sans text-xs ml-0.5"
-            style={{ color: theme.colors.brand.primary }}
+            className="font-sans text-xs text-content-tertiary ml-1"
+            numberOfLines={1}
           >
-            {reminderInfo.time}
+            {categoryName}
           </Text>
+
+          {hasNotes && (
+            <>
+              <View style={[styles.metaSeparator, { backgroundColor: theme.colors.border.primary }]} />
+              <FileText size={10} color={iconColor} />
+            </>
+          )}
+
+          {reminderInfo && !reminderInfo.isPast && (
+            <>
+              <View style={[styles.metaSeparator, { backgroundColor: theme.colors.border.primary }]} />
+              <Bell size={9} color={theme.colors.brand.primary} />
+              <Text
+                className="font-sans text-xs ml-0.5"
+                style={{ color: theme.colors.brand.primary }}
+              >
+                {reminderInfo.time}
+              </Text>
+            </>
+          )}
         </View>
-      )}
+      </View>
 
       {/* Actions */}
       <View style={styles.actions}>
@@ -115,16 +139,19 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
-  title: {
+  content: {
+    flex: 1,
     marginRight: 8,
+    gap: 2,
   },
-  notesIcon: {
-    marginRight: 8,
-  },
-  reminderBadge: {
+  meta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 8,
+  },
+  metaSeparator: {
+    width: 1,
+    height: 10,
+    marginHorizontal: 8,
   },
   actions: {
     flexDirection: 'row',
