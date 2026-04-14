@@ -54,14 +54,19 @@ export function ChecklistTaskCard({
 
       {/* Title + meta */}
       <View style={styles.content}>
-        <Text
-          className={`font-sans text-sm ${
-            isCompleted ? 'text-content-muted line-through' : 'text-content-primary'
-          }`}
-          numberOfLines={1}
-        >
-          {task.title}
-        </Text>
+        <View style={styles.titleRow}>
+          {priority === 'top' && (
+            <Crown size={12} color={priorityColor} style={styles.titleCrown} />
+          )}
+          <Text
+            className={`font-sans text-sm flex-1 ${
+              isCompleted ? 'text-content-muted line-through' : 'text-content-primary'
+            }`}
+            numberOfLines={1}
+          >
+            {task.title}
+          </Text>
+        </View>
 
         <View style={styles.meta}>
           {getCategoryIcon({
@@ -143,6 +148,13 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
     gap: 2,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  titleCrown: {
+    marginRight: 4,
   },
   meta: {
     flexDirection: 'row',
