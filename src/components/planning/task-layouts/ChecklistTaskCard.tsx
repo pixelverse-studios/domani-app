@@ -1,8 +1,9 @@
 import React from 'react'
 import { View, TouchableOpacity, StyleSheet } from 'react-native'
-import { Circle, CheckCircle, Pencil, Trash2, Bell, Crown } from 'lucide-react-native'
+import { Circle, CheckCircle, Pencil, Trash2, Bell, Crown, FileText } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
+import { getCategoryIcon } from '~/utils/categoryIcons'
 import { useTaskCardData, type TaskCardProps } from './shared'
 
 export function ChecklistTaskCard({
@@ -17,7 +18,12 @@ export function ChecklistTaskCard({
     isCompleted,
     priority,
     priorityColor,
+    category,
+    categoryName,
+    isUserCategory,
+    hasNotes,
     reminderInfo,
+    iconColor,
     buttonBg,
   } = useTaskCardData(task)
 
@@ -46,43 +52,72 @@ export function ChecklistTaskCard({
         </View>
       )}
 
-      {/* Title */}
-      <Text
-        className={`font-sans text-sm flex-1 ${
-          isCompleted ? 'text-content-muted line-through' : 'text-content-primary'
-        }`}
-        numberOfLines={1}
-        style={styles.title}
-      >
-        {task.title}
-      </Text>
-
-      {/* Reminder badge */}
-      {reminderInfo && !reminderInfo.isPast && (
-        <View style={styles.reminderBadge}>
-          <Bell size={9} color={theme.colors.brand.primary} />
+      {/* Title + meta */}
+      <View style={styles.content}>
+        <View style={styles.titleRow}>
+          {priority === 'top' && (
+            <Crown size={12} color={priorityColor} style={styles.titleCrown} />
+          )}
           <Text
-            className="font-sans text-xs ml-0.5"
-            style={{ color: theme.colors.brand.primary }}
+            className={`font-sans text-sm flex-1 ${
+              isCompleted ? 'text-content-muted line-through' : 'text-content-primary'
+            }`}
+            numberOfLines={1}
           >
-            {reminderInfo.time}
+            {task.title}
           </Text>
         </View>
-      )}
+
+        <View style={styles.meta}>
+          {getCategoryIcon({
+            category: category
+              ? { name: categoryName, icon: category.icon || undefined }
+              : null,
+            color: isUserCategory ? theme.colors.brand.light : iconColor,
+            size: 11,
+          })}
+          <Text
+            className="font-sans text-xs text-content-tertiary ml-1"
+            numberOfLines={1}
+          >
+            {categoryName}
+          </Text>
+
+          {hasNotes && (
+            <>
+              <View style={[styles.metaSeparator, { backgroundColor: theme.colors.border.primary }]} />
+              <FileText size={10} color={iconColor} />
+            </>
+          )}
+
+          {reminderInfo && !reminderInfo.isPast && (
+            <>
+              <View style={[styles.metaSeparator, { backgroundColor: theme.colors.border.primary }]} />
+              <Bell size={9} color={theme.colors.brand.primary} />
+              <Text
+                className="font-sans text-xs ml-0.5"
+                style={{ color: theme.colors.brand.primary }}
+              >
+                {reminderInfo.time}
+              </Text>
+            </>
+          )}
+        </View>
+      </View>
 
       {/* Actions */}
       <View style={styles.actions}>
         <TouchableOpacity
           onPress={() => onEdit?.(task.id)}
           style={[styles.actionButton, { backgroundColor: buttonBg }]}
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          hitSlop={{ top: 11, bottom: 11, left: 11, right: 11 }}
         >
           <Pencil size={11} color={theme.colors.brand.light} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => onDelete?.(task.id)}
           style={[styles.actionButton, { backgroundColor: buttonBg }]}
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          hitSlop={{ top: 11, bottom: 11, left: 11, right: 11 }}
         >
           <Trash2 size={11} color={theme.colors.accent.brick} />
         </TouchableOpacity>
@@ -109,13 +144,26 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
-  title: {
+  content: {
+    flex: 1,
     marginRight: 8,
+    gap: 2,
   },
-  reminderBadge: {
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 8,
+  },
+  titleCrown: {
+    marginRight: 4,
+  },
+  meta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  metaSeparator: {
+    width: 1,
+    height: 10,
+    marginHorizontal: 8,
   },
   actions: {
     flexDirection: 'row',
