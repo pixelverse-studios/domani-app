@@ -89,6 +89,7 @@ export function useNotificationObserver() {
   const responseListener = useRef<{ remove: () => void } | null>(null)
   const appStateRef = useRef<AppStateStatus>(AppState.currentState)
   const hasRegisteredToken = useRef(false)
+  const hasCheckedPermission = useRef(false)
 
   // Memoized function to handle push token registration
   const handleTokenRegistration = useCallback(async () => {
@@ -115,6 +116,8 @@ export function useNotificationObserver() {
     // Detect the undetermined iOS state and silently re-request so the app is
     // registered with iOS and notifications can resume working.
     const ensurePermissionRequested = async () => {
+      if (hasCheckedPermission.current) return
+      hasCheckedPermission.current = true
       try {
         const status = await NotificationService.getPermissionStatus()
         if (status === 'undetermined') {
