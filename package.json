@@ -11,6 +11,7 @@
     "android:debug": "cd android && ./gradlew assembleDebug",
     "android:release": "cd android && ./gradlew assembleRelease",
     "ios": "expo start --ios --clear",
+    "ios:device": "npx expo run:ios --device",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts,.tsx",
