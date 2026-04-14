@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, TouchableOpacity, StyleSheet } from 'react-native'
-import { Circle, CheckCircle, Pencil, Trash2, Bell, Crown } from 'lucide-react-native'
+import { Circle, CheckCircle, Pencil, Trash2, Bell, Crown, FileText } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useTaskCardData, type TaskCardProps } from './shared'
@@ -17,7 +17,9 @@ export function ChecklistTaskCard({
     isCompleted,
     priority,
     priorityColor,
+    hasNotes,
     reminderInfo,
+    iconColor,
     buttonBg,
   } = useTaskCardData(task)
 
@@ -57,6 +59,10 @@ export function ChecklistTaskCard({
         {task.title}
       </Text>
 
+      {hasNotes && (
+        <FileText size={12} color={iconColor} style={styles.notesIcon} />
+      )}
+
       {/* Reminder badge */}
       {reminderInfo && !reminderInfo.isPast && (
         <View style={styles.reminderBadge}>
@@ -75,14 +81,14 @@ export function ChecklistTaskCard({
         <TouchableOpacity
           onPress={() => onEdit?.(task.id)}
           style={[styles.actionButton, { backgroundColor: buttonBg }]}
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          hitSlop={{ top: 11, bottom: 11, left: 11, right: 11 }}
         >
           <Pencil size={11} color={theme.colors.brand.light} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => onDelete?.(task.id)}
           style={[styles.actionButton, { backgroundColor: buttonBg }]}
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          hitSlop={{ top: 11, bottom: 11, left: 11, right: 11 }}
         >
           <Trash2 size={11} color={theme.colors.accent.brick} />
         </TouchableOpacity>
@@ -110,6 +116,9 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   title: {
+    marginRight: 8,
+  },
+  notesIcon: {
     marginRight: 8,
   },
   reminderBadge: {

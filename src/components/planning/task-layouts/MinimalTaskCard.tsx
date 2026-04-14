@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, TouchableOpacity, StyleSheet } from 'react-native'
-import { Pencil, Trash2, Circle, CheckCircle, Bell } from 'lucide-react-native'
+import { Pencil, Trash2, Circle, CheckCircle, Bell, Crown, FileText } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useTaskCardData, type TaskCardProps } from './shared'
@@ -18,7 +18,9 @@ export function MinimalTaskCard({
     priority,
     priorityColor,
     categoryName,
+    hasNotes,
     reminderInfo,
+    iconColor,
     buttonBg,
   } = useTaskCardData(task)
 
@@ -29,8 +31,14 @@ export function MinimalTaskCard({
         { borderBottomColor: `${theme.colors.border.primary}66` },
       ]}
     >
-      {/* Priority indicator — small colored square */}
-      <View style={[styles.prioritySquare, { backgroundColor: priorityColor }]} />
+      {/* Priority indicator — crown for MIT, small colored square otherwise */}
+      {priority === 'top' ? (
+        <View style={styles.priorityIndicator}>
+          <Crown size={14} color={priorityColor} />
+        </View>
+      ) : (
+        <View style={[styles.prioritySquare, { backgroundColor: priorityColor }]} />
+      )}
 
       {showCheckbox && (
         <TouchableOpacity
@@ -59,6 +67,7 @@ export function MinimalTaskCard({
 
       {/* Inline metadata — text only */}
       <View style={styles.meta}>
+        {hasNotes && <FileText size={11} color={iconColor} />}
         <Text className="font-sans text-xs text-content-tertiary" numberOfLines={1}>
           {categoryName}
         </Text>
@@ -89,14 +98,14 @@ export function MinimalTaskCard({
         <TouchableOpacity
           onPress={() => onEdit?.(task.id)}
           style={[styles.actionButton, { backgroundColor: buttonBg }]}
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Pencil size={12} color={theme.colors.brand.light} />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => onDelete?.(task.id)}
           style={[styles.actionButton, { backgroundColor: buttonBg }]}
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Trash2 size={12} color={theme.colors.accent.brick} />
         </TouchableOpacity>
@@ -118,6 +127,12 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 2,
     marginRight: 10,
+  },
+  priorityIndicator: {
+    width: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 7,
   },
   checkbox: {
     marginRight: 10,

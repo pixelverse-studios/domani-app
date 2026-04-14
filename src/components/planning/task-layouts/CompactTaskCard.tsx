@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, TouchableOpacity, StyleSheet } from 'react-native'
-import { Pencil, Trash2, Circle, CheckCircle, Bell } from 'lucide-react-native'
+import { Pencil, Trash2, Circle, CheckCircle, Bell, Crown, FileText } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { getCategoryIcon } from '~/utils/categoryIcons'
@@ -21,6 +21,7 @@ export function CompactTaskCard({
     category,
     categoryName,
     isUserCategory,
+    hasNotes,
     reminderInfo,
     iconColor,
     buttonBg,
@@ -65,7 +66,11 @@ export function CompactTaskCard({
 
           {/* Line 2: Priority dot + Category + Reminder */}
           <View style={styles.meta}>
-            <View style={[styles.priorityDot, { backgroundColor: priorityColor }]} />
+            {priority === 'top' ? (
+              <Crown size={11} color={priorityColor} style={{ marginRight: 4 }} />
+            ) : (
+              <View style={[styles.priorityDot, { backgroundColor: priorityColor }]} />
+            )}
             <Text className="font-sans text-xs text-content-tertiary capitalize">{priority}</Text>
 
             <View style={[styles.metaSeparator, { backgroundColor: theme.colors.border.primary }]} />
@@ -80,6 +85,13 @@ export function CompactTaskCard({
             <Text className="font-sans text-xs text-content-secondary ml-1" numberOfLines={1}>
               {categoryName}
             </Text>
+
+            {hasNotes && (
+              <>
+                <View style={[styles.metaSeparator, { backgroundColor: theme.colors.border.primary }]} />
+                <FileText size={10} color={iconColor} />
+              </>
+            )}
 
             {reminderInfo && (
               <>
@@ -110,14 +122,14 @@ export function CompactTaskCard({
           <TouchableOpacity
             onPress={() => onEdit?.(task.id)}
             style={[styles.actionButton, { backgroundColor: buttonBg }]}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Pencil size={13} color={theme.colors.brand.light} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => onDelete?.(task.id)}
             style={[styles.actionButton, { backgroundColor: buttonBg }]}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Trash2 size={13} color={theme.colors.accent.brick} />
           </TouchableOpacity>

@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native'
-import { Pencil, Trash2, Circle, CheckCircle, Crown } from 'lucide-react-native'
+import { Pencil, Trash2, Circle, CheckCircle, Crown, FileText } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { getCategoryIcon } from '~/utils/categoryIcons'
@@ -88,9 +88,16 @@ export function GridTaskCard({
 
         {/* Notes indicator */}
         {hasNotes && (
-          <Text className="font-sans text-xs text-content-tertiary mt-1" numberOfLines={1}>
-            {task.notes}
-          </Text>
+          <View style={styles.notesRow}>
+            <FileText size={11} color={iconColor} />
+            <Text
+              className="font-sans text-xs text-content-tertiary ml-1"
+              numberOfLines={1}
+              style={{ flex: 1 }}
+            >
+              {task.notes}
+            </Text>
+          </View>
         )}
 
         <View style={{ flex: 1 }} />
@@ -118,16 +125,16 @@ export function GridTaskCard({
             <TouchableOpacity
               onPress={() => onEdit?.(task.id)}
               style={[styles.actionButton, { backgroundColor: buttonBg }]}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Pencil size={11} color={theme.colors.brand.light} />
+              <Pencil size={13} color={theme.colors.brand.light} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => onDelete?.(task.id)}
               style={[styles.actionButton, { backgroundColor: buttonBg }]}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Trash2 size={11} color={theme.colors.accent.brick} />
+              <Trash2 size={13} color={theme.colors.accent.brick} />
             </TouchableOpacity>
           </View>
         </View>
@@ -178,13 +185,18 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    gap: 3,
+    gap: 4,
   },
   actionButton: {
-    width: 22,
-    height: 22,
+    width: 28,
+    height: 28,
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  notesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
 })
