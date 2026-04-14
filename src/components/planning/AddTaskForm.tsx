@@ -31,6 +31,11 @@ import { useTutorialStore } from '~/stores/tutorialStore'
 import { CategorySelector } from './CategorySelector'
 import { PrioritySelector, type Priority } from './PrioritySelector'
 import { type PlanningTarget } from './DayToggle'
+import {
+  MoveToDayToggle,
+  MoveToDayVariantPicker,
+  type MoveToDayVariant,
+} from './MoveToDayToggle'
 import { ReminderSection } from './ReminderSection'
 import { useAppTheme } from '~/hooks/useAppTheme'
 
@@ -129,6 +134,9 @@ export function AddTaskForm({
 
   // Move to other day checkbox (only used when editing)
   const [moveToOtherDay, setMoveToOtherDay] = useState(false)
+
+  // Dev: preview variant picker for "move to other day" — remove once chosen
+  const [moveVariant, setMoveVariant] = useState<MoveToDayVariant>('checkbox')
 
   // Reminder state
   const [isReminderEnabled, setIsReminderEnabled] = useState(!!initialValues?.reminderAt)
@@ -484,30 +492,16 @@ export function AddTaskForm({
 
       {/* Move to other day — only shown when editing */}
       {isEditing && (
-        <TouchableOpacity
-          onPress={() => setMoveToOtherDay((prev) => !prev)}
-          disabled={isFormDisabled}
-          activeOpacity={0.6}
-          className="flex-row items-center mt-5 py-2"
-          style={{ gap: 8 }}
-        >
-          <View
-            className="w-4 h-4 rounded items-center justify-center"
-            style={{
-              backgroundColor: moveToOtherDay ? theme.colors.brand.primary : 'transparent',
-              borderWidth: moveToOtherDay ? 0 : 1.5,
-              borderColor: theme.colors.text.tertiary,
-            }}
-          >
-            {moveToOtherDay && <Check size={11} color="#fff" strokeWidth={3} />}
-          </View>
-          <Text
-            className="text-sm font-sans-medium"
-            style={{ color: moveToOtherDay ? theme.colors.brand.primary : theme.colors.text.tertiary }}
-          >
-            Move to {selectedTarget === 'today' ? 'tomorrow' : 'today'}
-          </Text>
-        </TouchableOpacity>
+        <>
+          <MoveToDayVariantPicker variant={moveVariant} onChange={setMoveVariant} />
+          <MoveToDayToggle
+            variant={moveVariant}
+            moving={moveToOtherDay}
+            onToggle={() => setMoveToOtherDay((prev) => !prev)}
+            currentDay={selectedTarget}
+            disabled={isFormDisabled}
+          />
+        </>
       )}
 
       {/* Action Buttons - Tutorial target for complete_form step */}
