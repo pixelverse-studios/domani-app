@@ -107,6 +107,25 @@ export function useNotificationObserver() {
     // Initialize notification system on mount
     NotificationService.initialize()
 
+    // iOS only registers the app with the system (making it appear in
+    // Settings → Notifications) after the first requestPermissionsAsync call.
+    // When a user reinstalls the app, iOS resets permission state — but our
+    // DB flag `notification_onboarding_completed` persists, causing us to skip
+    // the notification-setup screen that would normally re-request permission.
+    // Detect the undetermined iOS state and silently re-request so the app is
+    // registered with iOS and notifications can resume working.
+    const ensurePermissionRequested = async () => {
+      try {
+        const status = await NotificationService.getPermissionStatus()
+        if (status === 'undetermined') {
+          await NotificationService.requestPermissions()
+        }
+      } catch (error) {
+        console.warn('[Notifications] Failed to ensure permission state:', error)
+      }
+    }
+    ensurePermissionRequested()
+
     // Register push token for future push notification features
     // Initial registration with a short delay to ensure auth is ready
     const tokenTimeout = setTimeout(handleTokenRegistration, 2000)
