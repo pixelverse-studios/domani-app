@@ -6,7 +6,7 @@ import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { type PlanningTarget } from './DayToggle'
 
-export type MoveToDayVariant = 'checkbox' | 'chip' | 'pair' | 'card'
+export type MoveToDayVariant = 'checkbox' | 'chip' | 'pair' | 'card' | 'prompt'
 
 interface MoveToDayToggleProps {
   variant: MoveToDayVariant
@@ -20,6 +20,7 @@ export function MoveToDayToggle(props: MoveToDayToggleProps) {
   if (props.variant === 'chip') return <SwapChip {...props} />
   if (props.variant === 'pair') return <DayPair {...props} />
   if (props.variant === 'card') return <DirectionalCard {...props} />
+  if (props.variant === 'prompt') return <SamiPrompt {...props} />
   return <CheckboxVariant {...props} />
 }
 
@@ -188,6 +189,61 @@ function DirectionalCard({ moving, onToggle, currentDay, disabled }: MoveToDayTo
   )
 }
 
+function SamiPrompt({ moving, onToggle, currentDay, disabled }: MoveToDayToggleProps) {
+  const theme = useAppTheme()
+  const target = otherDay(currentDay)
+  const brand = theme.colors.brand.primary
+
+  const helper =
+    currentDay === 'today'
+      ? 'Not finishing this today?'
+      : 'Want to tackle this today instead?'
+
+  if (moving) {
+    return (
+      <View className="items-center mt-6" style={{ gap: 4 }}>
+        <View className="flex-row items-center" style={{ gap: 6 }}>
+          <Check size={14} color={brand} strokeWidth={2.5} />
+          <Text className="font-sans text-xs" style={{ color: brand }}>
+            Will move to {target}
+          </Text>
+        </View>
+        <TouchableOpacity onPress={onToggle} disabled={disabled} activeOpacity={0.6}>
+          <Text
+            className="font-sans-medium text-sm underline"
+            style={{ color: theme.colors.text.tertiary }}
+          >
+            Undo
+          </Text>
+        </TouchableOpacity>
+      </View>
+    )
+  }
+
+  return (
+    <View className="items-center mt-6" style={{ gap: 4 }}>
+      <Text
+        className="font-sans text-xs"
+        style={{ color: theme.colors.text.tertiary }}
+      >
+        {helper}
+      </Text>
+      <TouchableOpacity
+        onPress={onToggle}
+        disabled={disabled}
+        activeOpacity={0.6}
+        className="flex-row items-center"
+        style={{ gap: 4 }}
+      >
+        <Text className="font-sans-semibold text-sm" style={{ color: brand }}>
+          Move to {capitalize(target)}
+        </Text>
+        <ArrowRight size={15} color={brand} strokeWidth={2.5} />
+      </TouchableOpacity>
+    </View>
+  )
+}
+
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
@@ -238,6 +294,7 @@ export function MoveToDayVariantPicker({ variant, onChange }: VariantPickerProps
     { value: 'chip', label: 'B · Chip' },
     { value: 'pair', label: 'C · Pair' },
     { value: 'card', label: 'D · Card' },
+    { value: 'prompt', label: 'E · Sami' },
   ]
 
   return (
