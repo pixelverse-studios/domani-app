@@ -36,6 +36,11 @@ export function MoveToDayToggle({
       onPress={onToggle}
       disabled={disabled}
       activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityState={{ checked: moving, disabled }}
+      accessibilityLabel={
+        moving ? `Cancel move to ${target}` : `Move task to ${target}`
+      }
       style={[styles.card, { borderColor, backgroundColor: bgColor }]}
     >
       <View style={{ flex: 1 }}>
