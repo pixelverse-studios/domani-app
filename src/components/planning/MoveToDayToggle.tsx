@@ -243,14 +243,14 @@ function StackCard({ moving, onToggle, currentDay, disabled }: MoveToDayTogglePr
       <View style={{ flex: 1 }}>
         {moving ? (
           <>
-            <Text className="font-sans text-xs" style={{ color: brand, marginBottom: 1 }}>
-              Moving to {target}
-            </Text>
             <Text
-              className="font-sans-medium text-sm underline"
-              style={{ color: theme.colors.text.tertiary }}
+              className="font-sans text-xs underline"
+              style={{ color: theme.colors.text.tertiary, marginBottom: 1 }}
             >
               Tap to undo
+            </Text>
+            <Text className="font-sans-semibold text-sm" style={{ color: brand }}>
+              Moving to {capitalize(target)}
             </Text>
           </>
         ) : (
