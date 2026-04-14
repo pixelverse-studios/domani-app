@@ -32,13 +32,13 @@ export function MinimalTaskCard({
       ]}
     >
       {/* Priority indicator — crown for MIT, small colored square otherwise */}
-      {priority === 'top' ? (
-        <View style={styles.priorityIndicator}>
+      <View style={styles.priorityIndicator}>
+        {priority === 'top' ? (
           <Crown size={14} color={priorityColor} />
-        </View>
-      ) : (
-        <View style={[styles.prioritySquare, { backgroundColor: priorityColor }]} />
-      )}
+        ) : (
+          <View style={[styles.prioritySquare, { backgroundColor: priorityColor }]} />
+        )}
+      </View>
 
       {showCheckbox && (
         <TouchableOpacity
@@ -122,17 +122,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderBottomWidth: 1,
   },
-  prioritySquare: {
-    width: 8,
-    height: 8,
-    borderRadius: 2,
-    marginRight: 10,
-  },
   priorityIndicator: {
     width: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 7,
+    marginRight: 10,
+  },
+  prioritySquare: {
+    width: 8,
+    height: 8,
+    borderRadius: 2,
   },
   checkbox: {
     marginRight: 10,
