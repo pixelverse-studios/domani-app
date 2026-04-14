@@ -280,6 +280,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  pickerPill: {
+    flex: 1,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 })
 
 interface VariantPickerProps {
@@ -290,11 +298,11 @@ interface VariantPickerProps {
 export function MoveToDayVariantPicker({ variant, onChange }: VariantPickerProps) {
   const theme = useAppTheme()
   const options: { value: MoveToDayVariant; label: string }[] = [
-    { value: 'checkbox', label: 'A · Checkbox' },
-    { value: 'chip', label: 'B · Chip' },
-    { value: 'pair', label: 'C · Pair' },
-    { value: 'card', label: 'D · Card' },
-    { value: 'prompt', label: 'E · Sami' },
+    { value: 'checkbox', label: 'Box' },
+    { value: 'chip', label: 'Chip' },
+    { value: 'pair', label: 'Pair' },
+    { value: 'card', label: 'Card' },
+    { value: 'prompt', label: 'Sami' },
   ]
 
   return (
@@ -308,7 +316,7 @@ export function MoveToDayVariantPicker({ variant, onChange }: VariantPickerProps
       >
         ⚙︎ Preview variant (dev only)
       </Text>
-      <View className="flex-row" style={{ gap: 6 }}>
+      <View className="flex-row" style={{ gap: 4 }}>
         {options.map((opt) => {
           const selected = opt.value === variant
           return (
@@ -317,7 +325,7 @@ export function MoveToDayVariantPicker({ variant, onChange }: VariantPickerProps
               onPress={() => onChange(opt.value)}
               activeOpacity={0.7}
               style={[
-                styles.dayPill,
+                styles.pickerPill,
                 {
                   backgroundColor: selected ? theme.colors.brand.primary : 'transparent',
                   borderColor: selected ? theme.colors.brand.primary : theme.colors.border.primary,
