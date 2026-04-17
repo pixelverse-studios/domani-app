@@ -12,7 +12,7 @@ export const PRODUCT_IDS = {
 } as const
 
 // Entitlement identifier (configure in RevenueCat dashboard)
-export const ENTITLEMENT_ID = 'premium'
+export const ENTITLEMENT_ID = 'Domani Staging Lifetime'
 
 // Beta sunset date - after this, new users get general pricing
 export const BETA_END_DATE = new Date('2026-03-01T00:00:00Z')
@@ -24,12 +24,62 @@ export const OFFERINGS = {
   GENERAL: 'general', // $34.99 lifetime
 } as const
 
+function getActiveEntitlementSummary(customerInfo: {
+  entitlements?: {
+    active?: Record<
+      string,
+      {
+        productIdentifier?: string
+        periodType?: string
+        expirationDate?: string | null
+      }
+    >
+  }
+  originalAppUserId?: string | null
+}) {
+  const activeEntitlements = Object.entries(customerInfo.entitlements?.active ?? {}).map(
+    ([entitlementId, entitlement]) => ({
+      entitlementId,
+      productIdentifier: entitlement.productIdentifier ?? null,
+      periodType: entitlement.periodType ?? null,
+      expirationDate: entitlement.expirationDate ?? null,
+    }),
+  )
+
+  return {
+    originalAppUserId: customerInfo.originalAppUserId ?? null,
+    activeEntitlements,
+  }
+}
+
+function getOfferingSummary(offering: PurchasesOffering | null | undefined) {
+  if (!offering) return null
+
+  return {
+    identifier: offering.identifier,
+    serverDescription: offering.serverDescription ?? null,
+    availablePackages:
+      offering.availablePackages?.map((pkg) => ({
+        packageIdentifier: pkg.identifier,
+        packageType: pkg.packageType,
+        productIdentifier: pkg.product.identifier,
+        productPrice: pkg.product.priceString ?? null,
+      })) ?? [],
+  }
+}
+
 /**
  * Initialize RevenueCat SDK
  * Call this once on app startup after user authentication
  */
 export async function initializeRevenueCat(userId?: string) {
   const apiKey = Platform.OS === 'ios' ? REVENUECAT_API_KEY_IOS : REVENUECAT_API_KEY_ANDROID
+
+  console.log('[RevenueCat] Initializing SDK', {
+    platform: Platform.OS,
+    userId: userId ?? null,
+    apiKeyConfigured: !!apiKey,
+  })
 
   if (!apiKey) {
     console.warn('[RevenueCat] No API key configured for', Platform.OS)
@@ -46,7 +96,10 @@ export async function initializeRevenueCat(userId?: string) {
     appUserID: userId, // Use Supabase user ID for cross-platform sync
   })
 
-  console.log('[RevenueCat] Initialized for user:', userId || 'anonymous')
+  console.log('[RevenueCat] Initialized SDK', {
+    platform: Platform.OS,
+    userId: userId ?? 'anonymous',
+  })
 }
 
 /**
@@ -55,7 +108,10 @@ export async function initializeRevenueCat(userId?: string) {
 export async function loginRevenueCat(userId: string) {
   try {
     const { customerInfo } = await Purchases.logIn(userId)
-    console.log('[RevenueCat] User logged in:', userId)
+    console.log('[RevenueCat] User logged in', {
+      userId,
+      ...getActiveEntitlementSummary(customerInfo),
+    })
     return customerInfo
   } catch (error) {
     console.error('[RevenueCat] Login error:', error)
@@ -94,14 +150,25 @@ export async function logoutRevenueCat() {
 export async function getOfferings(offeringIdentifier?: string): Promise<PurchasesOffering | null> {
   try {
     const offerings = await Purchases.getOfferings()
+    const availableOfferingIds = Object.keys(offerings.all ?? {})
 
     // If a specific offering is requested, return that one
     if (offeringIdentifier && offerings.all[offeringIdentifier]) {
-      console.log('[RevenueCat] Returning cohort-specific offering:', offeringIdentifier)
+      const selectedOffering = offerings.all[offeringIdentifier]
+      console.log('[RevenueCat] Returning cohort-specific offering', {
+        requestedOfferingIdentifier: offeringIdentifier,
+        availableOfferingIds,
+        selectedOffering: getOfferingSummary(selectedOffering),
+      })
       return offerings.all[offeringIdentifier]
     }
 
     // Fall back to the default/current offering
+    console.log('[RevenueCat] Returning current offering', {
+      requestedOfferingIdentifier: offeringIdentifier ?? null,
+      availableOfferingIds,
+      currentOffering: getOfferingSummary(offerings.current),
+    })
     return offerings.current
   } catch (error) {
     console.error('[RevenueCat] Error fetching offerings:', error)
@@ -142,6 +209,12 @@ export async function checkPremiumAccess(): Promise<{
     const customerInfo = await Purchases.getCustomerInfo()
     const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID]
 
+    console.log('[RevenueCat] Checked premium access', {
+      entitlementId: ENTITLEMENT_ID,
+      hasEntitlement: !!entitlement,
+      ...getActiveEntitlementSummary(customerInfo),
+    })
+
     if (entitlement) {
       const isTrialing = entitlement.periodType === 'TRIAL'
       return {
@@ -172,7 +245,20 @@ export async function checkPremiumAccess(): Promise<{
  */
 export async function purchasePackage(packageToPurchase: PurchasesPackage) {
   try {
+    console.log('[RevenueCat] Starting purchase', {
+      packageIdentifier: packageToPurchase.identifier,
+      packageType: packageToPurchase.packageType,
+      productIdentifier: packageToPurchase.product.identifier,
+      priceString: packageToPurchase.product.priceString ?? null,
+      offeringIdentifier: packageToPurchase.presentedOfferingContext?.offeringIdentifier ?? null,
+    })
+
     const { customerInfo } = await Purchases.purchasePackage(packageToPurchase)
+    console.log('[RevenueCat] Purchase completed', {
+      packageIdentifier: packageToPurchase.identifier,
+      productIdentifier: packageToPurchase.product.identifier,
+      ...getActiveEntitlementSummary(customerInfo),
+    })
     return customerInfo
   } catch (error: unknown) {
     if (
@@ -195,7 +281,7 @@ export async function purchasePackage(packageToPurchase: PurchasesPackage) {
 export async function restorePurchases() {
   try {
     const customerInfo = await Purchases.restorePurchases()
-    console.log('[RevenueCat] Purchases restored')
+    console.log('[RevenueCat] Purchases restored', getActiveEntitlementSummary(customerInfo))
     return customerInfo
   } catch (error) {
     console.error('[RevenueCat] Restore error:', error)

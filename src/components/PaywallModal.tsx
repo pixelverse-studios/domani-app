@@ -6,6 +6,7 @@ import {
   Animated,
   TouchableOpacity,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native'
 import { Crown, Check, X, RotateCcw, AlertCircle, PartyPopper } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
@@ -58,6 +59,7 @@ export function PaywallModal({
 }: PaywallModalProps) {
   const theme = useAppTheme()
   const router = useRouter()
+  const { height } = useWindowDimensions()
   const scaleAnim = React.useRef(new Animated.Value(0.9)).current
   const fadeAnim = React.useRef(new Animated.Value(0)).current
   const [error, setError] = useState<string | null>(null)
@@ -71,6 +73,27 @@ export function PaywallModal({
     null
   const priceString = lifetimePackage?.product?.priceString
   const discount = DISCOUNT_CONFIG[offeringIdentifier]
+  const isCompactHeight = height < 780
+  const isVeryCompactHeight = height < 700
+
+  const layout = {
+    overlayPadding: isVeryCompactHeight ? 12 : isCompactHeight ? 16 : 20,
+    containerPadding: isVeryCompactHeight ? 20 : isCompactHeight ? 24 : 32,
+    closeOffset: isVeryCompactHeight ? 10 : 16,
+    iconContainerSize: isVeryCompactHeight ? 72 : isCompactHeight ? 84 : 96,
+    iconSize: isVeryCompactHeight ? 36 : isCompactHeight ? 42 : 48,
+    titleFontSize: isVeryCompactHeight ? 28 : isCompactHeight ? 30 : 32,
+    titleLineHeight: isVeryCompactHeight ? 32 : isCompactHeight ? 34 : 36,
+    titleMarginTop: isVeryCompactHeight ? 16 : 24,
+    bodyFontSize: isVeryCompactHeight ? 14 : 15,
+    bodyLineHeight: isVeryCompactHeight ? 20 : 22,
+    valueSectionTop: isVeryCompactHeight ? 16 : isCompactHeight ? 20 : 24,
+    valueSectionBottom: isVeryCompactHeight ? 20 : isCompactHeight ? 24 : 28,
+    valueRowVertical: isVeryCompactHeight ? 5 : isCompactHeight ? 6 : 8,
+    checkCircleSize: isVeryCompactHeight ? 24 : isCompactHeight ? 26 : 28,
+    checkIconSize: isVeryCompactHeight ? 12 : 14,
+    restoreMarginTop: isVeryCompactHeight ? 2 : 4,
+  }
 
   // Reset error state when modal opens
   useEffect(() => {
@@ -143,17 +166,24 @@ export function PaywallModal({
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <Animated.View
-          style={[
-            styles.container,
-            {
-              backgroundColor: theme.colors.card,
-              transform: [{ scale: scaleAnim }],
-              opacity: fadeAnim,
-            },
-          ]}
-        >
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={isProcessing ? undefined : onClose}
+        style={[styles.overlay, { padding: layout.overlayPadding }]}
+      >
+        <TouchableOpacity activeOpacity={1} onPress={() => {}} style={styles.modalTouchArea}>
+          <Animated.View
+            style={[
+              styles.container,
+              {
+                backgroundColor: theme.colors.card,
+                transform: [{ scale: scaleAnim }],
+                opacity: fadeAnim,
+                padding: layout.containerPadding,
+                maxHeight: height - layout.overlayPadding * 2,
+              },
+            ]}
+          >
           {showSuccess ? (
             /* ── Success View ── */
             <Animated.View
@@ -162,22 +192,35 @@ export function PaywallModal({
               <View
                 style={[
                   styles.iconContainer,
+                  {
+                    width: layout.iconContainerSize,
+                    height: layout.iconContainerSize,
+                    borderRadius: layout.iconContainerSize / 2,
+                  },
                   { backgroundColor: `${theme.colors.brand.primary}1A` },
                 ]}
               >
-                <PartyPopper size={48} color={theme.colors.brand.primary} strokeWidth={2} />
+                <PartyPopper
+                  size={layout.iconSize}
+                  color={theme.colors.brand.primary}
+                  strokeWidth={2}
+                />
               </View>
 
               <Text
-                className="text-3xl font-sans-bold text-content-primary text-center mt-6"
-                style={{ lineHeight: 36 }}
+                className="font-sans-bold text-content-primary text-center"
+                style={{
+                  fontSize: layout.titleFontSize,
+                  lineHeight: layout.titleLineHeight,
+                  marginTop: layout.titleMarginTop,
+                }}
               >
                 You're All Set!
               </Text>
 
               <Text
                 className="font-sans text-content-secondary text-center mt-2 mb-2"
-                style={{ fontSize: 15, lineHeight: 22 }}
+                style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
               >
                 Lifetime access unlocked. Welcome to Domani.
               </Text>
@@ -188,14 +231,23 @@ export function PaywallModal({
                     <View
                       style={[
                         styles.checkCircle,
+                        {
+                          width: layout.checkCircleSize,
+                          height: layout.checkCircleSize,
+                          borderRadius: layout.checkCircleSize / 2,
+                        },
                         { backgroundColor: `${theme.colors.brand.primary}1A` },
                       ]}
                     >
-                      <Check size={14} color={theme.colors.brand.primary} strokeWidth={3} />
+                      <Check
+                        size={layout.checkIconSize}
+                        color={theme.colors.brand.primary}
+                        strokeWidth={3}
+                      />
                     </View>
                     <Text
                       className="font-sans text-content-primary ml-3"
-                      style={{ fontSize: 15, lineHeight: 22 }}
+                      style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
                     >
                       {prop}
                     </Text>
@@ -220,7 +272,7 @@ export function PaywallModal({
                 onPress={onClose}
                 disabled={isProcessing}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                style={styles.closeButton}
+                style={[styles.closeButton, { top: layout.closeOffset, right: layout.closeOffset }]}
                 accessibilityLabel="Close"
                 accessibilityRole="button"
               >
@@ -231,16 +283,25 @@ export function PaywallModal({
               <View
                 style={[
                   styles.iconContainer,
+                  {
+                    width: layout.iconContainerSize,
+                    height: layout.iconContainerSize,
+                    borderRadius: layout.iconContainerSize / 2,
+                  },
                   { backgroundColor: `${theme.colors.brand.primary}1A` },
                 ]}
               >
-                <Crown size={48} color={theme.colors.brand.primary} strokeWidth={2} />
+                <Crown size={layout.iconSize} color={theme.colors.brand.primary} strokeWidth={2} />
               </View>
 
               {/* Header */}
               <Text
-                className="text-3xl font-sans-bold text-content-primary text-center mt-6"
-                style={{ lineHeight: 36 }}
+                className="font-sans-bold text-content-primary text-center"
+                style={{
+                  fontSize: layout.titleFontSize,
+                  lineHeight: layout.titleLineHeight,
+                  marginTop: layout.titleMarginTop,
+                }}
               >
                 Get Lifetime Access
               </Text>
@@ -248,7 +309,7 @@ export function PaywallModal({
               {/* Subtitle */}
               <Text
                 className="font-sans text-content-secondary text-center mt-2"
-                style={{ fontSize: 15, lineHeight: 22 }}
+                style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
               >
                 One purchase. Yours forever.
               </Text>
@@ -274,20 +335,37 @@ export function PaywallModal({
               )}
 
               {/* Value props */}
-              <View style={styles.valueProps}>
+              <View
+                style={[
+                  styles.valueProps,
+                  {
+                    marginTop: layout.valueSectionTop,
+                    marginBottom: layout.valueSectionBottom,
+                  },
+                ]}
+              >
                 {VALUE_PROPS.map((prop) => (
-                  <View key={prop} style={styles.valuePropRow}>
+                  <View key={prop} style={[styles.valuePropRow, { paddingVertical: layout.valueRowVertical }]}>
                     <View
                       style={[
                         styles.checkCircle,
+                        {
+                          width: layout.checkCircleSize,
+                          height: layout.checkCircleSize,
+                          borderRadius: layout.checkCircleSize / 2,
+                        },
                         { backgroundColor: `${theme.colors.brand.primary}1A` },
                       ]}
                     >
-                      <Check size={14} color={theme.colors.brand.primary} strokeWidth={3} />
+                      <Check
+                        size={layout.checkIconSize}
+                        color={theme.colors.brand.primary}
+                        strokeWidth={3}
+                      />
                     </View>
                     <Text
                       className="font-sans text-content-primary ml-3"
-                      style={{ fontSize: 15, lineHeight: 22 }}
+                      style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
                     >
                       {prop}
                     </Text>
@@ -350,7 +428,7 @@ export function PaywallModal({
                 onPress={handleRestore}
                 disabled={isProcessing}
                 activeOpacity={0.7}
-                style={styles.restoreButton}
+                style={[styles.restoreButton, { marginTop: layout.restoreMarginTop }]}
                 accessibilityLabel="Restore previous purchases"
                 accessibilityRole="button"
               >
@@ -365,8 +443,9 @@ export function PaywallModal({
               </TouchableOpacity>
             </>
           )}
-        </Animated.View>
-      </View>
+          </Animated.View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   )
 }
@@ -383,8 +462,11 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 380,
     borderRadius: 24,
-    padding: 32,
     alignItems: 'center',
+  },
+  modalTouchArea: {
+    width: '100%',
+    maxWidth: 380,
   },
   closeButton: {
     position: 'absolute',
@@ -393,9 +475,6 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   iconContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -409,8 +488,6 @@ const styles = StyleSheet.create({
   },
   valueProps: {
     width: '100%',
-    marginTop: 24,
-    marginBottom: 28,
   },
   valuePropRow: {
     flexDirection: 'row',
@@ -450,6 +527,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    marginTop: 4,
   },
 })

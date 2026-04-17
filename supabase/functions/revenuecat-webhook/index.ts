@@ -92,6 +92,22 @@ interface RevenueCatWebhookPayload {
 
 const REVENUECAT_WEBHOOK_SECRET = Deno.env.get('REVENUECAT_WEBHOOK_SECRET')
 
+function getEventLogContext(event: RevenueCatWebhookEvent) {
+  return {
+    eventType: event.type,
+    eventId: event.id ?? null,
+    appUserId: event.app_user_id,
+    productId: typeof event.product_id === 'string' ? event.product_id : null,
+    entitlementIds: Array.isArray(event.entitlement_ids) ? event.entitlement_ids : [],
+    store: typeof event.store === 'string' ? event.store : null,
+    environment: typeof event.environment === 'string' ? event.environment : null,
+    eventTimestampMs: typeof event.event_timestamp_ms === 'number' ? event.event_timestamp_ms : null,
+    originalTransactionId:
+      typeof event.original_transaction_id === 'string' ? event.original_transaction_id : null,
+    transactionId: typeof event.transaction_id === 'string' ? event.transaction_id : null,
+  }
+}
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -167,6 +183,8 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   )
 
+  console.log('[revenuecat-webhook] received event', getEventLogContext(event))
+
   // --- Event routing -----------------------------------------------------
   try {
     switch (event.type) {
@@ -202,18 +220,17 @@ Deno.serve(async (req) => {
 
         if (error) {
           console.error('[revenuecat-webhook] failed to grant lifetime access:', {
+            ...getEventLogContext(event),
             userId,
             error,
-            eventType: event.type,
-            eventId: event.id,
           })
           return jsonResponse({ error: 'Database error' }, 500)
         }
 
         console.log('[revenuecat-webhook] granted lifetime access', {
+          ...getEventLogContext(event),
           userId,
-          eventType: event.type,
-          eventId: event.id,
+          updatedTier: 'lifetime',
         })
         break
       }
@@ -242,16 +259,17 @@ Deno.serve(async (req) => {
 
         if (error) {
           console.error('[revenuecat-webhook] failed to revoke access:', {
+            ...getEventLogContext(event),
             userId,
             error,
-            eventId: event.id,
           })
           return jsonResponse({ error: 'Database error' }, 500)
         }
 
         console.log('[revenuecat-webhook] revoked access (refund)', {
+          ...getEventLogContext(event),
           userId,
-          eventId: event.id,
+          updatedTier: 'none',
         })
         break
       }
@@ -262,9 +280,7 @@ Deno.serve(async (req) => {
         // without crashing the function or returning an error that
         // would trigger RC's retry machinery.
         console.log('[revenuecat-webhook] unhandled event type', {
-          type: event.type,
-          app_user_id: event.app_user_id,
-          event_id: event.id,
+          ...getEventLogContext(event),
         })
       }
     }
