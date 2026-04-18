@@ -139,6 +139,7 @@ export function useAppConfig() {
     showBadge: store.showBadge,
     features: store.features,
     publicPricing: store.publicPricing,
+    hasFetchedConfig: store.lastFetchedAt !== null,
     isLoading: store.isLoading,
     error: store.error,
     fetchConfig: store.fetchConfig,

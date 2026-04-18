@@ -32,12 +32,12 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets()
   const { signInWithGoogle, signInWithApple } = useAuth()
   const theme = useAppTheme()
-  const { publicPricing } = useAppConfig()
+  const { publicPricing, hasFetchedConfig } = useAppConfig()
   const brandColor = theme.colors.brand.primary
 
   // Determine if this is a new user or returning user
   const isNewUser = mode === 'new'
-  const lifetimePrice = PUBLIC_LIFETIME_PRICE_COPY[publicPricing]
+  const lifetimePrice = hasFetchedConfig ? PUBLIC_LIFETIME_PRICE_COPY[publicPricing] : null
 
   const [googleLoading, setGoogleLoading] = useState(false)
   const [appleLoading, setAppleLoading] = useState(false)
@@ -166,7 +166,9 @@ export default function LoginScreen() {
                     </View>
                     <View style={styles.stepCopy}>
                       <Text style={[styles.stepLabel, { color: theme.colors.text.primary }]}>
-                        Keep it for {lifetimePrice} once
+                        {lifetimePrice
+                          ? `Keep it for ${lifetimePrice} once`
+                          : 'Keep it with one lifetime purchase'}
                       </Text>
                       <Text style={[styles.stepBody, { color: theme.colors.text.secondary }]}>
                         No credit card up front. No subscription after the trial.
