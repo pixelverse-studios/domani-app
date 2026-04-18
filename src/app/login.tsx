@@ -9,6 +9,13 @@ import { SocialButton } from '~/components/ui/SocialButton'
 import { useAuth } from '~/hooks/useAuth'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
+import { useAppConfig } from '~/stores/appConfigStore'
+
+const PHASE_PRICING_COPY = {
+  closed_beta: '$4.99',
+  open_beta: '$9.99',
+  production: '$34.99',
+} as const
 
 export default function LoginScreen() {
   useScreenTracking('login')
@@ -17,10 +24,12 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets()
   const { signInWithGoogle, signInWithApple } = useAuth()
   const theme = useAppTheme()
+  const { phase } = useAppConfig()
   const brandColor = theme.colors.brand.primary
 
   // Determine if this is a new user or returning user
   const isNewUser = mode === 'new'
+  const lifetimePrice = PHASE_PRICING_COPY[phase]
 
   const [googleLoading, setGoogleLoading] = useState(false)
   const [appleLoading, setAppleLoading] = useState(false)
@@ -76,14 +85,34 @@ export default function LoginScreen() {
         <View style={styles.headerSection}>
           {/* Title - using RNText to avoid line-height clipping */}
           <RNText style={[styles.title, { color: brandColor }]}>
-            {isNewUser ? "Let's Get Started" : 'Welcome Back'}
+            {isNewUser ? 'Start your 14-day free trial' : 'Welcome Back'}
           </RNText>
 
           <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
             {isNewUser
-              ? 'Create an account to start planning\nyour tomorrow'
+              ? `Full access for 14 days. Then ${lifetimePrice} once for lifetime access.`
               : 'Sign in to continue planning\nyour tomorrow'}
           </Text>
+
+          {isNewUser && (
+            <View
+              style={[
+                styles.trialCard,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.trialCardTitle, { color: theme.colors.text.primary }]}>
+                Signing up starts your free trial immediately.
+              </Text>
+              <Text style={[styles.trialCardBody, { color: theme.colors.text.secondary }]}>
+                No credit card required. Try every feature first, then decide if you want
+                lifetime access.
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Sign in buttons section */}
@@ -91,11 +120,21 @@ export default function LoginScreen() {
           <View style={styles.buttonsContainer}>
             {/* Sign in with Apple - first per iOS guidelines, only shown on iOS */}
             {Platform.OS === 'ios' && (
-              <SocialButton provider="apple" onPress={handleAppleSignIn} loading={appleLoading} />
+              <SocialButton
+                provider="apple"
+                onPress={handleAppleSignIn}
+                loading={appleLoading}
+                label={isNewUser ? 'Start Free Trial with Apple' : undefined}
+              />
             )}
 
             {/* Sign in with Google */}
-            <SocialButton provider="google" onPress={handleGoogleSignIn} loading={googleLoading} />
+            <SocialButton
+              provider="google"
+              onPress={handleGoogleSignIn}
+              loading={googleLoading}
+              label={isNewUser ? 'Start Free Trial with Google' : undefined}
+            />
           </View>
 
           {/* Footer */}
@@ -150,6 +189,28 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 0.3,
     lineHeight: 24,
+  },
+  trialCard: {
+    width: '100%',
+    marginTop: 28,
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    gap: 8,
+  },
+  trialCardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 21,
+  },
+  trialCardBody: {
+    fontSize: 14,
+    fontWeight: '400',
+    textAlign: 'center',
+    lineHeight: 21,
+    letterSpacing: 0.2,
   },
   buttonsSection: {
     width: '100%',
