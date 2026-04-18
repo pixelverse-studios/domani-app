@@ -1,5 +1,13 @@
 import React, { useState } from 'react'
-import { Alert, Platform, StyleSheet, Text as RNText, TouchableOpacity, View } from 'react-native'
+import {
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text as RNText,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -9,6 +17,13 @@ import { SocialButton } from '~/components/ui/SocialButton'
 import { useAuth } from '~/hooks/useAuth'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
+import { useAppConfig } from '~/stores/appConfigStore'
+import type { PublicPricingTier } from '~/types/appConfig'
+
+const PUBLIC_LIFETIME_PRICE_COPY: Record<PublicPricingTier, string> = {
+  early_adopter: '$9.99',
+  standard: '$34.99',
+}
 
 export default function LoginScreen() {
   useScreenTracking('login')
@@ -17,10 +32,12 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets()
   const { signInWithGoogle, signInWithApple } = useAuth()
   const theme = useAppTheme()
+  const { publicPricing, hasFetchedConfig } = useAppConfig()
   const brandColor = theme.colors.brand.primary
 
   // Determine if this is a new user or returning user
   const isNewUser = mode === 'new'
+  const lifetimePrice = hasFetchedConfig ? PUBLIC_LIFETIME_PRICE_COPY[publicPricing] : null
 
   const [googleLoading, setGoogleLoading] = useState(false)
   const [appleLoading, setAppleLoading] = useState(false)
@@ -70,49 +87,167 @@ export default function LoginScreen() {
         end={{ x: 0.1, y: 0.7 }}
       />
 
-      {/* Main content */}
-      <View style={[styles.content, { paddingTop: insets.top + 120 }]}>
-        {/* Header section - no icon, just text */}
-        <View style={styles.headerSection}>
-          {/* Title - using RNText to avoid line-height clipping */}
-          <RNText style={[styles.title, { color: brandColor }]}>
-            {isNewUser ? "Let's Get Started" : 'Welcome Back'}
-          </RNText>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: insets.top + 28,
+            paddingBottom: insets.bottom + 20,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.content}>
+          <View style={styles.headerSection}>
+            {isNewUser ? (
+              <>
+                <View
+                  style={[
+                    styles.offerEyebrow,
+                  ]}
+                >
+                  <Text style={[styles.offerEyebrowText, { color: brandColor }]}>
+                    Try Domani free before you buy it
+                  </Text>
+                </View>
 
-          <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
-            {isNewUser
-              ? 'Create an account to start planning\nyour tomorrow'
-              : 'Sign in to continue planning\nyour tomorrow'}
-          </Text>
-        </View>
+                <RNText style={[styles.title, styles.titleCompact, { color: brandColor }]}>
+                  Start your 14-day free trial
+                </RNText>
 
-        {/* Sign in buttons section */}
-        <View style={[styles.buttonsSection, { paddingBottom: insets.bottom + 32 }]}>
-          <View style={styles.buttonsContainer}>
-            {/* Sign in with Apple - first per iOS guidelines, only shown on iOS */}
-            {Platform.OS === 'ios' && (
-              <SocialButton provider="apple" onPress={handleAppleSignIn} loading={appleLoading} />
+                <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
+                  Full access first. One lifetime purchase only if you want to keep it.
+                </Text>
+
+                <View style={styles.stepsStack}>
+                  <View
+                    style={[
+                      styles.stepCard,
+                      {
+                        backgroundColor: theme.colors.card,
+                        borderColor: theme.colors.border.primary,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.stepIndex,
+                        { backgroundColor: `${theme.colors.brand.primary}18` },
+                      ]}
+                    >
+                      <Text style={[styles.stepIndexText, { color: brandColor }]}>1</Text>
+                    </View>
+                    <View style={styles.stepCopy}>
+                      <Text style={[styles.stepLabel, { color: theme.colors.text.primary }]}>
+                        Start free today
+                      </Text>
+                      <Text style={[styles.stepBody, { color: theme.colors.text.secondary }]}>
+                        Your full 14-day trial begins as soon as you sign up.
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.stepCard,
+                      {
+                        backgroundColor: theme.colors.card,
+                        borderColor: theme.colors.border.primary,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.stepIndex,
+                        { backgroundColor: `${theme.colors.brand.primary}18` },
+                      ]}
+                    >
+                      <Text style={[styles.stepIndexText, { color: brandColor }]}>2</Text>
+                    </View>
+                    <View style={styles.stepCopy}>
+                      <Text style={[styles.stepLabel, { color: theme.colors.text.primary }]}>
+                        {lifetimePrice
+                          ? `Keep it for ${lifetimePrice} once`
+                          : 'Keep it with one lifetime purchase'}
+                      </Text>
+                      <Text style={[styles.stepBody, { color: theme.colors.text.secondary }]}>
+                        No credit card up front. No subscription after the trial.
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.offerEyebrow}>
+                  <Text style={[styles.offerEyebrowText, { color: brandColor }]}>
+                    Pick up where you left off
+                  </Text>
+                </View>
+
+                <RNText style={[styles.title, styles.titleCompact, { color: brandColor }]}>
+                  Welcome Back
+                </RNText>
+
+                <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
+                  Sign in to continue planning your tomorrow.
+                </Text>
+
+                <View
+                  style={[
+                    styles.returningCard,
+                    {
+                      backgroundColor: theme.colors.card,
+                      borderColor: theme.colors.border.primary,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.returningCardTitle, { color: theme.colors.text.primary }]}>
+                    Your plans are waiting for you.
+                  </Text>
+                  <Text style={[styles.returningCardBody, { color: theme.colors.text.secondary }]}>
+                    Sign in to get back to your tasks, reminders, and momentum.
+                  </Text>
+                </View>
+              </>
             )}
-
-            {/* Sign in with Google */}
-            <SocialButton provider="google" onPress={handleGoogleSignIn} loading={googleLoading} />
           </View>
 
-          {/* Footer */}
-          <LegalFooter />
+          <View style={styles.footerSection}>
+            <View style={styles.buttonsSection}>
+              {Platform.OS === 'ios' && (
+                <SocialButton
+                  provider="apple"
+                  onPress={handleAppleSignIn}
+                  loading={appleLoading}
+                  label={isNewUser ? 'Start Free Trial with Apple' : undefined}
+                />
+              )}
 
-          {/* Back button */}
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.backButtonText, { color: theme.colors.text.tertiary }]}>
-              ← Back
-            </Text>
-          </TouchableOpacity>
+              <SocialButton
+                provider="google"
+                onPress={handleGoogleSignIn}
+                loading={googleLoading}
+                label={isNewUser ? 'Start Free Trial with Google' : undefined}
+              />
+            </View>
+
+            <View style={styles.legalSection}>
+              <LegalFooter />
+
+              <TouchableOpacity
+                onPress={() => router.back()}
+                style={styles.backButton}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.backButtonText, { color: theme.colors.text.tertiary }]}>
+                  ← Back
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </View>
   )
 }
@@ -128,21 +263,41 @@ const styles = StyleSheet.create({
     right: 0,
     height: '65%',
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
   content: {
     flex: 1,
-    justifyContent: 'space-between',
     paddingHorizontal: 32,
+    width: '100%',
+    maxWidth: 432,
+    alignSelf: 'center',
   },
   headerSection: {
     alignItems: 'center',
-    marginTop: 40,
+    paddingTop: 12,
+  },
+  offerEyebrow: {
+    marginBottom: 22,
+  },
+  offerEyebrowText: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1,
+    textAlign: 'center',
+    textTransform: 'uppercase',
   },
   title: {
-    fontSize: 42,
+    fontSize: 38,
     fontWeight: '700',
-    letterSpacing: 0.5,
-    marginBottom: 16,
+    letterSpacing: 0.2,
     textAlign: 'center',
+    lineHeight: 46,
+    maxWidth: 320,
+  },
+  titleCompact: {
+    fontSize: 34,
+    lineHeight: 42,
   },
   subtitle: {
     fontSize: 16,
@@ -150,17 +305,81 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 0.3,
     lineHeight: 24,
+    marginTop: 14,
+    maxWidth: 332,
+  },
+  stepsStack: {
+    width: '100%',
+    gap: 12,
+    marginTop: 22,
+  },
+  stepCard: {
+    width: '100%',
+    borderWidth: 1,
+    borderRadius: 22,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+  stepIndex: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepIndexText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  stepCopy: {
+    flex: 1,
+  },
+  stepLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 21,
+  },
+  stepBody: {
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 4,
+  },
+  returningCard: {
+    width: '100%',
+    marginTop: 22,
+    borderWidth: 1,
+    borderRadius: 22,
+    paddingHorizontal: 22,
+    paddingVertical: 20,
+  },
+  returningCardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 21,
+  },
+  returningCardBody: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 21,
+    marginTop: 8,
+  },
+  footerSection: {
+    marginTop: 'auto',
+    paddingTop: 28,
   },
   buttonsSection: {
     width: '100%',
-  },
-  buttonsContainer: {
-    width: '100%',
     gap: 14,
-    marginBottom: 28,
+  },
+  legalSection: {
+    marginTop: 28,
   },
   backButton: {
-    marginTop: 24,
+    marginTop: 22,
     paddingVertical: 12,
     alignItems: 'center',
   },

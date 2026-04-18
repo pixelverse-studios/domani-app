@@ -3,7 +3,14 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 import { supabase } from '~/lib/supabase'
-import type { AppPhase, PhaseConfig, FeatureFlags, FeatureFlagsByPhase } from '~/types/appConfig'
+import type {
+  AppPhase,
+  PhaseConfig,
+  FeatureFlags,
+  FeatureFlagsByPhase,
+  PublicPricingConfig,
+  PublicPricingTier,
+} from '~/types/appConfig'
 
 // Default feature flags (fallback when remote config unavailable)
 const DEFAULT_FEATURES: FeatureFlags = {
@@ -18,11 +25,13 @@ interface AppConfigState {
   showBadge: boolean
   features: FeatureFlags
   featureFlagsByPhase: FeatureFlagsByPhase | null
+  publicPricing: PublicPricingTier
 
   // Loading state
   isLoading: boolean
   error: string | null
   lastFetchedAt: number | null
+  hasFetchedConfigThisSession: boolean
 
   // Actions
   fetchConfig: () => Promise<void>
@@ -38,9 +47,11 @@ export const useAppConfigStore = create<AppConfigState>()(
       showBadge: true,
       features: DEFAULT_FEATURES,
       featureFlagsByPhase: null,
+      publicPricing: 'early_adopter',
       isLoading: false,
       error: null,
       lastFetchedAt: null,
+      hasFetchedConfigThisSession: false,
 
       fetchConfig: async () => {
         set({ isLoading: true, error: null })
@@ -54,6 +65,7 @@ export const useAppConfigStore = create<AppConfigState>()(
           let phase: AppPhase = 'closed_beta'
           let showBadge = true
           let featureFlagsByPhase: FeatureFlagsByPhase | null = null
+          let publicPricing: PublicPricingTier = 'early_adopter'
 
           // Parse config rows
           for (const row of data || []) {
@@ -63,6 +75,14 @@ export const useAppConfigStore = create<AppConfigState>()(
               showBadge = phaseConfig.show_badge
             } else if (row.key === 'feature_flags') {
               featureFlagsByPhase = row.value as unknown as FeatureFlagsByPhase
+            } else if (row.key === 'public_pricing') {
+              const publicPricingConfig = row.value as unknown as PublicPricingConfig
+              if (
+                publicPricingConfig.tier === 'early_adopter' ||
+                publicPricingConfig.tier === 'standard'
+              ) {
+                publicPricing = publicPricingConfig.tier
+              }
             }
           }
 
@@ -74,8 +94,10 @@ export const useAppConfigStore = create<AppConfigState>()(
             showBadge,
             features,
             featureFlagsByPhase,
+            publicPricing,
             isLoading: false,
             lastFetchedAt: Date.now(),
+            hasFetchedConfigThisSession: true,
           })
         } catch (err) {
           const errorMessage = err instanceof Error ? err.message : 'Failed to fetch app config'
@@ -104,6 +126,7 @@ export const useAppConfigStore = create<AppConfigState>()(
         showBadge: state.showBadge,
         features: state.features,
         featureFlagsByPhase: state.featureFlagsByPhase,
+        publicPricing: state.publicPricing,
         lastFetchedAt: state.lastFetchedAt,
       }),
     },
@@ -118,6 +141,8 @@ export function useAppConfig() {
     phase: store.phase,
     showBadge: store.showBadge,
     features: store.features,
+    publicPricing: store.publicPricing,
+    hasFetchedConfig: store.hasFetchedConfigThisSession,
     isLoading: store.isLoading,
     error: store.error,
     fetchConfig: store.fetchConfig,
