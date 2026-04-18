@@ -4,6 +4,8 @@ import { Platform } from 'react-native'
 // RevenueCat API keys - these should be in environment variables for production
 const REVENUECAT_API_KEY_IOS = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || ''
 const REVENUECAT_API_KEY_ANDROID = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY || ''
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || ''
+const REVENUECAT_ENTITLEMENT_ID = process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID || ''
 
 // Product identifiers (configure these in RevenueCat dashboard)
 // Lifetime-only model - no subscriptions
@@ -11,9 +13,32 @@ export const PRODUCT_IDS = {
   LIFETIME: 'domani_lifetime',
 } as const
 
+function resolveEntitlementId() {
+  if (REVENUECAT_ENTITLEMENT_ID) return REVENUECAT_ENTITLEMENT_ID
+
+  if (SUPABASE_URL.includes('ftgltnzejaxasdvfkqut.supabase.co')) {
+    return 'Domani Staging Lifetime'
+  }
+
+  if (
+    SUPABASE_URL.includes('domani.supabase.co') ||
+    SUPABASE_URL.includes('exxnnlhxcjujxnnwwrxv.supabase.co')
+  ) {
+    return 'Domani Lifetime'
+  }
+
+  console.warn(
+    '[RevenueCat] Could not infer entitlement ID from EXPO_PUBLIC_SUPABASE_URL; defaulting to staging entitlement',
+    {
+      supabaseUrl: SUPABASE_URL || null,
+    },
+  )
+
+  return 'Domani Staging Lifetime'
+}
+
 // Entitlement identifier (configure in RevenueCat dashboard)
-export const ENTITLEMENT_ID =
-  process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID || 'Domani Staging Lifetime'
+export const ENTITLEMENT_ID = resolveEntitlementId()
 
 // Beta sunset date - after this, new users get general pricing
 export const BETA_END_DATE = new Date('2026-03-01T00:00:00Z')
