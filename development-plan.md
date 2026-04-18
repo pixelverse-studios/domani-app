@@ -649,24 +649,5 @@ Each plan should have exactly ONE Most Important Task. If user changes MIT, prev
 - **Project ID**: `cf44c86e-0ee8-44b2-8c52-3de64a6fa2e2`
 - **Current Milestone**: Alpha
 
----
-
-## Audit Trail Requirement
-
-Every development session should create/update an audit file:
-
-```
-docs/audits/mobile/YYYY-MM-DD-feature-name.md
-```
-
-Include:
-
-- What was implemented
-- Technical decisions made
-- Files created/modified
-- Next steps
-- Any blockers or concerns
-
----
 
 _Last Updated: January 2025_
