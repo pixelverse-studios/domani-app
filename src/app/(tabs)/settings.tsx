@@ -304,6 +304,7 @@ function SettingsContent() {
           isStartingTrial={subscription.isStartingTrial}
           isRestoring={subscription.isRestoring}
           trialDaysRemaining={subscription.trialDaysRemaining}
+          trialExpirationDate={subscription.trialExpirationDate}
           onStartTrial={() => subscription.startTrial()}
           onRestore={async () => {
             try {

@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { Crown, Sparkles, RotateCcw } from 'lucide-react-native'
+import { format } from 'date-fns'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
@@ -14,6 +15,7 @@ interface SubscriptionSectionProps {
   isStartingTrial: boolean
   isRestoring: boolean
   trialDaysRemaining: number | null
+  trialExpirationDate: Date | null
   onStartTrial: () => void
   onRestore: () => void
   onUpgrade: () => void
@@ -31,6 +33,7 @@ export function SubscriptionSection({
   isStartingTrial,
   isRestoring,
   trialDaysRemaining,
+  trialExpirationDate,
   onStartTrial,
   onRestore,
   onUpgrade,
@@ -216,7 +219,9 @@ export function SubscriptionSection({
                   </Text>
                 </View>
                 <Text className="text-sm text-content-secondary mb-3">
-                  Unlimited tasks - All features unlocked
+                  {trialExpirationDate
+                    ? `Unlimited tasks - All features unlocked through ${format(trialExpirationDate, 'MMMM d')}`
+                    : 'Unlimited tasks - All features unlocked'}
                 </Text>
                 <TouchableOpacity
                   onPress={onUpgrade}
