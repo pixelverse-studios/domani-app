@@ -7,18 +7,21 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "SENTRY_ENVIRONMENT": "development"
+        "SENTRY_ENVIRONMENT": "development",
+        "EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID": "Domani Staging Lifetime"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "SENTRY_ENVIRONMENT": "preview"
+        "SENTRY_ENVIRONMENT": "preview",
+        "EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID": "Domani Staging Lifetime"
       }
     },
     "production": {
       "env": {
-        "SENTRY_ENVIRONMENT": "production"
+        "SENTRY_ENVIRONMENT": "production",
+        "EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID": "Domani Lifetime"
       }
     }
   },

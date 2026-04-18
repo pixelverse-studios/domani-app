@@ -209,6 +209,11 @@ export function useSubscription() {
       if (!isInitialized || isBeta) return null
       try {
         const info = await Purchases.getCustomerInfo()
+        console.log('[useSubscription] Loaded RevenueCat customer info', {
+          userId: user?.id ?? null,
+          originalAppUserId: info.originalAppUserId,
+          activeEntitlementIds: Object.keys(info.entitlements.active ?? {}),
+        })
         return info
       } catch (error) {
         // RevenueCat might not be configured - return null gracefully
@@ -375,6 +380,15 @@ export function useSubscription() {
   // Purchase subscription
   const purchaseMutation = useMutation({
     mutationFn: async (pkg: PurchasesPackage) => {
+      console.log('[useSubscription] Purchase mutation started', {
+        userId: user?.id ?? null,
+        offeringIdentifier,
+        signupCohort: profile?.signup_cohort ?? null,
+        packageIdentifier: pkg.identifier,
+        packageType: pkg.packageType,
+        productIdentifier: pkg.product.identifier,
+      })
+
       const info = await purchasePackage(pkg)
       if (info) {
         // Sync to Supabase
@@ -382,7 +396,12 @@ export function useSubscription() {
       }
       return info
     },
-    onSuccess: () => {
+    onSuccess: (info) => {
+      console.log('[useSubscription] Purchase mutation completed', {
+        userId: user?.id ?? null,
+        hasCustomerInfo: !!info,
+        activeEntitlementIds: info ? Object.keys(info.entitlements.active ?? {}) : [],
+      })
       refetchCustomerInfo()
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
     },
@@ -391,11 +410,19 @@ export function useSubscription() {
   // Restore purchases — returns null if no active entitlement found
   const restoreMutation = useMutation({
     mutationFn: async () => {
+      console.log('[useSubscription] Restore mutation started', {
+        userId: user?.id ?? null,
+      })
       const info = await restorePurchases()
       if (info) {
         await syncSubscriptionToSupabase(user?.id, info)
       }
       const hasEntitlement = !!info?.entitlements.active[ENTITLEMENT_ID]
+      console.log('[useSubscription] Restore mutation result', {
+        userId: user?.id ?? null,
+        hasEntitlement,
+        activeEntitlementIds: info ? Object.keys(info.entitlements.active ?? {}) : [],
+      })
       return hasEntitlement ? info : null
     },
     onSuccess: () => {
@@ -567,12 +594,25 @@ async function syncSubscriptionToSupabase(userId: string | undefined, customerIn
 
   const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID]
 
+  console.log('[useSubscription] Syncing RevenueCat state to Supabase', {
+    userId,
+    originalAppUserId: customerInfo.originalAppUserId,
+    entitlementId: ENTITLEMENT_ID,
+    hasEntitlement: !!entitlement,
+    activeEntitlementIds: Object.keys(customerInfo.entitlements.active ?? {}),
+  })
+
   // Always update revenuecat_user_id so the customer is linked
   const { error: rcError } = await supabase
     .from('profiles')
     .update({ revenuecat_user_id: customerInfo.originalAppUserId })
     .eq('id', userId)
   if (rcError) throw rcError
+
+  console.log('[useSubscription] Linked RevenueCat user in Supabase', {
+    userId,
+    revenuecatUserId: customerInfo.originalAppUserId,
+  })
 
   // Only update tier when there is an active entitlement — never write 'none'
   // unconditionally, as a RevenueCat propagation delay could downgrade a valid user
@@ -582,5 +622,12 @@ async function syncSubscriptionToSupabase(userId: string | undefined, customerIn
 
     const { error: tierError } = await supabase.from('profiles').update({ tier }).eq('id', userId)
     if (tierError) throw tierError
+
+    console.log('[useSubscription] Updated Supabase tier from RevenueCat', {
+      userId,
+      tier,
+      entitlementId: ENTITLEMENT_ID,
+      productIdentifier: entitlement.productIdentifier ?? null,
+    })
   }
 }
