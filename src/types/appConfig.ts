@@ -7,6 +7,7 @@
 
 // App phases - matches the database enum
 export type AppPhase = 'closed_beta' | 'open_beta' | 'production'
+export type PublicPricingTier = 'early_adopter' | 'standard'
 
 // Phase configuration (stored in app_config.value for key='phase')
 export interface PhaseConfig {
@@ -21,12 +22,17 @@ export interface FeatureFlags {
   invite_required: boolean
 }
 
+// Public login/signup pricing config (stored in app_config.value for key='public_pricing')
+export interface PublicPricingConfig {
+  tier: PublicPricingTier
+}
+
 export type FeatureFlagsByPhase = Record<AppPhase, FeatureFlags>
 
 // Raw database row type
 export interface AppConfigRow {
   key: string
-  value: PhaseConfig | FeatureFlagsByPhase
+  value: PhaseConfig | FeatureFlagsByPhase | PublicPricingConfig
   updated_at: string
 }
 
@@ -35,6 +41,7 @@ export interface AppConfig {
   phase: AppPhase
   showBadge: boolean
   features: FeatureFlags
+  publicPricing: PublicPricingTier
   isLoading: boolean
   error: string | null
 }
