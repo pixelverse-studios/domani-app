@@ -31,6 +31,7 @@ interface AppConfigState {
   isLoading: boolean
   error: string | null
   lastFetchedAt: number | null
+  hasFetchedConfigThisSession: boolean
 
   // Actions
   fetchConfig: () => Promise<void>
@@ -50,6 +51,7 @@ export const useAppConfigStore = create<AppConfigState>()(
       isLoading: false,
       error: null,
       lastFetchedAt: null,
+      hasFetchedConfigThisSession: false,
 
       fetchConfig: async () => {
         set({ isLoading: true, error: null })
@@ -95,6 +97,7 @@ export const useAppConfigStore = create<AppConfigState>()(
             publicPricing,
             isLoading: false,
             lastFetchedAt: Date.now(),
+            hasFetchedConfigThisSession: true,
           })
         } catch (err) {
           const errorMessage = err instanceof Error ? err.message : 'Failed to fetch app config'
@@ -139,7 +142,7 @@ export function useAppConfig() {
     showBadge: store.showBadge,
     features: store.features,
     publicPricing: store.publicPricing,
-    hasFetchedConfig: store.lastFetchedAt !== null,
+    hasFetchedConfig: store.hasFetchedConfigThisSession,
     isLoading: store.isLoading,
     error: store.error,
     fetchConfig: store.fetchConfig,
