@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import {
   Alert,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -41,6 +42,7 @@ export default function LoginScreen() {
 
   const [googleLoading, setGoogleLoading] = useState(false)
   const [appleLoading, setAppleLoading] = useState(false)
+  const [trialConfirmProvider, setTrialConfirmProvider] = useState<'google' | 'apple' | null>(null)
 
   const handleGoogleSignIn = async () => {
     try {
@@ -71,6 +73,39 @@ export default function LoginScreen() {
       setAppleLoading(false)
     }
   }
+
+  const closeTrialConfirmation = () => {
+    if (googleLoading || appleLoading) return
+    setTrialConfirmProvider(null)
+  }
+
+  const handleProviderPress = (provider: 'google' | 'apple') => {
+    if (!isNewUser) {
+      if (provider === 'apple') {
+        void handleAppleSignIn()
+      } else {
+        void handleGoogleSignIn()
+      }
+      return
+    }
+
+    setTrialConfirmProvider(provider)
+  }
+
+  const handleTrialConfirmation = () => {
+    const provider = trialConfirmProvider
+    setTrialConfirmProvider(null)
+
+    if (provider === 'apple') {
+      void handleAppleSignIn()
+      return
+    }
+
+    void handleGoogleSignIn()
+  }
+
+  const trialConfirmLabel =
+    trialConfirmProvider === 'apple' ? 'Continue with Apple' : 'Continue with Google'
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -218,7 +253,7 @@ export default function LoginScreen() {
               {Platform.OS === 'ios' && (
                 <SocialButton
                   provider="apple"
-                  onPress={handleAppleSignIn}
+                  onPress={() => handleProviderPress('apple')}
                   loading={appleLoading}
                   label={isNewUser ? 'Start Free Trial with Apple' : undefined}
                 />
@@ -226,7 +261,7 @@ export default function LoginScreen() {
 
               <SocialButton
                 provider="google"
-                onPress={handleGoogleSignIn}
+                onPress={() => handleProviderPress('google')}
                 loading={googleLoading}
                 label={isNewUser ? 'Start Free Trial with Google' : undefined}
               />
@@ -248,6 +283,102 @@ export default function LoginScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={trialConfirmProvider !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={closeTrialConfirmation}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: theme.colors.card,
+                borderColor: theme.colors.border.primary,
+              },
+            ]}
+          >
+            <Text style={[styles.modalEyebrow, { color: brandColor }]}>Before you continue</Text>
+
+            <RNText style={[styles.modalTitle, { color: theme.colors.text.primary }]}>
+              You’re starting a 14-day free trial
+            </RNText>
+
+            <Text style={[styles.modalBody, { color: theme.colors.text.secondary }]}>
+              By continuing, you’re creating your account and starting your free trial right
+              away.
+            </Text>
+
+            <View style={styles.modalPoints}>
+              <View style={styles.modalPointRow}>
+                <View
+                  style={[
+                    styles.modalPointDot,
+                    { backgroundColor: `${theme.colors.brand.primary}20` },
+                  ]}
+                />
+                <Text style={[styles.modalPointText, { color: theme.colors.text.secondary }]}>
+                  Full access for 14 days
+                </Text>
+              </View>
+
+              <View style={styles.modalPointRow}>
+                <View
+                  style={[
+                    styles.modalPointDot,
+                    { backgroundColor: `${theme.colors.brand.primary}20` },
+                  ]}
+                />
+                <Text style={[styles.modalPointText, { color: theme.colors.text.secondary }]}>
+                  Then {lifetimePrice ?? 'one lifetime purchase'} if you want to keep Domani
+                </Text>
+              </View>
+
+              <View style={styles.modalPointRow}>
+                <View
+                  style={[
+                    styles.modalPointDot,
+                    { backgroundColor: `${theme.colors.brand.primary}20` },
+                  ]}
+                />
+                <Text style={[styles.modalPointText, { color: theme.colors.text.secondary }]}>
+                  No credit card required up front
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                onPress={closeTrialConfirmation}
+                disabled={googleLoading || appleLoading}
+                activeOpacity={0.8}
+                style={[
+                  styles.modalSecondaryButton,
+                  { backgroundColor: theme.colors.background },
+                ]}
+              >
+                <Text style={[styles.modalSecondaryButtonText, { color: theme.colors.text.primary }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleTrialConfirmation}
+                disabled={googleLoading || appleLoading}
+                activeOpacity={0.85}
+                style={[
+                  styles.modalPrimaryButton,
+                  { backgroundColor: brandColor, opacity: googleLoading || appleLoading ? 0.7 : 1 },
+                ]}
+              >
+                <Text style={styles.modalPrimaryButtonText}>{trialConfirmLabel}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -377,6 +508,81 @@ const styles = StyleSheet.create({
   },
   legalSection: {
     marginTop: 28,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(41, 48, 44, 0.36)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    borderWidth: 1,
+    borderRadius: 28,
+    paddingHorizontal: 24,
+    paddingVertical: 26,
+  },
+  modalEyebrow: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+  },
+  modalTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    lineHeight: 34,
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  modalBody: {
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  modalPoints: {
+    gap: 12,
+    marginTop: 22,
+  },
+  modalPointRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  modalPointDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginTop: 6,
+  },
+  modalPointText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  modalActions: {
+    gap: 10,
+    marginTop: 24,
+  },
+  modalSecondaryButton: {
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalSecondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  modalPrimaryButton: {
+    borderRadius: 16,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  modalPrimaryButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
   },
   backButton: {
     marginTop: 22,
