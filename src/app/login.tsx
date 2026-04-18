@@ -104,81 +104,115 @@ export default function LoginScreen() {
       >
         <View style={styles.content}>
           <View style={styles.headerSection}>
-            {isNewUser && (
-              <View
-                style={[
-                  styles.offerBadge,
-                  {
-                    backgroundColor: `${theme.colors.brand.primary}14`,
-                    borderColor: `${theme.colors.brand.primary}22`,
-                  },
-                ]}
-              >
-                <Text style={[styles.offerBadgeText, { color: brandColor }]}>
-                  14 days free, then yours forever
-                </Text>
-              </View>
-            )}
-
-            <RNText style={[styles.title, { color: brandColor }]}>
-              {isNewUser ? 'Start your 14-day free trial' : 'Welcome Back'}
-            </RNText>
-
-            <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
-              {isNewUser
-                ? `Full access for 14 days. Then ${lifetimePrice} once for lifetime access.`
-                : 'Sign in to continue planning your tomorrow.'}
-            </Text>
-
-            {isNewUser && (
-              <View style={styles.offerPillsRow}>
+            {isNewUser ? (
+              <>
                 <View
                   style={[
-                    styles.offerPill,
+                    styles.offerEyebrow,
+                  ]}
+                >
+                  <Text style={[styles.offerEyebrowText, { color: brandColor }]}>
+                    Try Domani free before you buy it
+                  </Text>
+                </View>
+
+                <RNText style={[styles.title, styles.titleCompact, { color: brandColor }]}>
+                  Start your 14-day free trial
+                </RNText>
+
+                <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
+                  Full access first. One lifetime purchase only if you want to keep it.
+                </Text>
+
+                <View style={styles.stepsStack}>
+                  <View
+                    style={[
+                      styles.stepCard,
+                      {
+                        backgroundColor: theme.colors.card,
+                        borderColor: theme.colors.border.primary,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.stepIndex,
+                        { backgroundColor: `${theme.colors.brand.primary}18` },
+                      ]}
+                    >
+                      <Text style={[styles.stepIndexText, { color: brandColor }]}>1</Text>
+                    </View>
+                    <View style={styles.stepCopy}>
+                      <Text style={[styles.stepLabel, { color: theme.colors.text.primary }]}>
+                        Start free today
+                      </Text>
+                      <Text style={[styles.stepBody, { color: theme.colors.text.secondary }]}>
+                        Your full 14-day trial begins as soon as you sign up.
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.stepCard,
+                      {
+                        backgroundColor: theme.colors.card,
+                        borderColor: theme.colors.border.primary,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.stepIndex,
+                        { backgroundColor: `${theme.colors.brand.primary}18` },
+                      ]}
+                    >
+                      <Text style={[styles.stepIndexText, { color: brandColor }]}>2</Text>
+                    </View>
+                    <View style={styles.stepCopy}>
+                      <Text style={[styles.stepLabel, { color: theme.colors.text.primary }]}>
+                        Keep it for {lifetimePrice} once
+                      </Text>
+                      <Text style={[styles.stepBody, { color: theme.colors.text.secondary }]}>
+                        No credit card up front. No subscription after the trial.
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.offerEyebrow}>
+                  <Text style={[styles.offerEyebrowText, { color: brandColor }]}>
+                    Pick up where you left off
+                  </Text>
+                </View>
+
+                <RNText style={[styles.title, styles.titleCompact, { color: brandColor }]}>
+                  Welcome Back
+                </RNText>
+
+                <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
+                  Sign in to continue planning your tomorrow.
+                </Text>
+
+                <View
+                  style={[
+                    styles.returningCard,
                     {
                       backgroundColor: theme.colors.card,
                       borderColor: theme.colors.border.primary,
                     },
                   ]}
                 >
-                  <Text style={[styles.offerPillLabel, { color: theme.colors.text.primary }]}>
-                    14 days free
+                  <Text style={[styles.returningCardTitle, { color: theme.colors.text.primary }]}>
+                    Your plans are waiting for you.
+                  </Text>
+                  <Text style={[styles.returningCardBody, { color: theme.colors.text.secondary }]}>
+                    Sign in to get back to your tasks, reminders, and momentum.
                   </Text>
                 </View>
-                <View
-                  style={[
-                    styles.offerPill,
-                    {
-                      backgroundColor: theme.colors.card,
-                      borderColor: theme.colors.border.primary,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.offerPillLabel, { color: theme.colors.text.primary }]}>
-                    Then {lifetimePrice} once
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {isNewUser && (
-              <View
-                style={[
-                  styles.trialCard,
-                  {
-                    backgroundColor: theme.colors.card,
-                    borderColor: theme.colors.border.secondary,
-                  },
-                ]}
-              >
-                <Text style={[styles.trialCardTitle, { color: theme.colors.text.primary }]}>
-                  Signing up starts your free trial immediately.
-                </Text>
-                <Text style={[styles.trialCardBody, { color: theme.colors.text.secondary }]}>
-                  No credit card required. Try every feature first, then decide if you want
-                  lifetime access.
-                </Text>
-              </View>
+              </>
             )}
           </View>
 
@@ -246,18 +280,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 12,
   },
-  offerBadge: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+  offerEyebrow: {
     marginBottom: 22,
   },
-  offerBadgeText: {
+  offerEyebrowText: {
     fontSize: 12,
     fontWeight: '600',
-    letterSpacing: 0.4,
+    letterSpacing: 1,
     textAlign: 'center',
+    textTransform: 'uppercase',
   },
   title: {
     fontSize: 38,
@@ -266,6 +297,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 46,
     maxWidth: 320,
+  },
+  titleCompact: {
+    fontSize: 34,
+    lineHeight: 42,
   },
   subtitle: {
     fontSize: 16,
@@ -276,45 +311,64 @@ const styles = StyleSheet.create({
     marginTop: 14,
     maxWidth: 332,
   },
-  offerPillsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 10,
-    marginTop: 20,
-  },
-  offerPill: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  offerPillLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-  },
-  trialCard: {
+  stepsStack: {
     width: '100%',
-    marginTop: 20,
-    borderRadius: 22,
+    gap: 12,
+    marginTop: 22,
+  },
+  stepCard: {
+    width: '100%',
     borderWidth: 1,
+    borderRadius: 22,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+  stepIndex: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepIndexText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  stepCopy: {
+    flex: 1,
+  },
+  stepLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 21,
+  },
+  stepBody: {
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 4,
+  },
+  returningCard: {
+    width: '100%',
+    marginTop: 22,
+    borderWidth: 1,
+    borderRadius: 22,
     paddingHorizontal: 22,
     paddingVertical: 20,
   },
-  trialCardTitle: {
+  returningCardTitle: {
     fontSize: 15,
     fontWeight: '600',
     textAlign: 'center',
     lineHeight: 21,
-    marginBottom: 8,
   },
-  trialCardBody: {
+  returningCardBody: {
     fontSize: 14,
-    fontWeight: '400',
     textAlign: 'center',
     lineHeight: 21,
-    letterSpacing: 0.2,
+    marginTop: 8,
   },
   footerSection: {
     marginTop: 'auto',
