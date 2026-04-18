@@ -12,7 +12,8 @@ export const PRODUCT_IDS = {
 } as const
 
 // Entitlement identifier (configure in RevenueCat dashboard)
-export const ENTITLEMENT_ID = 'Domani Staging Lifetime'
+export const ENTITLEMENT_ID =
+  process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID || 'Domani Staging Lifetime'
 
 // Beta sunset date - after this, new users get general pricing
 export const BETA_END_DATE = new Date('2026-03-01T00:00:00Z')
