@@ -9,13 +9,19 @@ import { SocialButton } from '~/components/ui/SocialButton'
 import { useAuth } from '~/hooks/useAuth'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
-import { useAppConfig } from '~/stores/appConfigStore'
 
-const PHASE_PRICING_COPY = {
-  closed_beta: '$4.99',
-  open_beta: '$9.99',
-  production: '$34.99',
+const PUBLIC_LIFETIME_PRICE_COPY = {
+  early_adopter: '$9.99',
+  standard: '$34.99',
 } as const
+
+type PublicPricingTier = keyof typeof PUBLIC_LIFETIME_PRICE_COPY
+
+function getLoginPricingTier(): PublicPricingTier {
+  // Friends & family pricing is intentionally excluded from public login copy.
+  // New users are still on the public early-adopter offer for now.
+  return 'early_adopter'
+}
 
 export default function LoginScreen() {
   useScreenTracking('login')
@@ -24,12 +30,11 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets()
   const { signInWithGoogle, signInWithApple } = useAuth()
   const theme = useAppTheme()
-  const { phase } = useAppConfig()
   const brandColor = theme.colors.brand.primary
 
   // Determine if this is a new user or returning user
   const isNewUser = mode === 'new'
-  const lifetimePrice = PHASE_PRICING_COPY[phase]
+  const lifetimePrice = PUBLIC_LIFETIME_PRICE_COPY[getLoginPricingTier()]
 
   const [googleLoading, setGoogleLoading] = useState(false)
   const [appleLoading, setAppleLoading] = useState(false)
