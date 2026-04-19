@@ -63,16 +63,32 @@ export default function NotificationSetupScreen() {
   const trialSummary = useMemo(() => {
     if (!profile?.trial_ends_at) {
       return {
-        daysRemaining: 14,
-        endDateLabel: null as string | null,
+        headline: 'Your full-access trial is live now',
+        detail: 'Set your evening reminder, then start planning tomorrow.',
       }
     }
 
     const trialEnd = new Date(profile.trial_ends_at)
+    const daysRemaining = Math.max(differenceInCalendarDays(trialEnd, new Date()), 0)
+    const endDateLabel = format(trialEnd, 'MMMM d')
+
+    if (daysRemaining > 1) {
+      return {
+        headline: `You have ${daysRemaining} days to explore Domani`,
+        detail: `Your trial runs through ${endDateLabel}. Set your evening reminder, then start planning tomorrow with full access.`,
+      }
+    }
+
+    if (daysRemaining === 1) {
+      return {
+        headline: 'You have 1 day left in your trial',
+        detail: `Your trial runs through ${endDateLabel}. Set your evening reminder, then make the most of your last full day with Domani.`,
+      }
+    }
 
     return {
-      daysRemaining: Math.max(differenceInCalendarDays(trialEnd, new Date()), 0),
-      endDateLabel: format(trialEnd, 'MMMM d'),
+      headline: 'Your trial ends today',
+      detail: `Your trial access runs through ${endDateLabel}. Set your evening reminder now so you do not miss your final day with full access.`,
     }
   }, [profile?.trial_ends_at])
 
@@ -193,12 +209,10 @@ export default function NotificationSetupScreen() {
           style={[styles.trialCard, { backgroundColor: themeColors.trialCardBackground }]}
         >
           <Text style={[styles.trialCardTitle, { color: themeColors.sectionTitle }]}>
-            You have {trialSummary.daysRemaining || 14} days to explore Domani
+            {trialSummary.headline}
           </Text>
           <Text style={[styles.trialCardDescription, { color: themeColors.sectionDescription }]}>
-            {trialSummary.endDateLabel
-              ? `Your trial runs through ${trialSummary.endDateLabel}. Set your evening reminder, then start planning tomorrow with full access.`
-              : 'Your full-access trial is live now. Set your evening reminder, then start planning tomorrow.'}
+            {trialSummary.detail}
           </Text>
         </View>
 
