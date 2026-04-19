@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { format } from 'date-fns'
+import { format, differenceInCalendarDays } from 'date-fns'
 
 import { Button, Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
@@ -13,6 +13,7 @@ import { NotificationService } from '~/lib/notifications'
 import { useNotificationStore } from '~/stores/notificationStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useUpdateProfile } from '~/hooks/useProfile'
+import { useProfile } from '~/hooks/useProfile'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 
 /**
@@ -37,6 +38,7 @@ export default function NotificationSetupScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const updateProfile = useUpdateProfile()
+  const { profile } = useProfile()
   const theme = useAppTheme()
   const brandColor = theme.colors.brand.primary
   const { track } = useAnalytics()
@@ -57,6 +59,38 @@ export default function NotificationSetupScreen() {
 
   // Android picker visibility state
   const [showPlanPicker, setShowPlanPicker] = useState(Platform.OS === 'ios')
+
+  const trialSummary = useMemo(() => {
+    if (!profile?.trial_ends_at) {
+      return {
+        headline: 'Your full-access trial is live now',
+        detail: 'Set your evening reminder, then start planning tomorrow.',
+      }
+    }
+
+    const trialEnd = new Date(profile.trial_ends_at)
+    const daysRemaining = Math.max(differenceInCalendarDays(trialEnd, new Date()), 0)
+    const endDateLabel = format(trialEnd, 'MMMM d')
+
+    if (daysRemaining > 1) {
+      return {
+        headline: `You have ${daysRemaining} days to explore Domani`,
+        detail: `Your trial runs through ${endDateLabel}. Set your evening reminder, then start planning tomorrow with full access.`,
+      }
+    }
+
+    if (daysRemaining === 1) {
+      return {
+        headline: 'You have 1 day left in your trial',
+        detail: `Your trial runs through ${endDateLabel}. Set your evening reminder, then make the most of your last full day with Domani.`,
+      }
+    }
+
+    return {
+      headline: 'Your trial ends today',
+      detail: `Your trial access runs through ${endDateLabel}. Set your evening reminder now so you do not miss your final day with full access.`,
+    }
+  }, [profile?.trial_ends_at])
 
   const handleContinue = async () => {
     setLoading(true)
@@ -134,9 +168,11 @@ export default function NotificationSetupScreen() {
     gradientColors: [theme.colors.background, theme.colors.card, theme.colors.background] as const,
     title: theme.colors.text.primary,
     subtitle: theme.colors.text.secondary,
+    eyebrow: theme.colors.brand.primary,
     sectionTitle: theme.colors.text.primary,
     sectionDescription: theme.colors.text.secondary,
     pickerBackground: `${brandColor}0D`, // 5% opacity
+    trialCardBackground: `${brandColor}12`, // 7% opacity
     pickerText: theme.colors.text.primary,
     androidTimeText: brandColor,
     androidButtonBg: `${brandColor}1A`, // 10% opacity
@@ -161,9 +197,21 @@ export default function NotificationSetupScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: themeColors.title }]}>Set Your Reminder</Text>
+          <Text style={[styles.eyebrow, { color: themeColors.eyebrow }]}>14-day free trial</Text>
+          <Text style={[styles.title, { color: themeColors.title }]}>Your trial has started</Text>
           <Text style={[styles.subtitle, { color: themeColors.subtitle }]}>
-            When to plan for tomorrow
+            Explore Domani with full access now, then decide later if you want lifetime access.
+          </Text>
+        </View>
+
+        <View
+          style={[styles.trialCard, { backgroundColor: themeColors.trialCardBackground }]}
+        >
+          <Text style={[styles.trialCardTitle, { color: themeColors.sectionTitle }]}>
+            {trialSummary.headline}
+          </Text>
+          <Text style={[styles.trialCardDescription, { color: themeColors.sectionDescription }]}>
+            {trialSummary.detail}
           </Text>
         </View>
 
@@ -273,7 +321,14 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  eyebrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    marginBottom: 10,
   },
   title: {
     fontSize: 28,
@@ -287,6 +342,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     letterSpacing: 0.2,
+    lineHeight: 24,
+  },
+  trialCard: {
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 24,
+  },
+  trialCardTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  trialCardDescription: {
+    fontSize: 14,
+    lineHeight: 20,
   },
   reminderSection: {
     marginBottom: 24,
