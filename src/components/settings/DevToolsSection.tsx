@@ -19,9 +19,12 @@ export function DevToolsSection({ onOpenPaywall }: DevToolsSectionProps) {
   const queryClient = useQueryClient()
   const phase = useAppConfigStore((s) => s.phase)
   const setPhaseOverride = useAppConfigStore((s) => s.setPhaseOverride)
+  const ignoreRevenueCatForDebug = useAppConfigStore((s) => s.ignoreRevenueCatForDebug)
+  const setIgnoreRevenueCatForDebug = useAppConfigStore((s) => s.setIgnoreRevenueCatForDebug)
   const inBetaPhase = isBetaPhase(phase)
 
   const [isResettingTrial, setIsResettingTrial] = useState(false)
+  const [isResettingPreTrial, setIsResettingPreTrial] = useState(false)
 
   const buttonStyle = {
     backgroundColor: theme.colors.card,
@@ -61,6 +64,54 @@ export function DevToolsSection({ onOpenPaywall }: DevToolsSectionProps) {
               )
             } finally {
               setIsResettingTrial(false)
+            }
+          },
+        },
+      ],
+    )
+  }
+
+  const handleResetToPreTrial = () => {
+    if (!user?.id) return
+    Alert.alert(
+      'Reset To Pre-Trial',
+      "This clears refunded and trial state, moves created_at to now, and enables a local dev override to ignore RevenueCat entitlements so the account can exercise the pre-trial flow again. Continue?",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            setIsResettingPreTrial(true)
+            try {
+              const { error } = await supabase
+                .from('profiles')
+                .update({
+                  tier: 'none',
+                  trial_started_at: null,
+                  trial_ends_at: null,
+                  refunded_at: null,
+                  created_at: new Date().toISOString(),
+                })
+                .eq('id', user.id)
+
+              if (error) throw error
+
+              setIgnoreRevenueCatForDebug(true)
+
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['profile', user.id] }),
+                queryClient.invalidateQueries({ queryKey: ['customerInfo', user.id] }),
+              ])
+            } catch (err) {
+              Alert.alert(
+                'Reset Failed',
+                err instanceof Error
+                  ? err.message
+                  : 'Could not reset account to pre-trial eligibility.',
+              )
+            } finally {
+              setIsResettingPreTrial(false)
             }
           },
         },
@@ -121,6 +172,52 @@ export function DevToolsSection({ onOpenPaywall }: DevToolsSectionProps) {
             <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
           )}
         </View>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={handleResetToPreTrial}
+        disabled={isResettingPreTrial || !user?.id}
+        activeOpacity={0.7}
+        style={{
+          ...buttonStyle,
+          marginTop: 8,
+          opacity: isResettingPreTrial || !user?.id ? 0.5 : 1,
+        }}
+      >
+        <View className="flex-row items-center justify-between">
+          <View style={{ flex: 1 }}>
+            <Text
+              className="font-sans-semibold text-sm"
+              style={{ color: theme.colors.text.primary }}
+            >
+              Reset To Pre-Trial
+            </Text>
+            <Text className="font-sans text-xs mt-0.5" style={{ color: theme.colors.text.tertiary }}>
+              Clear refunded state / trial state and ignore RevenueCat → start trial again
+            </Text>
+          </View>
+          {isResettingPreTrial && (
+            <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
+          )}
+        </View>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => setIgnoreRevenueCatForDebug(!ignoreRevenueCatForDebug)}
+        activeOpacity={0.7}
+        style={{ ...buttonStyle, marginTop: 8 }}
+      >
+        <Text
+          className="font-sans-semibold text-sm"
+          style={{ color: theme.colors.text.primary }}
+        >
+          {ignoreRevenueCatForDebug ? 'Use Live RevenueCat State' : 'Ignore RevenueCat State'}
+        </Text>
+        <Text className="font-sans text-xs mt-0.5" style={{ color: theme.colors.text.tertiary }}>
+          {ignoreRevenueCatForDebug
+            ? 'Local override is ON — subscription state comes from your profile only'
+            : 'Use this to test pre-trial and trial flows without active entitlements'}
+        </Text>
       </TouchableOpacity>
 
       {/* Open Paywall Modal */}

@@ -16,6 +16,8 @@ interface SubscriptionSectionProps {
   isRestoring: boolean
   trialDaysRemaining: number | null
   trialExpirationDate: Date | null
+  graceDaysRemaining: number | null
+  graceExpirationDate: Date | null
   onStartTrial: () => void
   onRestore: () => void
   onUpgrade: () => void
@@ -34,6 +36,8 @@ export function SubscriptionSection({
   isRestoring,
   trialDaysRemaining,
   trialExpirationDate,
+  graceDaysRemaining,
+  graceExpirationDate,
   onStartTrial,
   onRestore,
   onUpgrade,
@@ -55,6 +59,11 @@ export function SubscriptionSection({
       label: 'Beta Tester',
       color: '#f59e0b',
       bgStyle: { backgroundColor: 'rgba(245, 158, 11, 0.2)' },
+    },
+    grace_period: {
+      label: 'Beta Grace',
+      color: theme.colors.accent.trial,
+      bgStyle: { backgroundColor: `${theme.colors.brand.primary}26` },
     },
     pre_trial: {
       label: 'No Active Plan',
@@ -96,6 +105,7 @@ export function SubscriptionSection({
   // Keep this in sync with every case in the JSX below.
   const _exhaustiveStatusCheck: Record<SubscriptionStatus, true> = {
     beta: true,
+    grace_period: true,
     lifetime: true,
     trialing: true,
     pre_trial: true,
@@ -134,6 +144,39 @@ export function SubscriptionSection({
               <Text className="text-sm text-content-secondary">
                 You have full access to everything during the beta. Thanks for helping test Domani!
               </Text>
+            )}
+
+            {status === 'grace_period' && (
+              <>
+                <View className="flex-row items-center mb-3">
+                  <Sparkles size={16} color={theme.colors.accent.trial} />
+                  <Text
+                    className="text-sm font-medium ml-2"
+                    style={{ color: theme.colors.accent.trial }}
+                  >
+                    {graceDaysRemaining === 1
+                      ? '1 day left in beta grace period'
+                      : `${graceDaysRemaining} days left in beta grace period`}
+                  </Text>
+                </View>
+                <Text className="text-sm text-content-secondary mb-3">
+                  {graceExpirationDate
+                    ? `Your free beta access ends on ${format(graceExpirationDate, 'MMMM d')}. Purchase lifetime access to keep using Domani after that.`
+                    : 'Your free beta access is ending soon. Purchase lifetime access to keep using Domani.'}
+                </Text>
+                <TouchableOpacity
+                  onPress={onUpgrade}
+                  disabled={isRestoring}
+                  activeOpacity={0.8}
+                  className="py-3 rounded-xl items-center"
+                  style={{
+                    backgroundColor: theme.colors.brand.primary,
+                    opacity: isRestoring ? 0.5 : 1,
+                  }}
+                >
+                  <Text className="text-white font-semibold">Get Lifetime Access</Text>
+                </TouchableOpacity>
+              </>
             )}
 
             {/* Pre-trial — user has never started a trial, offer Start Trial CTA */}
@@ -249,7 +292,12 @@ export function SubscriptionSection({
           {/* Restore purchases — only shown for states where a prior purchase
               could plausibly exist (expired, refunded, or trialing). Beta/pre_trial
               have nothing to restore; lifetime already has the purchase applied. */}
-          {(status === 'expired' || status === 'refunded' || status === 'trialing') && (
+          {(
+            status === 'expired' ||
+            status === 'refunded' ||
+            status === 'trialing' ||
+            status === 'grace_period'
+          ) && (
             <TouchableOpacity
               onPress={onRestore}
               disabled={isRestoring}
