@@ -12,6 +12,4 @@ VALUES (
     "grace_period_days": 14
   }'::jsonb
 )
-ON CONFLICT (key) DO UPDATE
-SET value = EXCLUDED.value,
-    updated_at = NOW();
+ON CONFLICT (key) DO NOTHING;

@@ -141,9 +141,9 @@ export function useSubscriptionStatus(): {
   isLoading: boolean
 } {
   const { profile, isLoading: profileLoading } = useProfile()
-  const { phase } = useAppConfig()
+  const { phase, betaAccess } = useAppConfig()
 
-  const { status } = computeSubscriptionState(profile, null, isBetaPhase(phase))
+  const { status } = computeSubscriptionState(profile, null, isBetaPhase(phase), betaAccess)
 
   return { status, isLoading: profileLoading }
 }
