@@ -1,7 +1,7 @@
 -- DEV-35: Assign signup cohort from signup date instead of app phase
 --
--- New signups on or before 2026-03-31 get early_adopter pricing.
--- New signups on or after 2026-04-01 get general pricing.
+-- New signups on or before 2026-05-15 get early_adopter pricing.
+-- New signups on or after 2026-05-16 get general pricing.
 --
 -- This intentionally does NOT rewrite existing non-null cohorts, because
 -- cohort affects live pricing/offering selection and historical assignments
@@ -36,7 +36,7 @@ BEGIN
     -- Determine signup cohort based on account creation timestamp
     -- ========================================================================
 
-    IF COALESCE(NEW.created_at, NOW()) < TIMESTAMPTZ '2026-04-01 00:00:00+00' THEN
+    IF COALESCE(NEW.created_at, NOW()) < TIMESTAMPTZ '2026-05-16 00:00:00+00' THEN
         v_signup_cohort := 'early_adopter'::public.signup_cohort;
     ELSE
         v_signup_cohort := 'general'::public.signup_cohort;
@@ -137,12 +137,12 @@ SET search_path = public, pg_temp;
 
 COMMENT ON FUNCTION handle_new_user() IS
 'Trigger function that creates a user profile when a new user signs up via OAuth.
-Sets up 14-day free trial, captures signup_method, and assigns signup_cohort by account creation date: before 2026-04-01 UTC -> early_adopter, otherwise general.';
+Sets up 14-day free trial, captures signup_method, and assigns signup_cohort by account creation date: before 2026-05-16 UTC -> early_adopter, otherwise general.';
 
 -- Fill only missing cohort values without rewriting existing granted cohorts.
 UPDATE public.profiles
 SET signup_cohort = CASE
-    WHEN COALESCE(created_at, NOW()) < TIMESTAMPTZ '2026-04-01 00:00:00+00'
+    WHEN COALESCE(created_at, NOW()) < TIMESTAMPTZ '2026-05-16 00:00:00+00'
         THEN 'early_adopter'::public.signup_cohort
     ELSE 'general'::public.signup_cohort
 END
