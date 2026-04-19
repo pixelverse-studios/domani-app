@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { supabase } from '~/lib/supabase'
 import type {
   AppPhase,
+  BetaAccessConfig,
   PhaseConfig,
   FeatureFlags,
   FeatureFlagsByPhase,
@@ -19,6 +20,12 @@ const DEFAULT_FEATURES: FeatureFlags = {
   invite_required: false,
 }
 
+const DEFAULT_BETA_ACCESS: BetaAccessConfig = {
+  legacy_beta_signup_cutoff: '2026-04-01T00:00:00Z',
+  beta_end_date: '2026-03-31T00:00:00Z',
+  grace_period_days: 14,
+}
+
 interface AppConfigState {
   // Config values
   phase: AppPhase
@@ -26,6 +33,7 @@ interface AppConfigState {
   features: FeatureFlags
   featureFlagsByPhase: FeatureFlagsByPhase | null
   publicPricing: PublicPricingTier
+  betaAccess: BetaAccessConfig
 
   // Loading state
   isLoading: boolean
@@ -50,6 +58,7 @@ export const useAppConfigStore = create<AppConfigState>()(
       features: DEFAULT_FEATURES,
       featureFlagsByPhase: null,
       publicPricing: 'early_adopter',
+      betaAccess: DEFAULT_BETA_ACCESS,
       isLoading: false,
       error: null,
       lastFetchedAt: null,
@@ -69,6 +78,7 @@ export const useAppConfigStore = create<AppConfigState>()(
           let showBadge = true
           let featureFlagsByPhase: FeatureFlagsByPhase | null = null
           let publicPricing: PublicPricingTier = 'early_adopter'
+          let betaAccess: BetaAccessConfig = DEFAULT_BETA_ACCESS
 
           // Parse config rows
           for (const row of data || []) {
@@ -86,6 +96,19 @@ export const useAppConfigStore = create<AppConfigState>()(
               ) {
                 publicPricing = publicPricingConfig.tier
               }
+            } else if (row.key === 'beta_access') {
+              const betaAccessConfig = row.value as unknown as Partial<BetaAccessConfig>
+              if (
+                typeof betaAccessConfig.legacy_beta_signup_cutoff === 'string' &&
+                typeof betaAccessConfig.beta_end_date === 'string' &&
+                typeof betaAccessConfig.grace_period_days === 'number'
+              ) {
+                betaAccess = {
+                  legacy_beta_signup_cutoff: betaAccessConfig.legacy_beta_signup_cutoff,
+                  beta_end_date: betaAccessConfig.beta_end_date,
+                  grace_period_days: betaAccessConfig.grace_period_days,
+                }
+              }
             }
           }
 
@@ -98,6 +121,7 @@ export const useAppConfigStore = create<AppConfigState>()(
             features,
             featureFlagsByPhase,
             publicPricing,
+            betaAccess,
             isLoading: false,
             lastFetchedAt: Date.now(),
             hasFetchedConfigThisSession: true,
@@ -134,6 +158,7 @@ export const useAppConfigStore = create<AppConfigState>()(
         features: state.features,
         featureFlagsByPhase: state.featureFlagsByPhase,
         publicPricing: state.publicPricing,
+        betaAccess: state.betaAccess,
         lastFetchedAt: state.lastFetchedAt,
       }),
     },
@@ -149,6 +174,7 @@ export function useAppConfig() {
     showBadge: store.showBadge,
     features: store.features,
     publicPricing: store.publicPricing,
+    betaAccess: store.betaAccess,
     hasFetchedConfig: store.hasFetchedConfigThisSession,
     isLoading: store.isLoading,
     error: store.error,
