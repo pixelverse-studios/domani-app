@@ -7,7 +7,7 @@ import { addDays } from 'date-fns'
 import { supabase } from '~/lib/supabase'
 import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
-import { useAppConfig } from '~/stores/appConfigStore'
+import { useAppConfig, useAppConfigStore } from '~/stores/appConfigStore'
 import { isBetaPhase } from '~/types/appConfig'
 import type { Profile } from '~/types'
 import {
@@ -159,9 +159,11 @@ export function useSubscription() {
   // pre-mutation data.
   const isStartTrialPendingRef = useRef(false)
   const { phase } = useAppConfig()
+  const ignoreRevenueCatForDebug = useAppConfigStore((s) => s.ignoreRevenueCatForDebug)
 
   // Check if we're in beta (skip RevenueCat entirely during beta)
   const isBeta = isBetaPhase(phase)
+  const shouldBypassRevenueCat = isBeta || (__DEV__ && ignoreRevenueCatForDebug)
 
   // Initialize RevenueCat when user changes (skip during beta)
   useEffect(() => {
@@ -169,7 +171,7 @@ export function useSubscription() {
 
     async function init() {
       // During beta, skip RevenueCat entirely
-      if (isBeta) {
+      if (shouldBypassRevenueCat) {
         if (isMounted) {
           setIsInitialized(true)
         }
@@ -208,7 +210,7 @@ export function useSubscription() {
     return () => {
       isMounted = false
     }
-  }, [user?.id, isBeta])
+  }, [user?.id, shouldBypassRevenueCat])
 
   // Query for RevenueCat customer info (disabled during beta)
   const {
@@ -218,7 +220,7 @@ export function useSubscription() {
   } = useQuery({
     queryKey: ['customerInfo', user?.id],
     queryFn: async () => {
-      if (!isInitialized || isBeta) return null
+      if (!isInitialized || shouldBypassRevenueCat) return null
       try {
         const info = await Purchases.getCustomerInfo()
         console.log('[useSubscription] Loaded RevenueCat customer info', {
@@ -233,7 +235,7 @@ export function useSubscription() {
         return null
       }
     },
-    enabled: isInitialized && !!user?.id && !isBeta,
+    enabled: isInitialized && !!user?.id && !shouldBypassRevenueCat,
     retry: false, // Don't retry if RevenueCat is not configured
   })
 
@@ -245,7 +247,7 @@ export function useSubscription() {
   const { data: offerings, isLoading: isLoadingOfferings } = useQuery({
     queryKey: ['offerings', offeringIdentifier],
     queryFn: () => getOfferings(offeringIdentifier),
-    enabled: isInitialized && !isBeta && !!profile,
+    enabled: isInitialized && !shouldBypassRevenueCat && !!profile,
     retry: false, // Don't retry if RevenueCat is not configured
   })
 

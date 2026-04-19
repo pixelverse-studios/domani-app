@@ -32,11 +32,13 @@ interface AppConfigState {
   error: string | null
   lastFetchedAt: number | null
   hasFetchedConfigThisSession: boolean
+  ignoreRevenueCatForDebug: boolean
 
   // Actions
   fetchConfig: () => Promise<void>
   isFeatureEnabled: (feature: keyof FeatureFlags) => boolean
   setPhaseOverride: (phase: AppPhase) => void
+  setIgnoreRevenueCatForDebug: (ignore: boolean) => void
 }
 
 export const useAppConfigStore = create<AppConfigState>()(
@@ -52,6 +54,7 @@ export const useAppConfigStore = create<AppConfigState>()(
       error: null,
       lastFetchedAt: null,
       hasFetchedConfigThisSession: false,
+      ignoreRevenueCatForDebug: false,
 
       fetchConfig: async () => {
         set({ isLoading: true, error: null })
@@ -115,6 +118,10 @@ export const useAppConfigStore = create<AppConfigState>()(
 
       setPhaseOverride: (phase: AppPhase) => {
         set({ phase })
+      },
+
+      setIgnoreRevenueCatForDebug: (ignore: boolean) => {
+        set({ ignoreRevenueCatForDebug: ignore })
       },
     }),
     {
