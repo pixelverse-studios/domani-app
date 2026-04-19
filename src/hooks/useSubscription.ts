@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { AppState } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Purchases, { CustomerInfo, PurchasesPackage } from 'react-native-purchases'
-import { addDays } from 'date-fns'
+import { addDays, parseISO } from 'date-fns'
 
 import { supabase } from '~/lib/supabase'
 import { useAuth } from '~/hooks/useAuth'
@@ -101,8 +101,9 @@ export function hasFullAccess(status: SubscriptionStatus): boolean {
 }
 
 const TRIAL_DURATION_DAYS = 14
-const LEGACY_BETA_SIGNUP_CUTOFF = new Date('2026-04-01T00:00:00Z')
-const BETA_GRACE_END = new Date('2026-04-15T00:00:00Z')
+const FALLBACK_LEGACY_BETA_SIGNUP_CUTOFF = new Date('2026-04-01T00:00:00Z')
+const FALLBACK_BETA_END_DATE = new Date('2026-03-31T00:00:00Z')
+const FALLBACK_BETA_GRACE_PERIOD_DAYS = 14
 
 /**
  * Lightweight read-only subscription status hook.
@@ -158,7 +159,7 @@ export function useSubscription() {
   // listener) don't race the optimistic update and overwrite it with stale
   // pre-mutation data.
   const isStartTrialPendingRef = useRef(false)
-  const { phase } = useAppConfig()
+  const { phase, betaAccess } = useAppConfig()
   const ignoreRevenueCatForDebug = useAppConfigStore((s) => s.ignoreRevenueCatForDebug)
 
   // Check if we're in beta (skip RevenueCat entirely during beta)
@@ -257,6 +258,7 @@ export function useSubscription() {
     profile,
     customerInfo,
     isBeta,
+    betaAccess,
   )
 
   // Stable primitive for the effect dep array — avoids timer churn from Date object identity.
@@ -481,7 +483,26 @@ function computeSubscriptionState(
   profile: ReturnType<typeof useProfile>['profile'],
   customerInfo: CustomerInfo | null | undefined,
   isBeta: boolean,
+  betaAccessConfig?: {
+    legacy_beta_signup_cutoff: string
+    beta_end_date: string
+    grace_period_days: number
+  },
 ): SubscriptionState {
+  const legacyBetaSignupCutoff =
+    betaAccessConfig?.legacy_beta_signup_cutoff
+      ? parseISO(betaAccessConfig.legacy_beta_signup_cutoff)
+      : FALLBACK_LEGACY_BETA_SIGNUP_CUTOFF
+  const betaEndDate =
+    betaAccessConfig?.beta_end_date
+      ? parseISO(betaAccessConfig.beta_end_date)
+      : FALLBACK_BETA_END_DATE
+  const betaGracePeriodDays =
+    typeof betaAccessConfig?.grace_period_days === 'number'
+      ? betaAccessConfig.grace_period_days
+      : FALLBACK_BETA_GRACE_PERIOD_DAYS
+  const betaGraceEnd = addDays(betaEndDate, betaGracePeriodDays)
+
   // Lifetime takes precedence over everything, including beta phase. Users
   // who actually paid should see their true entitlement regardless of which
   // build they're running — otherwise a lifetime purchaser in a beta build
@@ -565,13 +586,13 @@ function computeSubscriptionState(
   // early_adopter cohort, because later tickets extended early_adopter
   // pricing beyond the original beta window.
   const createdAt = profile?.created_at ? new Date(profile.created_at) : null
-  const isLegacyBetaUser = !!createdAt && createdAt < LEGACY_BETA_SIGNUP_CUTOFF
+  const isLegacyBetaUser = !!createdAt && createdAt < legacyBetaSignupCutoff
 
   if (isLegacyBetaUser) {
-    if (now < BETA_GRACE_END) {
+    if (now < betaGraceEnd) {
       const graceDaysRemaining = Math.max(
         0,
-        Math.ceil((BETA_GRACE_END.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
+        Math.ceil((betaGraceEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
       )
 
       return {
@@ -579,7 +600,7 @@ function computeSubscriptionState(
         trialDaysRemaining: null,
         trialExpirationDate: null,
         graceDaysRemaining,
-        graceExpirationDate: BETA_GRACE_END,
+        graceExpirationDate: betaGraceEnd,
       }
     }
 

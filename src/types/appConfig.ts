@@ -15,6 +15,13 @@ export interface PhaseConfig {
   show_badge: boolean
 }
 
+// Beta access configuration (stored in app_config.value for key='beta_access')
+export interface BetaAccessConfig {
+  legacy_beta_signup_cutoff: string
+  beta_end_date: string
+  grace_period_days: number
+}
+
 // Feature flags per phase (stored in app_config.value for key='feature_flags')
 export interface FeatureFlags {
   feedback_enabled: boolean
@@ -42,6 +49,7 @@ export interface AppConfig {
   showBadge: boolean
   features: FeatureFlags
   publicPricing: PublicPricingTier
+  betaAccess: BetaAccessConfig
   isLoading: boolean
   error: string | null
 }
