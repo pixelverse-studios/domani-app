@@ -200,8 +200,7 @@ export default function NotificationSetupScreen() {
           <Text style={[styles.eyebrow, { color: themeColors.eyebrow }]}>14-day free trial</Text>
           <Text style={[styles.title, { color: themeColors.title }]}>Your trial has started</Text>
           <Text style={[styles.subtitle, { color: themeColors.subtitle }]}>
-            You have 14 days to explore Domani with full access before deciding on lifetime
-            access.
+            Explore Domani with full access now, then decide later if you want lifetime access.
           </Text>
         </View>
 
