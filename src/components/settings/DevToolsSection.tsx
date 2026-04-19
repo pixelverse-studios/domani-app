@@ -22,6 +22,7 @@ export function DevToolsSection({ onOpenPaywall }: DevToolsSectionProps) {
   const inBetaPhase = isBetaPhase(phase)
 
   const [isResettingTrial, setIsResettingTrial] = useState(false)
+  const [isResettingPreTrial, setIsResettingPreTrial] = useState(false)
 
   const buttonStyle = {
     backgroundColor: theme.colors.card,
@@ -61,6 +62,53 @@ export function DevToolsSection({ onOpenPaywall }: DevToolsSectionProps) {
               )
             } finally {
               setIsResettingTrial(false)
+            }
+          },
+        },
+      ],
+    )
+  }
+
+  const handleResetToPreTrial = () => {
+    if (!user?.id) return
+    Alert.alert(
+      'Reset To Pre-Trial',
+      "This clears refunded and trial state, removes the linked RevenueCat user, and moves created_at to now so the account can exercise the pre-trial flow again. Continue?",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            setIsResettingPreTrial(true)
+            try {
+              const { error } = await supabase
+                .from('profiles')
+                .update({
+                  tier: 'none',
+                  trial_started_at: null,
+                  trial_ends_at: null,
+                  refunded_at: null,
+                  revenuecat_user_id: null,
+                  created_at: new Date().toISOString(),
+                })
+                .eq('id', user.id)
+
+              if (error) throw error
+
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['profile', user.id] }),
+                queryClient.invalidateQueries({ queryKey: ['customerInfo', user.id] }),
+              ])
+            } catch (err) {
+              Alert.alert(
+                'Reset Failed',
+                err instanceof Error
+                  ? err.message
+                  : 'Could not reset account to pre-trial eligibility.',
+              )
+            } finally {
+              setIsResettingPreTrial(false)
             }
           },
         },
@@ -118,6 +166,34 @@ export function DevToolsSection({ onOpenPaywall }: DevToolsSectionProps) {
             </Text>
           </View>
           {isResettingTrial && (
+            <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
+          )}
+        </View>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={handleResetToPreTrial}
+        disabled={isResettingPreTrial || !user?.id}
+        activeOpacity={0.7}
+        style={{
+          ...buttonStyle,
+          marginTop: 8,
+          opacity: isResettingPreTrial || !user?.id ? 0.5 : 1,
+        }}
+      >
+        <View className="flex-row items-center justify-between">
+          <View style={{ flex: 1 }}>
+            <Text
+              className="font-sans-semibold text-sm"
+              style={{ color: theme.colors.text.primary }}
+            >
+              Reset To Pre-Trial
+            </Text>
+            <Text className="font-sans text-xs mt-0.5" style={{ color: theme.colors.text.tertiary }}>
+              Clear refunded state / RevenueCat link / trial state → start trial again
+            </Text>
+          </View>
+          {isResettingPreTrial && (
             <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
           )}
         </View>
