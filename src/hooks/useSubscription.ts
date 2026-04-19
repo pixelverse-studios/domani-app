@@ -27,6 +27,8 @@ import {
  * - `beta`      → phase is beta; full access, short-circuits most other checks
  *                 (but `lifetime` still takes precedence — see
  *                 `computeSubscriptionState` for the exact resolution order)
+ * - `grace_period` → legacy beta user in the post-beta purchase grace window;
+ *                    full access with countdown messaging
  * - `lifetime`  → purchased lifetime; full access
  * - `trialing`  → trial active within window; full access
  * - `pre_trial` → never started a trial; gated at app entry, explicit user
@@ -51,6 +53,7 @@ import {
  */
 export type SubscriptionStatus =
   | 'beta'
+  | 'grace_period'
   | 'lifetime'
   | 'trialing'
   | 'pre_trial'
@@ -61,6 +64,8 @@ interface SubscriptionState {
   status: SubscriptionStatus
   trialDaysRemaining: number | null
   trialExpirationDate: Date | null
+  graceDaysRemaining: number | null
+  graceExpirationDate: Date | null
 }
 
 /**
@@ -87,10 +92,17 @@ export function needsToStartTrial(status: SubscriptionStatus): boolean {
  * lifetime purchasers, and users currently within their trial window.
  */
 export function hasFullAccess(status: SubscriptionStatus): boolean {
-  return status === 'beta' || status === 'lifetime' || status === 'trialing'
+  return (
+    status === 'beta' ||
+    status === 'grace_period' ||
+    status === 'lifetime' ||
+    status === 'trialing'
+  )
 }
 
 const TRIAL_DURATION_DAYS = 14
+const LEGACY_BETA_SIGNUP_CUTOFF = new Date('2026-04-01T00:00:00Z')
+const BETA_GRACE_END = new Date('2026-04-15T00:00:00Z')
 
 /**
  * Lightweight read-only subscription status hook.
@@ -452,11 +464,14 @@ export function useSubscription() {
  * The resolution order is:
  *  1. `beta` phase short-circuits everything → status='beta'
  *  2. DB tier='lifetime' → status='lifetime'
- *  3. DB tier='trialing' within trial window → status='trialing'
+ *  3. refunded_at IS NOT NULL → status='refunded' (purchase was refunded)
  *  4. RevenueCat entitlement (trial or lifetime) → status='trialing' | 'lifetime'
- *  5. Local trial_ends_at fallback (still in future) → status='trialing'
- *  6. refunded_at IS NOT NULL → status='refunded' (purchase was refunded)
- *  7. Otherwise, disambiguate pre_trial vs expired using `trial_started_at`:
+ *  5. Legacy beta grace logic for users created before 2026-04-01 UTC:
+ *     - before 2026-04-15 UTC → status='grace_period'
+ *     - on/after 2026-04-15 UTC → status='expired'
+ *  6. DB tier='trialing' within trial window → status='trialing'
+ *  7. Local trial_ends_at fallback (still in future) → status='trialing'
+ *  8. Otherwise, disambiguate pre_trial vs expired using `trial_started_at`:
  *     - trial_started_at IS NULL → status='pre_trial' (never started a trial)
  *     - trial_started_at IS NOT NULL → status='expired' (trial was used and ended)
  */
@@ -475,6 +490,8 @@ function computeSubscriptionState(
       status: 'lifetime',
       trialDaysRemaining: null,
       trialExpirationDate: null,
+      graceDaysRemaining: null,
+      graceExpirationDate: null,
     }
   }
 
@@ -486,34 +503,22 @@ function computeSubscriptionState(
       status: 'beta',
       trialDaysRemaining: null,
       trialExpirationDate: null,
+      graceDaysRemaining: null,
+      graceExpirationDate: null,
     }
   }
 
   const now = new Date()
 
-  // Offline fallback: if profile says trialing but RevenueCat is unavailable,
-  // use local trial_ends_at to determine if the trial is still active.
-  // If expired, fall through to the final pre_trial/expired disambiguation.
-  //
-  // Edge case: if tier='trialing' but trial_ends_at IS NULL, we treat it as
-  // an open-ended trial (no expiry date known) and return trialing with a
-  // null trialDaysRemaining. This state should not normally occur — the
-  // trial-start flow always writes both columns together — but the code
-  // handles it gracefully rather than bailing out.
-  if (profile?.tier === 'trialing') {
-    const trialExpirationDate = profile.trial_ends_at ? new Date(profile.trial_ends_at) : null
-    if (!trialExpirationDate || trialExpirationDate > now) {
-      const trialDaysRemaining = trialExpirationDate
-        ? Math.max(
-            0,
-            Math.ceil((trialExpirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
-          )
-        : null
-      return {
-        status: 'trialing',
-        trialDaysRemaining,
-        trialExpirationDate,
-      }
+  // Refunded users stay locked even if they would otherwise have been
+  // eligible for beta grace access.
+  if (profile?.refunded_at) {
+    return {
+      status: 'refunded',
+      trialDaysRemaining: null,
+      trialExpirationDate: null,
+      graceDaysRemaining: null,
+      graceExpirationDate: null,
     }
   }
 
@@ -538,6 +543,8 @@ function computeSubscriptionState(
         status: 'trialing',
         trialDaysRemaining,
         trialExpirationDate,
+        graceDaysRemaining: null,
+        graceExpirationDate: null,
       }
     }
 
@@ -546,6 +553,68 @@ function computeSubscriptionState(
       status: 'lifetime',
       trialDaysRemaining: null,
       trialExpirationDate: null,
+      graceDaysRemaining: null,
+      graceExpirationDate: null,
+    }
+  }
+
+  // DEV-36 targets legacy beta users who signed up before April 1, 2026.
+  // We intentionally key this off profile.created_at rather than the
+  // early_adopter cohort, because later tickets extended early_adopter
+  // pricing beyond the original beta window.
+  const createdAt = profile?.created_at ? new Date(profile.created_at) : null
+  const isLegacyBetaUser = !!createdAt && createdAt < LEGACY_BETA_SIGNUP_CUTOFF
+
+  if (isLegacyBetaUser) {
+    if (now < BETA_GRACE_END) {
+      const graceDaysRemaining = Math.max(
+        0,
+        Math.ceil((BETA_GRACE_END.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
+      )
+
+      return {
+        status: 'grace_period',
+        trialDaysRemaining: null,
+        trialExpirationDate: null,
+        graceDaysRemaining,
+        graceExpirationDate: BETA_GRACE_END,
+      }
+    }
+
+    return {
+      status: 'expired',
+      trialDaysRemaining: null,
+      trialExpirationDate: null,
+      graceDaysRemaining: null,
+      graceExpirationDate: null,
+    }
+  }
+
+  // Offline fallback: if profile says trialing but RevenueCat is unavailable,
+  // use local trial_ends_at to determine if the trial is still active.
+  // If expired, fall through to the final pre_trial/expired disambiguation.
+  //
+  // Edge case: if tier='trialing' but trial_ends_at IS NULL, we treat it as
+  // an open-ended trial (no expiry date known) and return trialing with a
+  // null trialDaysRemaining. This state should not normally occur — the
+  // trial-start flow always writes both columns together — but the code
+  // handles it gracefully rather than bailing out.
+  if (profile?.tier === 'trialing') {
+    const trialExpirationDate = profile.trial_ends_at ? new Date(profile.trial_ends_at) : null
+    if (!trialExpirationDate || trialExpirationDate > now) {
+      const trialDaysRemaining = trialExpirationDate
+        ? Math.max(
+            0,
+            Math.ceil((trialExpirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
+          )
+        : null
+      return {
+        status: 'trialing',
+        trialDaysRemaining,
+        trialExpirationDate,
+        graceDaysRemaining: null,
+        graceExpirationDate: null,
+      }
     }
   }
 
@@ -559,17 +628,9 @@ function computeSubscriptionState(
         status: 'trialing',
         trialDaysRemaining: daysRemaining,
         trialExpirationDate: trialEnd,
+        graceDaysRemaining: null,
+        graceExpirationDate: null,
       }
-    }
-  }
-
-  // Refunded users: purchased and then got a refund. Distinct from trial
-  // expiry — they didn't lose a trial, they lost a purchase.
-  if (profile?.refunded_at) {
-    return {
-      status: 'refunded',
-      trialDaysRemaining: null,
-      trialExpirationDate: null,
     }
   }
 
@@ -582,6 +643,8 @@ function computeSubscriptionState(
     status: hasUsedTrial ? 'expired' : 'pre_trial',
     trialDaysRemaining: null,
     trialExpirationDate: null,
+    graceDaysRemaining: null,
+    graceExpirationDate: null,
   }
 }
 
