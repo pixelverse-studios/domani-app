@@ -2,12 +2,21 @@ import type { TranslationCatalog } from '../types'
 
 export const es: TranslationCatalog = {
   auth: {
+    actions: {
+      ok: 'Aceptar',
+      reactivate: 'Reactivar',
+      keepDeletion: 'Mantener eliminación',
+    },
     errors: {
       signInTitle: 'Error al iniciar sesión',
       googleFallback: 'No se pudo iniciar sesión con Google',
       appleFallback: 'No se pudo iniciar sesión con Apple',
       accountExistsTitle: 'La cuenta ya existe',
       accountExistsMessage: 'Ya existe una cuenta con este correo electrónico.',
+    },
+    pendingDeletion: {
+      title: 'Cuenta programada para eliminación',
+      message: 'Tu cuenta está programada para eliminarse el {{date}}. ¿Quieres reactivarla?',
     },
     login: {
       newUserEyebrow: 'Prueba Domani gratis antes de comprarlo',

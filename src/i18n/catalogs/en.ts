@@ -1,11 +1,21 @@
 export const en = {
   auth: {
+    actions: {
+      ok: 'OK',
+      reactivate: 'Reactivate',
+      keepDeletion: 'Keep Deletion',
+    },
     errors: {
       signInTitle: 'Sign In Error',
       googleFallback: 'Failed to sign in with Google',
       appleFallback: 'Failed to sign in with Apple',
       accountExistsTitle: 'Account Already Exists',
       accountExistsMessage: 'An account with this email already exists.',
+    },
+    pendingDeletion: {
+      title: 'Account Scheduled for Deletion',
+      message:
+        'Your account is scheduled to be deleted on {{date}}. Would you like to reactivate it?',
     },
     login: {
       newUserEyebrow: 'Try Domani free before you buy it',

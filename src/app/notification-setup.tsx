@@ -12,7 +12,7 @@ import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { NotificationService } from '~/lib/notifications'
 import { useNotificationStore } from '~/stores/notificationStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
-import { formatLocalizedDate } from '~/i18n/date'
+import { formatLocalizedDate, formatLocalizedTime } from '~/i18n/date'
 import { useUpdateProfile } from '~/hooks/useProfile'
 import { useProfile } from '~/hooks/useProfile'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
@@ -257,7 +257,7 @@ export default function NotificationSetupScreen() {
                 style={[styles.androidTimeButton, { backgroundColor: themeColors.androidButtonBg }]}
               >
                 <Text style={[styles.androidTimeText, { color: themeColors.androidTimeText }]}>
-                  {format(planTime, 'h:mm a')}
+                  {formatLocalizedTime(planTime, locale)}
                 </Text>
               </Button>
             ) : (
