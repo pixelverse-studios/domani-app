@@ -9,12 +9,14 @@ import { GradientButton } from '~/components/ui/GradientButton'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useSubscription } from '~/hooks/useSubscription'
 import { PaywallModal } from '~/components/PaywallModal'
+import { useTranslation } from '~/hooks/useTranslation'
 
 export function LockedScreen() {
   const theme = useAppTheme()
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const subscription = useSubscription()
+  const { t } = useTranslation()
   const isRefunded = subscription.status === 'refunded'
   const [showPaywall, setShowPaywall] = useState(false)
   const [restoreError, setRestoreError] = useState<string | null>(null)
@@ -24,10 +26,10 @@ export function LockedScreen() {
     try {
       const result = await subscription.restore()
       if (!result) {
-        setRestoreError('No previous purchases found for this account.')
+        setRestoreError(t('subscription.locked.restoreNotFound'))
       }
     } catch {
-      setRestoreError('Could not restore purchases. Please try again.')
+      setRestoreError(t('subscription.locked.restoreError'))
     }
   }
 
@@ -55,7 +57,9 @@ export function LockedScreen() {
           className="text-2xl font-sans-bold text-content-primary text-center mt-6"
           style={{ lineHeight: 32 }}
         >
-          {isRefunded ? 'Your access has been revoked' : 'Your trial has ended'}
+          {isRefunded
+            ? t('subscription.locked.refundedTitle')
+            : t('subscription.locked.expiredTitle')}
         </Text>
 
         {/* Subtext */}
@@ -64,8 +68,8 @@ export function LockedScreen() {
           style={{ fontSize: 15, lineHeight: 22, paddingHorizontal: 16 }}
         >
           {isRefunded
-            ? 'Your previous purchase was refunded. Get lifetime access to continue using Domani.'
-            : 'Get lifetime access to keep planning your days with Domani — one purchase, yours forever.'}
+            ? t('subscription.locked.refundedBody')
+            : t('subscription.locked.expiredBody')}
         </Text>
 
         {/* Purchase CTA */}
@@ -79,7 +83,7 @@ export function LockedScreen() {
             fullWidth
             icon={<Crown size={20} color="#fff" />}
           >
-            Get Lifetime Access
+            {t('subscription.locked.getLifetimeAccess')}
           </GradientButton>
         </View>
 
@@ -89,7 +93,7 @@ export function LockedScreen() {
           disabled={subscription.isRestoring}
           activeOpacity={0.7}
           style={styles.restoreButton}
-          accessibilityLabel="Restore previous purchases"
+          accessibilityLabel={t('subscription.locked.restorePurchases')}
           accessibilityRole="button"
         >
           {subscription.isRestoring ? (
@@ -97,7 +101,9 @@ export function LockedScreen() {
           ) : (
             <>
               <RotateCcw size={14} color={theme.colors.text.tertiary} />
-              <Text className="text-sm text-content-secondary ml-1.5">Restore Purchases</Text>
+              <Text className="text-sm text-content-secondary ml-1.5">
+                {t('subscription.locked.restorePurchases')}
+              </Text>
             </>
           )}
         </TouchableOpacity>
@@ -121,11 +127,13 @@ export function LockedScreen() {
         onPress={() => router.push('/(tabs)/settings')}
         activeOpacity={0.7}
         style={styles.settingsLink}
-        accessibilityLabel="Account Settings"
+        accessibilityLabel={t('subscription.locked.accountSettings')}
         accessibilityRole="button"
       >
         <Settings size={16} color={theme.colors.text.tertiary} />
-        <Text className="text-sm text-content-tertiary ml-1.5">Account Settings</Text>
+        <Text className="text-sm text-content-tertiary ml-1.5">
+          {t('subscription.locked.accountSettings')}
+        </Text>
       </TouchableOpacity>
 
       {/* Paywall Modal */}

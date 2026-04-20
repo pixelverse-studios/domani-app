@@ -8,6 +8,7 @@ import { Text } from '~/components/ui/Text'
 import { GradientButton } from '~/components/ui/GradientButton'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useSubscription } from '~/hooks/useSubscription'
+import { useTranslation } from '~/hooks/useTranslation'
 
 /**
  * Gate shown to users in the `pre_trial` state — authenticated users who
@@ -24,6 +25,7 @@ export function PreTrialScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const subscription = useSubscription()
+  const { t } = useTranslation()
   const [startError, setStartError] = useState<string | null>(null)
 
   const handleStartTrial = async () => {
@@ -36,7 +38,7 @@ export function PreTrialScreen() {
       // unreachable in practice but would indicate a state-machine bug) from
       // genuine DB/network failures. User still sees a generic message.
       console.error('[PreTrialScreen] startTrial failed:', err)
-      setStartError('Could not start your free trial. Please try again.')
+      setStartError(t('subscription.preTrial.error'))
     }
   }
 
@@ -54,10 +56,7 @@ export function PreTrialScreen() {
       <View style={styles.content}>
         {/* Icon */}
         <View
-          style={[
-            styles.iconContainer,
-            { backgroundColor: `${theme.colors.brand.primary}1A` },
-          ]}
+          style={[styles.iconContainer, { backgroundColor: `${theme.colors.brand.primary}1A` }]}
         >
           <Sparkles size={48} color={theme.colors.brand.primary} strokeWidth={1.5} />
         </View>
@@ -67,7 +66,7 @@ export function PreTrialScreen() {
           className="text-2xl font-sans-bold text-content-primary text-center mt-6"
           style={{ lineHeight: 32 }}
         >
-          Welcome to Domani
+          {t('subscription.preTrial.title')}
         </Text>
 
         {/* Subtext */}
@@ -75,8 +74,7 @@ export function PreTrialScreen() {
           className="font-sans text-content-secondary text-center mt-3"
           style={{ fontSize: 15, lineHeight: 22, paddingHorizontal: 16 }}
         >
-          Start your 14-day free trial to explore everything Domani has to offer. No
-          payment required to begin — you decide if and when to upgrade.
+          {t('subscription.preTrial.body')}
         </Text>
 
         {/* Start Trial CTA */}
@@ -85,16 +83,12 @@ export function PreTrialScreen() {
             onPress={handleStartTrial}
             disabled={subscription.isLoading || subscription.isStartingTrial}
             fullWidth
-            icon={
-              subscription.isStartingTrial ? undefined : (
-                <Sparkles size={20} color="#fff" />
-              )
-            }
+            icon={subscription.isStartingTrial ? undefined : <Sparkles size={20} color="#fff" />}
           >
             {subscription.isStartingTrial ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              'Start 14-Day Free Trial'
+              t('subscription.preTrial.startTrial')
             )}
           </GradientButton>
         </View>
@@ -118,11 +112,13 @@ export function PreTrialScreen() {
         onPress={() => router.push('/(tabs)/settings')}
         activeOpacity={0.7}
         style={styles.settingsLink}
-        accessibilityLabel="Account Settings"
+        accessibilityLabel={t('subscription.preTrial.accountSettings')}
         accessibilityRole="button"
       >
         <Settings size={16} color={theme.colors.text.tertiary} />
-        <Text className="text-sm text-content-tertiary ml-1.5">Account Settings</Text>
+        <Text className="text-sm text-content-tertiary ml-1.5">
+          {t('subscription.preTrial.accountSettings')}
+        </Text>
       </TouchableOpacity>
     </View>
   )

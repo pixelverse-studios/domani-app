@@ -8,6 +8,10 @@ import * as AppleAuthentication from 'expo-apple-authentication'
 import { supabase, sendAccountEmail } from '~/lib/supabase'
 import { sendDiscordNotification } from '~/lib/discord'
 import { captureException, addBreadcrumb } from '~/lib/sentry'
+import { useTranslation } from '~/hooks/useTranslation'
+import { formatLocalizedDate } from '~/i18n/date'
+import type { AppLocale } from '~/i18n'
+import type { TranslationKey, TranslationValues } from '~/i18n/types'
 
 // Configure web browser for OAuth
 WebBrowser.maybeCompleteAuthSession()
@@ -65,6 +69,8 @@ const checkPendingDeletion = async (
   userName: string | undefined,
   signOutFn: () => Promise<void>,
   onReactivated: () => void,
+  locale: AppLocale,
+  t: (key: TranslationKey, values?: TranslationValues) => string,
 ): Promise<boolean> => {
   try {
     const { data: profile, error } = await supabase
@@ -78,19 +84,19 @@ const checkPendingDeletion = async (
     }
 
     // Account is pending deletion - show reactivation prompt
-    const deletionDate = new Date(profile.deletion_scheduled_for!).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    })
+    const deletionDate = formatLocalizedDate(
+      new Date(profile.deletion_scheduled_for!),
+      'MMMM d, yyyy',
+      locale,
+    )
 
     return new Promise((resolve) => {
       Alert.alert(
-        'Account Scheduled for Deletion',
-        `Your account is scheduled to be deleted on ${deletionDate}. Would you like to reactivate it?`,
+        t('auth.pendingDeletion.title'),
+        t('auth.pendingDeletion.message', { date: deletionDate }),
         [
           {
-            text: 'Reactivate',
+            text: t('auth.actions.reactivate'),
             onPress: async () => {
               // Cancel the deletion
               const { error: cancelError } = await supabase.rpc('cancel_account_deletion', {
@@ -113,7 +119,7 @@ const checkPendingDeletion = async (
             },
           },
           {
-            text: 'Keep Deletion',
+            text: t('auth.actions.keepDeletion'),
             style: 'destructive',
             onPress: async () => {
               await signOutFn()
@@ -286,6 +292,7 @@ interface AuthContextValue {
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const { locale, t } = useTranslation()
   const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
@@ -353,9 +360,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
             // Sign out and alert the user (run async)
             supabase.auth.signOut().then(() => {
-              Alert.alert('Account Already Exists', 'An account with this email already exists.', [
-                { text: 'OK' },
-              ])
+              Alert.alert(
+                t('auth.errors.accountExistsTitle'),
+                t('auth.errors.accountExistsMessage'),
+                [{ text: t('auth.actions.ok') }],
+              )
               setSession(null)
               setUser(null)
             })
@@ -380,6 +389,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               }
             },
             () => setAccountReactivated(true),
+            locale,
+            t,
           )
         }
         const signupMethod = session.user.app_metadata?.provider
@@ -388,7 +399,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [locale, t])
 
   const signInWithGoogle = async () => {
     try {

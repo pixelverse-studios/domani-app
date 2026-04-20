@@ -16,6 +16,7 @@ import type { PurchasesOffering, PurchasesPackage } from 'react-native-purchases
 import { Text } from '~/components/ui/Text'
 import { GradientButton } from '~/components/ui/GradientButton'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
 
 interface PaywallModalProps {
   visible: boolean
@@ -27,25 +28,6 @@ interface PaywallModalProps {
   onPurchase: (pkg: PurchasesPackage) => Promise<unknown | null>
   onRestore: () => Promise<unknown | null>
 }
-
-const DISCOUNT_CONFIG: Record<string, { label: string; badge: string }> = {
-  early_adopter: { label: 'Early adopter pricing', badge: '71% off' },
-  friends_family: { label: 'Friends & family pricing', badge: '86% off' },
-}
-
-const VALUE_PROPS = [
-  'Unlimited daily tasks',
-  'Plan tomorrow, tonight',
-  'All features, forever',
-  'No subscriptions, ever',
-]
-
-const SUCCESS_PROPS = [
-  'Plan tomorrow, tonight',
-  'Small daily wins build lasting habits',
-  'Built to keep you focused, not busy',
-  'The strategy top performers swear by',
-]
 
 export function PaywallModal({
   visible,
@@ -59,20 +41,31 @@ export function PaywallModal({
 }: PaywallModalProps) {
   const theme = useAppTheme()
   const router = useRouter()
+  const { catalog, t } = useTranslation()
   const { height } = useWindowDimensions()
-  const scaleAnim = React.useRef(new Animated.Value(0.9)).current
-  const fadeAnim = React.useRef(new Animated.Value(0)).current
+  const [scaleAnim] = useState(() => new Animated.Value(0.9))
+  const [fadeAnim] = useState(() => new Animated.Value(0))
   const [error, setError] = useState<string | null>(null)
   const [failCount, setFailCount] = useState(0)
   const [showSuccess, setShowSuccess] = useState(false)
-  const successScaleAnim = React.useRef(new Animated.Value(0.8)).current
+  const [successScaleAnim] = useState(() => new Animated.Value(0.8))
 
   const lifetimePackage =
     offerings?.availablePackages?.find((pkg) => pkg.packageType === PACKAGE_TYPE.LIFETIME) ??
     offerings?.availablePackages?.[0] ??
     null
   const priceString = lifetimePackage?.product?.priceString
-  const discount = DISCOUNT_CONFIG[offeringIdentifier]
+  const discountConfig: Record<string, { label: string; badge: string }> = {
+    early_adopter: {
+      label: t('subscription.paywall.discountLabelEarlyAdopter'),
+      badge: t('subscription.paywall.discountBadgeEarlyAdopter'),
+    },
+    friends_family: {
+      label: t('subscription.paywall.discountLabelFriendsFamily'),
+      badge: t('subscription.paywall.discountBadgeFriendsFamily'),
+    },
+  }
+  const discount = discountConfig[offeringIdentifier]
   const isCompactHeight = height < 780
   const isVeryCompactHeight = height < 700
 
@@ -95,31 +88,34 @@ export function PaywallModal({
     restoreMarginTop: isVeryCompactHeight ? 2 : 4,
   }
 
-  // Reset error state when modal opens
   useEffect(() => {
-    if (visible) {
-      setError(null)
-      setFailCount(0)
-      setShowSuccess(false)
-      successScaleAnim.setValue(0.8)
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start()
-    } else {
+    if (!visible) {
       scaleAnim.setValue(0.9)
       fadeAnim.setValue(0)
     }
-  }, [visible, scaleAnim, fadeAnim, successScaleAnim])
+  }, [visible, scaleAnim, fadeAnim])
+
+  const handleModalShow = () => {
+    setError(null)
+    setFailCount(0)
+    setShowSuccess(false)
+    successScaleAnim.setValue(0.8)
+    scaleAnim.setValue(0.9)
+    fadeAnim.setValue(0)
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }
 
   const transitionToSuccess = () => {
     setShowSuccess(true)
@@ -142,8 +138,8 @@ export function PaywallModal({
       setFailCount(count)
       setError(
         count >= 2
-          ? 'This keeps happening. Please contact support if the issue persists.'
-          : 'Something went wrong with your purchase. Please try again.',
+          ? t('subscription.paywall.purchaseErrorSupport')
+          : t('subscription.paywall.purchaseErrorRetry'),
       )
     }
   }
@@ -155,17 +151,23 @@ export function PaywallModal({
       if (result) {
         transitionToSuccess()
       } else {
-        setError('No previous purchases found for this account.')
+        setError(t('subscription.paywall.restoreNotFound'))
       }
     } catch {
-      setError('Could not restore purchases. Please try again.')
+      setError(t('subscription.paywall.restoreError'))
     }
   }
 
   const isProcessing = isPurchasing || isRestoring
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+      onShow={handleModalShow}
+    >
       <TouchableOpacity
         activeOpacity={1}
         onPress={isProcessing ? undefined : onClose}
@@ -184,265 +186,281 @@ export function PaywallModal({
               },
             ]}
           >
-          {showSuccess ? (
-            /* ── Success View ── */
-            <Animated.View
-              style={[styles.successContent, { transform: [{ scale: successScaleAnim }] }]}
-            >
-              <View
-                style={[
-                  styles.iconContainer,
-                  {
-                    width: layout.iconContainerSize,
-                    height: layout.iconContainerSize,
-                    borderRadius: layout.iconContainerSize / 2,
-                  },
-                  { backgroundColor: `${theme.colors.brand.primary}1A` },
-                ]}
+            {showSuccess ? (
+              /* ── Success View ── */
+              <Animated.View
+                style={[styles.successContent, { transform: [{ scale: successScaleAnim }] }]}
               >
-                <PartyPopper
-                  size={layout.iconSize}
-                  color={theme.colors.brand.primary}
-                  strokeWidth={2}
-                />
-              </View>
-
-              <Text
-                className="font-sans-bold text-content-primary text-center"
-                style={{
-                  fontSize: layout.titleFontSize,
-                  lineHeight: layout.titleLineHeight,
-                  marginTop: layout.titleMarginTop,
-                }}
-              >
-                You're All Set!
-              </Text>
-
-              <Text
-                className="font-sans text-content-secondary text-center mt-2 mb-2"
-                style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
-              >
-                Lifetime access unlocked. Welcome to Domani.
-              </Text>
-
-              <View style={styles.successChecks}>
-                {SUCCESS_PROPS.map((prop) => (
-                  <View key={prop} style={styles.valuePropRow}>
-                    <View
-                      style={[
-                        styles.checkCircle,
-                        {
-                          width: layout.checkCircleSize,
-                          height: layout.checkCircleSize,
-                          borderRadius: layout.checkCircleSize / 2,
-                        },
-                        { backgroundColor: `${theme.colors.brand.primary}1A` },
-                      ]}
-                    >
-                      <Check
-                        size={layout.checkIconSize}
-                        color={theme.colors.brand.primary}
-                        strokeWidth={3}
-                      />
-                    </View>
-                    <Text
-                      className="font-sans text-content-primary ml-3"
-                      style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
-                    >
-                      {prop}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-
-              <GradientButton onPress={onClose} fullWidth>
-                Start Planning
-              </GradientButton>
-
-              {/* Close link for users who don't want to navigate */}
-              <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={{ marginTop: 12 }}>
-                <Text className="font-sans text-sm text-content-tertiary">Dismiss</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          ) : (
-            /* ── Purchase View ── */
-            <>
-              {/* Close button */}
-              <TouchableOpacity
-                onPress={onClose}
-                disabled={isProcessing}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                style={[styles.closeButton, { top: layout.closeOffset, right: layout.closeOffset }]}
-                accessibilityLabel="Close"
-                accessibilityRole="button"
-              >
-                <X size={24} color={theme.colors.text.tertiary} />
-              </TouchableOpacity>
-
-              {/* Icon */}
-              <View
-                style={[
-                  styles.iconContainer,
-                  {
-                    width: layout.iconContainerSize,
-                    height: layout.iconContainerSize,
-                    borderRadius: layout.iconContainerSize / 2,
-                  },
-                  { backgroundColor: `${theme.colors.brand.primary}1A` },
-                ]}
-              >
-                <Crown size={layout.iconSize} color={theme.colors.brand.primary} strokeWidth={2} />
-              </View>
-
-              {/* Header */}
-              <Text
-                className="font-sans-bold text-content-primary text-center"
-                style={{
-                  fontSize: layout.titleFontSize,
-                  lineHeight: layout.titleLineHeight,
-                  marginTop: layout.titleMarginTop,
-                }}
-              >
-                Get Lifetime Access
-              </Text>
-
-              {/* Subtitle */}
-              <Text
-                className="font-sans text-content-secondary text-center mt-2"
-                style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
-              >
-                One purchase. Yours forever.
-              </Text>
-
-              {/* Discount badge for early adopter / friends & family */}
-              {discount && (
                 <View
                   style={[
-                    styles.discountBadge,
-                    { backgroundColor: `${theme.colors.brand.primary}1F` },
+                    styles.iconContainer,
+                    {
+                      width: layout.iconContainerSize,
+                      height: layout.iconContainerSize,
+                      borderRadius: layout.iconContainerSize / 2,
+                    },
+                    { backgroundColor: `${theme.colors.brand.primary}1A` },
                   ]}
                 >
-                  <Text
-                    className="font-sans-bold text-xs"
-                    style={{ color: theme.colors.brand.dark, letterSpacing: 0.3 }}
-                  >
-                    {discount.badge}
-                  </Text>
-                  <Text className="font-sans text-xs text-content-secondary ml-1.5">
-                    — {discount.label}
-                  </Text>
+                  <PartyPopper
+                    size={layout.iconSize}
+                    color={theme.colors.brand.primary}
+                    strokeWidth={2}
+                  />
                 </View>
-              )}
 
-              {/* Value props */}
-              <View
-                style={[
-                  styles.valueProps,
-                  {
-                    marginTop: layout.valueSectionTop,
-                    marginBottom: layout.valueSectionBottom,
-                  },
-                ]}
-              >
-                {VALUE_PROPS.map((prop) => (
-                  <View key={prop} style={[styles.valuePropRow, { paddingVertical: layout.valueRowVertical }]}>
-                    <View
-                      style={[
-                        styles.checkCircle,
-                        {
-                          width: layout.checkCircleSize,
-                          height: layout.checkCircleSize,
-                          borderRadius: layout.checkCircleSize / 2,
-                        },
-                        { backgroundColor: `${theme.colors.brand.primary}1A` },
-                      ]}
-                    >
-                      <Check
-                        size={layout.checkIconSize}
-                        color={theme.colors.brand.primary}
-                        strokeWidth={3}
-                      />
-                    </View>
-                    <Text
-                      className="font-sans text-content-primary ml-3"
-                      style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
-                    >
-                      {prop}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-
-              {/* Purchase CTA */}
-              <GradientButton
-                onPress={handlePurchase}
-                loading={isPurchasing}
-                disabled={!lifetimePackage || isProcessing}
-                fullWidth
-                icon={<Crown size={20} color="#fff" />}
-              >
-                {priceString ? `Get Lifetime Access — ${priceString}` : 'Get Lifetime Access'}
-              </GradientButton>
-
-              {/* Inline error message */}
-              {error && (
-                <View style={styles.errorContainer} accessibilityRole="alert">
-                  <View style={styles.errorRow}>
-                    <AlertCircle size={14} color={theme.colors.accent.brick} />
-                    <Text
-                      className="font-sans text-xs ml-1.5"
-                      style={{ color: theme.colors.accent.brick, flex: 1 }}
-                    >
-                      {error}
-                    </Text>
-                  </View>
-                  {failCount >= 2 && (
-                    <TouchableOpacity
-                      onPress={() => {
-                        onClose()
-                        router.push('/contact-support')
-                      }}
-                      activeOpacity={0.7}
-                      style={styles.contactSupport}
-                    >
-                      <Text
-                        className="font-sans-medium text-xs"
-                        style={{ color: theme.colors.brand.primary }}
-                      >
-                        Contact Support
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
-
-              {/* One-time purchase badge */}
-              {!error && (
-                <Text className="font-sans-medium text-xs text-content-tertiary text-center mt-3">
-                  One-time purchase. No recurring charges.
+                <Text
+                  className="font-sans-bold text-content-primary text-center"
+                  style={{
+                    fontSize: layout.titleFontSize,
+                    lineHeight: layout.titleLineHeight,
+                    marginTop: layout.titleMarginTop,
+                  }}
+                >
+                  {t('subscription.paywall.successTitle')}
                 </Text>
-              )}
 
-              {/* Restore purchases */}
-              <TouchableOpacity
-                onPress={handleRestore}
-                disabled={isProcessing}
-                activeOpacity={0.7}
-                style={[styles.restoreButton, { marginTop: layout.restoreMarginTop }]}
-                accessibilityLabel="Restore previous purchases"
-                accessibilityRole="button"
-              >
-                {isRestoring ? (
-                  <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
-                ) : (
-                  <>
-                    <RotateCcw size={14} color={theme.colors.text.tertiary} />
-                    <Text className="text-sm text-content-secondary ml-1.5">Restore Purchases</Text>
-                  </>
+                <Text
+                  className="font-sans text-content-secondary text-center mt-2 mb-2"
+                  style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
+                >
+                  {t('subscription.paywall.successBody')}
+                </Text>
+
+                <View style={styles.successChecks}>
+                  {catalog.subscription.paywall.successProps.map((prop) => (
+                    <View key={prop} style={styles.valuePropRow}>
+                      <View
+                        style={[
+                          styles.checkCircle,
+                          {
+                            width: layout.checkCircleSize,
+                            height: layout.checkCircleSize,
+                            borderRadius: layout.checkCircleSize / 2,
+                          },
+                          { backgroundColor: `${theme.colors.brand.primary}1A` },
+                        ]}
+                      >
+                        <Check
+                          size={layout.checkIconSize}
+                          color={theme.colors.brand.primary}
+                          strokeWidth={3}
+                        />
+                      </View>
+                      <Text
+                        className="font-sans text-content-primary ml-3"
+                        style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
+                      >
+                        {prop}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+
+                <GradientButton onPress={onClose} fullWidth>
+                  {t('subscription.paywall.successPrimaryCta')}
+                </GradientButton>
+
+                {/* Close link for users who don't want to navigate */}
+                <TouchableOpacity onPress={onClose} activeOpacity={0.7} style={{ marginTop: 12 }}>
+                  <Text className="font-sans text-sm text-content-tertiary">
+                    {t('subscription.paywall.dismiss')}
+                  </Text>
+                </TouchableOpacity>
+              </Animated.View>
+            ) : (
+              /* ── Purchase View ── */
+              <>
+                {/* Close button */}
+                <TouchableOpacity
+                  onPress={onClose}
+                  disabled={isProcessing}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  style={[
+                    styles.closeButton,
+                    { top: layout.closeOffset, right: layout.closeOffset },
+                  ]}
+                  accessibilityLabel={t('subscription.paywall.close')}
+                  accessibilityRole="button"
+                >
+                  <X size={24} color={theme.colors.text.tertiary} />
+                </TouchableOpacity>
+
+                {/* Icon */}
+                <View
+                  style={[
+                    styles.iconContainer,
+                    {
+                      width: layout.iconContainerSize,
+                      height: layout.iconContainerSize,
+                      borderRadius: layout.iconContainerSize / 2,
+                    },
+                    { backgroundColor: `${theme.colors.brand.primary}1A` },
+                  ]}
+                >
+                  <Crown
+                    size={layout.iconSize}
+                    color={theme.colors.brand.primary}
+                    strokeWidth={2}
+                  />
+                </View>
+
+                {/* Header */}
+                <Text
+                  className="font-sans-bold text-content-primary text-center"
+                  style={{
+                    fontSize: layout.titleFontSize,
+                    lineHeight: layout.titleLineHeight,
+                    marginTop: layout.titleMarginTop,
+                  }}
+                >
+                  {t('subscription.paywall.title')}
+                </Text>
+
+                {/* Subtitle */}
+                <Text
+                  className="font-sans text-content-secondary text-center mt-2"
+                  style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
+                >
+                  {t('subscription.paywall.subtitle')}
+                </Text>
+
+                {/* Discount badge for early adopter / friends & family */}
+                {discount && (
+                  <View
+                    style={[
+                      styles.discountBadge,
+                      { backgroundColor: `${theme.colors.brand.primary}1F` },
+                    ]}
+                  >
+                    <Text
+                      className="font-sans-bold text-xs"
+                      style={{ color: theme.colors.brand.dark, letterSpacing: 0.3 }}
+                    >
+                      {discount.badge}
+                    </Text>
+                    <Text className="font-sans text-xs text-content-secondary ml-1.5">
+                      — {discount.label}
+                    </Text>
+                  </View>
                 )}
-              </TouchableOpacity>
-            </>
-          )}
+
+                {/* Value props */}
+                <View
+                  style={[
+                    styles.valueProps,
+                    {
+                      marginTop: layout.valueSectionTop,
+                      marginBottom: layout.valueSectionBottom,
+                    },
+                  ]}
+                >
+                  {catalog.subscription.paywall.valueProps.map((prop) => (
+                    <View
+                      key={prop}
+                      style={[styles.valuePropRow, { paddingVertical: layout.valueRowVertical }]}
+                    >
+                      <View
+                        style={[
+                          styles.checkCircle,
+                          {
+                            width: layout.checkCircleSize,
+                            height: layout.checkCircleSize,
+                            borderRadius: layout.checkCircleSize / 2,
+                          },
+                          { backgroundColor: `${theme.colors.brand.primary}1A` },
+                        ]}
+                      >
+                        <Check
+                          size={layout.checkIconSize}
+                          color={theme.colors.brand.primary}
+                          strokeWidth={3}
+                        />
+                      </View>
+                      <Text
+                        className="font-sans text-content-primary ml-3"
+                        style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
+                      >
+                        {prop}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Purchase CTA */}
+                <GradientButton
+                  onPress={handlePurchase}
+                  loading={isPurchasing}
+                  disabled={!lifetimePackage || isProcessing}
+                  fullWidth
+                  icon={<Crown size={20} color="#fff" />}
+                >
+                  {priceString
+                    ? t('subscription.paywall.purchaseCtaWithPrice', { price: priceString })
+                    : t('subscription.paywall.purchaseCta')}
+                </GradientButton>
+
+                {/* Inline error message */}
+                {error && (
+                  <View style={styles.errorContainer} accessibilityRole="alert">
+                    <View style={styles.errorRow}>
+                      <AlertCircle size={14} color={theme.colors.accent.brick} />
+                      <Text
+                        className="font-sans text-xs ml-1.5"
+                        style={{ color: theme.colors.accent.brick, flex: 1 }}
+                      >
+                        {error}
+                      </Text>
+                    </View>
+                    {failCount >= 2 && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          onClose()
+                          router.push('/contact-support')
+                        }}
+                        activeOpacity={0.7}
+                        style={styles.contactSupport}
+                      >
+                        <Text
+                          className="font-sans-medium text-xs"
+                          style={{ color: theme.colors.brand.primary }}
+                        >
+                          {t('subscription.paywall.contactSupport')}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+
+                {/* One-time purchase badge */}
+                {!error && (
+                  <Text className="font-sans-medium text-xs text-content-tertiary text-center mt-3">
+                    {t('subscription.paywall.oneTimePurchaseNote')}
+                  </Text>
+                )}
+
+                {/* Restore purchases */}
+                <TouchableOpacity
+                  onPress={handleRestore}
+                  disabled={isProcessing}
+                  activeOpacity={0.7}
+                  style={[styles.restoreButton, { marginTop: layout.restoreMarginTop }]}
+                  accessibilityLabel={t('subscription.paywall.restorePurchases')}
+                  accessibilityRole="button"
+                >
+                  {isRestoring ? (
+                    <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
+                  ) : (
+                    <>
+                      <RotateCcw size={14} color={theme.colors.text.tertiary} />
+                      <Text className="text-sm text-content-secondary ml-1.5">
+                        {t('subscription.paywall.restorePurchases')}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
           </Animated.View>
         </TouchableOpacity>
       </TouchableOpacity>
