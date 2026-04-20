@@ -6,11 +6,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { GradientText, LegalFooter, Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
+import { useTranslation } from '~/hooks/useTranslation'
 
 export default function WelcomeScreen() {
   useScreenTracking('welcome')
   const insets = useSafeAreaInsets()
   const theme = useAppTheme()
+  const { catalog, t } = useTranslation()
   const brandColor = theme.colors.brand.primary
 
   // Use useMemo to create stable animated values
@@ -63,6 +65,8 @@ export default function WelcomeScreen() {
     ],
   })
 
+  const returningCtaParts = catalog.welcome.returningCta
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Background glow - top right sage gradient, extends left and down */}
@@ -97,10 +101,10 @@ export default function WelcomeScreen() {
           {/* Tagline */}
           <Animated.View style={[styles.taglineContainer, createAnimatedStyle(taglineAnim)]}>
             <Text style={[styles.tagline, { color: theme.colors.text.secondary }]}>
-              Plan your tomorrow, tonight.
+              {t('welcome.taglinePrimary')}
             </Text>
             <Text style={[styles.taglineSecondary, { color: theme.colors.text.secondary }]}>
-              Execute with focus.
+              {t('welcome.taglineSecondary')}
             </Text>
           </Animated.View>
         </View>
@@ -117,7 +121,7 @@ export default function WelcomeScreen() {
                   end={{ x: 1, y: 0 }}
                   style={styles.primaryButton}
                 >
-                  <Text style={styles.primaryButtonText}>Start Planning</Text>
+                  <Text style={styles.primaryButtonText}>{t('welcome.startPlanning')}</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </Link>
@@ -125,15 +129,26 @@ export default function WelcomeScreen() {
             {/* Secondary link for returning users */}
             <Link href="/login?mode=returning" asChild>
               <TouchableOpacity style={styles.secondaryLink} activeOpacity={0.7}>
-                <Text style={[styles.secondaryLinkText, { color: theme.colors.text.secondary }]}>
-                  Already have an account?{' '}
-                </Text>
-                <GradientText
-                  colors={[theme.colors.brand.primary, theme.colors.brand.dark]}
-                  style={styles.secondaryLinkHighlight}
-                >
-                  Sign in
-                </GradientText>
+                <View style={styles.secondaryLinkContent}>
+                  {returningCtaParts.map((part, index) =>
+                    part === '{signIn}' ? (
+                      <GradientText
+                        key={`returning-cta-${index}`}
+                        colors={[theme.colors.brand.primary, theme.colors.brand.dark]}
+                        style={styles.secondaryLinkHighlight}
+                      >
+                        {t('welcome.signIn')}
+                      </GradientText>
+                    ) : (
+                      <Text
+                        key={`returning-cta-${index}`}
+                        style={[styles.secondaryLinkText, { color: theme.colors.text.secondary }]}
+                      >
+                        {part}
+                      </Text>
+                    ),
+                  )}
+                </View>
               </TouchableOpacity>
             </Link>
           </Animated.View>
@@ -217,11 +232,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   secondaryLink: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
     marginTop: 20,
     paddingVertical: 8,
+  },
+  secondaryLinkContent: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   secondaryLinkText: {
     fontSize: 15,
