@@ -7,7 +7,7 @@
  * @module systemCategories
  */
 
-import type { AppLocale } from '~/i18n'
+import { getCatalogLocale, type AppLocale, type CatalogLocale } from '~/i18n'
 
 // ============================================================================
 // TypeScript Types
@@ -41,7 +41,7 @@ export interface SystemCategoryDefinition {
   readonly position: number
 }
 
-const SYSTEM_CATEGORY_LABELS: Record<AppLocale, Record<SystemCategoryId, string>> = {
+const SYSTEM_CATEGORY_LABELS: Record<CatalogLocale, Record<SystemCategoryId, string>> = {
   en: {
     work: 'Work',
     personal: 'Personal',
@@ -56,7 +56,7 @@ const SYSTEM_CATEGORY_LABELS: Record<AppLocale, Record<SystemCategoryId, string>
   },
 }
 
-const UNCATEGORIZED_LABELS: Record<AppLocale, string> = {
+const UNCATEGORIZED_LABELS: Record<CatalogLocale, string> = {
   en: 'Uncategorized',
   es: 'Sin categoría',
 }
@@ -171,17 +171,19 @@ export function getLocalizedSystemCategoryName(
   input: SystemCategoryId | SystemCategoryName,
   locale: AppLocale,
 ): string {
+  const catalogLocale = getCatalogLocale(locale)
   const category =
     getCategoryById(input as SystemCategoryId) ?? getCategoryByName(input as SystemCategoryName)
 
   if (!category) return String(input)
 
-  return SYSTEM_CATEGORY_LABELS[locale]?.[category.id] ?? category.name
+  return SYSTEM_CATEGORY_LABELS[catalogLocale]?.[category.id] ?? category.name
 }
 
 export function getLocalizedCategoryName(name: string, locale: AppLocale): string {
+  const catalogLocale = getCatalogLocale(locale)
   if (name === 'Uncategorized') {
-    return UNCATEGORIZED_LABELS[locale] ?? UNCATEGORIZED_LABELS.en
+    return UNCATEGORIZED_LABELS[catalogLocale] ?? UNCATEGORIZED_LABELS.en
   }
 
   const systemCategoryId = getSystemCategoryIdByName(name)

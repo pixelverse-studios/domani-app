@@ -1,14 +1,27 @@
 import React from 'react'
 import { getLocales } from 'expo-localization'
 
-import { catalogs, defaultLocale, supportedLocales, type AppLocale } from '~/i18n'
+import {
+  catalogs,
+  defaultCatalogLocale,
+  defaultLocale,
+  getCatalogLocale,
+  resolveSupportedLocale,
+  supportedLocales,
+  translatedCatalogLocales,
+  type AppLocale,
+  type CatalogLocale,
+} from '~/i18n'
 import type { TranslationCatalog, TranslationKey, TranslationValues } from '~/i18n/types'
 
 type LocalizationContextValue = {
   catalog: TranslationCatalog
   locale: AppLocale
+  catalogLocale: CatalogLocale
   defaultLocale: AppLocale
-  supportedLocales: AppLocale[]
+  defaultCatalogLocale: CatalogLocale
+  supportedLocales: readonly AppLocale[]
+  translatedCatalogLocales: readonly CatalogLocale[]
   setLocaleOverride: (locale: AppLocale) => void
   clearLocaleOverride: () => void
   t: (key: TranslationKey, values?: TranslationValues) => string
@@ -44,20 +57,9 @@ function interpolate(template: string, values?: TranslationValues): string {
 
 function resolveLocaleFromDevice(): AppLocale {
   const deviceLocales = getLocales()
-
-  for (const locale of deviceLocales) {
-    const languageTag = locale.languageTag?.toLowerCase()
-    if (languageTag && languageTag in catalogs) {
-      return languageTag as AppLocale
-    }
-
-    const languageCode = locale.languageCode?.toLowerCase()
-    if (languageCode && languageCode in catalogs) {
-      return languageCode as AppLocale
-    }
-  }
-
-  return defaultLocale
+  return resolveSupportedLocale(
+    deviceLocales.flatMap((locale) => [locale.languageTag, locale.languageCode]),
+  )
 }
 
 export function LocalizationProvider({ children }: { children: React.ReactNode }) {
@@ -68,8 +70,9 @@ export function LocalizationProvider({ children }: { children: React.ReactNode }
     [localeOverride],
   )
 
-  const catalog = React.useMemo(() => catalogs[locale], [locale])
-  const fallbackCatalog = catalogs[defaultLocale]
+  const catalogLocale = React.useMemo(() => getCatalogLocale(locale), [locale])
+  const catalog = React.useMemo(() => catalogs[catalogLocale], [catalogLocale])
+  const fallbackCatalog = catalogs[defaultCatalogLocale]
 
   const t = React.useCallback(
     (key: TranslationKey, values?: TranslationValues) => {
@@ -91,13 +94,16 @@ export function LocalizationProvider({ children }: { children: React.ReactNode }
     () => ({
       catalog,
       locale,
+      catalogLocale,
       defaultLocale,
+      defaultCatalogLocale,
       supportedLocales,
+      translatedCatalogLocales,
       setLocaleOverride,
       clearLocaleOverride,
       t,
     }),
-    [catalog, clearLocaleOverride, locale, t],
+    [catalog, catalogLocale, clearLocaleOverride, locale, t],
   )
 
   return <LocalizationContext.Provider value={value}>{children}</LocalizationContext.Provider>
