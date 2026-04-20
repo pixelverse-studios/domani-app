@@ -9,7 +9,31 @@ Translated catalogs currently exist for:
 - `en`
 - `es`
 
+First-wave scaffold files now also exist for:
+
+- `pt`
+- `fr`
+- `de`
+- `it`
+
+These scaffold files are not registered as active translated catalogs yet. They currently mirror the English structure so translation work can be filled in incrementally without changing the i18n shape again.
+
 All other market locales currently fall back to English copy until dedicated catalogs are added. Date and time formatting can still follow the resolved market locale where supported.
+
+## First Translation Wave
+
+The first expansion wave is scoped as:
+
+1. `pt-BR` / `pt-PT`
+2. `fr-FR` / `fr-CA`
+3. `de-DE`
+4. `it-IT`
+
+Recommended rollout order:
+
+1. complete translated copy in these scaffold catalogs
+2. register the catalogs in `src/i18n/index.ts`
+3. run device QA for each language on constrained surfaces like tabs, modals, alerts, and paywall copy
 
 ## Top-25 Market Locales
 
