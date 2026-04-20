@@ -8,6 +8,7 @@ import * as AppleAuthentication from 'expo-apple-authentication'
 import { supabase, sendAccountEmail } from '~/lib/supabase'
 import { sendDiscordNotification } from '~/lib/discord'
 import { captureException, addBreadcrumb } from '~/lib/sentry'
+import { useTranslation } from '~/hooks/useTranslation'
 
 // Configure web browser for OAuth
 WebBrowser.maybeCompleteAuthSession()
@@ -286,6 +287,7 @@ interface AuthContextValue {
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const { t } = useTranslation()
   const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
@@ -353,9 +355,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
             // Sign out and alert the user (run async)
             supabase.auth.signOut().then(() => {
-              Alert.alert('Account Already Exists', 'An account with this email already exists.', [
-                { text: 'OK' },
-              ])
+              Alert.alert(
+                t('auth.errors.accountExistsTitle'),
+                t('auth.errors.accountExistsMessage'),
+                [{ text: 'OK' }],
+              )
               setSession(null)
               setUser(null)
             })
@@ -388,7 +392,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [t])
 
   const signInWithGoogle = async () => {
     try {

@@ -1,10 +1,10 @@
 import React from 'react'
 import { View, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { Crown, Sparkles, RotateCcw } from 'lucide-react-native'
-import { format } from 'date-fns'
-
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { formatLocalizedDate } from '~/i18n/date'
 import { SectionHeader } from './SectionHeader'
 import { SubscriptionSkeleton } from './SettingsSkeletons'
 import type { SubscriptionStatus } from '~/hooks/useSubscription'
@@ -43,6 +43,7 @@ export function SubscriptionSection({
   onUpgrade,
 }: SubscriptionSectionProps) {
   const theme = useAppTheme()
+  const { locale, t } = useTranslation()
 
   // Subscription status display config. Lives inside the component so it can
   // reference theme colors. `Record<SubscriptionStatus, …>` enforces an entry
@@ -56,39 +57,39 @@ export function SubscriptionSection({
     { label: string; color: string; bgStyle: { backgroundColor: string } }
   > = {
     beta: {
-      label: 'Beta Tester',
+      label: t('subscription.settings.statusBeta'),
       color: '#f59e0b',
       bgStyle: { backgroundColor: 'rgba(245, 158, 11, 0.2)' },
     },
     grace_period: {
-      label: 'Beta Grace',
+      label: t('subscription.settings.statusGracePeriod'),
       color: theme.colors.accent.trial,
       bgStyle: { backgroundColor: `${theme.colors.brand.primary}26` },
     },
     pre_trial: {
-      label: 'No Active Plan',
+      label: t('subscription.settings.statusPreTrial'),
       color: '#94a3b8',
       bgStyle: { backgroundColor: 'rgba(148, 163, 184, 0.2)' },
     },
     expired: {
-      label: 'Trial Ended',
+      label: t('subscription.settings.statusExpired'),
       color: '#94a3b8',
       bgStyle: { backgroundColor: 'rgba(148, 163, 184, 0.2)' },
     },
     refunded: {
-      label: 'Refunded',
+      label: t('subscription.settings.statusRefunded'),
       color: '#94a3b8',
       bgStyle: { backgroundColor: 'rgba(148, 163, 184, 0.2)' },
     },
     trialing: {
-      label: 'Trial',
+      label: t('subscription.settings.statusTrialing'),
       color: theme.colors.accent.trial,
       // Brand primary sage at ~15% opacity for the badge pill bg — pairs
       // with the 70% accent.trial foreground for contrast.
       bgStyle: { backgroundColor: `${theme.colors.brand.primary}26` },
     },
     lifetime: {
-      label: 'Lifetime',
+      label: t('subscription.settings.statusLifetime'),
       color: '#f59e0b',
       bgStyle: { backgroundColor: 'rgba(245, 158, 11, 0.2)' },
     },
@@ -116,7 +117,7 @@ export function SubscriptionSection({
 
   return (
     <>
-      <SectionHeader title="Your Plan" />
+      <SectionHeader title={t('subscription.settings.sectionTitle')} />
       {isLoading ? (
         <SubscriptionSkeleton />
       ) : (
@@ -126,7 +127,7 @@ export function SubscriptionSection({
               <View className="flex-row items-center">
                 <Crown size={20} color={currentStatusConfig.color} />
                 <Text className="text-base font-medium text-content-primary ml-2">
-                  Current Plan
+                  {t('subscription.settings.currentPlan')}
                 </Text>
               </View>
               <View className="px-3 py-1 rounded-full" style={currentStatusConfig.bgStyle}>
@@ -142,7 +143,7 @@ export function SubscriptionSection({
             {/* Beta — full access, no CTAs */}
             {status === 'beta' && (
               <Text className="text-sm text-content-secondary">
-                You have full access to everything during the beta. Thanks for helping test Domani!
+                {t('subscription.settings.betaBody')}
               </Text>
             )}
 
@@ -155,14 +156,18 @@ export function SubscriptionSection({
                     style={{ color: theme.colors.accent.trial }}
                   >
                     {graceDaysRemaining === 1
-                      ? '1 day left in beta grace period'
-                      : `${graceDaysRemaining} days left in beta grace period`}
+                      ? t('subscription.settings.gracePeriodOneDay')
+                      : t('subscription.settings.gracePeriodManyDays', {
+                          count: graceDaysRemaining ?? 0,
+                        })}
                   </Text>
                 </View>
                 <Text className="text-sm text-content-secondary mb-3">
                   {graceExpirationDate
-                    ? `Your free beta access ends on ${format(graceExpirationDate, 'MMMM d')}. Purchase lifetime access to keep using Domani after that.`
-                    : 'Your free beta access is ending soon. Purchase lifetime access to keep using Domani.'}
+                    ? t('subscription.settings.gracePeriodBodyWithDate', {
+                        date: formatLocalizedDate(graceExpirationDate, 'MMMM d', locale),
+                      })
+                    : t('subscription.settings.gracePeriodBodyNoDate')}
                 </Text>
                 <TouchableOpacity
                   onPress={onUpgrade}
@@ -174,7 +179,9 @@ export function SubscriptionSection({
                     opacity: isRestoring ? 0.5 : 1,
                   }}
                 >
-                  <Text className="text-white font-semibold">Get Lifetime Access</Text>
+                  <Text className="text-white font-semibold">
+                    {t('subscription.settings.getLifetimeAccess')}
+                  </Text>
                 </TouchableOpacity>
               </>
             )}
@@ -183,7 +190,7 @@ export function SubscriptionSection({
             {status === 'pre_trial' && (
               <>
                 <Text className="text-sm text-content-secondary mb-3">
-                  Explore everything Domani has to offer
+                  {t('subscription.settings.preTrialBody')}
                 </Text>
                 <TouchableOpacity
                   onPress={onStartTrial}
@@ -200,7 +207,9 @@ export function SubscriptionSection({
                   ) : (
                     <>
                       <Sparkles size={18} color="#fff" />
-                      <Text className="text-white font-semibold ml-2">Start 14-Day Free Trial</Text>
+                      <Text className="text-white font-semibold ml-2">
+                        {t('subscription.settings.startTrial')}
+                      </Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -211,7 +220,7 @@ export function SubscriptionSection({
             {status === 'expired' && (
               <>
                 <Text className="text-sm text-content-secondary mb-3">
-                  Your trial has ended — upgrade to keep using Domani
+                  {t('subscription.settings.expiredBody')}
                 </Text>
                 <TouchableOpacity
                   onPress={onUpgrade}
@@ -223,7 +232,9 @@ export function SubscriptionSection({
                     opacity: isRestoring ? 0.5 : 1,
                   }}
                 >
-                  <Text className="text-white font-semibold">Get Lifetime Access</Text>
+                  <Text className="text-white font-semibold">
+                    {t('subscription.settings.getLifetimeAccess')}
+                  </Text>
                 </TouchableOpacity>
               </>
             )}
@@ -232,7 +243,7 @@ export function SubscriptionSection({
             {status === 'refunded' && (
               <>
                 <Text className="text-sm text-content-secondary mb-3">
-                  Your purchase was refunded — get lifetime access to continue using Domani
+                  {t('subscription.settings.refundedBody')}
                 </Text>
                 <TouchableOpacity
                   onPress={onUpgrade}
@@ -244,7 +255,9 @@ export function SubscriptionSection({
                     opacity: isRestoring ? 0.5 : 1,
                   }}
                 >
-                  <Text className="text-white font-semibold">Get Lifetime Access</Text>
+                  <Text className="text-white font-semibold">
+                    {t('subscription.settings.getLifetimeAccess')}
+                  </Text>
                 </TouchableOpacity>
               </>
             )}
@@ -258,13 +271,17 @@ export function SubscriptionSection({
                     className="text-sm font-medium ml-2"
                     style={{ color: theme.colors.accent.trial }}
                   >
-                    {trialDaysRemaining} days remaining in trial
+                    {t('subscription.settings.trialingDaysRemaining', {
+                      count: trialDaysRemaining ?? 0,
+                    })}
                   </Text>
                 </View>
                 <Text className="text-sm text-content-secondary mb-3">
                   {trialExpirationDate
-                    ? `Unlimited tasks - All features unlocked through ${format(trialExpirationDate, 'MMMM d')}`
-                    : 'Unlimited tasks - All features unlocked'}
+                    ? t('subscription.settings.trialingBodyWithDate', {
+                        date: formatLocalizedDate(trialExpirationDate, 'MMMM d', locale),
+                      })
+                    : t('subscription.settings.trialingBodyNoDate')}
                 </Text>
                 <TouchableOpacity
                   onPress={onUpgrade}
@@ -276,7 +293,9 @@ export function SubscriptionSection({
                     opacity: isRestoring ? 0.5 : 1,
                   }}
                 >
-                  <Text className="text-white font-semibold">Get Lifetime Access</Text>
+                  <Text className="text-white font-semibold">
+                    {t('subscription.settings.getLifetimeAccess')}
+                  </Text>
                 </TouchableOpacity>
               </>
             )}
@@ -284,7 +303,7 @@ export function SubscriptionSection({
             {/* Lifetime — purchased, no CTAs */}
             {status === 'lifetime' && (
               <Text className="text-sm text-content-secondary">
-                Unlimited tasks - All features unlocked forever
+                {t('subscription.settings.lifetimeBody')}
               </Text>
             )}
           </View>
@@ -292,12 +311,10 @@ export function SubscriptionSection({
           {/* Restore purchases — only shown for states where a prior purchase
               could plausibly exist (expired, refunded, or trialing). Beta/pre_trial
               have nothing to restore; lifetime already has the purchase applied. */}
-          {(
-            status === 'expired' ||
+          {(status === 'expired' ||
             status === 'refunded' ||
             status === 'trialing' ||
-            status === 'grace_period'
-          ) && (
+            status === 'grace_period') && (
             <TouchableOpacity
               onPress={onRestore}
               disabled={isRestoring}
@@ -309,7 +326,9 @@ export function SubscriptionSection({
               ) : (
                 <>
                   <RotateCcw size={14} color={theme.colors.text.tertiary} />
-                  <Text className="text-sm text-content-secondary ml-1.5">Restore Purchases</Text>
+                  <Text className="text-sm text-content-secondary ml-1.5">
+                    {t('subscription.settings.restorePurchases')}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>

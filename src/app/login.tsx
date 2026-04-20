@@ -18,6 +18,7 @@ import { SocialButton } from '~/components/ui/SocialButton'
 import { useAuth } from '~/hooks/useAuth'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
+import { useTranslation } from '~/hooks/useTranslation'
 import { useAppConfig } from '~/stores/appConfigStore'
 import type { PublicPricingTier } from '~/types/appConfig'
 
@@ -33,6 +34,7 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets()
   const { signInWithGoogle, signInWithApple } = useAuth()
   const theme = useAppTheme()
+  const { t } = useTranslation()
   const { publicPricing, hasFetchedConfig } = useAppConfig()
   const brandColor = theme.colors.brand.primary
 
@@ -51,8 +53,8 @@ export default function LoginScreen() {
       router.replace('/')
     } catch (error) {
       Alert.alert(
-        'Sign In Error',
-        error instanceof Error ? error.message : 'Failed to sign in with Google',
+        t('auth.errors.signInTitle'),
+        error instanceof Error ? error.message : t('auth.errors.googleFallback'),
       )
     } finally {
       setGoogleLoading(false)
@@ -66,8 +68,8 @@ export default function LoginScreen() {
       router.replace('/')
     } catch (error) {
       Alert.alert(
-        'Sign In Error',
-        error instanceof Error ? error.message : 'Failed to sign in with Apple',
+        t('auth.errors.signInTitle'),
+        error instanceof Error ? error.message : t('auth.errors.appleFallback'),
       )
     } finally {
       setAppleLoading(false)
@@ -105,7 +107,9 @@ export default function LoginScreen() {
   }
 
   const trialConfirmLabel =
-    trialConfirmProvider === 'apple' ? 'Continue with Apple' : 'Continue with Google'
+    trialConfirmProvider === 'apple'
+      ? t('auth.login.continueWithApple')
+      : t('auth.login.continueWithGoogle')
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -136,22 +140,18 @@ export default function LoginScreen() {
           <View style={styles.headerSection}>
             {isNewUser ? (
               <>
-                <View
-                  style={[
-                    styles.offerEyebrow,
-                  ]}
-                >
+                <View style={[styles.offerEyebrow]}>
                   <Text style={[styles.offerEyebrowText, { color: brandColor }]}>
-                    Try Domani free before you buy it
+                    {t('auth.login.newUserEyebrow')}
                   </Text>
                 </View>
 
                 <RNText style={[styles.title, styles.titleCompact, { color: brandColor }]}>
-                  Start your 14-day free trial
+                  {t('auth.login.newUserTitle')}
                 </RNText>
 
                 <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
-                  Full access first. One lifetime purchase only if you want to keep it.
+                  {t('auth.login.newUserSubtitle')}
                 </Text>
 
                 <View style={styles.stepsStack}>
@@ -174,10 +174,10 @@ export default function LoginScreen() {
                     </View>
                     <View style={styles.stepCopy}>
                       <Text style={[styles.stepLabel, { color: theme.colors.text.primary }]}>
-                        Start free today
+                        {t('auth.login.stepStartLabel')}
                       </Text>
                       <Text style={[styles.stepBody, { color: theme.colors.text.secondary }]}>
-                        Your full 14-day trial begins as soon as you sign up.
+                        {t('auth.login.stepStartBody')}
                       </Text>
                     </View>
                   </View>
@@ -202,11 +202,11 @@ export default function LoginScreen() {
                     <View style={styles.stepCopy}>
                       <Text style={[styles.stepLabel, { color: theme.colors.text.primary }]}>
                         {lifetimePrice
-                          ? `Keep it for ${lifetimePrice} once`
-                          : 'Keep it with one lifetime purchase'}
+                          ? t('auth.login.stepKeepLabelWithPrice', { price: lifetimePrice })
+                          : t('auth.login.stepKeepLabelFallback')}
                       </Text>
                       <Text style={[styles.stepBody, { color: theme.colors.text.secondary }]}>
-                        No credit card up front. No subscription after the trial.
+                        {t('auth.login.stepKeepBody')}
                       </Text>
                     </View>
                   </View>
@@ -216,16 +216,16 @@ export default function LoginScreen() {
               <>
                 <View style={styles.offerEyebrow}>
                   <Text style={[styles.offerEyebrowText, { color: brandColor }]}>
-                    Pick up where you left off
+                    {t('auth.login.returningEyebrow')}
                   </Text>
                 </View>
 
                 <RNText style={[styles.title, styles.titleCompact, { color: brandColor }]}>
-                  Welcome Back
+                  {t('auth.login.returningTitle')}
                 </RNText>
 
                 <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
-                  Sign in to continue planning your tomorrow.
+                  {t('auth.login.returningSubtitle')}
                 </Text>
 
                 <View
@@ -238,10 +238,10 @@ export default function LoginScreen() {
                   ]}
                 >
                   <Text style={[styles.returningCardTitle, { color: theme.colors.text.primary }]}>
-                    Your plans are waiting for you.
+                    {t('auth.login.returningCardTitle')}
                   </Text>
                   <Text style={[styles.returningCardBody, { color: theme.colors.text.secondary }]}>
-                    Sign in to get back to your tasks, reminders, and momentum.
+                    {t('auth.login.returningCardBody')}
                   </Text>
                 </View>
               </>
@@ -255,7 +255,11 @@ export default function LoginScreen() {
                   provider="apple"
                   onPress={() => handleProviderPress('apple')}
                   loading={appleLoading}
-                  label={isNewUser ? 'Start Free Trial with Apple' : undefined}
+                  label={
+                    isNewUser
+                      ? t('auth.login.startTrialWithApple')
+                      : t('auth.login.continueWithApple')
+                  }
                 />
               )}
 
@@ -263,7 +267,11 @@ export default function LoginScreen() {
                 provider="google"
                 onPress={() => handleProviderPress('google')}
                 loading={googleLoading}
-                label={isNewUser ? 'Start Free Trial with Google' : undefined}
+                label={
+                  isNewUser
+                    ? t('auth.login.startTrialWithGoogle')
+                    : t('auth.login.continueWithGoogle')
+                }
               />
             </View>
 
@@ -276,7 +284,7 @@ export default function LoginScreen() {
                 activeOpacity={0.7}
               >
                 <Text style={[styles.backButtonText, { color: theme.colors.text.tertiary }]}>
-                  ← Back
+                  {t('auth.login.back')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -300,15 +308,16 @@ export default function LoginScreen() {
               },
             ]}
           >
-            <Text style={[styles.modalEyebrow, { color: brandColor }]}>Before you continue</Text>
+            <Text style={[styles.modalEyebrow, { color: brandColor }]}>
+              {t('auth.login.trialConfirmEyebrow')}
+            </Text>
 
             <RNText style={[styles.modalTitle, { color: theme.colors.text.primary }]}>
-              You’re starting a 14-day free trial
+              {t('auth.login.trialConfirmTitle')}
             </RNText>
 
             <Text style={[styles.modalBody, { color: theme.colors.text.secondary }]}>
-              By continuing, you’re creating your account and starting your free trial right
-              away.
+              {t('auth.login.trialConfirmBody')}
             </Text>
 
             <View style={styles.modalPoints}>
@@ -320,7 +329,7 @@ export default function LoginScreen() {
                   ]}
                 />
                 <Text style={[styles.modalPointText, { color: theme.colors.text.secondary }]}>
-                  Full access for 14 days
+                  {t('auth.login.trialConfirmPointTrial')}
                 </Text>
               </View>
 
@@ -332,7 +341,11 @@ export default function LoginScreen() {
                   ]}
                 />
                 <Text style={[styles.modalPointText, { color: theme.colors.text.secondary }]}>
-                  Then {lifetimePrice ?? 'one lifetime purchase'} if you want to keep Domani
+                  {lifetimePrice
+                    ? t('auth.login.trialConfirmPointLifetimeWithPrice', {
+                        price: lifetimePrice,
+                      })
+                    : t('auth.login.trialConfirmPointLifetimeFallback')}
                 </Text>
               </View>
 
@@ -344,7 +357,7 @@ export default function LoginScreen() {
                   ]}
                 />
                 <Text style={[styles.modalPointText, { color: theme.colors.text.secondary }]}>
-                  No credit card required up front
+                  {t('auth.login.trialConfirmPointNoCard')}
                 </Text>
               </View>
             </View>
@@ -354,13 +367,12 @@ export default function LoginScreen() {
                 onPress={closeTrialConfirmation}
                 disabled={googleLoading || appleLoading}
                 activeOpacity={0.8}
-                style={[
-                  styles.modalSecondaryButton,
-                  { backgroundColor: theme.colors.background },
-                ]}
+                style={[styles.modalSecondaryButton, { backgroundColor: theme.colors.background }]}
               >
-                <Text style={[styles.modalSecondaryButtonText, { color: theme.colors.text.primary }]}>
-                  Cancel
+                <Text
+                  style={[styles.modalSecondaryButtonText, { color: theme.colors.text.primary }]}
+                >
+                  {t('auth.login.cancel')}
                 </Text>
               </TouchableOpacity>
 

@@ -12,9 +12,11 @@ import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { NotificationService } from '~/lib/notifications'
 import { useNotificationStore } from '~/stores/notificationStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
+import { formatLocalizedDate } from '~/i18n/date'
 import { useUpdateProfile } from '~/hooks/useProfile'
 import { useProfile } from '~/hooks/useProfile'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
+import { useTranslation } from '~/hooks/useTranslation'
 
 /**
  * Detect device timezone using Intl API
@@ -40,6 +42,7 @@ export default function NotificationSetupScreen() {
   const updateProfile = useUpdateProfile()
   const { profile } = useProfile()
   const theme = useAppTheme()
+  const { locale, t } = useTranslation()
   const brandColor = theme.colors.brand.primary
   const { track } = useAnalytics()
 
@@ -63,34 +66,34 @@ export default function NotificationSetupScreen() {
   const trialSummary = useMemo(() => {
     if (!profile?.trial_ends_at) {
       return {
-        headline: 'Your full-access trial is live now',
-        detail: 'Set your evening reminder, then start planning tomorrow.',
+        headline: t('onboarding.notificationSetup.liveHeadline'),
+        detail: t('onboarding.notificationSetup.liveDetail'),
       }
     }
 
     const trialEnd = new Date(profile.trial_ends_at)
     const daysRemaining = Math.max(differenceInCalendarDays(trialEnd, new Date()), 0)
-    const endDateLabel = format(trialEnd, 'MMMM d')
+    const endDateLabel = formatLocalizedDate(trialEnd, 'MMMM d', locale)
 
     if (daysRemaining > 1) {
       return {
-        headline: `You have ${daysRemaining} days to explore Domani`,
-        detail: `Your trial runs through ${endDateLabel}. Set your evening reminder, then start planning tomorrow with full access.`,
+        headline: t('onboarding.notificationSetup.daysLeftHeadline', { count: daysRemaining }),
+        detail: t('onboarding.notificationSetup.daysLeftDetail', { date: endDateLabel }),
       }
     }
 
     if (daysRemaining === 1) {
       return {
-        headline: 'You have 1 day left in your trial',
-        detail: `Your trial runs through ${endDateLabel}. Set your evening reminder, then make the most of your last full day with Domani.`,
+        headline: t('onboarding.notificationSetup.oneDayHeadline'),
+        detail: t('onboarding.notificationSetup.oneDayDetail', { date: endDateLabel }),
       }
     }
 
     return {
-      headline: 'Your trial ends today',
-      detail: `Your trial access runs through ${endDateLabel}. Set your evening reminder now so you do not miss your final day with full access.`,
+      headline: t('onboarding.notificationSetup.endsTodayHeadline'),
+      detail: t('onboarding.notificationSetup.endsTodayDetail', { date: endDateLabel }),
     }
-  }, [profile?.trial_ends_at])
+  }, [locale, profile?.trial_ends_at, t])
 
   const handleContinue = async () => {
     setLoading(true)
@@ -197,16 +200,18 @@ export default function NotificationSetupScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.eyebrow, { color: themeColors.eyebrow }]}>14-day free trial</Text>
-          <Text style={[styles.title, { color: themeColors.title }]}>Your trial has started</Text>
+          <Text style={[styles.eyebrow, { color: themeColors.eyebrow }]}>
+            {t('onboarding.notificationSetup.eyebrow')}
+          </Text>
+          <Text style={[styles.title, { color: themeColors.title }]}>
+            {t('onboarding.notificationSetup.title')}
+          </Text>
           <Text style={[styles.subtitle, { color: themeColors.subtitle }]}>
-            Explore Domani with full access now, then decide later if you want lifetime access.
+            {t('onboarding.notificationSetup.subtitle')}
           </Text>
         </View>
 
-        <View
-          style={[styles.trialCard, { backgroundColor: themeColors.trialCardBackground }]}
-        >
+        <View style={[styles.trialCard, { backgroundColor: themeColors.trialCardBackground }]}>
           <Text style={[styles.trialCardTitle, { color: themeColors.sectionTitle }]}>
             {trialSummary.headline}
           </Text>
@@ -218,18 +223,16 @@ export default function NotificationSetupScreen() {
         {/* Plan Reminder Section */}
         <View style={styles.reminderSection}>
           <Text style={[styles.sectionTitle, { color: themeColors.sectionTitle }]}>
-            Planning Reminder
+            {t('onboarding.notificationSetup.planningReminderTitle')}
           </Text>
           <Text style={[styles.sectionDescription, { color: themeColors.sectionDescription }]}>
-            Choose when you want to be reminded.
+            {t('onboarding.notificationSetup.planningReminderDescription')}
           </Text>
 
           {/* Notification opt-in toggle */}
-          <View
-            style={[styles.toggleRow, { backgroundColor: themeColors.pickerBackground }]}
-          >
+          <View style={[styles.toggleRow, { backgroundColor: themeColors.pickerBackground }]}>
             <Text style={[styles.toggleLabel, { color: themeColors.sectionTitle }]}>
-              Send me a daily reminder
+              {t('onboarding.notificationSetup.toggleLabel')}
             </Text>
             <Switch
               value={reminderOptedIn}
@@ -243,7 +246,8 @@ export default function NotificationSetupScreen() {
             />
           </View>
 
-          <View style={[styles.pickerWrapper, { opacity: reminderOptedIn ? 1 : 0.4 }]}
+          <View
+            style={[styles.pickerWrapper, { opacity: reminderOptedIn ? 1 : 0.4 }]}
             pointerEvents={reminderOptedIn ? 'auto' : 'none'}
           >
             {Platform.OS === 'android' && !showPlanPicker ? (
@@ -277,11 +281,10 @@ export default function NotificationSetupScreen() {
         {/* Task Reminders Info */}
         <View style={[styles.infoSection, { backgroundColor: themeColors.pickerBackground }]}>
           <Text style={[styles.infoTitle, { color: themeColors.sectionTitle }]}>
-            Task Reminders
+            {t('onboarding.notificationSetup.taskRemindersTitle')}
           </Text>
           <Text style={[styles.infoDescription, { color: themeColors.sectionDescription }]}>
-            Each task has its own reminder. You can set individual reminder times when creating or
-            editing tasks.
+            {t('onboarding.notificationSetup.taskRemindersDescription')}
           </Text>
         </View>
 
@@ -300,7 +303,9 @@ export default function NotificationSetupScreen() {
               { backgroundColor: brandColor, shadowColor: brandColor },
             ]}
           >
-            <Text style={styles.continueButtonText}>Continue to Domani</Text>
+            <Text style={styles.continueButtonText}>
+              {t('onboarding.notificationSetup.continue')}
+            </Text>
           </Button>
         </View>
       </ScrollView>
