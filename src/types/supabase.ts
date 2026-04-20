@@ -979,6 +979,14 @@ export type Database = {
       cleanup_expired_sessions: { Args: never; Returns: undefined }
       delete_expired_accounts: { Args: never; Returns: undefined }
       delete_user_by_email: { Args: { target_email: string }; Returns: string }
+      ensure_current_user_profile: {
+        Args: never
+        Returns: Database['public']['Tables']['profiles']['Row']
+      }
+      ensure_profile_exists_for_auth_user: {
+        Args: { p_user_id: string }
+        Returns: Database['public']['Tables']['profiles']['Row']
+      }
       get_favorite_category_ids: { Args: { p_user_id: string }; Returns: Json }
       get_user_cohort: { Args: { p_user_id: string }; Returns: string }
       get_user_role_level: { Args: { p_user_id: string }; Returns: number }
