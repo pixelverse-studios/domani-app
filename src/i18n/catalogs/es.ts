@@ -1,6 +1,26 @@
 import type { TranslationCatalog } from '../types'
 
 export const es: TranslationCatalog = {
+  common: {
+    today: 'Hoy',
+    tomorrow: 'Mañana',
+    uncategorized: 'Sin categoría',
+    custom: 'Personalizada',
+    selectTime: 'Seleccionar hora',
+  },
+  greetings: {
+    morning: 'Buenos días',
+    afternoon: 'Buenas tardes',
+    evening: 'Buenas noches',
+  },
+  categories: {
+    system: {
+      work: 'Trabajo',
+      personal: 'Personal',
+      wellness: 'Bienestar',
+      home: 'Hogar',
+    },
+  },
   auth: {
     actions: {
       ok: 'Aceptar',
@@ -76,6 +96,37 @@ export const es: TranslationCatalog = {
         'Cada tarea tiene su propio recordatorio. Puedes configurar horas de recordatorio individuales al crear o editar tareas.',
       continue: 'Continuar a Domani',
     },
+  },
+  planning: {
+    header: {
+      planningFor: 'Planificando para',
+    },
+    reminder: {
+      addReminder: 'Agregar recordatorio',
+      reminderOn: 'Recordatorio activado',
+      custom: 'Personalizado',
+      pastTimeWarning: 'Esta hora ya pasó; no se enviará ninguna notificación',
+    },
+    rollover: {
+      reminderTimes: 'Horas de recordatorio',
+      keepOriginalTimes: 'Mantener horarios originales',
+      setNewReminderTimes: 'Configurar nuevas horas de recordatorio',
+    },
+  },
+  settings: {
+    reminderShortcuts: {
+      title: 'Atajos de recordatorio',
+      customizeTitle: 'Personalizar atajos',
+      description: 'Toca para cambiar las horas predeterminadas que aparecen al agregar recordatorios',
+      shortcutLabel: 'Atajo {{count}}',
+    },
+  },
+  analytics: {
+    completionRate: 'Tasa de finalización',
+    tasksDone: '{{completed}} de {{total}} tareas completadas',
+    lastNDays: 'Últimos {{count}} días',
+    byCategory: 'Por categoría',
+    taskCount: '{{completed}}/{{total}} tareas',
   },
   legal: {
     termsOfService: 'Términos del servicio',

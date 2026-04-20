@@ -1,8 +1,11 @@
 import { useMemo } from 'react'
-import { format, parseISO } from 'date-fns'
+import { parseISO } from 'date-fns'
 
 import type { TaskWithCategory } from '~/types'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { formatLocalizedTime } from '~/i18n/date'
+import { getLocalizedCategoryName } from '~/constants/systemCategories'
 
 export interface TaskCardProps {
   task: TaskWithCategory
@@ -12,16 +15,13 @@ export interface TaskCardProps {
   showCheckbox?: boolean
 }
 
-function formatReminderTime(date: Date): string {
-  const minutes = date.getMinutes()
-  if (minutes === 0) {
-    return format(date, 'h a')
-  }
-  return format(date, 'h:mm a')
+function formatReminderTime(date: Date, locale: ReturnType<typeof useTranslation>['locale']): string {
+  return formatLocalizedTime(date, locale, { compact: true })
 }
 
 export function useTaskCardData(task: TaskWithCategory) {
   const theme = useAppTheme()
+  const { locale, t } = useTranslation()
 
   const isCompleted = !!task.completed_at
   const priority = task.priority || 'medium'
@@ -29,7 +29,11 @@ export function useTaskCardData(task: TaskWithCategory) {
   const priorityBadgeBg = `${priorityColor}26`
 
   const category = task.user_category || task.system_category
-  const categoryName = category?.name || 'Uncategorized'
+  const categoryName = category
+    ? task.system_category
+      ? getLocalizedCategoryName(category.name, locale)
+      : category.name
+    : t('common.uncategorized')
   const isUserCategory = !!task.user_category
   const hasNotes = !!task.notes?.trim()
 
@@ -38,13 +42,13 @@ export function useTaskCardData(task: TaskWithCategory) {
     try {
       const reminderDate = parseISO(task.reminder_at)
       return {
-        time: formatReminderTime(reminderDate),
+        time: formatReminderTime(reminderDate, locale),
         isPast: reminderDate <= new Date(),
       }
     } catch {
       return null
     }
-  }, [task.reminder_at])
+  }, [locale, task.reminder_at])
 
   const iconColor = theme.colors.text.tertiary
   const dividerColor = `${theme.colors.border.primary}33`

@@ -23,6 +23,7 @@ import * as Haptics from 'expo-haptics'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
 import { useProfile } from '~/hooks/useProfile'
 import {
   useSortedCategories,
@@ -30,6 +31,7 @@ import {
   useUpdateCategoryPositions,
   type UnifiedCategory,
 } from '~/hooks/useCategories'
+import { getLocalizedCategoryName } from '~/constants/systemCategories'
 import { getCategoryIcon } from '~/utils/categoryIcons'
 
 // Enable LayoutAnimation on Android
@@ -41,6 +43,7 @@ const MAX_FAVORITES = 4
 
 export function FavoriteCategoriesAccordion() {
   const theme = useAppTheme()
+  const { locale, t } = useTranslation()
   const brandColor = theme.colors.brand.primary
   const { profile } = useProfile()
   const autoSort = profile?.auto_sort_categories ?? false
@@ -89,8 +92,12 @@ export function FavoriteCategoriesAccordion() {
   const otherCategories = useMemo(() => {
     return allCategories
       .filter((cat) => !selectedIds.has(cat.id))
-      .sort((a, b) => a.name.localeCompare(b.name))
-  }, [allCategories, selectedIds])
+      .sort((a, b) => {
+        const aLabel = a.isSystem ? getLocalizedCategoryName(a.name, locale) : a.name
+        const bLabel = b.isSystem ? getLocalizedCategoryName(b.name, locale) : b.name
+        return aLabel.localeCompare(bLabel, locale)
+      })
+  }, [allCategories, locale, selectedIds])
 
   const selectedCount = selectedIds.size
   const canSelectMore = selectedCount < MAX_FAVORITES
@@ -185,11 +192,13 @@ export function FavoriteCategoriesAccordion() {
             {getCategoryIcon({ category, color: category.color, size: 16 })}
           </View>
           <Text className="text-base text-content-primary" style={{ marginLeft: 12 }}>
-            {category.name}
+            {category.isSystem ? getLocalizedCategoryName(category.name, locale) : category.name}
           </Text>
           {!category.isSystem && (
             <View style={[styles.customBadge, { backgroundColor: `${brandColor}1A` }]}>
-              <Text style={{ color: brandColor, fontSize: 10, fontWeight: '500' }}>Custom</Text>
+              <Text style={{ color: brandColor, fontSize: 10, fontWeight: '500' }}>
+                {t('common.custom')}
+              </Text>
             </View>
           )}
         </View>
@@ -246,12 +255,12 @@ export function FavoriteCategoriesAccordion() {
                 {getCategoryIcon({ category: item, color: item.color, size: 16 })}
               </View>
               <Text className="text-base text-content-primary" style={{ marginLeft: 12 }}>
-                {item.name}
+                {item.isSystem ? getLocalizedCategoryName(item.name, locale) : item.name}
               </Text>
               {!item.isSystem && (
                 <View style={[styles.customBadge, { backgroundColor: `${brandColor}1A` }]}>
                   <Text style={{ color: selectedHeartColor, fontSize: 10, fontWeight: '500' }}>
-                    Custom
+                    {t('common.custom')}
                   </Text>
                 </View>
               )}
@@ -270,6 +279,8 @@ export function FavoriteCategoriesAccordion() {
       brandColor,
       iconColor,
       selectedHeartColor,
+      locale,
+      t,
     ],
   )
 

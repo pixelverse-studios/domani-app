@@ -17,11 +17,13 @@ import Animated, {
 } from 'react-native-reanimated'
 import { Bell, ChevronDown } from 'lucide-react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { format, setHours, setMinutes } from 'date-fns'
+import { setHours, setMinutes } from 'date-fns'
 
 import { Text } from '~/components/ui'
 import { TimePickerModal } from '~/components/ui/TimePickerModal'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { formatLocalizedTime } from '~/i18n/date'
 import { getTheme } from '~/theme/themes'
 import { useTutorialTarget } from '~/components/tutorial'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
@@ -43,13 +45,6 @@ export const DEFAULT_SHORTCUTS: ReminderShortcut[] = [
   { id: 'afternoon', hour: 13, minute: 0 },
   { id: 'evening', hour: 18, minute: 0 },
 ]
-
-// Labels based on index position (not time-based)
-const SHORTCUT_LABELS: Record<number, string> = {
-  0: 'Shortcut 1',
-  1: 'Shortcut 2',
-  2: 'Shortcut 3',
-}
 
 // Zone colors based on actual time of day
 function getZoneColors() {
@@ -94,6 +89,7 @@ function getTimeZoneColor(
 
 export function ReminderShortcutsSection() {
   const theme = useAppTheme()
+  const { locale, t } = useTranslation()
   const zoneColors = getZoneColors()
   const brandColor = theme.colors.brand.primary
   const { profile } = useProfile()
@@ -174,16 +170,13 @@ export function ReminderShortcutsSection() {
   // Format time for display (compact format without minutes if on the hour)
   const formatTimeCompact = (hour: number, minute: number) => {
     const date = setMinutes(setHours(new Date(), hour), minute)
-    if (minute === 0) {
-      return format(date, 'h a') // "9 AM"
-    }
-    return format(date, 'h:mm a') // "9:30 AM"
+    return formatLocalizedTime(date, locale, { compact: true })
   }
 
   // Format time for display (full format)
   const formatTime = (hour: number, minute: number) => {
     const date = setMinutes(setHours(new Date(), hour), minute)
-    return format(date, 'h:mm a')
+    return formatLocalizedTime(date, locale)
   }
 
   return (
@@ -206,7 +199,7 @@ export function ReminderShortcutsSection() {
               className="text-base font-sans-medium text-content-primary"
               style={{ marginLeft: 12 }}
             >
-              Reminder Shortcuts
+              {t('settings.reminderShortcuts.title')}
             </Text>
           </View>
           <Animated.View style={chevronStyle}>
@@ -236,10 +229,10 @@ export function ReminderShortcutsSection() {
           {/* Section Header */}
           <View style={styles.sectionHeader}>
             <Text className="text-sm font-sans-semibold text-content-primary">
-              Customize Shortcuts
+              {t('settings.reminderShortcuts.customizeTitle')}
             </Text>
             <Text style={{ color: textMuted, fontSize: 13, marginTop: 4 }}>
-              Tap to change the preset times shown when adding reminders
+              {t('settings.reminderShortcuts.description')}
             </Text>
           </View>
 
@@ -262,7 +255,7 @@ export function ReminderShortcutsSection() {
                   <View style={styles.shortcutLabelRow}>
                     <View style={[styles.shortcutDot, { backgroundColor: colors.color }]} />
                     <Text className="text-base text-content-primary">
-                      {SHORTCUT_LABELS[index] || `Shortcut ${index + 1}`}
+                      {t('settings.reminderShortcuts.shortcutLabel', { count: index + 1 })}
                     </Text>
                   </View>
                   <Text style={{ color: colors.color, fontSize: 16, fontWeight: '600' }}>
@@ -298,8 +291,10 @@ export function ReminderShortcutsSection() {
         value={selectedTime}
         title={
           editingShortcut
-            ? `${SHORTCUT_LABELS[editingShortcut.index] || `Shortcut ${editingShortcut.index + 1}`} Time`
-            : 'Select Time'
+            ? t('settings.reminderShortcuts.shortcutLabel', {
+                count: editingShortcut.index + 1,
+              })
+            : t('common.selectTime')
         }
         onConfirm={(date) => {
           handleTimeChange(date)

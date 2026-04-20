@@ -1,4 +1,24 @@
 export const en = {
+  common: {
+    today: 'Today',
+    tomorrow: 'Tomorrow',
+    uncategorized: 'Uncategorized',
+    custom: 'Custom',
+    selectTime: 'Select Time',
+  },
+  greetings: {
+    morning: 'Good morning',
+    afternoon: 'Good afternoon',
+    evening: 'Good evening',
+  },
+  categories: {
+    system: {
+      work: 'Work',
+      personal: 'Personal',
+      wellness: 'Wellness',
+      home: 'Home',
+    },
+  },
   auth: {
     actions: {
       ok: 'OK',
@@ -72,6 +92,37 @@ export const en = {
         'Each task has its own reminder. You can set individual reminder times when creating or editing tasks.',
       continue: 'Continue to Domani',
     },
+  },
+  planning: {
+    header: {
+      planningFor: 'Planning for',
+    },
+    reminder: {
+      addReminder: 'Add Reminder',
+      reminderOn: 'Reminder On',
+      custom: 'Custom',
+      pastTimeWarning: 'This time has passed — no notification will be sent',
+    },
+    rollover: {
+      reminderTimes: 'Reminder Times',
+      keepOriginalTimes: 'Keep original times',
+      setNewReminderTimes: 'Set new reminder times',
+    },
+  },
+  settings: {
+    reminderShortcuts: {
+      title: 'Reminder Shortcuts',
+      customizeTitle: 'Customize Shortcuts',
+      description: 'Tap to change the preset times shown when adding reminders',
+      shortcutLabel: 'Shortcut {{count}}',
+    },
+  },
+  analytics: {
+    completionRate: 'Completion Rate',
+    tasksDone: '{{completed}} of {{total}} tasks done',
+    lastNDays: 'Last {{count}} Days',
+    byCategory: 'By Category',
+    taskCount: '{{completed}}/{{total}} tasks',
   },
   legal: {
     termsOfService: 'Terms of Service',

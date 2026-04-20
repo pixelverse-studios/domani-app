@@ -21,10 +21,12 @@ import { useTutorialAdvancement } from '~/components/tutorial'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
 import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
 import { useCurrentDate } from '~/hooks/useCurrentDate'
 import { useEveningRolloverTasks } from '~/hooks/useEveningRolloverTasks'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
+import { getLocalizedCategoryName } from '~/constants/systemCategories'
 import { supabase } from '~/lib/supabase'
 import type { TaskWithCategory } from '~/types'
 
@@ -62,6 +64,7 @@ interface TaskFormData {
 export default function PlanningScreen() {
   useScreenTracking('planning')
   const theme = useAppTheme()
+  const { locale } = useTranslation()
   const router = useRouter()
   const scrollViewRef = useRef<ScrollView>(null)
   const isMountedRef = useRef(true)
@@ -428,7 +431,7 @@ export default function PlanningScreen() {
     if (editingTask.system_category) {
       // Map system category name back to form ID
       categoryId = DB_TO_FORM_CATEGORY[editingTask.system_category.name]
-      categoryLabel = editingTask.system_category.name
+      categoryLabel = getLocalizedCategoryName(editingTask.system_category.name, locale)
     } else if (editingTask.user_category) {
       // User category uses the actual ID
       categoryId = editingTask.user_category.id
@@ -443,7 +446,7 @@ export default function PlanningScreen() {
       notes: editingTask.notes,
       reminderAt: editingTask.reminder_at,
     }
-  }, [editingTask])
+  }, [editingTask, locale])
 
   const handleDeleteTask = async (taskId: string) => {
     try {

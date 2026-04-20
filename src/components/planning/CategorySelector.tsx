@@ -20,6 +20,7 @@ import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
 import { useProfile } from '~/hooks/useProfile'
 import {
   useCreateUserCategory,
@@ -31,6 +32,10 @@ import {
   RESERVED_NAME_ERROR_CODE,
   getReservedNameError,
 } from '~/constants/systemCategories.validation'
+import {
+  getLocalizedCategoryName,
+  getSystemCategoryIdByName,
+} from '~/constants/systemCategories'
 
 // Check if error is a duplicate name constraint violation (Postgres error code 23505)
 function isDuplicateNameError(error: unknown): boolean {
@@ -54,13 +59,6 @@ const SYSTEM_NAME_TO_FORM_ID: Record<string, string> = {
   Wellness: 'wellness',
   Personal: 'personal',
   Home: 'home',
-}
-
-const FORM_ID_TO_DISPLAY: Record<string, string> = {
-  work: 'Work',
-  wellness: 'Wellness',
-  personal: 'Personal',
-  home: 'Home',
 }
 
 export interface CategoryOption {
@@ -93,6 +91,7 @@ export function CategorySelector({
   const { targetRef: moreCategoriesRef, measureTarget: measureMoreCategories } =
     useTutorialTarget('more_categories_button')
   const theme = useAppTheme()
+  const { locale } = useTranslation()
   const { profile } = useProfile()
   const sortedCategories = useSortedCategories(profile?.auto_sort_categories ?? false)
   const favoriteCategories = useFavoriteCategories(profile?.auto_sort_categories ?? false)
@@ -130,11 +129,11 @@ export function CategorySelector({
 
     const toCategoryOption = (cat: (typeof sortedCategories)[0]): CategoryOption => {
       if (cat.isSystem) {
-        const formId = SYSTEM_NAME_TO_FORM_ID[cat.name] || cat.name.toLowerCase()
-        const displayLabel = FORM_ID_TO_DISPLAY[formId] || cat.name
+        const formId =
+          getSystemCategoryIdByName(cat.name) ?? SYSTEM_NAME_TO_FORM_ID[cat.name] ?? cat.name.toLowerCase()
         return {
           id: formId,
-          label: displayLabel,
+          label: getLocalizedCategoryName(cat.name, locale),
           icon: getCategoryIcon({
             categoryId: formId,
             color: iconColor,
@@ -159,11 +158,11 @@ export function CategorySelector({
     // Remaining categories (non-favorites), sorted alphabetically
     const remainingOptions = sortedCategories
       .filter((cat) => !favoriteIds.has(cat.id))
-      .sort((a, b) => a.name.localeCompare(b.name))
       .map(toCategoryOption)
+      .sort((a, b) => a.label.localeCompare(b.label, locale))
 
     return [...favoriteOptions, ...remainingOptions]
-  }, [sortedCategories, favoriteCategories, iconColor, brandColor])
+  }, [sortedCategories, favoriteCategories, iconColor, locale])
 
   // Categories to display in collapsed state (first 4)
   const collapsedCategories = useMemo(() => {

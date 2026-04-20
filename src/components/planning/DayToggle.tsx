@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated'
 
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
 import { useTutorialTarget } from '~/components/tutorial'
 
 export type PlanningTarget = 'today' | 'tomorrow'
@@ -73,6 +74,7 @@ function PillDayToggle({
   disabled,
 }: Omit<DayToggleProps, 'variant'>) {
   const theme = useAppTheme()
+  const { t } = useTranslation()
   const brandColor = theme.colors.brand.primary
   const { targetRef, measureTarget } = useTutorialTarget('day_toggle')
   const indicatorPosition = useSharedValue(selectedTarget === 'today' ? 0 : TODAY_WIDTH)
@@ -141,7 +143,7 @@ function PillDayToggle({
           }
           allowFontScaling={false}
         >
-          Today
+          {t('common.today')}
         </Animated.Text>
       </TouchableOpacity>
 
@@ -162,7 +164,7 @@ function PillDayToggle({
           }
           allowFontScaling={false}
         >
-          Tomorrow
+          {t('common.tomorrow')}
         </Animated.Text>
       </TouchableOpacity>
     </View>
@@ -175,6 +177,7 @@ function MinimalDayToggle({
   disabled,
 }: Omit<DayToggleProps, 'variant'>) {
   const theme = useAppTheme()
+  const { t } = useTranslation()
   const brandColor = theme.colors.brand.primary
   const ITEM_GAP = 24
   const TODAY_TEXT_WIDTH = 54
@@ -219,7 +222,7 @@ function MinimalDayToggle({
             }}
             allowFontScaling={false}
           >
-            Today
+            {t('common.today')}
           </Animated.Text>
         </TouchableOpacity>
 
@@ -239,7 +242,7 @@ function MinimalDayToggle({
             }}
             allowFontScaling={false}
           >
-            Tomorrow
+            {t('common.tomorrow')}
           </Animated.Text>
         </TouchableOpacity>
       </View>
