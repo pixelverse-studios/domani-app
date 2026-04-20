@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { Modal, View, TouchableOpacity, ScrollView, StyleSheet } from 'react-native'
 import { Check, Clock, Star, X } from 'lucide-react-native'
-import { format, parseISO } from 'date-fns'
+import { parseISO } from 'date-fns'
 
 import { Button } from '~/components/ui/Button'
 import { Text } from '~/components/ui/Text'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { formatLocalizedTime } from '~/i18n/date'
 import type { RolloverTask } from '~/hooks/useRolloverTasks'
 import { getCategoryIcon } from '~/utils/categoryIcons'
 
@@ -38,6 +40,7 @@ export function RolloverModal({
   onStartFresh,
 }: RolloverModalProps) {
   const theme = useAppTheme()
+  const { locale, t } = useTranslation()
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [makeMitToday, setMakeMitToday] = useState(false)
@@ -213,7 +216,7 @@ export function RolloverModal({
                 {/* Reminder Times Option */}
                 <View style={styles.section}>
                   <Text className="font-sans-medium text-sm text-content-primary mb-3">
-                    Reminder Times
+                    {t('planning.rollover.reminderTimes')}
                   </Text>
 
                   <TouchableOpacity
@@ -241,7 +244,7 @@ export function RolloverModal({
                       )}
                     </View>
                     <Text className="font-sans text-sm text-content-primary ml-3">
-                      Keep original times
+                      {t('planning.rollover.keepOriginalTimes')}
                     </Text>
                   </TouchableOpacity>
 
@@ -270,7 +273,7 @@ export function RolloverModal({
                       )}
                     </View>
                     <Text className="font-sans text-sm text-content-primary ml-3">
-                      Set new reminder times
+                      {t('planning.rollover.setNewReminderTimes')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -315,6 +318,7 @@ interface TaskCardProps {
 }
 
 function TaskCard({ task, isSelected, onToggle, theme }: TaskCardProps) {
+  const { locale } = useTranslation()
   const priority = task.priority || 'medium'
   const priorityColor = theme.priority[priority]?.color ?? theme.priority.medium.color
   const priorityBadgeBg = `${priorityColor}26` // 15% opacity
@@ -384,7 +388,7 @@ function TaskCard({ task, isSelected, onToggle, theme }: TaskCardProps) {
               <Text
                 className="font-sans text-xs text-content-tertiary ml-1"
               >
-                {format(parseISO(task.reminder_at), 'h:mm a')}
+                {formatLocalizedTime(parseISO(task.reminder_at), locale, { compact: true })}
               </Text>
             </View>
           )}

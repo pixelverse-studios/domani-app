@@ -7,6 +7,8 @@
  * @module systemCategories
  */
 
+import type { AppLocale } from '~/i18n'
+
 // ============================================================================
 // TypeScript Types
 // ============================================================================
@@ -37,6 +39,26 @@ export interface SystemCategoryDefinition {
   readonly color: string
   /** Display order position (0-3) */
   readonly position: number
+}
+
+const SYSTEM_CATEGORY_LABELS: Record<AppLocale, Record<SystemCategoryId, string>> = {
+  en: {
+    work: 'Work',
+    personal: 'Personal',
+    wellness: 'Wellness',
+    home: 'Home',
+  },
+  es: {
+    work: 'Trabajo',
+    personal: 'Personal',
+    wellness: 'Bienestar',
+    home: 'Hogar',
+  },
+}
+
+const UNCATEGORIZED_LABELS: Record<AppLocale, string> = {
+  en: 'Uncategorized',
+  es: 'Sin categoría',
 }
 
 // ============================================================================
@@ -139,6 +161,33 @@ export function getCategoryById(id: SystemCategoryId): SystemCategoryDefinition 
  */
 export function getCategoryByName(name: SystemCategoryName): SystemCategoryDefinition | undefined {
   return CATEGORY_BY_NAME[name]
+}
+
+export function getSystemCategoryIdByName(name: string): SystemCategoryId | undefined {
+  return CATEGORY_BY_NAME[name as SystemCategoryName]?.id
+}
+
+export function getLocalizedSystemCategoryName(
+  input: SystemCategoryId | SystemCategoryName,
+  locale: AppLocale,
+): string {
+  const category =
+    getCategoryById(input as SystemCategoryId) ?? getCategoryByName(input as SystemCategoryName)
+
+  if (!category) return String(input)
+
+  return SYSTEM_CATEGORY_LABELS[locale]?.[category.id] ?? category.name
+}
+
+export function getLocalizedCategoryName(name: string, locale: AppLocale): string {
+  if (name === 'Uncategorized') {
+    return UNCATEGORIZED_LABELS[locale] ?? UNCATEGORIZED_LABELS.en
+  }
+
+  const systemCategoryId = getSystemCategoryIdByName(name)
+  if (!systemCategoryId) return name
+
+  return getLocalizedSystemCategoryName(systemCategoryId, locale)
 }
 
 /**

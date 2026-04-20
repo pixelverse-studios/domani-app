@@ -13,6 +13,8 @@ import Animated, {
 import { Text, Card } from '~/components/ui'
 import { CircularProgress } from '~/components/ui/CircularProgress'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getLocalizedCategoryName } from '~/constants/systemCategories'
 import type { DailyCompletionData, CompletionRateData } from '~/lib/analytics-queries'
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect)
@@ -130,10 +132,18 @@ export function DailyCompletionChart({
   animationKey = 0,
 }: DailyCompletionChartProps) {
   const theme = useAppTheme()
+  const { locale, t } = useTranslation()
   const screenWidth = Dimensions.get('window').width
 
   // Get unique categories
-  const categories = useMemo(() => getUniqueCategories(dailyData), [dailyData])
+  const categories = useMemo(
+    () =>
+      getUniqueCategories(dailyData).map((category) => ({
+        ...category,
+        name: getLocalizedCategoryName(category.name, locale),
+      })),
+    [dailyData, locale],
+  )
 
   // Colors
   const incompleteColor = theme.colors.border.primary
@@ -211,9 +221,11 @@ export function DailyCompletionChart({
           animationKey={animationKey}
         />
         <View className="ml-4 flex-1">
-          <Text className="text-base font-semibold text-content-primary">Completion Rate</Text>
+          <Text className="text-base font-semibold text-content-primary">
+            {t('analytics.completionRate')}
+          </Text>
           <Text className="text-sm text-content-secondary mt-0.5">
-            {totalCompleted} of {totalTasks} tasks done
+            {t('analytics.tasksDone', { completed: totalCompleted, total: totalTasks })}
           </Text>
         </View>
       </View>
@@ -223,7 +235,7 @@ export function DailyCompletionChart({
 
       {/* Section label */}
       <Text className="text-xs font-medium text-content-tertiary uppercase tracking-wide mb-3">
-        Last 7 Days
+        {t('analytics.lastNDays', { count: 7 })}
       </Text>
 
       {/* Chart - Seamless stacked bars with clipPath */}

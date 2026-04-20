@@ -1,25 +1,13 @@
 import React from 'react'
 import { View } from 'react-native'
 import { Calendar } from 'lucide-react-native'
-import { format, addDays } from 'date-fns'
+import { addDays } from 'date-fns'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { formatLocalizedWeekdayMonthDay } from '~/i18n/date'
 import { DayToggle, type PlanningTarget } from './DayToggle'
-
-function getOrdinalSuffix(day: number): string {
-  if (day > 3 && day < 21) return 'th'
-  switch (day % 10) {
-    case 1:
-      return 'st'
-    case 2:
-      return 'nd'
-    case 3:
-      return 'rd'
-    default:
-      return 'th'
-  }
-}
 
 interface PlanningHeaderProps {
   selectedTarget: PlanningTarget
@@ -29,12 +17,10 @@ interface PlanningHeaderProps {
 
 export function PlanningHeader({ selectedTarget, onTargetChange, dateSuffix }: PlanningHeaderProps) {
   const theme = useAppTheme()
+  const { locale, t } = useTranslation()
 
   const targetDate = selectedTarget === 'today' ? new Date() : addDays(new Date(), 1)
-  const dayOfWeek = format(targetDate, 'EEEE')
-  const month = format(targetDate, 'MMMM')
-  const day = targetDate.getDate()
-  const formattedDate = `${dayOfWeek}, ${month} ${day}${getOrdinalSuffix(day)}`
+  const formattedDate = formatLocalizedWeekdayMonthDay(targetDate, locale)
 
   const brandColor = theme.colors.brand.primary
 
@@ -46,7 +32,7 @@ export function PlanningHeader({ selectedTarget, onTargetChange, dateSuffix }: P
         <View className="flex-row items-center">
           <Calendar size={18} color={brandColor} />
           <Text className="font-sans-medium ml-2" style={{ fontSize: 16, color: brandColor }}>
-            Planning for
+            {t('planning.header.planningFor')}
           </Text>
         </View>
 
@@ -61,7 +47,7 @@ export function PlanningHeader({ selectedTarget, onTargetChange, dateSuffix }: P
           className="font-sans-bold text-content-primary mb-1"
           style={{ fontSize: 36, lineHeight: 44 }}
         >
-          {selectedTarget === 'today' ? 'Today' : 'Tomorrow'}
+          {selectedTarget === 'today' ? t('common.today') : t('common.tomorrow')}
         </Text>
         {/* Full date + optional suffix content */}
         <View className="flex-row items-end justify-between">

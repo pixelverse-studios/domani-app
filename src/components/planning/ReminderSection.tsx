@@ -2,19 +2,16 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { View, TouchableOpacity, Platform, LayoutAnimation, UIManager, Modal } from 'react-native'
 import { Bell, Clock } from 'lucide-react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { format, addDays, setHours, setMinutes, isBefore } from 'date-fns'
+import { addDays, setHours, setMinutes, isBefore } from 'date-fns'
 import Animated from 'react-native-reanimated'
 
 import { Text } from '~/components/ui'
 import { TimePickerModal } from '~/components/ui/TimePickerModal'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { formatLocalizedDateTime, formatLocalizedTime, uses24HourClock } from '~/i18n/date'
 import { useProfile } from '~/hooks/useProfile'
 import { DEFAULT_SHORTCUTS, type ReminderShortcut } from '~/components/settings'
-
-// Detect device 24-hour preference
-const is24Hour = !new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12
-const TIME_FORMAT = is24Hour ? 'HH:mm' : 'h:mm a'
-const DATE_TIME_FORMAT = is24Hour ? "EEE, MMM d 'at' HH:mm" : "EEE, MMM d 'at' h:mm a"
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -39,8 +36,10 @@ export function ReminderSection({
   selectedTarget,
 }: ReminderSectionProps) {
   const theme = useAppTheme()
+  const { locale, t } = useTranslation()
   const brandColor = theme.colors.brand.primary
   const { profile } = useProfile()
+  const is24Hour = useMemo(() => uses24HourClock(locale), [locale])
 
   // Get user's shortcuts from profile or use defaults
   const timePresets: ReminderShortcut[] = useMemo(() => {
@@ -100,11 +99,13 @@ export function ReminderSection({
               className="text-sm font-sans-semibold"
               style={{ color: isReminderEnabled ? brandColor : theme.colors.text.primary }}
             >
-              {isReminderEnabled ? 'Reminder On' : 'Add Reminder'}
+              {isReminderEnabled
+                ? t('planning.reminder.reminderOn')
+                : t('planning.reminder.addReminder')}
             </Text>
             {isReminderEnabled && (
               <Text className="text-xs text-content-secondary mt-0.5">
-                {format(reminderDate, DATE_TIME_FORMAT)}
+                {formatLocalizedDateTime(reminderDate, locale)}
               </Text>
             )}
           </View>
@@ -157,7 +158,10 @@ export function ReminderSection({
                   }}
                 >
                   <Text className="text-sm font-sans-semibold" style={{ color: textColor }}>
-                    {format(setMinutes(setHours(new Date(), preset.hour), preset.minute), TIME_FORMAT)}
+                    {formatLocalizedTime(
+                      setMinutes(setHours(new Date(), preset.hour), preset.minute),
+                      locale,
+                    )}
                   </Text>
                 </TouchableOpacity>
               )
@@ -190,13 +194,13 @@ export function ReminderSection({
                     className="text-sm font-sans-semibold"
                     style={{ color: isCustomTime ? brandColor : iconColor }}
                   >
-                    Custom
+                    {t('planning.reminder.custom')}
                   </Text>
                   {isCustomTime && (
                     <>
                       <View style={{ width: 1, height: 16, backgroundColor: brandColor, opacity: 0.35, marginHorizontal: 4 }} />
                       <Text className="text-sm font-sans-semibold" style={{ color: brandColor }}>
-                        {format(reminderDate, TIME_FORMAT)}
+                        {formatLocalizedTime(reminderDate, locale)}
                       </Text>
                     </>
                   )}
@@ -239,7 +243,7 @@ export function ReminderSection({
 
           {isPastReminder && (
             <Text className="text-xs text-amber-500 mt-3">
-              This time has passed — no notification will be sent
+              {t('planning.reminder.pastTimeWarning')}
             </Text>
           )}
         </View>

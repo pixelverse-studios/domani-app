@@ -3,10 +3,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase, sendAccountEmail } from '~/lib/supabase'
 import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
+import { useTranslation } from '~/hooks/useTranslation'
+import { formatLocalizedDateWithOptions } from '~/i18n/date'
 
 export function useAccountDeletion() {
   const { user, signOut } = useAuth()
   const { profile } = useProfile()
+  const { locale } = useTranslation()
   const queryClient = useQueryClient()
 
   // Check if deletion is pending
@@ -26,7 +29,7 @@ export function useAccountDeletion() {
 
   // Format the deletion date for display
   const formatDeletionDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
+    return formatLocalizedDateWithOptions(date, locale, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
