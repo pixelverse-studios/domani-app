@@ -21,6 +21,7 @@ import { View, ActivityIndicator, Alert } from 'react-native'
 import { useCurrentDate } from '~/hooks/useCurrentDate'
 
 import { supabase } from '~/lib/supabase'
+import { LocalizationProvider } from '~/providers/LocalizationProvider'
 import { ThemeProvider } from '~/providers/ThemeProvider'
 import { AuthProvider } from '~/providers/AuthProvider'
 import { AnalyticsProvider, useAnalytics } from '~/providers/AnalyticsProvider'
@@ -343,15 +344,17 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ErrorBoundary>
-          <AnalyticsProvider>
-            <AuthProvider>
-              <ThemeProvider>
-                <QueryClientProvider client={queryClient}>
-                  <RootLayoutContent />
-                </QueryClientProvider>
-              </ThemeProvider>
-            </AuthProvider>
-          </AnalyticsProvider>
+          <LocalizationProvider>
+            <AnalyticsProvider>
+              <AuthProvider>
+                <ThemeProvider>
+                  <QueryClientProvider client={queryClient}>
+                    <RootLayoutContent />
+                  </QueryClientProvider>
+                </ThemeProvider>
+              </AuthProvider>
+            </AnalyticsProvider>
+          </LocalizationProvider>
         </ErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
