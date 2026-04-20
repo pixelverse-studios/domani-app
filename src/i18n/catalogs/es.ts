@@ -7,6 +7,14 @@ export const es: TranslationCatalog = {
     uncategorized: 'Sin categoría',
     custom: 'Personalizada',
     selectTime: 'Seleccionar hora',
+    notifications: 'Notificaciones',
+    tabs: {
+      today: 'Hoy',
+      planning: 'Planificación',
+      feedback: 'Comentarios',
+      progress: 'Progreso',
+      settings: 'Configuración',
+    },
     actions: {
       cancel: 'Cancelar',
       close: 'Cerrar',
@@ -22,6 +30,9 @@ export const es: TranslationCatalog = {
       next: 'Siguiente',
       gotIt: 'Entendido',
       skipTour: 'Omitir recorrido',
+      planToday: 'Planificar hoy',
+      addTask: 'Agregar tarea',
+      addMoreTasks: 'Agregar más tareas',
     },
     confirmation: {
       deleteDescription: '¿Seguro que quieres eliminar:',
@@ -125,6 +136,10 @@ export const es: TranslationCatalog = {
     header: {
       planningFor: 'Planificando para',
     },
+    emptyState: {
+      plannedTasks: 'Tareas planificadas',
+      noTasks: 'Aún no hay tareas planificadas',
+    },
     reminder: {
       addReminder: 'Agregar recordatorio',
       reminderOn: 'Recordatorio activado',
@@ -200,6 +215,62 @@ export const es: TranslationCatalog = {
       customizeTitle: 'Personalizar atajos',
       description: 'Toca para cambiar las horas predeterminadas que aparecen al agregar recordatorios',
       shortcutLabel: 'Atajo {{count}}',
+    },
+  },
+  today: {
+    namePrompt: {
+      title: '¿Cómo deberíamos llamarte?',
+      description: 'Agrega tu nombre para personalizar tu experiencia',
+      saveFailedTitle: 'No se pudo guardar el nombre',
+      saveFailedMessage: 'Inténtalo de nuevo.',
+    },
+    progress: {
+      placeholder: 'Tu progreso se registrará aquí una vez que agregues tareas',
+      title: 'Progreso de hoy',
+      completed: 'Completadas',
+      unfinished: 'Pendientes',
+    },
+    emptyState: {
+      title: 'Aún no hay tareas planificadas',
+    },
+    focus: {
+      allDoneLabel: '¡Todo listo!',
+      allDoneMessage: 'Hoy la rompiste',
+      focusLabel: 'Enfoque de hoy',
+      planDayMessage: 'Planifica tu día',
+      addTasksSubtitle: 'Agrega tareas para comenzar',
+      mostImportantTask: 'Tu tarea más importante',
+      vibeLabel: 'Vibra de hoy',
+      themeSuffix: ', luego enfócate en {{phrase}}',
+      themePhrases: {
+        work: 'productividad',
+        wellness: 'bienestar',
+        personal: 'tiempo personal',
+        learning: 'aprendizaje',
+        balanced: 'equilibrio',
+      },
+    },
+    dayThemes: {
+      work: {
+        title: 'Día productivo',
+        subtitle: 'Cabeza abajo, resultados por delante',
+      },
+      wellness: {
+        title: 'Día de autocuidado',
+        subtitle: 'Invirtiendo en ti',
+      },
+      personal: {
+        title: 'Día de vida diaria',
+        subtitle: 'Atendiendo lo que importa',
+      },
+      learning: {
+        title: 'Día de crecimiento',
+        subtitle: 'Expandiendo tus horizontes',
+      },
+      balanced: {
+        title: 'Día equilibrado',
+        subtitle: 'Un día completo por delante',
+      },
     },
   },
   feedback: {

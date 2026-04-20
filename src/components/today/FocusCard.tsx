@@ -5,17 +5,9 @@ import { Target, PartyPopper, Sparkles } from 'lucide-react-native'
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useCardStyle } from '~/hooks/useCardStyle'
+import { useTranslation } from '~/hooks/useTranslation'
 import { useLayoutStore } from '~/stores/layoutStore'
 import type { TaskWithCategory, DayType, DayTheme } from '~/types'
-
-// Theme to focus phrase mapping
-const THEME_FOCUS_PHRASES: Record<DayTheme, string> = {
-  work: 'productivity',
-  wellness: 'wellness',
-  personal: 'personal time',
-  learning: 'learning',
-  balanced: 'balance',
-}
 
 interface FocusCardProps {
   /** The MIT (Most Important Task) - top priority incomplete task */
@@ -31,9 +23,17 @@ interface FocusCardProps {
 
 export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: FocusCardProps) {
   const theme = useAppTheme()
+  const { t } = useTranslation()
   const brandColor = theme.colors.brand.primary
   const layout = useLayoutStore((s) => s.taskLayout)
   const cardStyle = useCardStyle(layout)
+  const themeFocusPhrases: Record<DayTheme, string> = {
+    work: t('today.focus.themePhrases.work'),
+    wellness: t('today.focus.themePhrases.wellness'),
+    personal: t('today.focus.themePhrases.personal'),
+    learning: t('today.focus.themePhrases.learning'),
+    balanced: t('today.focus.themePhrases.balanced'),
+  }
 
   // Determine the focus message based on state
   const getFocusContent = () => {
@@ -42,8 +42,8 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
       return {
         icon: <PartyPopper size={32} color={brandColor} />,
         iconBgColor: `${brandColor}1A`,
-        label: 'All Done!',
-        message: "You've crushed it today",
+        label: t('today.focus.allDoneLabel'),
+        message: t('today.focus.allDoneMessage'),
         subtitle: null,
       }
     }
@@ -53,9 +53,9 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
       return {
         icon: <Sparkles size={32} color={brandColor} />,
         iconBgColor: `${brandColor}1A`,
-        label: "Today's Focus",
-        message: 'Plan your day',
-        subtitle: 'Add tasks to get started',
+        label: t('today.focus.focusLabel'),
+        message: t('today.focus.planDayMessage'),
+        subtitle: t('today.focus.addTasksSubtitle'),
       }
     }
 
@@ -63,24 +63,27 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
     if (mitTask) {
       // Edge case: Only MIT task (no other tasks to determine theme)
       const hasOtherTasks = totalTasks > 1 || (totalTasks === 1 && !mitTask)
-      const themePhrase = THEME_FOCUS_PHRASES[dayTheme.theme] ?? 'your day'
-      const themeSuffix = hasOtherTasks ? `, then focus on ${themePhrase}` : ''
+      const themePhrase =
+        themeFocusPhrases[dayTheme.theme] ?? t('today.focus.themePhrases.balanced')
+      const themeSuffix = hasOtherTasks
+        ? t('today.focus.themeSuffix', { phrase: themePhrase })
+        : ''
 
       // If MIT is the only task, show simpler message
       if (!hasOtherTasks || dayTheme.theme === 'balanced') {
         return {
           icon: <Target size={32} color={brandColor} />,
           iconBgColor: `${brandColor}1A`,
-          label: "Today's Focus",
+          label: t('today.focus.focusLabel'),
           message: mitTask.title,
-          subtitle: 'Your most important task',
+          subtitle: t('today.focus.mostImportantTask'),
         }
       }
 
       return {
         icon: <Target size={32} color={brandColor} />,
         iconBgColor: `${brandColor}1A`,
-        label: "Today's Focus",
+        label: t('today.focus.focusLabel'),
         message: `${mitTask.title}${themeSuffix}`,
         subtitle: null,
       }
@@ -90,7 +93,7 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
     return {
       icon: <Target size={32} color={brandColor} />,
       iconBgColor: `${brandColor}1A`,
-      label: "Today's Vibe",
+      label: t('today.focus.vibeLabel'),
       message: dayTheme.title,
       subtitle: dayTheme.subtitle,
     }

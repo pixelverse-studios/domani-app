@@ -5,6 +5,14 @@ export const en = {
     uncategorized: 'Uncategorized',
     custom: 'Custom',
     selectTime: 'Select Time',
+    notifications: 'Notifications',
+    tabs: {
+      today: 'Today',
+      planning: 'Planning',
+      feedback: 'Feedback',
+      progress: 'Progress',
+      settings: 'Settings',
+    },
     actions: {
       cancel: 'Cancel',
       close: 'Close',
@@ -20,6 +28,9 @@ export const en = {
       next: 'Next',
       gotIt: 'Got it',
       skipTour: 'Skip tour',
+      planToday: 'Plan Today',
+      addTask: 'Add Task',
+      addMoreTasks: 'Add More Tasks',
     },
     confirmation: {
       deleteDescription: 'Are you sure you want to delete:',
@@ -121,6 +132,10 @@ export const en = {
     header: {
       planningFor: 'Planning for',
     },
+    emptyState: {
+      plannedTasks: 'Planned Tasks',
+      noTasks: 'No tasks planned yet',
+    },
     reminder: {
       addReminder: 'Add Reminder',
       reminderOn: 'Reminder On',
@@ -195,6 +210,62 @@ export const en = {
       customizeTitle: 'Customize Shortcuts',
       description: 'Tap to change the preset times shown when adding reminders',
       shortcutLabel: 'Shortcut {{count}}',
+    },
+  },
+  today: {
+    namePrompt: {
+      title: 'What should we call you?',
+      description: 'Add your name to personalize your experience',
+      saveFailedTitle: 'Failed to save name',
+      saveFailedMessage: 'Please try again.',
+    },
+    progress: {
+      placeholder: 'Your progress will be tracked here once you add tasks',
+      title: "Today's Progress",
+      completed: 'Completed',
+      unfinished: 'Unfinished',
+    },
+    emptyState: {
+      title: 'No tasks planned yet',
+    },
+    focus: {
+      allDoneLabel: 'All Done!',
+      allDoneMessage: "You've crushed it today",
+      focusLabel: "Today's Focus",
+      planDayMessage: 'Plan your day',
+      addTasksSubtitle: 'Add tasks to get started',
+      mostImportantTask: 'Your most important task',
+      vibeLabel: "Today's Vibe",
+      themeSuffix: ', then focus on {{phrase}}',
+      themePhrases: {
+        work: 'productivity',
+        wellness: 'wellness',
+        personal: 'personal time',
+        learning: 'learning',
+        balanced: 'balance',
+      },
+    },
+    dayThemes: {
+      work: {
+        title: 'Productivity Day',
+        subtitle: 'Heads down, results ahead',
+      },
+      wellness: {
+        title: 'Self-Care Day',
+        subtitle: 'Investing in yourself',
+      },
+      personal: {
+        title: 'Life Admin Day',
+        subtitle: 'Taking care of what matters',
+      },
+      learning: {
+        title: 'Growth Day',
+        subtitle: 'Expanding your horizons',
+      },
+      balanced: {
+        title: 'Balanced Day',
+        subtitle: 'A well-rounded day ahead',
+      },
     },
   },
   feedback: {

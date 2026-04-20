@@ -34,12 +34,13 @@ import {
   ProgressPlaceholderCard,
   EmptyState,
 } from '~/components/today'
-import { inferDayType } from '~/utils/dayTypeInference'
+import { inferDayTypeWithTranslations } from '~/utils/dayTypeInference'
 import { useTasks, useToggleTask, useDeleteTask } from '~/hooks/useTasks'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
 import { useCurrentDate } from '~/hooks/useCurrentDate'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useTutorialTarget } from '~/components/tutorial'
+import { useTranslation } from '~/hooks/useTranslation'
 import type { TaskWithCategory } from '~/types'
 
 const NAME_PROMPT_DISMISSED_KEY = 'domani_name_prompt_dismissed'
@@ -49,6 +50,7 @@ export default function TodayScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const theme = useAppTheme()
+  const { t } = useTranslation()
   const { status: subscriptionStatus, isLoading: subscriptionLoading } = useSubscription()
   const brandColor = theme.colors.brand.primary
   const { today: todayDate } = useCurrentDate()
@@ -100,8 +102,29 @@ export default function TodayScreen() {
   // Calculate day theme from tasks excluding MIT
   const dayTheme = useMemo(() => {
     const nonMitTasks = tasks.filter((task) => task.priority !== 'top')
-    return inferDayType(nonMitTasks)
-  }, [tasks])
+    return inferDayTypeWithTranslations(nonMitTasks, {
+      work: {
+        title: t('today.dayThemes.work.title'),
+        subtitle: t('today.dayThemes.work.subtitle'),
+      },
+      wellness: {
+        title: t('today.dayThemes.wellness.title'),
+        subtitle: t('today.dayThemes.wellness.subtitle'),
+      },
+      personal: {
+        title: t('today.dayThemes.personal.title'),
+        subtitle: t('today.dayThemes.personal.subtitle'),
+      },
+      learning: {
+        title: t('today.dayThemes.learning.title'),
+        subtitle: t('today.dayThemes.learning.subtitle'),
+      },
+      balanced: {
+        title: t('today.dayThemes.balanced.title'),
+        subtitle: t('today.dayThemes.balanced.subtitle'),
+      },
+    })
+  }, [tasks, t])
 
   // Gate the Today screen for users who haven't started a trial or whose
   // trial has expired. Placed AFTER all hook declarations to satisfy the
@@ -122,7 +145,7 @@ export default function TodayScreen() {
       await updateProfile.mutateAsync({ full_name: nameInput.trim() })
       setShowNameModal(false)
     } catch (error) {
-      Alert.alert('Failed to save name', 'Please try again.')
+      Alert.alert(t('today.namePrompt.saveFailedTitle'), t('today.namePrompt.saveFailedMessage'))
     }
   }
 
@@ -138,7 +161,7 @@ export default function TodayScreen() {
     try {
       await toggleTask.mutateAsync({ taskId, completed })
     } catch (error) {
-      Alert.alert('Failed to update task', 'Please try again.')
+      Alert.alert(t('common.errors.title'), t('common.errors.tryAgain'))
     }
   }
 
@@ -151,7 +174,7 @@ export default function TodayScreen() {
     try {
       await deleteTask.mutateAsync(task.id)
     } catch (error) {
-      Alert.alert('Failed to delete task', 'Please try again.')
+      Alert.alert(t('common.errors.title'), t('common.errors.tryAgain'))
     }
   }
 
@@ -252,7 +275,7 @@ export default function TodayScreen() {
             backgroundColor: theme.colors.background,
           }}
         >
-          <AddTaskButton onPress={handleAddTask} label="Add More Tasks" />
+          <AddTaskButton onPress={handleAddTask} label={t('common.actions.addMoreTasks')} />
         </View>
       )}
 
@@ -270,19 +293,19 @@ export default function TodayScreen() {
           >
             <View className="flex-row items-center justify-between mb-2">
               <Text className="text-lg font-semibold text-content-primary">
-                What should we call you?
+                {t('today.namePrompt.title')}
               </Text>
               <TouchableOpacity onPress={handleDismissNameModal} hitSlop={8}>
                 <X size={24} color={theme.colors.text.tertiary} />
               </TouchableOpacity>
             </View>
             <Text className="text-sm text-content-secondary mb-4">
-              Add your name to personalize your experience
+              {t('today.namePrompt.description')}
             </Text>
             <TextInput
               value={nameInput}
               onChangeText={setNameInput}
-              placeholder="Enter your name"
+              placeholder={t('settings.nameModal.placeholder')}
               placeholderTextColor={theme.colors.text.tertiary}
               autoFocus
               className="rounded-xl px-4 text-base mb-4"
@@ -306,7 +329,7 @@ export default function TodayScreen() {
               {updateProfile.isPending ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text className="text-white font-semibold">Save</Text>
+                <Text className="text-white font-semibold">{t('common.actions.save')}</Text>
               )}
             </TouchableOpacity>
           </View>

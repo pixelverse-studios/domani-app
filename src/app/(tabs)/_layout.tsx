@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useAuth } from '~/hooks/useAuth'
 import { useSubscription, hasFullAccess } from '~/hooks/useSubscription'
+import { useTranslation } from '~/hooks/useTranslation'
 import { WelcomeOverlay, TutorialSpotlight, useTutorialLifecycle } from '~/components/tutorial'
 import { useTutorialStore } from '~/stores/tutorialStore'
 
@@ -19,6 +20,7 @@ export default function TabLayout() {
     Platform.OS === 'android' ? Math.max(insets.bottom, ANDROID_MIN_BOTTOM_PADDING) : insets.bottom
   const theme = useAppTheme()
   const { user, loading } = useAuth()
+  const { t } = useTranslation()
   const { status: subscriptionStatus, isLoading: subscriptionLoading } = useSubscription()
   // Hide non-essential tabs for any state that doesn't grant full access
   // (i.e. pre_trial or expired), so the user only sees Today + Settings
@@ -88,14 +90,14 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Today',
+            title: t('common.tabs.today'),
             tabBarIcon: ({ color, size }) => <CheckCircle size={size} color={color} />,
           }}
         />
         <Tabs.Screen
           name="planning"
           options={{
-            title: 'Planning',
+            title: t('common.tabs.planning'),
             href: hideLockedTabs ? null : undefined,
             tabBarIcon: ({ color, size }) => <Calendar size={size} color={color} />,
           }}
@@ -103,7 +105,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="feedback"
           options={{
-            title: 'Feedback',
+            title: t('common.tabs.feedback'),
             href: hideLockedTabs ? null : undefined,
             tabBarIcon: ({ color, size }) => <MessageCircle size={size} color={color} />,
           }}
@@ -111,7 +113,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="analytics"
           options={{
-            title: 'Progress',
+            title: t('common.tabs.progress'),
             href: hideLockedTabs ? null : undefined,
             tabBarIcon: ({ color, size }) => <BarChart3 size={size} color={color} />,
           }}
@@ -119,7 +121,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="settings"
           options={{
-            title: 'Settings',
+            title: t('common.tabs.settings'),
             tabBarIcon: ({ color, size }) => <Settings size={size} color={color} />,
           }}
         />

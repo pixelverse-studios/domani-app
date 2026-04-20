@@ -95,7 +95,7 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
         onPress={onNotificationPress}
         className="w-10 h-10 rounded-full items-center justify-center mt-2"
         style={{ backgroundColor: theme.colors.card }}
-        accessibilityLabel="Notifications"
+        accessibilityLabel={t('common.notifications')}
       >
         <Bell size={20} color={theme.colors.text.tertiary} />
       </TouchableOpacity>

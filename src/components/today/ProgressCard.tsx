@@ -5,6 +5,7 @@ import { Text } from '~/components/ui'
 import { CircularProgress } from '~/components/ui/CircularProgress'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useCardStyle } from '~/hooks/useCardStyle'
+import { useTranslation } from '~/hooks/useTranslation'
 import { useLayoutStore } from '~/stores/layoutStore'
 
 interface ProgressCardProps {
@@ -14,6 +15,7 @@ interface ProgressCardProps {
 
 export function ProgressCard({ completed, total }: ProgressCardProps) {
   const theme = useAppTheme()
+  const { t } = useTranslation()
   const layout = useLayoutStore((s) => s.taskLayout)
   const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
   const remaining = total - completed
@@ -42,7 +44,7 @@ export function ProgressCard({ completed, total }: ProgressCardProps) {
           <Text
             className={`${isCompact ? 'text-base' : 'text-xl'} font-medium text-content-primary mb-4`}
           >
-            Today&apos;s Progress
+            {t('today.progress.title')}
           </Text>
           <View className="flex-row gap-10">
             <View className="items-center">
@@ -52,7 +54,7 @@ export function ProgressCard({ completed, total }: ProgressCardProps) {
                 {completed}
               </Text>
               <Text className={`${isCompact ? 'text-sm' : 'text-base'} text-content-secondary`}>
-                Completed
+                {t('today.progress.completed')}
               </Text>
             </View>
             <View className="items-center">
@@ -63,7 +65,7 @@ export function ProgressCard({ completed, total }: ProgressCardProps) {
                 {remaining}
               </Text>
               <Text className={`${isCompact ? 'text-sm' : 'text-base'} text-content-secondary`}>
-                Unfinished
+                {t('today.progress.unfinished')}
               </Text>
             </View>
           </View>
