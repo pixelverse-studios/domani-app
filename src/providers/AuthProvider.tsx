@@ -190,33 +190,45 @@ const ensureProfileExists = async (
 
     if (error) {
       if (error.code === 'PGRST116') {
-        // Profile doesn't exist (no rows returned), create it
-        // This is the fallback - normally the database trigger creates the profile
-        console.log('[AuthProvider] Profile not found, creating for user:', userId)
-        const deviceTimezone = getDeviceTimezone()
-        const { error: insertError } = await supabase.from('profiles').insert({
-          id: userId,
-          email: email,
-          full_name: fullName || null,
-          timezone: deviceTimezone,
-        })
-        if (insertError) {
-          // If insert fails, it might be because profile was just created by trigger
-          // This is expected in some race conditions - log but don't treat as fatal
+        console.log('[AuthProvider] Profile not found, recovering for user:', userId)
+        const { data: recoveredProfile, error: recoverError } = await supabase.rpc(
+          'ensure_current_user_profile',
+        )
+
+        if (recoverError) {
           console.warn(
-            '[AuthProvider] Profile insert failed (may already exist):',
-            insertError.code,
+            '[AuthProvider] Profile recovery failed:',
+            recoverError.code,
+            recoverError.message,
           )
-        } else {
-          console.log('[AuthProvider] Profile created successfully')
-          // New user — send Discord notification
+          return
+        }
+
+        console.log('[AuthProvider] Profile recovered successfully')
+
+        const createdAt = recoveredProfile?.created_at
+          ? new Date(recoveredProfile.created_at).getTime()
+          : 0
+        if (createdAt && Date.now() - createdAt < 60_000) {
           sendDiscordNotification({
             type: 'new_signup',
             email,
             name: fullName,
             signupMethod,
-            timezone: deviceTimezone,
+            timezone: recoveredProfile?.timezone ?? undefined,
           })
+        }
+
+        if (!recoveredProfile?.timezone || recoveredProfile.timezone === 'UTC') {
+          const deviceTimezone = getDeviceTimezone()
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ timezone: deviceTimezone })
+            .eq('id', userId)
+
+          if (updateError) {
+            console.warn('[AuthProvider] Failed to set recovered profile timezone:', updateError)
+          }
         }
       } else {
         // Some other error (not "no rows") - log it
