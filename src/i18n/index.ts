@@ -1,9 +1,17 @@
+import { de } from './catalogs/de'
 import { en } from './catalogs/en'
 import { es } from './catalogs/es'
+import { fr } from './catalogs/fr'
+import { it } from './catalogs/it'
+import { pt } from './catalogs/pt'
 
 export const catalogs = {
+  de,
   en,
   es,
+  fr,
+  it,
+  pt,
 } as const
 
 export type CatalogLocale = keyof typeof catalogs

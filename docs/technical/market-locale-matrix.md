@@ -6,23 +6,18 @@ This document defines the initial market-locale layer added for Domani so the ap
 
 Translated catalogs currently exist for:
 
+- `de`
 - `en`
 - `es`
-
-First-wave scaffold files now also exist for:
-
-- `pt`
 - `fr`
-- `de`
 - `it`
-
-These scaffold files are not registered as active translated catalogs yet. They currently mirror the English structure so translation work can be filled in incrementally without changing the i18n shape again.
+- `pt`
 
 All other market locales currently fall back to English copy until dedicated catalogs are added. Date and time formatting can still follow the resolved market locale where supported.
 
 ## First Translation Wave
 
-The first expansion wave is scoped as:
+The first expansion wave is now active for:
 
 1. `pt-BR` / `pt-PT`
 2. `fr-FR` / `fr-CA`
@@ -31,9 +26,9 @@ The first expansion wave is scoped as:
 
 Recommended rollout order:
 
-1. complete translated copy in these scaffold catalogs
-2. register the catalogs in `src/i18n/index.ts`
-3. run device QA for each language on constrained surfaces like tabs, modals, alerts, and paywall copy
+1. run device QA for each language on constrained surfaces like tabs, modals, alerts, and paywall copy
+2. tighten short-form wording where needed for constrained UI
+3. continue with the second expansion wave
 
 ## Top-25 Market Locales
 

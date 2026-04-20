@@ -42,6 +42,12 @@ export interface SystemCategoryDefinition {
 }
 
 const SYSTEM_CATEGORY_LABELS: Record<CatalogLocale, Record<SystemCategoryId, string>> = {
+  de: {
+    work: 'Arbeit',
+    personal: 'Persönlich',
+    wellness: 'Wohlbefinden',
+    home: 'Zuhause',
+  },
   en: {
     work: 'Work',
     personal: 'Personal',
@@ -54,11 +60,33 @@ const SYSTEM_CATEGORY_LABELS: Record<CatalogLocale, Record<SystemCategoryId, str
     wellness: 'Bienestar',
     home: 'Hogar',
   },
+  fr: {
+    work: 'Travail',
+    personal: 'Personnel',
+    wellness: 'Bien-être',
+    home: 'Maison',
+  },
+  it: {
+    work: 'Lavoro',
+    personal: 'Personale',
+    wellness: 'Benessere',
+    home: 'Casa',
+  },
+  pt: {
+    work: 'Trabalho',
+    personal: 'Pessoal',
+    wellness: 'Bem-estar',
+    home: 'Casa',
+  },
 }
 
 const UNCATEGORIZED_LABELS: Record<CatalogLocale, string> = {
+  de: 'Ohne Kategorie',
   en: 'Uncategorized',
   es: 'Sin categoría',
+  fr: 'Sans catégorie',
+  it: 'Senza categoria',
+  pt: 'Sem categoria',
 }
 
 // ============================================================================
