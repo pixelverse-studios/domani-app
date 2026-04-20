@@ -23,7 +23,7 @@ import { Text } from '~/components/ui'
 import { TimePickerModal } from '~/components/ui/TimePickerModal'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
-import { formatLocalizedTime } from '~/i18n/date'
+import { formatLocalizedTime, uses24HourClock } from '~/i18n/date'
 import { getTheme } from '~/theme/themes'
 import { useTutorialTarget } from '~/components/tutorial'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
@@ -92,6 +92,7 @@ export function ReminderShortcutsSection() {
   const { locale, t } = useTranslation()
   const zoneColors = getZoneColors()
   const brandColor = theme.colors.brand.primary
+  const is24Hour = React.useMemo(() => uses24HourClock(locale), [locale])
   const { profile } = useProfile()
   const updateProfile = useUpdateProfile()
   const { targetRef, measureTarget } = useTutorialTarget('settings_reminders')
@@ -289,6 +290,7 @@ export function ReminderShortcutsSection() {
       <TimePickerModal
         visible={showTimePicker && Platform.OS === 'ios'}
         value={selectedTime}
+        is24Hour={is24Hour}
         title={
           editingShortcut
             ? t('settings.reminderShortcuts.shortcutLabel', {

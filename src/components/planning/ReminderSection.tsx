@@ -9,7 +9,7 @@ import { Text } from '~/components/ui'
 import { TimePickerModal } from '~/components/ui/TimePickerModal'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
-import { formatLocalizedDateTime, formatLocalizedTime } from '~/i18n/date'
+import { formatLocalizedDateTime, formatLocalizedTime, uses24HourClock } from '~/i18n/date'
 import { useProfile } from '~/hooks/useProfile'
 import { DEFAULT_SHORTCUTS, type ReminderShortcut } from '~/components/settings'
 
@@ -39,10 +39,7 @@ export function ReminderSection({
   const { locale, t } = useTranslation()
   const brandColor = theme.colors.brand.primary
   const { profile } = useProfile()
-  const is24Hour = useMemo(
-    () => !new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12,
-    [],
-  )
+  const is24Hour = useMemo(() => uses24HourClock(locale), [locale])
 
   // Get user's shortcuts from profile or use defaults
   const timePresets: ReminderShortcut[] = useMemo(() => {
