@@ -303,17 +303,19 @@ export function FavoriteCategoriesAccordion() {
             className="text-base font-sans-medium text-content-primary"
             style={{ marginLeft: 12 }}
           >
-            Favorite Categories
+            {t('settings.favoriteCategories.title')}
           </Text>
         </View>
 
         <View style={styles.headerRight}>
           {autoSort ? (
-            <Text style={{ color: textMuted, fontSize: 14 }}>Managed Smartly</Text>
+            <Text style={{ color: textMuted, fontSize: 14 }}>
+              {t('settings.favoriteCategories.managedSmartly')}
+            </Text>
           ) : (
             <>
               <Text style={{ color: textMuted, fontSize: 14, marginRight: 4 }}>
-                {selectedCount} selected
+                {t('settings.favoriteCategories.selectedCount', { count: selectedCount })}
               </Text>
               <Animated.View style={chevronStyle}>
                 <ChevronDown size={18} color={iconColor} />
@@ -329,10 +331,12 @@ export function FavoriteCategoriesAccordion() {
           {/* Section Header */}
           <View style={styles.sectionHeader}>
             <Text className="text-sm font-sans-semibold text-content-primary">
-              Quick Access Categories
+              {t('settings.favoriteCategories.quickAccessTitle')}
             </Text>
             <Text style={{ color: textMuted, fontSize: 13, marginTop: 4 }}>
-              Select up to {MAX_FAVORITES} categories to display by default when adding tasks
+              {t('settings.favoriteCategories.quickAccessDescription', {
+                count: MAX_FAVORITES,
+              })}
             </Text>
           </View>
 
@@ -347,7 +351,7 @@ export function FavoriteCategoriesAccordion() {
                 scrollEnabled={false}
               />
               <Text style={{ color: textMuted, fontSize: 12, marginTop: 8, textAlign: 'center' }}>
-                Hold and drag to reorder
+                {t('settings.favoriteCategories.reorderHint')}
               </Text>
             </View>
           )}

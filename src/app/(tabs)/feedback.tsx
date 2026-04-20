@@ -23,14 +23,7 @@ import {
   FormSuccessState,
 } from '~/components/forms'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
-
-// Category configuration
-const FEEDBACK_CATEGORIES = [
-  { id: 'bug_report' as FeedbackCategory, label: 'Bug Report', icon: Bug },
-  { id: 'feature_idea' as FeedbackCategory, label: 'Feature Idea', icon: Lightbulb },
-  { id: 'what_i_love' as FeedbackCategory, label: 'What I Love', icon: Heart },
-  { id: 'general' as FeedbackCategory, label: 'General', icon: MessageCircle },
-] as const
+import { useTranslation } from '~/hooks/useTranslation'
 
 const MIN_MESSAGE_LENGTH = 1
 
@@ -38,6 +31,7 @@ export default function FeedbackScreen() {
   useScreenTracking('feedback')
   const insets = useSafeAreaInsets()
   const theme = useAppTheme()
+  const { t } = useTranslation()
   const brandColor = theme.colors.brand.primary
   const createFeedback = useCreateFeedback()
   // Lightweight read-only status — avoids spinning up a second AppState
@@ -49,9 +43,20 @@ export default function FeedbackScreen() {
   const [message, setMessage] = useState('')
   const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'success'>('idle')
 
+  const feedbackCategories = [
+    { id: 'bug_report' as FeedbackCategory, label: t('feedback.categories.bugReport'), icon: Bug },
+    {
+      id: 'feature_idea' as FeedbackCategory,
+      label: t('feedback.categories.featureIdea'),
+      icon: Lightbulb,
+    },
+    { id: 'what_i_love' as FeedbackCategory, label: t('feedback.categories.whatILove'), icon: Heart },
+    { id: 'general' as FeedbackCategory, label: t('feedback.categories.general'), icon: MessageCircle },
+  ] as const
+
   // Derived state
   const isValid = selectedCategory !== null && message.trim().length >= MIN_MESSAGE_LENGTH
-  const selectedCategoryConfig = FEEDBACK_CATEGORIES.find((c) => c.id === selectedCategory)
+  const selectedCategoryConfig = feedbackCategories.find((c) => c.id === selectedCategory)
 
   // Colors
   const textSecondary = theme.colors.text.secondary
@@ -77,7 +82,7 @@ export default function FeedbackScreen() {
     } catch (error) {
       setSubmitState('idle')
       console.error('Failed to submit feedback:', error)
-      Alert.alert('Failed to send feedback', 'Please try again.')
+      Alert.alert(t('feedback.submitFailedTitle'), t('common.errors.tryAgain'))
     }
   }
 
@@ -91,13 +96,13 @@ export default function FeedbackScreen() {
   const getPlaceholderText = (category: FeedbackCategory): string => {
     switch (category) {
       case 'bug_report':
-        return 'Describe the bug you encountered...'
+        return t('feedback.placeholders.bugReport')
       case 'feature_idea':
-        return 'Tell us about your feature idea...'
+        return t('feedback.placeholders.featureIdea')
       case 'what_i_love':
-        return 'Share what you love about Domani...'
+        return t('feedback.placeholders.whatILove')
       case 'general':
-        return 'Share your thoughts with us...'
+        return t('feedback.placeholders.general')
     }
   }
 
@@ -122,25 +127,24 @@ export default function FeedbackScreen() {
               <MessageCircle size={28} color="#ffffff" />
             </View>
             <Text className="text-2xl font-bold text-content-primary mb-2">
-              Share Your Thoughts
+              {t('feedback.title')}
             </Text>
             <Text className="text-base text-content-secondary">
-              Help us make Domani better! Your feedback shapes our development.
+              {t('feedback.subtitle')}
             </Text>
           </View>
 
           {/* Success Content */}
           <FormSuccessState
-            title="Feedback Received!"
-            message="Thank you for sharing your thoughts! We've received your message and will review it soon. Your input helps us build a better Domani."
-            actionLabel="Submit More Feedback"
+            title={t('feedback.success.title')}
+            message={t('feedback.success.message')}
+            actionLabel={t('feedback.success.action')}
             actionIcon={MessageCircle}
             onAction={handleSubmitAnother}
             banner={{
               icon: Heart,
-              title: 'We appreciate you!',
-              description:
-                "Every piece of feedback matters. You're helping shape the future of productivity.",
+              title: t('feedback.success.bannerTitle'),
+              description: t('feedback.success.bannerDescription'),
             }}
           />
 
@@ -171,20 +175,18 @@ export default function FeedbackScreen() {
           >
             <MessageCircle size={28} color="#ffffff" />
           </View>
-          <Text className="text-2xl font-bold text-content-primary mb-2">Share Your Thoughts</Text>
-          <Text className="text-base text-content-secondary">
-            Help us make Domani better! Your feedback shapes our development.
-          </Text>
+          <Text className="text-2xl font-bold text-content-primary mb-2">{t('feedback.title')}</Text>
+          <Text className="text-base text-content-secondary">{t('feedback.subtitle')}</Text>
         </View>
 
         {/* Category Selection */}
         <Text className="text-sm text-content-secondary mb-3">
-          What would you like to share? <Text className="text-red-500">*</Text>
+          {t('feedback.categoryPrompt')} <Text className="text-red-500">*</Text>
         </Text>
 
         <View className="mb-6">
           <CategoryGrid
-            categories={FEEDBACK_CATEGORIES}
+            categories={feedbackCategories}
             selectedId={selectedCategory}
             onSelect={(id) => setSelectedCategory(id as FeedbackCategory)}
           />
@@ -201,7 +203,7 @@ export default function FeedbackScreen() {
 
         {/* Message Field */}
         <FormTextArea
-          label="Your Message"
+          label={t('feedback.messageLabel')}
           value={message}
           onChange={setMessage}
           placeholder={selectedCategory ? getPlaceholderText(selectedCategory) : ''}
@@ -210,7 +212,7 @@ export default function FeedbackScreen() {
           onClear={handleClearMessage}
           minCharacters={MIN_MESSAGE_LENGTH}
           showMinLabel={false}
-          disabledMessage="Select a category to start"
+          disabledMessage={t('feedback.disabledMessage')}
         />
 
         {/* Submit Button */}
@@ -231,7 +233,7 @@ export default function FeedbackScreen() {
                   isValid ? 'text-white' : 'text-content-tertiary'
                 }`}
               >
-                Send Feedback
+                {t('feedback.submitCta')}
               </Text>
             </>
           )}
@@ -243,8 +245,8 @@ export default function FeedbackScreen() {
         {subscriptionStatus === 'beta' && (
           <InfoBanner
             icon={Rocket}
-            title="You're a Beta Tester!"
-            description="Your feedback directly shapes Domani's future. Every submission is read by our team and helps prioritize what we build next."
+            title={t('feedback.betaBanner.title')}
+            description={t('feedback.betaBanner.description')}
             variant="purple"
           />
         )}

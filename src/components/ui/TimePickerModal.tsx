@@ -4,6 +4,7 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
 
 interface TimePickerModalProps {
   visible: boolean
@@ -17,12 +18,13 @@ interface TimePickerModalProps {
 export function TimePickerModal({
   visible,
   value,
-  title = 'Select Time',
+  title,
   is24Hour,
   onConfirm,
   onCancel,
 }: TimePickerModalProps) {
   const theme = useAppTheme()
+  const { t } = useTranslation()
   const brandColor = theme.colors.brand.primary
   const iconColor = theme.colors.text.tertiary
   const borderColor = `${theme.colors.border.primary}33`
@@ -34,6 +36,8 @@ export function TimePickerModal({
   }, [visible, value])
 
   if (Platform.OS !== 'ios') return null
+
+  const resolvedTitle = title ?? t('common.selectTime')
 
   return (
     <Modal transparent animationType="fade" visible={visible}>
@@ -55,17 +59,17 @@ export function TimePickerModal({
           >
             <TouchableOpacity onPress={onCancel}>
               <Text className="text-base" style={{ color: iconColor }}>
-                Cancel
+                {t('common.actions.cancel')}
               </Text>
             </TouchableOpacity>
-            <Text className="text-base font-sans-semibold text-content-primary">{title}</Text>
+            <Text className="text-base font-sans-semibold text-content-primary">{resolvedTitle}</Text>
             <TouchableOpacity
               onPress={() => {
                 onConfirm(tempValue)
               }}
             >
               <Text className="text-base font-sans-semibold" style={{ color: brandColor }}>
-                Done
+                {t('common.actions.done')}
               </Text>
             </TouchableOpacity>
           </View>

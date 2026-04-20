@@ -37,6 +37,7 @@ import { isBetaPhase } from '~/types/appConfig'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
+import { useTranslation } from '~/hooks/useTranslation'
 
 // Get app version from app.json (Expo handles this)
 import Constants from 'expo-constants'
@@ -60,6 +61,7 @@ function SettingsContent() {
   const router = useRouter()
   const { signOut } = useAuth()
   const theme = useAppTheme()
+  const { t } = useTranslation()
   const { profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const subscription = useSubscription()
@@ -147,10 +149,10 @@ function SettingsContent() {
   }
 
   const handleSignOut = async () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('settings.logOutConfirmTitle'), t('settings.logOutConfirmMessage'), [
+      { text: t('common.actions.cancel'), style: 'cancel' },
       {
-        text: 'Log Out',
+        text: t('common.actions.logOut'),
         style: 'destructive',
         onPress: async () => {
           await signOut()
@@ -166,7 +168,7 @@ function SettingsContent() {
       setShowDeleteModal(false)
       setShowFarewellOverlay(true)
     } catch {
-      Alert.alert('Error', 'Failed to schedule account deletion. Please try again.')
+      Alert.alert(t('common.errors.title'), t('settings.deletionScheduleFailed'))
     }
   }
 
@@ -179,7 +181,7 @@ function SettingsContent() {
     try {
       await accountDeletion.cancelDeletion.mutateAsync()
     } catch {
-      Alert.alert('Error', 'Failed to cancel deletion. Please try again.')
+      Alert.alert(t('common.errors.title'), t('settings.deletionCancelFailed'))
     }
   }
 
@@ -216,7 +218,7 @@ function SettingsContent() {
 
       setShowPlanningTimeModal(false)
     } catch {
-      Alert.alert('Error', 'Failed to save planning time. Please try again.')
+      Alert.alert(t('common.errors.title'), t('settings.planningTimeSaveFailed'))
     }
   }
 
@@ -250,7 +252,7 @@ function SettingsContent() {
         await cancelPlanningReminder()
       }
     } catch {
-      Alert.alert('Error', 'Failed to update notification setting. Please try again.')
+      Alert.alert(t('common.errors.title'), t('settings.notificationToggleFailed'))
     }
   }
 
@@ -284,7 +286,9 @@ function SettingsContent() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <Text className="text-2xl font-bold text-content-primary mt-4 mb-6">Settings</Text>
+        <Text className="text-2xl font-bold text-content-primary mt-4 mb-6">
+          {t('settings.screenTitle')}
+        </Text>
 
         {/* 1. Profile Section — always visible so signed-in users can see which account they're on */}
         <ProfileSection
@@ -312,7 +316,7 @@ function SettingsContent() {
             try {
               await subscription.restore()
             } catch {
-              Alert.alert('Restore Failed', 'Could not restore purchases. Please try again.')
+              Alert.alert(t('settings.restoreFailedTitle'), t('settings.restoreFailedMessage'))
             }
           }}
           onUpgrade={() => setShowPaywallModal(true)}
@@ -364,7 +368,7 @@ function SettingsContent() {
         >
           <LogOut size={18} color={theme.colors.text.secondary} />
           <Text className="font-semibold ml-2" style={{ color: theme.colors.text.secondary }}>
-            Log Out
+            {t('common.actions.logOut')}
           </Text>
         </TouchableOpacity>
 

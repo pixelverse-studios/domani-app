@@ -4,6 +4,7 @@ import { AlertTriangle } from 'lucide-react-native'
 
 import { Text } from './Text'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
 
 interface ConfirmationModalProps {
   visible: boolean
@@ -21,16 +22,20 @@ export function ConfirmationModal({
   visible,
   title,
   itemName,
-  description = 'Are you sure you want to delete:',
-  confirmLabel = 'Delete',
-  cancelLabel = 'Cancel',
+  description,
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
   isLoading = false,
 }: ConfirmationModalProps) {
   const theme = useAppTheme()
+  const { t } = useTranslation()
 
   const brandColor = theme.colors.brand.primary
+  const resolvedDescription = description ?? t('common.confirmation.deleteDescription')
+  const resolvedConfirmLabel = confirmLabel ?? t('common.actions.delete')
+  const resolvedCancelLabel = cancelLabel ?? t('common.actions.cancel')
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
@@ -68,7 +73,7 @@ export function ConfirmationModal({
             className="font-sans text-content-secondary mt-2"
             style={{ textAlign: 'center', fontSize: 15 }}
           >
-            {description}
+            {resolvedDescription}
           </Text>
 
           {/* Item Name */}
@@ -86,7 +91,7 @@ export function ConfirmationModal({
             className="font-sans text-content-tertiary mt-1"
             style={{ textAlign: 'center', fontSize: 13 }}
           >
-            This cannot be undone.
+            {t('common.confirmation.cannotUndo')}
           </Text>
 
           {/* Buttons */}
@@ -99,7 +104,7 @@ export function ConfirmationModal({
               activeOpacity={0.8}
             >
               <Text className="font-sans-semibold text-white" style={{ fontSize: 16 }}>
-                {isLoading ? 'Deleting...' : confirmLabel}
+                {isLoading ? t('common.actions.deleting') : resolvedConfirmLabel}
               </Text>
             </TouchableOpacity>
 
@@ -116,7 +121,7 @@ export function ConfirmationModal({
               activeOpacity={0.8}
             >
               <Text className="font-sans-semibold text-content-primary" style={{ fontSize: 16 }}>
-                {cancelLabel}
+                {resolvedCancelLabel}
               </Text>
             </TouchableOpacity>
           </View>

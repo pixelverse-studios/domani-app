@@ -7,6 +7,30 @@ export const es: TranslationCatalog = {
     uncategorized: 'Sin categoría',
     custom: 'Personalizada',
     selectTime: 'Seleccionar hora',
+    actions: {
+      cancel: 'Cancelar',
+      close: 'Cerrar',
+      save: 'Guardar',
+      done: 'Listo',
+      delete: 'Eliminar',
+      deleting: 'Eliminando...',
+      enable: 'Activar',
+      disable: 'Desactivar',
+      logOut: 'Cerrar sesión',
+      keepAccount: 'Conservar cuenta',
+      submit: 'Enviar',
+      next: 'Siguiente',
+      gotIt: 'Entendido',
+      skipTour: 'Omitir recorrido',
+    },
+    confirmation: {
+      deleteDescription: '¿Seguro que quieres eliminar:',
+      cannotUndo: 'Esto no se puede deshacer.',
+    },
+    errors: {
+      title: 'Error',
+      tryAgain: 'Inténtalo de nuevo.',
+    },
   },
   greetings: {
     morning: 'Buenos días',
@@ -114,11 +138,177 @@ export const es: TranslationCatalog = {
     },
   },
   settings: {
+    screenTitle: 'Configuración',
+    logOutConfirmTitle: 'Cerrar sesión',
+    logOutConfirmMessage: '¿Seguro que quieres cerrar sesión?',
+    restoreFailedTitle: 'Error al restaurar',
+    restoreFailedMessage: 'No se pudieron restaurar las compras. Inténtalo de nuevo.',
+    deletionScheduleFailed: 'No se pudo programar la eliminación de la cuenta. Inténtalo de nuevo.',
+    deletionCancelFailed: 'No se pudo cancelar la eliminación. Inténtalo de nuevo.',
+    planningTimeSaveFailed: 'No se pudo guardar la hora de planificación. Inténtalo de nuevo.',
+    notificationToggleFailed:
+      'No se pudo actualizar la configuración de notificaciones. Inténtalo de nuevo.',
+    nameModal: {
+      title: 'Editar nombre',
+      placeholder: 'Ingresa tu nombre',
+    },
+    timezoneModal: {
+      title: 'Seleccionar zona horaria',
+    },
+    planningTimeModal: {
+      title: 'Recordatorio de planificación',
+      description: 'Recibe un recordatorio para planificar las tareas de mañana',
+    },
+    favoriteCategories: {
+      title: 'Categorías favoritas',
+      managedSmartly: 'Gestionadas automáticamente',
+      selectedCount: '{{count}} seleccionadas',
+      quickAccessTitle: 'Categorías de acceso rápido',
+      quickAccessDescription:
+        'Selecciona hasta {{count}} categorías para mostrarlas por defecto al agregar tareas',
+      reorderHint: 'Mantén presionado y arrastra para reordenar',
+    },
+    dangerZone: {
+      title: 'Zona de peligro',
+      pendingTitle: 'Cuenta programada para eliminación',
+      daysRemaining: 'Quedan {{count}} días',
+      deletionMessagePrefix: 'Tu cuenta se eliminará permanentemente el ',
+      deletionMessageSuffix: '. Inicia sesión antes de esa fecha para reactivarla.',
+      cancelDeletion: 'Cancelar eliminación',
+      deleteAccount: 'Eliminar cuenta',
+    },
+    deleteAccountModal: {
+      title: '¿Eliminar tu cuenta?',
+      description:
+        'Tu cuenta y todos tus datos se eliminarán permanentemente después de 30 días. Puedes iniciar sesión antes de esa fecha para reactivar tu cuenta.',
+      listTitle: 'Esto eliminará permanentemente:',
+      listPlansTasks: 'Todos tus planes y tareas',
+      listCustomCategories: 'Categorías personalizadas',
+      listProgressHistory: 'Historial de progreso',
+      listAccountSettings: 'Configuración de la cuenta',
+    },
+    smartCategoriesModal: {
+      enableTitle: '¿Activar categorías inteligentes?',
+      disableTitle: '¿Desactivar categorías inteligentes?',
+      enableDescription:
+        'Tus categorías de acceso rápido se adaptarán automáticamente según tus patrones de uso. Esto reemplazará tus categorías favoritas actuales.',
+      disableDescription:
+        'Tus categorías volverán al orden manual. Puedes reordenarlas desde Categorías favoritas.',
+    },
     reminderShortcuts: {
       title: 'Atajos de recordatorio',
       customizeTitle: 'Personalizar atajos',
       description: 'Toca para cambiar las horas predeterminadas que aparecen al agregar recordatorios',
       shortcutLabel: 'Atajo {{count}}',
+    },
+  },
+  feedback: {
+    categories: {
+      bugReport: 'Reporte de error',
+      featureIdea: 'Idea de función',
+      whatILove: 'Lo que me encanta',
+      general: 'General',
+    },
+    title: 'Comparte tu opinión',
+    subtitle: 'Ayúdanos a mejorar Domani. Tus comentarios guían nuestro desarrollo.',
+    categoryPrompt: '¿Qué te gustaría compartir?',
+    messageLabel: 'Tu mensaje',
+    disabledMessage: 'Selecciona una categoría para comenzar',
+    placeholders: {
+      bugReport: 'Describe el error que encontraste...',
+      featureIdea: 'Cuéntanos tu idea de función...',
+      whatILove: 'Comparte lo que te encanta de Domani...',
+      general: 'Comparte tus ideas con nosotros...',
+    },
+    submitCta: 'Enviar comentarios',
+    submitFailedTitle: 'No se pudieron enviar los comentarios',
+    success: {
+      title: '¡Comentarios recibidos!',
+      message:
+        'Gracias por compartir tu opinión. Hemos recibido tu mensaje y lo revisaremos pronto. Tus comentarios nos ayudan a construir un mejor Domani.',
+      action: 'Enviar más comentarios',
+      bannerTitle: '¡Te lo agradecemos!',
+      bannerDescription:
+        'Cada comentario importa. Estás ayudando a dar forma al futuro de la productividad.',
+    },
+    betaBanner: {
+      title: '¡Eres beta tester!',
+      description:
+        'Tus comentarios moldean directamente el futuro de Domani. Nuestro equipo lee cada envío y eso ayuda a priorizar lo que construiremos después.',
+    },
+  },
+  support: {
+    categories: {
+      technicalIssue: 'Problema técnico',
+      accountHelp: 'Ayuda con la cuenta',
+      billingQuestion: 'Pregunta de facturación',
+      other: 'Otro',
+    },
+    title: 'Contactar soporte',
+    subtitle: 'Envía una solicitud y recibe ayuda personalizada de nuestro equipo',
+    categoryPrompt: '¿Con qué necesitas ayuda?',
+    issueLabel: 'Describe tu problema',
+    disabledMessage: 'Selecciona una categoría para comenzar',
+    placeholders: {
+      technicalIssue: 'Describe el problema técnico que estás experimentando.',
+      accountHelp: 'Describe qué ayuda necesitas con tu cuenta.',
+      billingQuestion: 'Describe tu pregunta o inquietud de facturación.',
+      other: 'Describe con qué necesitas ayuda.',
+    },
+    submitCta: 'Enviar solicitud de soporte',
+    submitFailedTitle: 'No se pudo enviar la solicitud',
+    success: {
+      message:
+        'Hemos recibido tu solicitud de soporte y nuestro equipo te responderá dentro de 24 horas. Revisa tu correo para ver actualizaciones.',
+      action: 'Enviar otra solicitud',
+      bannerTitle: '¡Estamos en ello!',
+      bannerDescription:
+        'Tu ticket fue asignado a nuestro equipo de soporte. Lo investigaremos y responderemos lo antes posible.',
+    },
+    responseBanner: {
+      title: 'Tiempo de respuesta rápido',
+      description:
+        'Nuestro equipo de soporte suele responder dentro de 24 horas. Todas las solicitudes se atienden con cuidado y atención.',
+    },
+  },
+  tutorial: {
+    progress: '{{current}} de {{total}}',
+    steps: {
+      planTodayButtonTitle: 'Planifica tu día',
+      planTodayButtonDescription: 'Toca aquí para agregar tu primera tarea de hoy.',
+      todayAddTaskButtonTitle: 'Agregar más tareas',
+      todayAddTaskButtonDescription:
+        'Esta es tu vista de Hoy con tareas existentes. Toca aquí para agregar otra tarea.',
+      titleInputTitle: 'Nombra tu tarea',
+      titleInputDescription: 'Hazlo breve y accionable.',
+      categorySelectorTitle: 'Crea una categoría personalizada',
+      categorySelectorDescription: 'Toca "+ New" para crear tu primera categoría personalizada.',
+      createCategoryTitle: 'Crea la tuya',
+      createCategoryDescription: 'Toca "+ New" para agregar una categoría personalizada.',
+      moreCategoriesButtonTitle: 'Ver todas las categorías',
+      moreCategoriesButtonDescription: 'Toca aquí para ver y gestionar todas tus categorías.',
+      prioritySelectorTitle: 'Define tu prioridad',
+      prioritySelectorDescription: '¿Qué tan importante es esta tarea?',
+      topPriorityTitle: 'Tu prioridad número 1',
+      topPriorityDescription:
+        'Esto se convierte en tu tarea más importante: lo único que debes completar hoy.',
+      dayToggleTitle: 'Planifica con anticipación',
+      dayToggleDescription: 'Programa para hoy o prepara mañana esta noche.',
+      completeFormTitle: 'Termina',
+      completeFormDescription:
+        'Las notas y los recordatorios son opcionales. Toca "Add Task" para crear tu primera tarea.',
+      taskCreatedTitle: '¡Tarea creada!',
+      taskCreatedDescription:
+        'Aquí está tu tarea. Fíjate en la categoría y la prioridad. Ahora veámosla en tu pantalla de Hoy.',
+      todayScreenTitle: 'Tu vista de enfoque',
+      todayScreenDescription:
+        'Tu tarea más importante y tu progreso diario viven aquí. Ahora exploremos algunas configuraciones útiles.',
+      settingsCategoriesTitle: 'Categorías inteligentes',
+      settingsCategoriesDescription:
+        '¡Bienvenido a Configuración! Categorías inteligentes aprende tus hábitos y ordena automáticamente tus favoritas. Puedes desactivarlo para elegirlas manualmente.',
+      settingsRemindersTitle: 'Atajos de recordatorio',
+      settingsRemindersDescription:
+        'Configura atajos rápidos para horas comunes como mañana, tarde o noche.',
     },
   },
   analytics: {
