@@ -10,10 +10,10 @@ export const es: TranslationCatalog = {
     notifications: 'Notificaciones',
     tabs: {
       today: 'Hoy',
-      planning: 'Planificación',
+      planning: 'Plan',
       feedback: 'Comentarios',
       progress: 'Progreso',
-      settings: 'Configuración',
+      settings: 'Ajustes',
     },
     actions: {
       cancel: 'Cancelar',

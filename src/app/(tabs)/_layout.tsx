@@ -76,8 +76,12 @@ export default function TabLayout() {
                 fontWeight: focused ? '600' : '400',
                 color: focused ? theme.colors.brand.primary : theme.colors.text.muted,
                 marginBottom: 2,
+                textAlign: 'center',
               }}
               allowFontScaling={false}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
             >
               {children}
             </Text>
