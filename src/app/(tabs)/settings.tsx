@@ -21,7 +21,6 @@ import {
   PlanningTimeModal,
   DeleteAccountModal,
   SmartCategoriesModal,
-  DevToolsSection,
 } from '~/components/settings'
 import { PaywallModal } from '~/components/PaywallModal'
 import { LayoutPickerModal } from '~/components/settings/LayoutPickerModal'
@@ -117,7 +116,6 @@ function SettingsContent() {
   const [showLayoutModal, setShowLayoutModal] = useState(false)
   const [pendingSmartCategoriesValue, setPendingSmartCategoriesValue] = useState(false)
   const [showPaywallModal, setShowPaywallModal] = useState(false)
-  const [showPaywallSuccessPreview, setShowPaywallSuccessPreview] = useState(false)
 
   // Form states
   const [editName, setEditName] = useState('')
@@ -379,22 +377,6 @@ function SettingsContent() {
           onCancelDeletion={handleCancelDeletion}
         />
 
-        {/* Dev Tools — only visible in development builds. Always shown
-            regardless of subscription state so you can toggle phase/preview
-            paywall even while gated. */}
-        {__DEV__ && (
-          <DevToolsSection
-            onOpenPaywall={() => {
-              setShowPaywallSuccessPreview(false)
-              setShowPaywallModal(true)
-            }}
-            onOpenPaywallSuccessPreview={() => {
-              setShowPaywallSuccessPreview(true)
-              setShowPaywallModal(true)
-            }}
-          />
-        )}
-
         {/* App Version */}
         <Text className="text-center text-sm text-content-tertiary mb-4">
           Domani v{APP_VERSION}
@@ -447,13 +429,9 @@ function SettingsContent() {
 
       <PaywallModal
         visible={showPaywallModal}
-        onClose={() => {
-          setShowPaywallModal(false)
-          setShowPaywallSuccessPreview(false)
-        }}
+        onClose={() => setShowPaywallModal(false)}
         offerings={subscription.offerings ?? null}
         offeringIdentifier={subscription.offeringIdentifier}
-        startInSuccessState={showPaywallSuccessPreview}
         isPurchasing={subscription.isPurchasing}
         isRestoring={subscription.isRestoring}
         onPurchase={async (pkg) => {

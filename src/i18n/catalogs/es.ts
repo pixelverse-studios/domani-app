@@ -107,7 +107,7 @@ export const es: TranslationCatalog = {
       discountBadgeFriendsFamily: '86% de descuento',
       valueProps: [
         'Tareas diarias ilimitadas',
-        'Planifica mañana esta noche',
+        'Planificación nocturna, claridad matutina.',
         'Todas las funciones, para siempre',
         'Sin suscripciones, nunca',
       ],

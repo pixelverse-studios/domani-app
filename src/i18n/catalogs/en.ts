@@ -103,7 +103,7 @@ export const en = {
       discountBadgeFriendsFamily: '86% off',
       valueProps: [
         'Unlimited daily tasks',
-        'Plan tomorrow, tonight',
+        'Evening planning, morning clarity.',
         'All features, forever',
         'No subscriptions, ever',
       ],
