@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   View,
   ScrollView,
@@ -10,14 +10,17 @@ import {
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { REFUND_REQUEST_STATUS } from 'react-native-purchases'
 import {
   ArrowLeft,
-  CircleHelp,
-  BadgeHelp,
-  RotateCcw,
   MessageCircle,
   Receipt,
+  ChevronRight,
+  ShieldCheck,
+  BadgeHelp,
   Smartphone,
+  RotateCcw,
+  CircleHelp,
 } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
@@ -26,6 +29,7 @@ import { useAppTheme } from '~/hooks/useAppTheme'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useSubscription } from '~/hooks/useSubscription'
 import { useTranslation } from '~/hooks/useTranslation'
+import { beginRefundRequestForActiveEntitlement } from '~/lib/revenuecat'
 
 type PurchaseHelpSource = 'locked' | 'settings' | 'paywall'
 
@@ -35,11 +39,17 @@ export default function PurchaseHelpScreen() {
   const insets = useSafeAreaInsets()
   const theme = useAppTheme()
   const subscription = useSubscription()
-  const { t } = useTranslation()
+  const { catalog, t } = useTranslation()
   const { source } = useLocalSearchParams<{ source?: PurchaseHelpSource }>()
+  const [isRequestingRefund, setIsRequestingRefund] = useState(false)
+  const helpTopics = catalog.subscription.purchaseHelp.helpTopics
+  const isIos = Platform.OS === 'ios'
+  const isRefunded = subscription.status === 'refunded'
+  const isLifetime = subscription.status === 'lifetime'
+  const isBusy = subscription.isRestoring || isRequestingRefund
 
   const platformAction =
-    Platform.OS === 'ios'
+    isIos
       ? {
           title: t('subscription.purchaseHelp.iosActionTitle'),
           body: t('subscription.purchaseHelp.iosActionBody'),
@@ -64,6 +74,41 @@ export default function PurchaseHelpScreen() {
     })
   }
 
+  const handleRequestRefund = async () => {
+    try {
+      setIsRequestingRefund(true)
+      const status = await beginRefundRequestForActiveEntitlement()
+
+      if (status === REFUND_REQUEST_STATUS.SUCCESS) {
+        Alert.alert(
+          t('subscription.purchaseHelp.iosRefundSuccessTitle'),
+          t('subscription.purchaseHelp.iosRefundSuccessBody'),
+        )
+        return
+      }
+
+      if (status === REFUND_REQUEST_STATUS.USER_CANCELLED) {
+        return
+      }
+
+      Alert.alert(
+        t('subscription.purchaseHelp.iosRefundErrorTitle'),
+        t('subscription.purchaseHelp.iosRefundErrorBody'),
+      )
+    } catch {
+      Alert.alert(
+        t('subscription.purchaseHelp.iosRefundErrorTitle'),
+        t('subscription.purchaseHelp.iosRefundErrorBody'),
+      )
+    } finally {
+      setIsRequestingRefund(false)
+    }
+  }
+
+  const handleRepurchase = () => {
+    router.push('/(tabs)/settings?openPaywall=1')
+  }
+
   const handleRestore = async () => {
     try {
       const result = await subscription.restore()
@@ -79,6 +124,138 @@ export default function PurchaseHelpScreen() {
         t('subscription.purchaseHelp.restoreErrorBody'),
       )
     }
+  }
+
+  if (isIos) {
+    return (
+      <View
+        className="flex-1"
+        style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}
+      >
+        <View className="flex-row items-center px-5 pt-4 pb-2">
+          <TouchableOpacity
+            onPress={() => router.back()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <ArrowLeft size={24} color={theme.colors.brand.primary} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          className="flex-1 px-5"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+        >
+          <View className="pt-4 pb-2">
+            <Text
+              className="text-3xl font-sans-semibold pr-6"
+              style={{ color: theme.colors.brand.primary }}
+            >
+              {isRefunded
+                ? t('subscription.purchaseHelp.iosRefundedTitle')
+                : t('subscription.purchaseHelp.iosTitle')}
+            </Text>
+            <Text
+              className="text-base text-content-secondary mt-3 pr-4"
+              style={{ lineHeight: 24 }}
+            >
+              {isRefunded
+                ? t('subscription.purchaseHelp.iosRefundedBody')
+                : t('subscription.purchaseHelp.iosBody')}
+            </Text>
+
+            <View
+              className="mt-7 pl-4 pr-1 py-1"
+              style={{
+                borderLeftWidth: 2,
+                borderLeftColor: 'rgba(245, 158, 11, 0.35)',
+              }}
+            >
+              <View className="flex-row items-start">
+                <ShieldCheck
+                  size={17}
+                  color={theme.colors.brand.primary}
+                  style={{ marginTop: 2 }}
+                />
+                <View className="flex-1 ml-3">
+                  <Text className="text-sm font-sans-semibold text-content-primary mb-1">
+                    {isRefunded
+                      ? t('subscription.purchaseHelp.iosRefundedNoteTitle')
+                      : t('subscription.purchaseHelp.iosNoteTitle')}
+                  </Text>
+                  <Text
+                    className="text-sm text-content-secondary"
+                    style={{ lineHeight: 21 }}
+                  >
+                    {isRefunded
+                      ? t('subscription.purchaseHelp.iosRefundedNoteBody')
+                      : t('subscription.purchaseHelp.iosNoteBody')}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View className="mt-9">
+              {isRefunded ? (
+                <GradientButton
+                  onPress={handleRepurchase}
+                  disabled={isBusy}
+                  fullWidth
+                  icon={<Receipt size={18} color="#ffffff" />}
+                >
+                  {t('subscription.purchaseHelp.iosRepurchaseCta')}
+                </GradientButton>
+              ) : (
+                <GradientButton
+                  onPress={handleRequestRefund}
+                  disabled={!isLifetime || isBusy}
+                  loading={isRequestingRefund}
+                  fullWidth
+                  icon={!isRequestingRefund ? <Receipt size={18} color="#ffffff" /> : undefined}
+                >
+                  {t('subscription.purchaseHelp.iosRefundCta')}
+                </GradientButton>
+              )}
+
+              <TouchableOpacity
+                onPress={() =>
+                  openBillingSupport(
+                    isRefunded ? 'ios_refunded_purchase_help' : 'ios_refund_request_support',
+                  )
+                }
+                disabled={isBusy}
+                activeOpacity={0.82}
+                className="mt-4 py-4 flex-row items-center justify-between"
+                style={{
+                  borderTopWidth: 1,
+                  borderTopColor: theme.colors.border.primary,
+                  opacity: isBusy ? 0.6 : 1,
+                }}
+              >
+                <View className="flex-1 pr-4">
+                  <Text className="text-sm font-sans-semibold text-content-primary mb-1">
+                    {t('subscription.purchaseHelp.contactSupportCta')}
+                  </Text>
+                  <Text className="text-xs text-content-secondary" style={{ lineHeight: 19 }}>
+                    {isRefunded
+                      ? t('subscription.purchaseHelp.iosRefundedSupportBody')
+                      : t('subscription.purchaseHelp.iosSupportBody')}
+                  </Text>
+                </View>
+                <View className="flex-row items-center">
+                  <MessageCircle size={16} color={theme.colors.brand.primary} />
+                  <ChevronRight
+                    size={18}
+                    color={theme.colors.text.tertiary}
+                    style={{ marginLeft: 10 }}
+                  />
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </View>
+    )
   }
 
   return (
@@ -237,9 +414,7 @@ export default function PurchaseHelpScreen() {
             </Text>
           </View>
 
-          {(
-            t('subscription.purchaseHelp.helpTopics') as unknown as readonly string[]
-          ).map((topic) => (
+          {helpTopics.map((topic) => (
             <View key={topic} className="flex-row items-start mb-2.5">
               <View
                 style={[

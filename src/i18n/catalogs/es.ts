@@ -139,6 +139,32 @@ export const es: TranslationCatalog = {
       title: 'Ayuda con compras',
       subtitle:
         'Llega al siguiente paso correcto para reembolsos, restauraciones y preguntas de facturación desde una sola pantalla compartida de Domani.',
+      iosEyebrow: 'Compra de Apple',
+      iosTitle: '¿Buscas un reembolso?',
+      iosBody:
+        'Los reembolsos de compras en iPhone los gestiona Apple. Podemos llevarte directamente al flujo de reembolso de Apple para tu compra de Domani.',
+      iosNoteTitle: 'Qué pasa después',
+      iosNoteBody:
+        'Apple revisa las solicitudes de reembolso directamente. La aprobación no es instantánea y normalmente te informan después con la decisión.',
+      iosRefundCta: 'Solicitar reembolso',
+      iosSupportBody:
+        'Usa soporte si la hoja de reembolso de Apple no se abre o si tu situación de compra no parece correcta.',
+      iosRefundSuccessTitle: 'Solicitud de reembolso abierta',
+      iosRefundSuccessBody:
+        'Apple ya está gestionando tu solicitud de reembolso. La revisarán y te avisarán con el resultado.',
+      iosRefundErrorTitle: 'No se pudo abrir el flujo de reembolso de Apple',
+      iosRefundErrorBody:
+        'No pudimos abrir la solicitud de reembolso de Apple en este momento. Inténtalo de nuevo o contacta con soporte si sigues necesitando ayuda.',
+      iosRefundedEyebrow: 'Compra reembolsada',
+      iosRefundedTitle: 'Tu acceso fue eliminado',
+      iosRefundedBody:
+        'Esta compra de iPhone ya fue reembolsada. Para volver a desbloquear Domani, tendrás que comprar acceso de por vida otra vez.',
+      iosRefundedNoteTitle: 'Ya fue reembolsada',
+      iosRefundedNoteBody:
+        'Cuando Apple reembolsa la compra, el acceso se elimina. Si quieres usar Domani otra vez, tendrás que comprar acceso de por vida de nuevo.',
+      iosRepurchaseCta: 'Obtener acceso de por vida otra vez',
+      iosRefundedSupportBody:
+        'Contacta con soporte si tu estado de reembolso parece incorrecto o necesitas ayuda para entender qué pasó.',
       platformNote:
         'Las opciones de reembolso y facturación son distintas en iPhone y Android. Domani te guiará por la ruta de soporte correcta para tu dispositivo.',
       iosActionTitle: 'Solicitar ayuda de reembolso en iPhone',
@@ -194,6 +220,8 @@ export const es: TranslationCatalog = {
         'Tareas ilimitadas - Todas las funciones desbloqueadas hasta el {{date}}',
       trialingBodyNoDate: 'Tareas ilimitadas - Todas las funciones desbloqueadas',
       lifetimeBody: 'Tareas ilimitadas - Todas las funciones desbloqueadas para siempre',
+      lifetimePurchaseHelpBody:
+        'Obtén ayuda con tu compra de Apple o Google, incluida la orientación sobre reembolsos.',
       getLifetimeAccess: 'Obtener acceso de por vida',
       restorePurchases: 'Restaurar compras',
     },

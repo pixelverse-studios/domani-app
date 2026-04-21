@@ -1,4 +1,9 @@
-import Purchases, { LOG_LEVEL, PurchasesOffering, PurchasesPackage } from 'react-native-purchases'
+import Purchases, {
+  LOG_LEVEL,
+  PurchasesOffering,
+  PurchasesPackage,
+  REFUND_REQUEST_STATUS,
+} from 'react-native-purchases'
 import { Platform } from 'react-native'
 
 // RevenueCat API keys - these should be in environment variables for production
@@ -311,6 +316,20 @@ export async function restorePurchases() {
     return customerInfo
   } catch (error) {
     console.error('[RevenueCat] Restore error:', error)
+    throw error
+  }
+}
+
+/**
+ * Begin an iOS refund request for the user's active entitlement.
+ */
+export async function beginRefundRequestForActiveEntitlement(): Promise<REFUND_REQUEST_STATUS> {
+  try {
+    const status = await Purchases.beginRefundRequestForActiveEntitlement()
+    console.log('[RevenueCat] Refund request started', { status })
+    return status
+  } catch (error) {
+    console.error('[RevenueCat] Refund request error:', error)
     throw error
   }
 }

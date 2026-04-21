@@ -134,6 +134,32 @@ export const en = {
       title: 'Purchase Help',
       subtitle:
         'Get to the right next step for refunds, restores, and billing questions from one shared Domani screen.',
+      iosEyebrow: 'Apple Purchase',
+      iosTitle: 'Looking for a refund?',
+      iosBody:
+        'Refunds for iPhone purchases are handled by Apple. We can take you straight into Apple’s refund flow for your Domani purchase.',
+      iosNoteTitle: 'What happens next',
+      iosNoteBody:
+        'Apple reviews refund requests directly. Approval is not instant, and they typically follow up later with the decision.',
+      iosRefundCta: 'Request Refund',
+      iosSupportBody:
+        'Use support if the Apple refund sheet does not open or your purchase situation looks incorrect.',
+      iosRefundSuccessTitle: 'Refund request opened',
+      iosRefundSuccessBody:
+        'Apple is now handling your refund request. They will review it and follow up with the result.',
+      iosRefundErrorTitle: 'Could not open Apple refund flow',
+      iosRefundErrorBody:
+        'We could not open Apple’s refund request right now. Try again or contact support if you still need help.',
+      iosRefundedEyebrow: 'Purchase Refunded',
+      iosRefundedTitle: 'Your access was removed',
+      iosRefundedBody:
+        'This iPhone purchase has already been refunded. To unlock Domani again, buy lifetime access again.',
+      iosRefundedNoteTitle: 'Already refunded',
+      iosRefundedNoteBody:
+        'Once Apple refunds the purchase, access is removed. If you want to use Domani again, you will need to purchase lifetime access again.',
+      iosRepurchaseCta: 'Get Lifetime Access Again',
+      iosRefundedSupportBody:
+        'Contact support if your refunded state looks wrong or you need help understanding what happened.',
       platformNote:
         'Refund and billing options differ between iPhone and Android. Domani will guide you into the right support path for your device.',
       iosActionTitle: 'Request refund help on iPhone',
@@ -188,6 +214,8 @@ export const en = {
       trialingBodyWithDate: 'Unlimited tasks - All features unlocked through {{date}}',
       trialingBodyNoDate: 'Unlimited tasks - All features unlocked',
       lifetimeBody: 'Unlimited tasks - All features unlocked forever',
+      lifetimePurchaseHelpBody:
+        'Get help with your Apple or Google purchase, including refund guidance.',
       getLifetimeAccess: 'Get Lifetime Access',
       restorePurchases: 'Restore Purchases',
     },

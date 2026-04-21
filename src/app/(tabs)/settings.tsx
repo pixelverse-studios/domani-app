@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { View, ScrollView, TouchableOpacity, Alert } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useRouter, useFocusEffect } from 'expo-router'
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { LogOut } from 'lucide-react-native'
 import { format } from 'date-fns'
 
@@ -57,6 +57,7 @@ function SettingsContent() {
   useScreenTracking('settings')
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const { openPaywall } = useLocalSearchParams<{ openPaywall?: string }>()
   const { signOut } = useAuth()
   const theme = useAppTheme()
   const { profile, isLoading } = useProfile()
@@ -96,6 +97,18 @@ function SettingsContent() {
     }
   }, [isTutorialActive, currentStep, tutorialScroll])
 
+  useEffect(() => {
+    if (openPaywall === '1' && !handledOpenPaywallRef.current) {
+      handledOpenPaywallRef.current = true
+      setShowPaywallModal(true)
+      return
+    }
+
+    if (openPaywall !== '1') {
+      handledOpenPaywallRef.current = false
+    }
+  }, [openPaywall])
+
   // Refresh permission status when screen comes into focus
   // Note: Skip on simulator as Notifications.getPermissionsAsync() can block the event loop
   useFocusEffect(
@@ -116,6 +129,7 @@ function SettingsContent() {
   const [showLayoutModal, setShowLayoutModal] = useState(false)
   const [pendingSmartCategoriesValue, setPendingSmartCategoriesValue] = useState(false)
   const [showPaywallModal, setShowPaywallModal] = useState(false)
+  const handledOpenPaywallRef = useRef(false)
 
   // Form states
   const [editName, setEditName] = useState('')
