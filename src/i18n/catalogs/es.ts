@@ -135,6 +135,38 @@ export const es: TranslationCatalog = {
       oneTimePurchaseNote: 'Compra única. Sin cargos recurrentes.',
       restorePurchases: 'Restaurar compras',
     },
+    purchaseHelp: {
+      title: 'Ayuda con compras',
+      subtitle:
+        'Llega al siguiente paso correcto para reembolsos, restauraciones y preguntas de facturación desde una sola pantalla compartida de Domani.',
+      platformNote:
+        'Las opciones de reembolso y facturación son distintas en iPhone y Android. Domani te guiará por la ruta de soporte correcta para tu dispositivo.',
+      iosActionTitle: 'Solicitar ayuda de reembolso en iPhone',
+      iosActionBody:
+        'Usa esta ruta si necesitas ayuda con una compra de Apple, una solicitud de reembolso o una pregunta de facturación relacionada con tu transacción del App Store.',
+      iosActionCta: 'Continuar con ayuda de compra de Apple',
+      androidActionTitle: 'Obtener ayuda de facturación en Android',
+      androidActionBody:
+        'Usa esta ruta si necesitas ayuda con una compra de Google Play, un problema de facturación o una pregunta sobre compras en Android.',
+      androidActionCta: 'Continuar con ayuda de facturación de Android',
+      restoreTitle: 'Restaurar una compra anterior',
+      restoreBody:
+        'Si ya compraste acceso de por vida con esta cuenta, intenta restaurarlo primero antes de abrir una solicitud de soporte.',
+      restoreCta: 'Restaurar compras',
+      restoreNotFoundTitle: 'No se encontraron compras',
+      restoreNotFoundBody: 'No pudimos encontrar una compra anterior para esta cuenta.',
+      restoreErrorTitle: 'Falló la restauración',
+      restoreErrorBody: 'No se pudieron restaurar las compras. Inténtalo de nuevo.',
+      helpWithTitle: 'Esta pantalla puede ayudarte con',
+      helpTopics: [
+        'Preguntas sobre reembolsos y siguientes pasos',
+        'Restaurar una compra anterior',
+        'Problemas de facturación o recibos',
+        'Enviarte a la ruta de soporte correcta para tu plataforma',
+      ],
+      contactSupportCta: 'Contactar con soporte',
+      entryCta: 'Ayuda con compras',
+    },
     settings: {
       sectionTitle: 'Tu plan',
       currentPlan: 'Plan actual',

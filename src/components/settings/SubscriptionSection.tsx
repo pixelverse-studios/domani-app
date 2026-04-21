@@ -21,6 +21,7 @@ interface SubscriptionSectionProps {
   onStartTrial: () => void
   onRestore: () => void
   onUpgrade: () => void
+  onOpenPurchaseHelp: () => void
 }
 
 /**
@@ -41,6 +42,7 @@ export function SubscriptionSection({
   onStartTrial,
   onRestore,
   onUpgrade,
+  onOpenPurchaseHelp,
 }: SubscriptionSectionProps) {
   const theme = useAppTheme()
   const { locale, t } = useTranslation()
@@ -315,23 +317,35 @@ export function SubscriptionSection({
             status === 'refunded' ||
             status === 'trialing' ||
             status === 'grace_period') && (
-            <TouchableOpacity
-              onPress={onRestore}
-              disabled={isRestoring}
-              activeOpacity={0.7}
-              className="flex-row items-center justify-center py-2"
-            >
-              {isRestoring ? (
-                <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
-              ) : (
-                <>
-                  <RotateCcw size={14} color={theme.colors.text.tertiary} />
-                  <Text className="text-sm text-content-secondary ml-1.5">
-                    {t('subscription.settings.restorePurchases')}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                onPress={onRestore}
+                disabled={isRestoring}
+                activeOpacity={0.7}
+                className="flex-row items-center justify-center py-2"
+              >
+                {isRestoring ? (
+                  <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
+                ) : (
+                  <>
+                    <RotateCcw size={14} color={theme.colors.text.tertiary} />
+                    <Text className="text-sm text-content-secondary ml-1.5">
+                      {t('subscription.settings.restorePurchases')}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={onOpenPurchaseHelp}
+                disabled={isRestoring}
+                activeOpacity={0.7}
+                className="flex-row items-center justify-center py-2"
+              >
+                <Text className="text-sm font-sans-medium" style={{ color: theme.colors.brand.primary }}>
+                  {t('subscription.purchaseHelp.entryCta')}
+                </Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
       )}

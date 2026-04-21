@@ -315,6 +315,7 @@ function SettingsContent() {
             }
           }}
           onUpgrade={() => setShowPaywallModal(true)}
+          onOpenPurchaseHelp={() => router.push('/purchase-help?source=settings')}
         />
 
         {/* 3–6. Categories, Notifications, Preferences, Support — hidden for

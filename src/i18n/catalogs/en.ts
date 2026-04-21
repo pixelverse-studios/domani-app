@@ -130,6 +130,38 @@ export const en = {
       oneTimePurchaseNote: 'One-time purchase. No recurring charges.',
       restorePurchases: 'Restore Purchases',
     },
+    purchaseHelp: {
+      title: 'Purchase Help',
+      subtitle:
+        'Get to the right next step for refunds, restores, and billing questions from one shared Domani screen.',
+      platformNote:
+        'Refund and billing options differ between iPhone and Android. Domani will guide you into the right support path for your device.',
+      iosActionTitle: 'Request refund help on iPhone',
+      iosActionBody:
+        'Use this path if you need help with an Apple purchase, a refund request, or a billing question related to your App Store transaction.',
+      iosActionCta: 'Continue with Apple purchase help',
+      androidActionTitle: 'Get billing help on Android',
+      androidActionBody:
+        'Use this path if you need help with a Google Play purchase, billing issue, or account-specific purchase question on Android.',
+      androidActionCta: 'Continue with Android billing help',
+      restoreTitle: 'Restore a previous purchase',
+      restoreBody:
+        'If you already bought lifetime access on this account, try restoring first before opening a support request.',
+      restoreCta: 'Restore Purchases',
+      restoreNotFoundTitle: 'No purchases found',
+      restoreNotFoundBody: 'We could not find a previous purchase for this account.',
+      restoreErrorTitle: 'Restore failed',
+      restoreErrorBody: 'Could not restore purchases. Please try again.',
+      helpWithTitle: 'This screen can help with',
+      helpTopics: [
+        'Refund questions and next steps',
+        'Restoring a previous purchase',
+        'Billing or receipt issues',
+        'Getting routed to the right support path for your platform',
+      ],
+      contactSupportCta: 'Contact Support',
+      entryCta: 'Purchase Help',
+    },
     settings: {
       sectionTitle: 'Your Plan',
       currentPlan: 'Current Plan',
