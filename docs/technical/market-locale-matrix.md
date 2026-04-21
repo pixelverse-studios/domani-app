@@ -10,6 +10,8 @@ Translated catalogs currently exist for:
 - `en`
 - `es`
 - `fr`
+- `hi`
+- `id`
 - `it`
 - `ja`
 - `ko`
@@ -17,6 +19,8 @@ Translated catalogs currently exist for:
 - `pl`
 - `pt`
 - `sv`
+- `zhHans`
+- `zhHant`
 
 All other market locales currently fall back to English copy until dedicated catalogs are added. Date and time formatting can still follow the resolved market locale where supported.
 
@@ -50,6 +54,17 @@ Recommended rollout order:
 1. run device QA for the new languages on constrained surfaces like tabs, modals, alerts, and paywall copy
 2. tighten short-form wording anywhere labels wrap or truncate
 3. continue with the remaining market locales that still fall back to English
+
+## Final Translation Wave
+
+The remaining top-25 market locales are now active for:
+
+1. `zh-CN` via `zhHans`
+2. `zh-TW` via `zhHant`
+3. `hi-IN`
+4. `id-ID`
+
+This completes translated catalog coverage for the current top-25 market locale matrix.
 
 ## Top-25 Market Locales
 

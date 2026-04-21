@@ -2,6 +2,8 @@ import { de } from './catalogs/de'
 import { en } from './catalogs/en'
 import { es } from './catalogs/es'
 import { fr } from './catalogs/fr'
+import { hi } from './catalogs/hi'
+import { id } from './catalogs/id'
 import { it } from './catalogs/it'
 import { ja } from './catalogs/ja'
 import { ko } from './catalogs/ko'
@@ -9,12 +11,16 @@ import { nl } from './catalogs/nl'
 import { pl } from './catalogs/pl'
 import { pt } from './catalogs/pt'
 import { sv } from './catalogs/sv'
+import { zhHans } from './catalogs/zhHans'
+import { zhHant } from './catalogs/zhHant'
 
 export const catalogs = {
   de,
   en,
   es,
   fr,
+  hi,
+  id,
   it,
   ja,
   ko,
@@ -22,6 +28,8 @@ export const catalogs = {
   pl,
   pt,
   sv,
+  zhHans,
+  zhHant,
 } as const
 
 export type CatalogLocale = keyof typeof catalogs
@@ -84,6 +92,24 @@ const languageFallbackLocales = {
 
 type SupportedLanguageCode = keyof typeof languageFallbackLocales
 
+const marketCatalogLocales: Partial<Record<AppLocale, CatalogLocale>> = {
+  'pt-BR': 'pt',
+  'pt-PT': 'pt',
+  'fr-FR': 'fr',
+  'fr-CA': 'fr',
+  'de-DE': 'de',
+  'it-IT': 'it',
+  'nl-NL': 'nl',
+  'sv-SE': 'sv',
+  'pl-PL': 'pl',
+  'ja-JP': 'ja',
+  'ko-KR': 'ko',
+  'zh-CN': 'zhHans',
+  'zh-TW': 'zhHant',
+  'hi-IN': 'hi',
+  'id-ID': 'id',
+}
+
 export function normalizeLocaleTag(locale: string) {
   const [language, region, ...rest] = locale.replace('_', '-').split('-')
   const normalizedLanguage = language?.toLowerCase() ?? ''
@@ -97,7 +123,14 @@ export function getLanguageCode(locale: string) {
 }
 
 export function getCatalogLocale(locale: string): CatalogLocale {
-  const languageCode = getLanguageCode(locale)
+  const normalizedLocale = normalizeLocaleTag(locale)
+  const mappedCatalogLocale = marketCatalogLocales[normalizedLocale as AppLocale]
+
+  if (mappedCatalogLocale) {
+    return mappedCatalogLocale
+  }
+
+  const languageCode = getLanguageCode(normalizedLocale)
 
   if (languageCode in catalogs) {
     return languageCode as CatalogLocale

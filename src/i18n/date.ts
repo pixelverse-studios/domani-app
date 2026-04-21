@@ -73,6 +73,26 @@ const dateLocalesByLanguage = {
 
 type DateLanguageCode = keyof typeof dateLocalesByLanguage
 
+const dateLocalesByCatalog = {
+  en: enUS,
+  es,
+  pt: ptBR,
+  fr,
+  de,
+  hi,
+  id,
+  it,
+  ja,
+  ko,
+  nl,
+  pl,
+  sv,
+  zhHans: zhCN,
+  zhHant: zhTW,
+} as const satisfies Record<string, Locale>
+
+type DateCatalogLocale = keyof typeof dateLocalesByCatalog
+
 function resolveIntlLocaleTag(locale: AppLocale) {
   const normalizedLocale = normalizeLocaleTag(locale)
   const matchingDeviceLocale = getLocales().find(
@@ -84,10 +104,12 @@ function resolveIntlLocaleTag(locale: AppLocale) {
 
 function getDateFnsLocale(locale: AppLocale) {
   const languageCode = getLanguageCode(locale) as DateLanguageCode
+  const catalogLocale = getCatalogLocale(locale) as DateCatalogLocale
+
   return (
     dateLocalesByMarket[locale] ??
     dateLocalesByLanguage[languageCode] ??
-    dateLocalesByLanguage[getCatalogLocale(locale)] ??
+    dateLocalesByCatalog[catalogLocale] ??
     enUS
   )
 }
