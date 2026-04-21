@@ -239,9 +239,8 @@ export function useSubscription() {
     retry: false, // Don't retry if RevenueCat is not configured
   })
 
-  // When a local debug override is active, the existing RevenueCat query can
-  // still hold a previously fetched entitlement in cache. Treat that data as
-  // absent so the subscription state is derived from the profile only.
+  // When RevenueCat is bypassed for beta mode, cached customer info must not
+  // continue affecting the subscription state machine.
   const effectiveCustomerInfo = shouldBypassRevenueCat ? null : customerInfo
 
   // Get the cohort-specific offering identifier
@@ -710,7 +709,10 @@ async function syncSubscriptionToSupabase(userId: string | undefined, customerIn
     const isTrialing = entitlement.periodType === 'TRIAL'
     const tier: 'trialing' | 'lifetime' = isTrialing ? 'trialing' : 'lifetime'
 
-    const { error: tierError } = await supabase.from('profiles').update({ tier }).eq('id', userId)
+    const { error: tierError } = await supabase
+      .from('profiles')
+      .update({ tier, refunded_at: null })
+      .eq('id', userId)
     if (tierError) throw tierError
 
     console.log('[useSubscription] Updated Supabase tier from RevenueCat', {

@@ -26,16 +26,16 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
  *
  * ## Event handling
  *
- * This scaffold (DEV-44) handles request routing, auth, payload
- * parsing, and logging only. The actual business logic for each event
- * type is filled in by follow-up tickets:
+ * This handler currently treats the following events as authoritative
+ * for Domani's lifetime product:
  *
- *   - INITIAL_PURCHASE / NON_RENEWING_PURCHASE → DEV-45
- *   - REFUND                                   → DEV-46
+ *   - INITIAL_PURCHASE / NON_RENEWING_PURCHASE → grant lifetime access
+ *   - REFUND                                   → revoke access
+ *   - REFUND_REVERSED                          → restore access
+ *   - CANCELLATION with refund-like reasons    → revoke access
  *
- * Any event type not explicitly handled is logged (so we can observe
- * what RevenueCat actually delivers during staging QA) and the
- * function returns 200 so RevenueCat doesn't retry.
+ * Any event type not explicitly handled is logged and acknowledged
+ * with 200 so RevenueCat doesn't retry indefinitely.
  *
  * ## Body parsing
  *
@@ -47,11 +47,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
  *
  * ## Idempotency
  *
- * Handlers should rely on natural UPDATE idempotency — writing
- * tier='lifetime' twice is a no-op, so re-delivery of the same event
- * is safe without a dedicated event-log table. If we start seeing
- * double-writes in the wild (e.g., due to concurrent RC retries and
- * client-side sync), we can add an event_log table in a follow-up.
+ * RevenueCat `event.id` is stored in `public.revenuecat_webhook_events`
+ * and used as the idempotency key. Duplicate deliveries are logged and
+ * acknowledged without reapplying the state transition.
  */
 
 // RevenueCat webhook event types we know about, even if we don't handle
@@ -72,11 +70,12 @@ type RevenueCatEventType =
   | 'TRANSFER'
   | 'TEMPORARY_ENTITLEMENT_GRANT'
   | 'REFUND'
+  | 'REFUND_REVERSED'
   | 'TEST'
 
 interface RevenueCatWebhookEvent {
   type: RevenueCatEventType
-  app_user_id: string
+  app_user_id?: string
   // RevenueCat sends many more fields on the event. We only type the
   // ones this scaffold touches; handlers for specific events will add
   // their own narrower types as they're implemented.
@@ -91,6 +90,8 @@ interface RevenueCatWebhookPayload {
 }
 
 const REVENUECAT_WEBHOOK_SECRET = Deno.env.get('REVENUECAT_WEBHOOK_SECRET')
+const LIFETIME_PRODUCT_IDS = new Set(['domani_lifetime'])
+const REFUND_LIKE_CANCELLATION_REASONS = new Set(['CUSTOMER_SUPPORT'])
 
 function getEventLogContext(event: RevenueCatWebhookEvent) {
   return {
@@ -106,6 +107,290 @@ function getEventLogContext(event: RevenueCatWebhookEvent) {
       typeof event.original_transaction_id === 'string' ? event.original_transaction_id : null,
     transactionId: typeof event.transaction_id === 'string' ? event.transaction_id : null,
   }
+}
+
+function getEventTimestampIso(
+  event: RevenueCatWebhookEvent,
+  field: 'purchased_at_ms' | 'event_timestamp_ms' = 'event_timestamp_ms',
+) {
+  const timestamp = typeof event[field] === 'number' ? event[field] : null
+  return timestamp ? new Date(timestamp).toISOString() : new Date().toISOString()
+}
+
+function isUuid(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+  )
+}
+
+function getCandidateUserIds(event: RevenueCatWebhookEvent): string[] {
+  const aliases = Array.isArray(event.aliases) ? event.aliases : []
+  const candidates = [
+    event.app_user_id,
+    typeof event.original_app_user_id === 'string' ? event.original_app_user_id : null,
+    ...aliases,
+  ]
+
+  return [...new Set(candidates.filter(isUuid))]
+}
+
+function getRevenueCatIdentityCandidates(event: RevenueCatWebhookEvent): string[] {
+  const aliases = getAliases(event)
+  const candidates = [
+    typeof event.app_user_id === 'string' ? event.app_user_id : null,
+    typeof event.original_app_user_id === 'string' ? event.original_app_user_id : null,
+    ...aliases,
+  ]
+
+  return [...new Set(candidates.filter((candidate): candidate is string => !!candidate))]
+}
+
+function getAliases(event: RevenueCatWebhookEvent): string[] {
+  return Array.isArray(event.aliases) ? event.aliases.filter((alias): alias is string => typeof alias === 'string') : []
+}
+
+function isRefundLikeCancellation(event: RevenueCatWebhookEvent) {
+  const cancelReason =
+    typeof event.cancel_reason === 'string' ? event.cancel_reason.toUpperCase() : null
+  const productId = typeof event.product_id === 'string' ? event.product_id : null
+
+  return (
+    event.type === 'CANCELLATION' &&
+    !!productId &&
+    LIFETIME_PRODUCT_IDS.has(productId) &&
+    !!cancelReason &&
+    REFUND_LIKE_CANCELLATION_REASONS.has(cancelReason)
+  )
+}
+
+async function claimWebhookEvent(
+  supabase: ReturnType<typeof createClient>,
+  event: RevenueCatWebhookEvent,
+) {
+  if (!event.id) return false
+
+  const { data, error } = await supabase
+    .from('revenuecat_webhook_events')
+    .upsert(
+      {
+        event_id: event.id,
+        event_type: event.type,
+        app_user_id: typeof event.app_user_id === 'string' ? event.app_user_id : null,
+        original_app_user_id:
+          typeof event.original_app_user_id === 'string' ? event.original_app_user_id : null,
+        aliases: getAliases(event),
+        product_id: typeof event.product_id === 'string' ? event.product_id : null,
+        store: typeof event.store === 'string' ? event.store : null,
+        environment: typeof event.environment === 'string' ? event.environment : null,
+        event_timestamp:
+          typeof event.event_timestamp_ms === 'number'
+            ? new Date(event.event_timestamp_ms).toISOString()
+            : null,
+        processed_action: 'processing',
+        raw_event: event,
+      },
+      {
+        onConflict: 'event_id',
+        ignoreDuplicates: true,
+      },
+    )
+    .select('event_id')
+
+  if (error) {
+    console.error('[revenuecat-webhook] failed to claim event:', {
+      ...getEventLogContext(event),
+      error,
+    })
+    throw error
+  }
+
+  return !!data?.length
+}
+
+async function finalizeWebhookEvent(
+  supabase: ReturnType<typeof createClient>,
+  event: RevenueCatWebhookEvent,
+  processedAction: string,
+  processingError: string | null = null,
+) {
+  if (!event.id) return
+
+  const { error } = await supabase
+    .from('revenuecat_webhook_events')
+    .update({
+      processed_action: processedAction,
+      processed_at: new Date().toISOString(),
+      processing_error: processingError,
+    })
+    .eq('event_id', event.id)
+
+  if (error) {
+    console.error('[revenuecat-webhook] failed to finalize event log:', {
+      ...getEventLogContext(event),
+      processedAction,
+      error,
+    })
+    throw error
+  }
+}
+
+async function releaseWebhookClaim(
+  supabase: ReturnType<typeof createClient>,
+  event: RevenueCatWebhookEvent,
+) {
+  if (!event.id) return
+
+  const { error } = await supabase.from('revenuecat_webhook_events').delete().eq('event_id', event.id)
+
+  if (error) {
+    console.error('[revenuecat-webhook] failed to release claimed event:', {
+      ...getEventLogContext(event),
+      error,
+    })
+  }
+}
+
+async function resolveProfileUserId(
+  supabase: ReturnType<typeof createClient>,
+  event: RevenueCatWebhookEvent,
+) {
+  for (const candidateUserId of getCandidateUserIds(event)) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', candidateUserId)
+      .maybeSingle()
+
+    if (error) {
+      console.error('[revenuecat-webhook] failed to resolve user from candidate:', {
+        ...getEventLogContext(event),
+        candidateUserId,
+        error,
+      })
+      throw error
+    }
+
+    if (data?.id) {
+      return data.id
+    }
+  }
+
+  for (const revenueCatIdentity of getRevenueCatIdentityCandidates(event)) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('revenuecat_user_id', revenueCatIdentity)
+      .maybeSingle()
+
+    if (error) {
+      console.error('[revenuecat-webhook] failed to resolve user from RevenueCat identity:', {
+        ...getEventLogContext(event),
+        revenueCatIdentity,
+        error,
+      })
+      throw error
+    }
+
+    if (data?.id) {
+      return data.id
+    }
+  }
+
+  return null
+}
+
+async function grantLifetimeAccess(
+  supabase: ReturnType<typeof createClient>,
+  event: RevenueCatWebhookEvent,
+  processedAction: 'granted_lifetime' | 'restored_refund',
+) {
+  const userId = await resolveProfileUserId(supabase, event)
+
+  if (!userId) {
+    console.warn('[revenuecat-webhook] no matching profile found for grant event', {
+      ...getEventLogContext(event),
+      candidateUserIds: getCandidateUserIds(event),
+    })
+    await finalizeWebhookEvent(supabase, event, 'ignored_user_not_found')
+    return jsonResponse({ received: true, ignored: 'user_not_found' })
+  }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      tier: 'lifetime',
+      purchased_at: getEventTimestampIso(event, 'purchased_at_ms'),
+      refunded_at: null,
+      trial_ends_at: null,
+    })
+    .eq('id', userId)
+
+  if (error) {
+    console.error('[revenuecat-webhook] failed to grant lifetime access:', {
+      ...getEventLogContext(event),
+      userId,
+      error,
+    })
+    throw error
+  }
+
+  await finalizeWebhookEvent(supabase, event, processedAction)
+
+  console.log('[revenuecat-webhook] granted lifetime access', {
+    ...getEventLogContext(event),
+    userId,
+    processedAction,
+    updatedTier: 'lifetime',
+  })
+
+  return null
+}
+
+async function revokeLifetimeAccess(
+  supabase: ReturnType<typeof createClient>,
+  event: RevenueCatWebhookEvent,
+  processedAction: 'revoked_refund' | 'revoked_cancellation',
+) {
+  const userId = await resolveProfileUserId(supabase, event)
+
+  if (!userId) {
+    console.warn('[revenuecat-webhook] no matching profile found for revoke event', {
+      ...getEventLogContext(event),
+      candidateUserIds: getCandidateUserIds(event),
+    })
+    await finalizeWebhookEvent(supabase, event, 'ignored_user_not_found')
+    return jsonResponse({ received: true, ignored: 'user_not_found' })
+  }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      tier: 'none',
+      purchased_at: null,
+      refunded_at: getEventTimestampIso(event),
+    })
+    .eq('id', userId)
+
+  if (error) {
+    console.error('[revenuecat-webhook] failed to revoke access:', {
+      ...getEventLogContext(event),
+      userId,
+      error,
+    })
+    throw error
+  }
+
+  await finalizeWebhookEvent(supabase, event, processedAction)
+
+  console.log('[revenuecat-webhook] revoked access', {
+    ...getEventLogContext(event),
+    userId,
+    processedAction,
+    updatedTier: 'none',
+  })
+
+  return null
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -164,11 +449,11 @@ Deno.serve(async (req) => {
   }
 
   const event = payload?.event
-  if (!event || typeof event !== 'object' || !event.type || !event.app_user_id) {
-    console.error('[revenuecat-webhook] payload missing event.type or event.app_user_id', {
+  if (!event || typeof event !== 'object' || !event.type || !event.id) {
+    console.error('[revenuecat-webhook] payload missing required event fields', {
       hasEvent: !!event,
       type: event?.type,
-      hasUserId: !!event?.app_user_id,
+      eventId: event?.id ?? null,
     })
     return jsonResponse({ error: 'Malformed event payload' }, 400)
   }
@@ -185,92 +470,42 @@ Deno.serve(async (req) => {
 
   console.log('[revenuecat-webhook] received event', getEventLogContext(event))
 
+  const claimedEvent = await claimWebhookEvent(supabase, event)
+  if (!claimedEvent) {
+    console.log('[revenuecat-webhook] duplicate event ignored', getEventLogContext(event))
+    return jsonResponse({ received: true, duplicate: true })
+  }
+
   // --- Event routing -----------------------------------------------------
   try {
     switch (event.type) {
       case 'INITIAL_PURCHASE':
       case 'NON_RENEWING_PURCHASE': {
-        // Grant lifetime access. RevenueCat's app_user_id is the
-        // Supabase auth user ID (set during loginRevenueCat in the
-        // client). The UPDATE is naturally idempotent — writing
-        // tier='lifetime' twice is a no-op — so duplicate events
-        // from RC's retry machinery are safe.
-        //
-        // Note: if a `protect_monetisation_fields` BEFORE UPDATE
-        // trigger exists (from 037_add_trial_columns.sql), it will
-        // block direct tier writes unless the session variable
-        // `app.bypass_monetisation_guard` is set. As of this
-        // implementation, the trigger does NOT exist on staging
-        // (confirmed by client-side Start Trial working without
-        // bypass). If the trigger is added to production in the
-        // future, this handler will need an RPC wrapper or a raw
-        // SQL `set_config(...)` call before the UPDATE.
-        const userId = event.app_user_id
-
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            tier: 'lifetime',
-            purchased_at: event.event_timestamp_ms
-              ? new Date(event.event_timestamp_ms).toISOString()
-              : new Date().toISOString(),
-            trial_ends_at: null,
-          })
-          .eq('id', userId)
-
-        if (error) {
-          console.error('[revenuecat-webhook] failed to grant lifetime access:', {
-            ...getEventLogContext(event),
-            userId,
-            error,
-          })
-          return jsonResponse({ error: 'Database error' }, 500)
-        }
-
-        console.log('[revenuecat-webhook] granted lifetime access', {
-          ...getEventLogContext(event),
-          userId,
-          updatedTier: 'lifetime',
-        })
+        const response = await grantLifetimeAccess(supabase, event, 'granted_lifetime')
+        if (response) return response
         break
       }
       case 'REFUND': {
-        // Revoke lifetime access. Apple or Google issued a refund, so
-        // the user's entitlement is no longer valid. Sets tier back to
-        // 'none' (which the client state machine resolves to 'expired'
-        // since trial_started_at is still set from their original
-        // trial), clears purchased_at, and records refunded_at for
-        // analytics and abuse detection.
-        //
-        // Like the purchase handler, this is naturally idempotent —
-        // refunding an already-refunded user is a harmless no-op.
-        const userId = event.app_user_id
-
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            tier: 'none',
-            purchased_at: null,
-            refunded_at: event.event_timestamp_ms
-              ? new Date(event.event_timestamp_ms).toISOString()
-              : new Date().toISOString(),
-          })
-          .eq('id', userId)
-
-        if (error) {
-          console.error('[revenuecat-webhook] failed to revoke access:', {
+        const response = await revokeLifetimeAccess(supabase, event, 'revoked_refund')
+        if (response) return response
+        break
+      }
+      case 'REFUND_REVERSED': {
+        const response = await grantLifetimeAccess(supabase, event, 'restored_refund')
+        if (response) return response
+        break
+      }
+      case 'CANCELLATION': {
+        if (isRefundLikeCancellation(event)) {
+          const response = await revokeLifetimeAccess(supabase, event, 'revoked_cancellation')
+          if (response) return response
+        } else {
+          await finalizeWebhookEvent(supabase, event, 'ignored_cancellation')
+          console.log('[revenuecat-webhook] non-refund cancellation ignored', {
             ...getEventLogContext(event),
-            userId,
-            error,
+            cancelReason: typeof event.cancel_reason === 'string' ? event.cancel_reason : null,
           })
-          return jsonResponse({ error: 'Database error' }, 500)
         }
-
-        console.log('[revenuecat-webhook] revoked access (refund)', {
-          ...getEventLogContext(event),
-          userId,
-          updatedTier: 'none',
-        })
         break
       }
       default: {
@@ -279,12 +514,14 @@ Deno.serve(async (req) => {
         // actually delivers (TEST events, PRODUCT_CHANGE, etc.)
         // without crashing the function or returning an error that
         // would trigger RC's retry machinery.
+        await finalizeWebhookEvent(supabase, event, 'ignored_unhandled')
         console.log('[revenuecat-webhook] unhandled event type', {
           ...getEventLogContext(event),
         })
       }
     }
   } catch (err) {
+    await releaseWebhookClaim(supabase, event)
     console.error('[revenuecat-webhook] handler error:', err)
     return jsonResponse({ error: 'Internal server error' }, 500)
   }
