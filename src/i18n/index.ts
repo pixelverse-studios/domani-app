@@ -92,6 +92,13 @@ const languageFallbackLocales = {
 
 type SupportedLanguageCode = keyof typeof languageFallbackLocales
 
+type LocaleParts = {
+  language: string
+  script?: string
+  region?: string
+  variants: string[]
+}
+
 const marketCatalogLocales: Partial<Record<AppLocale, CatalogLocale>> = {
   'pt-BR': 'pt',
   'pt-PT': 'pt',
@@ -111,11 +118,89 @@ const marketCatalogLocales: Partial<Record<AppLocale, CatalogLocale>> = {
 }
 
 export function normalizeLocaleTag(locale: string) {
-  const [language, region, ...rest] = locale.replace('_', '-').split('-')
-  const normalizedLanguage = language?.toLowerCase() ?? ''
-  const normalizedRegion = region ? region.toUpperCase() : undefined
+  const sanitizedLocale = locale.replaceAll('_', '-').trim()
+  const [language, ...subtags] = sanitizedLocale.split('-').filter(Boolean)
 
-  return [normalizedLanguage, normalizedRegion, ...rest].filter(Boolean).join('-')
+  if (!language) {
+    return ''
+  }
+
+  const normalizedLanguage = language.toLowerCase()
+  let script: string | undefined
+  let region: string | undefined
+  const variants: string[] = []
+
+  for (const subtag of subtags) {
+    if (!script && /^[A-Za-z]{4}$/.test(subtag)) {
+      script = `${subtag[0]?.toUpperCase() ?? ''}${subtag.slice(1).toLowerCase()}`
+      continue
+    }
+
+    if (!region && (/^[A-Za-z]{2}$/.test(subtag) || /^\d{3}$/.test(subtag))) {
+      region = subtag.toUpperCase()
+      continue
+    }
+
+    variants.push(subtag)
+  }
+
+  return [normalizedLanguage, script, region, ...variants].filter(Boolean).join('-')
+}
+
+function parseLocaleParts(locale: string): LocaleParts {
+  const normalizedLocale = normalizeLocaleTag(locale)
+  const [language = '', ...subtags] = normalizedLocale.split('-').filter(Boolean)
+  let script: string | undefined
+  let region: string | undefined
+  const variants: string[] = []
+
+  for (const subtag of subtags) {
+    if (!script && /^[A-Z][a-z]{3}$/.test(subtag)) {
+      script = subtag
+      continue
+    }
+
+    if (!region && (/^[A-Z]{2}$/.test(subtag) || /^\d{3}$/.test(subtag))) {
+      region = subtag
+      continue
+    }
+
+    variants.push(subtag)
+  }
+
+  return {
+    language,
+    script,
+    region,
+    variants,
+  }
+}
+
+function resolveLocaleFallback(candidate: string): AppLocale | null {
+  const normalizedCandidate = normalizeLocaleTag(candidate)
+  if (!normalizedCandidate) {
+    return null
+  }
+
+  const exactMatch = normalizedSupportedLocaleMap.get(normalizedCandidate.toLowerCase())
+  if (exactMatch) {
+    return exactMatch
+  }
+
+  const { language, script, region } = parseLocaleParts(normalizedCandidate)
+
+  if (language === 'zh') {
+    if (script === 'Hant' || region === 'TW' || region === 'HK' || region === 'MO') {
+      return 'zh-TW'
+    }
+
+    if (script === 'Hans' || region === 'CN' || region === 'SG') {
+      return 'zh-CN'
+    }
+  }
+
+  const fallbackLocale = languageFallbackLocales[language as SupportedLanguageCode]
+  return fallbackLocale ?? null
 }
 
 export function getLanguageCode(locale: string) {
@@ -145,22 +230,9 @@ export function isSupportedLocale(locale: string): locale is AppLocale {
 
 export function resolveSupportedLocale(candidateLocales: Array<string | null | undefined>): AppLocale {
   for (const candidate of candidateLocales) {
-    if (!candidate) continue
-
-    const exactMatch = normalizedSupportedLocaleMap.get(normalizeLocaleTag(candidate).toLowerCase())
-    if (exactMatch) {
-      return exactMatch
-    }
-  }
-
-  for (const candidate of candidateLocales) {
-    if (!candidate) continue
-
-    const languageCode = getLanguageCode(candidate)
-    const fallbackLocale =
-      languageFallbackLocales[languageCode as SupportedLanguageCode]
-    if (fallbackLocale) {
-      return fallbackLocale
+    const resolvedLocale = candidate ? resolveLocaleFallback(candidate) : null
+    if (resolvedLocale) {
+      return resolvedLocale
     }
   }
 
