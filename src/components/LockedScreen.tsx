@@ -87,39 +87,43 @@ export function LockedScreen() {
           </GradientButton>
         </View>
 
-        {/* Restore purchases */}
-        <TouchableOpacity
-          onPress={handleRestore}
-          disabled={subscription.isRestoring}
-          activeOpacity={0.7}
-          style={styles.restoreButton}
-          accessibilityLabel={t('subscription.locked.restorePurchases')}
-          accessibilityRole="button"
-        >
-          {subscription.isRestoring ? (
-            <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
-          ) : (
-            <>
-              <RotateCcw size={14} color={theme.colors.text.tertiary} />
-              <Text className="text-sm text-content-secondary ml-1.5">
-                {t('subscription.locked.restorePurchases')}
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
+        {isRefunded && (
+          <>
+            {/* Restore purchases */}
+            <TouchableOpacity
+              onPress={handleRestore}
+              disabled={subscription.isRestoring}
+              activeOpacity={0.7}
+              style={styles.restoreButton}
+              accessibilityLabel={t('subscription.locked.restorePurchases')}
+              accessibilityRole="button"
+            >
+              {subscription.isRestoring ? (
+                <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
+              ) : (
+                <>
+                  <RotateCcw size={14} color={theme.colors.text.tertiary} />
+                  <Text className="text-sm text-content-secondary ml-1.5">
+                    {t('subscription.locked.restorePurchases')}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => router.push('/purchase-help?source=locked')}
-          activeOpacity={0.7}
-          style={styles.purchaseHelpButton}
-          accessibilityLabel={t('subscription.purchaseHelp.entryCta')}
-          accessibilityRole="button"
-        >
-          <BadgeHelp size={14} color={theme.colors.text.tertiary} />
-          <Text className="text-sm text-content-secondary ml-1.5">
-            {t('subscription.purchaseHelp.entryCta')}
-          </Text>
-        </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/purchase-help?source=locked')}
+              activeOpacity={0.7}
+              style={styles.purchaseHelpButton}
+              accessibilityLabel={t('subscription.purchaseHelp.entryCta')}
+              accessibilityRole="button"
+            >
+              <BadgeHelp size={14} color={theme.colors.text.tertiary} />
+              <Text className="text-sm text-content-secondary ml-1.5">
+                {t('subscription.purchaseHelp.entryCta')}
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
 
         {/* Restore error */}
         {restoreError && (

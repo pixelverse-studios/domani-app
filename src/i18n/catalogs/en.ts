@@ -138,12 +138,19 @@ export const en = {
       iosTitle: 'Looking for a refund?',
       iosBody:
         'Refunds for iPhone purchases are handled by Apple. We can take you straight into Apple’s refund flow for your Domani purchase.',
+      iosUnavailableBody:
+        'We could not find an active Apple purchase on this device or account to submit for refund right now.',
       iosNoteTitle: 'What happens next',
       iosNoteBody:
         'Apple reviews refund requests directly. Approval is not instant, and they typically follow up later with the decision.',
+      iosUnavailableNoteTitle: 'Refund request unavailable',
+      iosUnavailableNoteBody:
+        'This usually means there is no active App Store purchase currently linked for this account or device. Support can help you sort out the purchase state.',
       iosRefundCta: 'Request Refund',
       iosSupportBody:
         'Use support if the Apple refund sheet does not open or your purchase situation looks incorrect.',
+      iosUnavailableSupportBody:
+        'Contact support if this account should have an active Apple purchase or you need help re-linking the right purchase state.',
       iosRefundSuccessTitle: 'Refund request opened',
       iosRefundSuccessBody:
         'Apple is now handling your refund request. They will review it and follow up with the result.',

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { AppState } from 'react-native'
+import { AppState, Platform } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Purchases, { CustomerInfo, PurchasesPackage } from 'react-native-purchases'
 import { addDays, parseISO } from 'date-fns'
@@ -263,6 +263,8 @@ export function useSubscription() {
     isBeta,
     betaAccess,
   )
+  const hasActiveRevenueCatEntitlement = !!effectiveCustomerInfo?.entitlements.active[ENTITLEMENT_ID]
+  const canRequestIosRefund = Platform.OS === 'ios' && hasActiveRevenueCatEntitlement
 
   // Stable primitive for the effect dep array — avoids timer churn from Date object identity.
   const trialExpiresAt = subscriptionState.trialExpirationDate?.getTime() ?? null
@@ -469,6 +471,7 @@ export function useSubscription() {
     isPurchasing: purchaseMutation.isPending,
     restore: restoreMutation.mutateAsync,
     isRestoring: restoreMutation.isPending,
+    canRequestIosRefund,
     refetch: refetchCustomerInfo,
   }
 }

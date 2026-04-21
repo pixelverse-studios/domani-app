@@ -344,7 +344,7 @@ export function SubscriptionSection({
           {/* Restore remains useful for users who lost applied access after a prior
               purchase. Keep it off the active lifetime view, which already has a
               dedicated purchase-help action in the card. */}
-          {(status === 'refunded' || status === 'expired') && (
+          {status === 'refunded' && (
             <>
               <TouchableOpacity
                 onPress={onRestore}

@@ -143,12 +143,19 @@ export const es: TranslationCatalog = {
       iosTitle: '¿Buscas un reembolso?',
       iosBody:
         'Los reembolsos de compras en iPhone los gestiona Apple. Podemos llevarte directamente al flujo de reembolso de Apple para tu compra de Domani.',
+      iosUnavailableBody:
+        'No pudimos encontrar una compra activa de Apple en este dispositivo o cuenta para enviar una solicitud de reembolso en este momento.',
       iosNoteTitle: 'Qué pasa después',
       iosNoteBody:
         'Apple revisa las solicitudes de reembolso directamente. La aprobación no es instantánea y normalmente te informan después con la decisión.',
+      iosUnavailableNoteTitle: 'Solicitud de reembolso no disponible',
+      iosUnavailableNoteBody:
+        'Normalmente esto significa que no hay una compra activa del App Store vinculada a esta cuenta o dispositivo. Soporte puede ayudarte a revisar el estado de la compra.',
       iosRefundCta: 'Solicitar reembolso',
       iosSupportBody:
         'Usa soporte si la hoja de reembolso de Apple no se abre o si tu situación de compra no parece correcta.',
+      iosUnavailableSupportBody:
+        'Contacta con soporte si esta cuenta debería tener una compra activa de Apple o si necesitas ayuda para volver a vincular el estado correcto de la compra.',
       iosRefundSuccessTitle: 'Solicitud de reembolso abierta',
       iosRefundSuccessBody:
         'Apple ya está gestionando tu solicitud de reembolso. La revisarán y te avisarán con el resultado.',

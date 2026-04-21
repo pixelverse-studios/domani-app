@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { View, ScrollView, TouchableOpacity, Alert } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router'
@@ -98,16 +98,11 @@ function SettingsContent() {
   }, [isTutorialActive, currentStep, tutorialScroll])
 
   useEffect(() => {
-    if (openPaywall === '1' && !handledOpenPaywallRef.current) {
-      handledOpenPaywallRef.current = true
+    if (openPaywall === '1') {
       setShowPaywallModal(true)
-      return
+      router.replace('/(tabs)/settings')
     }
-
-    if (openPaywall !== '1') {
-      handledOpenPaywallRef.current = false
-    }
-  }, [openPaywall])
+  }, [openPaywall, router])
 
   // Refresh permission status when screen comes into focus
   // Note: Skip on simulator as Notifications.getPermissionsAsync() can block the event loop
@@ -129,7 +124,6 @@ function SettingsContent() {
   const [showLayoutModal, setShowLayoutModal] = useState(false)
   const [pendingSmartCategoriesValue, setPendingSmartCategoriesValue] = useState(false)
   const [showPaywallModal, setShowPaywallModal] = useState(false)
-  const handledOpenPaywallRef = useRef(false)
 
   // Form states
   const [editName, setEditName] = useState('')

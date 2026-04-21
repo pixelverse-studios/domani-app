@@ -46,6 +46,7 @@ export default function PurchaseHelpScreen() {
   const isIos = Platform.OS === 'ios'
   const isRefunded = subscription.status === 'refunded'
   const isLifetime = subscription.status === 'lifetime'
+  const canRequestIosRefund = subscription.canRequestIosRefund
   const isBusy = subscription.isRestoring || isRequestingRefund
 
   const platformAction =
@@ -161,7 +162,9 @@ export default function PurchaseHelpScreen() {
             >
               {isRefunded
                 ? t('subscription.purchaseHelp.iosRefundedBody')
-                : t('subscription.purchaseHelp.iosBody')}
+                : canRequestIosRefund
+                  ? t('subscription.purchaseHelp.iosBody')
+                  : t('subscription.purchaseHelp.iosUnavailableBody')}
             </Text>
 
             <View
@@ -181,7 +184,9 @@ export default function PurchaseHelpScreen() {
                   <Text className="text-sm font-sans-semibold text-content-primary mb-1">
                     {isRefunded
                       ? t('subscription.purchaseHelp.iosRefundedNoteTitle')
-                      : t('subscription.purchaseHelp.iosNoteTitle')}
+                      : canRequestIosRefund
+                        ? t('subscription.purchaseHelp.iosNoteTitle')
+                        : t('subscription.purchaseHelp.iosUnavailableNoteTitle')}
                   </Text>
                   <Text
                     className="text-sm text-content-secondary"
@@ -189,7 +194,9 @@ export default function PurchaseHelpScreen() {
                   >
                     {isRefunded
                       ? t('subscription.purchaseHelp.iosRefundedNoteBody')
-                      : t('subscription.purchaseHelp.iosNoteBody')}
+                      : canRequestIosRefund
+                        ? t('subscription.purchaseHelp.iosNoteBody')
+                        : t('subscription.purchaseHelp.iosUnavailableNoteBody')}
                   </Text>
                 </View>
               </View>
@@ -205,7 +212,7 @@ export default function PurchaseHelpScreen() {
                 >
                   {t('subscription.purchaseHelp.iosRepurchaseCta')}
                 </GradientButton>
-              ) : (
+              ) : canRequestIosRefund ? (
                 <GradientButton
                   onPress={handleRequestRefund}
                   disabled={!isLifetime || isBusy}
@@ -215,17 +222,21 @@ export default function PurchaseHelpScreen() {
                 >
                   {t('subscription.purchaseHelp.iosRefundCta')}
                 </GradientButton>
-              )}
+              ) : null}
 
               <TouchableOpacity
                 onPress={() =>
                   openBillingSupport(
-                    isRefunded ? 'ios_refunded_purchase_help' : 'ios_refund_request_support',
+                    isRefunded
+                      ? 'ios_refunded_purchase_help'
+                      : canRequestIosRefund
+                        ? 'ios_refund_request_support'
+                        : 'ios_refund_unavailable_support',
                   )
                 }
                 disabled={isBusy}
                 activeOpacity={0.82}
-                className="mt-4 py-4 flex-row items-center justify-between"
+                className={`${isRefunded || canRequestIosRefund ? 'mt-4' : 'mt-2'} py-4 flex-row items-center justify-between`}
                 style={{
                   borderTopWidth: 1,
                   borderTopColor: theme.colors.border.primary,
@@ -239,7 +250,9 @@ export default function PurchaseHelpScreen() {
                   <Text className="text-xs text-content-secondary" style={{ lineHeight: 19 }}>
                     {isRefunded
                       ? t('subscription.purchaseHelp.iosRefundedSupportBody')
-                      : t('subscription.purchaseHelp.iosSupportBody')}
+                      : canRequestIosRefund
+                        ? t('subscription.purchaseHelp.iosSupportBody')
+                        : t('subscription.purchaseHelp.iosUnavailableSupportBody')}
                   </Text>
                 </View>
                 <View className="flex-row items-center">
