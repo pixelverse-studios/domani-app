@@ -98,6 +98,7 @@ export function DevToolsSection({ onOpenPaywall }: DevToolsSectionProps) {
               if (error) throw error
 
               setIgnoreRevenueCatForDebug(true)
+              queryClient.setQueryData(['customerInfo', user.id], null)
 
               await Promise.all([
                 queryClient.invalidateQueries({ queryKey: ['profile', user.id] }),

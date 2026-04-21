@@ -112,7 +112,6 @@ export const es: TranslationCatalog = {
         'Sin suscripciones, nunca',
       ],
       successProps: [
-        'Planifica mañana esta noche',
         'Las pequeñas victorias diarias crean hábitos duraderos',
         'Diseñado para mantenerte enfocado, no ocupado',
         'La estrategia en la que confían los mejores',

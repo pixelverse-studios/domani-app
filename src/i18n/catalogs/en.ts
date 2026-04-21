@@ -108,7 +108,6 @@ export const en = {
         'No subscriptions, ever',
       ],
       successProps: [
-        'Plan tomorrow, tonight',
         'Small daily wins build lasting habits',
         'Built to keep you focused, not busy',
         'The strategy top performers swear by',
