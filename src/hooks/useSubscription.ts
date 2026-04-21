@@ -7,7 +7,7 @@ import { addDays, parseISO } from 'date-fns'
 import { supabase } from '~/lib/supabase'
 import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
-import { useAppConfig, useAppConfigStore } from '~/stores/appConfigStore'
+import { useAppConfig } from '~/stores/appConfigStore'
 import { isBetaPhase } from '~/types/appConfig'
 import type { Profile } from '~/types'
 import {
@@ -160,11 +160,10 @@ export function useSubscription() {
   // pre-mutation data.
   const isStartTrialPendingRef = useRef(false)
   const { phase, betaAccess } = useAppConfig()
-  const ignoreRevenueCatForDebug = useAppConfigStore((s) => s.ignoreRevenueCatForDebug)
 
   // Check if we're in beta (skip RevenueCat entirely during beta)
   const isBeta = isBetaPhase(phase)
-  const shouldBypassRevenueCat = isBeta || (__DEV__ && ignoreRevenueCatForDebug)
+  const shouldBypassRevenueCat = isBeta
 
   // Initialize RevenueCat when user changes (skip during beta)
   useEffect(() => {

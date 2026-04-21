@@ -23,7 +23,6 @@ interface PaywallModalProps {
   onClose: () => void
   offerings: PurchasesOffering | null
   offeringIdentifier: string
-  startInSuccessState?: boolean
   isPurchasing: boolean
   isRestoring: boolean
   onPurchase: (pkg: PurchasesPackage) => Promise<unknown | null>
@@ -35,7 +34,6 @@ export function PaywallModal({
   onClose,
   offerings,
   offeringIdentifier,
-  startInSuccessState = false,
   isPurchasing,
   isRestoring,
   onPurchase,
@@ -100,11 +98,11 @@ export function PaywallModal({
   const handleModalShow = () => {
     setError(null)
     setFailCount(0)
-    setShowSuccess(startInSuccessState)
+    setShowSuccess(false)
     successScaleAnim.setValue(0.8)
     scaleAnim.setValue(0.9)
     fadeAnim.setValue(0)
-    const entranceAnimations = [
+    Animated.parallel([
       Animated.spring(scaleAnim, {
         toValue: 1,
         tension: 50,
@@ -116,20 +114,7 @@ export function PaywallModal({
         duration: 200,
         useNativeDriver: true,
       }),
-    ]
-
-    if (startInSuccessState) {
-      entranceAnimations.push(
-        Animated.spring(successScaleAnim, {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-      )
-    }
-
-    Animated.parallel(entranceAnimations).start()
+    ]).start()
   }
 
   const transitionToSuccess = () => {
