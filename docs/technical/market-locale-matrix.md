@@ -11,7 +11,12 @@ Translated catalogs currently exist for:
 - `es`
 - `fr`
 - `it`
+- `ja`
+- `ko`
+- `nl`
+- `pl`
 - `pt`
+- `sv`
 
 All other market locales currently fall back to English copy until dedicated catalogs are added. Date and time formatting can still follow the resolved market locale where supported.
 
@@ -29,6 +34,22 @@ Recommended rollout order:
 1. run device QA for each language on constrained surfaces like tabs, modals, alerts, and paywall copy
 2. tighten short-form wording where needed for constrained UI
 3. continue with the second expansion wave
+
+## Second Translation Wave
+
+The second expansion wave is now active for:
+
+1. `nl-NL`
+2. `sv-SE`
+3. `pl-PL`
+4. `ja-JP`
+5. `ko-KR`
+
+Recommended rollout order:
+
+1. run device QA for the new languages on constrained surfaces like tabs, modals, alerts, and paywall copy
+2. tighten short-form wording anywhere labels wrap or truncate
+3. continue with the remaining market locales that still fall back to English
 
 ## Top-25 Market Locales
 

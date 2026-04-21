@@ -72,11 +72,41 @@ const SYSTEM_CATEGORY_LABELS: Record<CatalogLocale, Record<SystemCategoryId, str
     wellness: 'Benessere',
     home: 'Casa',
   },
+  ja: {
+    work: '仕事',
+    personal: '個人',
+    wellness: 'ウェルネス',
+    home: '家',
+  },
+  ko: {
+    work: '업무',
+    personal: '개인',
+    wellness: '웰니스',
+    home: '집',
+  },
+  nl: {
+    work: 'Werk',
+    personal: 'Persoonlijk',
+    wellness: 'Welzijn',
+    home: 'Thuis',
+  },
+  pl: {
+    work: 'Praca',
+    personal: 'Osobiste',
+    wellness: 'Dobre samopoczucie',
+    home: 'Dom',
+  },
   pt: {
     work: 'Trabalho',
     personal: 'Pessoal',
     wellness: 'Bem-estar',
     home: 'Casa',
+  },
+  sv: {
+    work: 'Arbete',
+    personal: 'Personligt',
+    wellness: 'Välmående',
+    home: 'Hem',
   },
 }
 
@@ -86,7 +116,12 @@ const UNCATEGORIZED_LABELS: Record<CatalogLocale, string> = {
   es: 'Sin categoría',
   fr: 'Sans catégorie',
   it: 'Senza categoria',
+  ja: '未分類',
+  ko: '분류 없음',
+  nl: 'Zonder categorie',
+  pl: 'Bez kategorii',
   pt: 'Sem categoria',
+  sv: 'Utan kategori',
 }
 
 // ============================================================================
