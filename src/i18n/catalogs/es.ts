@@ -55,25 +55,13 @@ export const es: TranslationCatalog = {
     notificationSetup: {
       eyebrow: 'Prueba gratuita de 14 días',
       title: 'Tu prueba ha comenzado',
-      subtitle:
-        'Explora Domani con acceso completo ahora y decide más adelante si quieres acceso de por vida.',
-      liveHeadline: 'Tu prueba con acceso completo ya está activa',
-      liveDetail: 'Configura tu recordatorio nocturno y luego empieza a planificar mañana.',
-      daysLeftHeadline: 'Te quedan {{count}} días para explorar Domani',
-      daysLeftDetail:
-        'Tu prueba continúa hasta el {{date}}. Configura tu recordatorio nocturno y luego empieza a planificar mañana con acceso completo.',
-      oneDayHeadline: 'Te queda 1 día de prueba',
-      oneDayDetail:
-        'Tu prueba continúa hasta el {{date}}. Configura tu recordatorio nocturno y aprovecha al máximo tu último día completo con Domani.',
-      endsTodayHeadline: 'Tu prueba termina hoy',
-      endsTodayDetail:
-        'Tu acceso de prueba continúa hasta el {{date}}. Configura ahora tu recordatorio nocturno para no perder tu último día con acceso completo.',
-      planningReminderTitle: 'Recordatorio de planificación',
+      subtitle: 'Todo está desbloqueado. Explora libremente durante 14 días y luego decide.',
+      planningReminderTitle: 'Recuérdame planificar',
       planningReminderDescription: 'Elige cuándo quieres recibir el recordatorio.',
-      toggleLabel: 'Envíame un recordatorio diario',
+      toggleLabel: 'Recuérdame planificar',
       taskRemindersTitle: 'Recordatorios de tareas',
       taskRemindersDescription:
-        'Cada tarea tiene su propio recordatorio. Puedes configurar horas de recordatorio individuales al crear o editar tareas.',
+        'Configura recordatorios individuales en cada tarea al crearla o editarla.',
       continue: 'Continuar a Domani',
     },
   },

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { format, differenceInCalendarDays } from 'date-fns'
+import { format } from 'date-fns'
 
 import { Button, Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
@@ -12,9 +12,8 @@ import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { NotificationService } from '~/lib/notifications'
 import { useNotificationStore } from '~/stores/notificationStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
-import { formatLocalizedDate, formatLocalizedTime } from '~/i18n/date'
+import { formatLocalizedTime } from '~/i18n/date'
 import { useUpdateProfile } from '~/hooks/useProfile'
-import { useProfile } from '~/hooks/useProfile'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { useTranslation } from '~/hooks/useTranslation'
 
@@ -40,7 +39,6 @@ export default function NotificationSetupScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const updateProfile = useUpdateProfile()
-  const { profile } = useProfile()
   const theme = useAppTheme()
   const { locale, t } = useTranslation()
   const brandColor = theme.colors.brand.primary
@@ -62,38 +60,6 @@ export default function NotificationSetupScreen() {
 
   // Android picker visibility state
   const [showPlanPicker, setShowPlanPicker] = useState(Platform.OS === 'ios')
-
-  const trialSummary = useMemo(() => {
-    if (!profile?.trial_ends_at) {
-      return {
-        headline: t('onboarding.notificationSetup.liveHeadline'),
-        detail: t('onboarding.notificationSetup.liveDetail'),
-      }
-    }
-
-    const trialEnd = new Date(profile.trial_ends_at)
-    const daysRemaining = Math.max(differenceInCalendarDays(trialEnd, new Date()), 0)
-    const endDateLabel = formatLocalizedDate(trialEnd, 'MMMM d', locale)
-
-    if (daysRemaining > 1) {
-      return {
-        headline: t('onboarding.notificationSetup.daysLeftHeadline', { count: daysRemaining }),
-        detail: t('onboarding.notificationSetup.daysLeftDetail', { date: endDateLabel }),
-      }
-    }
-
-    if (daysRemaining === 1) {
-      return {
-        headline: t('onboarding.notificationSetup.oneDayHeadline'),
-        detail: t('onboarding.notificationSetup.oneDayDetail', { date: endDateLabel }),
-      }
-    }
-
-    return {
-      headline: t('onboarding.notificationSetup.endsTodayHeadline'),
-      detail: t('onboarding.notificationSetup.endsTodayDetail', { date: endDateLabel }),
-    }
-  }, [locale, profile?.trial_ends_at, t])
 
   const handleContinue = async () => {
     setLoading(true)
@@ -175,7 +141,6 @@ export default function NotificationSetupScreen() {
     sectionTitle: theme.colors.text.primary,
     sectionDescription: theme.colors.text.secondary,
     pickerBackground: `${brandColor}0D`, // 5% opacity
-    trialCardBackground: `${brandColor}12`, // 7% opacity
     pickerText: theme.colors.text.primary,
     androidTimeText: brandColor,
     androidButtonBg: `${brandColor}1A`, // 10% opacity
@@ -211,24 +176,8 @@ export default function NotificationSetupScreen() {
           </Text>
         </View>
 
-        <View style={[styles.trialCard, { backgroundColor: themeColors.trialCardBackground }]}>
-          <Text style={[styles.trialCardTitle, { color: themeColors.sectionTitle }]}>
-            {trialSummary.headline}
-          </Text>
-          <Text style={[styles.trialCardDescription, { color: themeColors.sectionDescription }]}>
-            {trialSummary.detail}
-          </Text>
-        </View>
-
         {/* Plan Reminder Section */}
         <View style={styles.reminderSection}>
-          <Text style={[styles.sectionTitle, { color: themeColors.sectionTitle }]}>
-            {t('onboarding.notificationSetup.planningReminderTitle')}
-          </Text>
-          <Text style={[styles.sectionDescription, { color: themeColors.sectionDescription }]}>
-            {t('onboarding.notificationSetup.planningReminderDescription')}
-          </Text>
-
           {/* Notification opt-in toggle */}
           <View style={[styles.toggleRow, { backgroundColor: themeColors.pickerBackground }]}>
             <Text style={[styles.toggleLabel, { color: themeColors.sectionTitle }]}>
@@ -326,7 +275,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 28,
   },
   eyebrow: {
     fontSize: 12,
@@ -348,21 +297,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 0.2,
     lineHeight: 24,
-  },
-  trialCard: {
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    marginBottom: 24,
-  },
-  trialCardTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  trialCardDescription: {
-    fontSize: 14,
-    lineHeight: 20,
+    maxWidth: 320,
   },
   reminderSection: {
     marginBottom: 24,
@@ -381,22 +316,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderRadius: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 16,
     marginBottom: 12,
   },

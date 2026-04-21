@@ -51,25 +51,13 @@ export const en = {
     notificationSetup: {
       eyebrow: '14-day free trial',
       title: 'Your trial has started',
-      subtitle:
-        'Explore Domani with full access now, then decide later if you want lifetime access.',
-      liveHeadline: 'Your full-access trial is live now',
-      liveDetail: 'Set your evening reminder, then start planning tomorrow.',
-      daysLeftHeadline: 'You have {{count}} days to explore Domani',
-      daysLeftDetail:
-        'Your trial runs through {{date}}. Set your evening reminder, then start planning tomorrow with full access.',
-      oneDayHeadline: 'You have 1 day left in your trial',
-      oneDayDetail:
-        'Your trial runs through {{date}}. Set your evening reminder, then make the most of your last full day with Domani.',
-      endsTodayHeadline: 'Your trial ends today',
-      endsTodayDetail:
-        'Your trial access runs through {{date}}. Set your evening reminder now so you do not miss your final day with full access.',
-      planningReminderTitle: 'Planning Reminder',
+      subtitle: 'Everything is unlocked. Explore freely for 14 days, then decide.',
+      planningReminderTitle: 'Remind me to plan',
       planningReminderDescription: 'Choose when you want to be reminded.',
-      toggleLabel: 'Send me a daily reminder',
+      toggleLabel: 'Remind me to plan',
       taskRemindersTitle: 'Task Reminders',
       taskRemindersDescription:
-        'Each task has its own reminder. You can set individual reminder times when creating or editing tasks.',
+        'Set individual reminders on each task when creating or editing.',
       continue: 'Continue to Domani',
     },
   },
