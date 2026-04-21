@@ -5,8 +5,11 @@ export function useTranslation() {
     catalog,
     t,
     locale,
+    catalogLocale,
     defaultLocale,
+    defaultCatalogLocale,
     supportedLocales,
+    translatedCatalogLocales,
     setLocaleOverride,
     clearLocaleOverride,
   } =
@@ -16,8 +19,11 @@ export function useTranslation() {
     catalog,
     t,
     locale,
+    catalogLocale,
     defaultLocale,
+    defaultCatalogLocale,
     supportedLocales,
+    translatedCatalogLocales,
     setLocaleOverride,
     clearLocaleOverride,
   }

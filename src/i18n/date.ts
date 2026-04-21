@@ -1,25 +1,122 @@
 import { getLocales } from 'expo-localization'
-import { format, type Locale } from 'date-fns'
-import { enUS, es as esLocale } from 'date-fns/locale'
+import { format } from 'date-fns'
+import {
+  de,
+  enAU,
+  enCA,
+  enGB,
+  enUS,
+  es,
+  fr,
+  hi,
+  id,
+  it,
+  ja,
+  ko,
+  nl,
+  pl,
+  pt,
+  ptBR,
+  sv,
+  zhCN,
+  zhTW,
+} from 'date-fns/locale'
 
-import type { AppLocale } from './index'
+import type { Locale } from 'date-fns'
 
-const dateLocales = {
+import { getCatalogLocale, getLanguageCode, normalizeLocaleTag, type AppLocale } from './index'
+
+const dateLocalesByMarket: Partial<Record<AppLocale, Locale>> = {
+  'en-US': enUS,
+  'en-GB': enGB,
+  'en-CA': enCA,
+  'en-AU': enAU,
+  'en-SG': enUS,
+  'en-PH': enUS,
+  'es-ES': es,
+  'es-MX': es,
+  'es-AR': es,
+  'es-CO': es,
+  'pt-BR': ptBR,
+  'pt-PT': pt,
+  'fr-FR': fr,
+  'fr-CA': fr,
+  'de-DE': de,
+  'it-IT': it,
+  'nl-NL': nl,
+  'sv-SE': sv,
+  'pl-PL': pl,
+  'ja-JP': ja,
+  'ko-KR': ko,
+  'zh-CN': zhCN,
+  'zh-TW': zhTW,
+  'hi-IN': hi,
+  'id-ID': id,
+}
+
+const dateLocalesByLanguage = {
   en: enUS,
-  es: esLocale,
-} as const satisfies Record<AppLocale, Locale>
+  es,
+  pt: ptBR,
+  fr,
+  de,
+  it,
+  nl,
+  sv,
+  pl,
+  ja,
+  ko,
+  zh: zhCN,
+  hi,
+  id,
+} as const satisfies Record<string, Locale>
+
+type DateLanguageCode = keyof typeof dateLocalesByLanguage
+
+const dateLocalesByCatalog = {
+  en: enUS,
+  es,
+  pt: ptBR,
+  fr,
+  de,
+  hi,
+  id,
+  it,
+  ja,
+  ko,
+  nl,
+  pl,
+  sv,
+  zhHans: zhCN,
+  zhHant: zhTW,
+} as const satisfies Record<string, Locale>
+
+type DateCatalogLocale = keyof typeof dateLocalesByCatalog
 
 function resolveIntlLocaleTag(locale: AppLocale) {
+  const normalizedLocale = normalizeLocaleTag(locale)
   const matchingDeviceLocale = getLocales().find(
-    (deviceLocale) => deviceLocale.languageCode?.toLowerCase() === locale,
+    (deviceLocale) => normalizeLocaleTag(deviceLocale.languageTag ?? '') === normalizedLocale,
   )
 
-  return matchingDeviceLocale?.languageTag ?? locale
+  return matchingDeviceLocale?.languageTag ?? normalizedLocale
+}
+
+function getDateFnsLocale(locale: AppLocale) {
+  const languageCode = getLanguageCode(locale) as DateLanguageCode
+  const catalogLocale = getCatalogLocale(locale) as DateCatalogLocale
+
+  return (
+    dateLocalesByMarket[locale] ??
+    dateLocalesByLanguage[languageCode] ??
+    dateLocalesByCatalog[catalogLocale] ??
+    enUS
+  )
 }
 
 export function formatLocalizedDate(date: Date, formatString: string, locale: AppLocale) {
   return format(date, formatString, {
-    locale: dateLocales[locale] ?? enUS,
+    locale: getDateFnsLocale(locale),
   })
 }
 
