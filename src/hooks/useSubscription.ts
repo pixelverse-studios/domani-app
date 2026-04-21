@@ -330,6 +330,14 @@ export function useSubscription() {
   const startTrialMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated')
+      if (profile?.purchased_at) {
+        console.warn('[useSubscription] Blocking trial start for user with recorded purchase', {
+          userId: user.id,
+          purchasedAt: profile.purchased_at,
+          tier: profile.tier,
+        })
+        throw new Error('Trial cannot be started after purchase')
+      }
       if (subscriptionState.status !== 'pre_trial') {
         throw new Error('Trial cannot be started from current state')
       }
@@ -548,6 +556,18 @@ function computeSubscriptionState(
     }
   }
 
+  // A recorded lifetime purchase in Supabase is enough to restore the
+  // lifetime state when RevenueCat is temporarily unavailable or stale.
+  if (profile?.purchased_at) {
+    return {
+      status: 'lifetime',
+      trialDaysRemaining: null,
+      trialExpirationDate: null,
+      graceDaysRemaining: null,
+      graceExpirationDate: null,
+    }
+  }
+
   // Check RevenueCat entitlements (lifetime purchase or trial)
   const entitlement = customerInfo?.entitlements.active[ENTITLEMENT_ID]
   if (entitlement) {
@@ -708,10 +728,20 @@ async function syncSubscriptionToSupabase(userId: string | undefined, customerIn
   if (entitlement) {
     const isTrialing = entitlement.periodType === 'TRIAL'
     const tier: 'trialing' | 'lifetime' = isTrialing ? 'trialing' : 'lifetime'
+    const purchasedAt =
+      !isTrialing
+        ? entitlement.originalPurchaseDate || entitlement.latestPurchaseDate || new Date().toISOString()
+        : null
+    const trialEndsAt = isTrialing ? entitlement.expirationDate : null
 
     const { error: tierError } = await supabase
       .from('profiles')
-      .update({ tier, refunded_at: null })
+      .update({
+        tier,
+        purchased_at: purchasedAt,
+        refunded_at: null,
+        trial_ends_at: trialEndsAt,
+      })
       .eq('id', userId)
     if (tierError) throw tierError
 
