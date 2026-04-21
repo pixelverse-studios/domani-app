@@ -240,6 +240,11 @@ export function useSubscription() {
     retry: false, // Don't retry if RevenueCat is not configured
   })
 
+  // When a local debug override is active, the existing RevenueCat query can
+  // still hold a previously fetched entitlement in cache. Treat that data as
+  // absent so the subscription state is derived from the profile only.
+  const effectiveCustomerInfo = shouldBypassRevenueCat ? null : customerInfo
+
   // Get the cohort-specific offering identifier
   const offeringIdentifier = getOfferingForCohort(profile?.signup_cohort)
 
@@ -256,7 +261,7 @@ export function useSubscription() {
   // see computeSubscriptionState for the full state machine.
   const subscriptionState: SubscriptionState = computeSubscriptionState(
     profile,
-    customerInfo,
+    effectiveCustomerInfo,
     isBeta,
     betaAccess,
   )
