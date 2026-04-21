@@ -23,6 +23,7 @@ interface PaywallModalProps {
   onClose: () => void
   offerings: PurchasesOffering | null
   offeringIdentifier: string
+  startInSuccessState?: boolean
   isPurchasing: boolean
   isRestoring: boolean
   onPurchase: (pkg: PurchasesPackage) => Promise<unknown | null>
@@ -34,6 +35,7 @@ export function PaywallModal({
   onClose,
   offerings,
   offeringIdentifier,
+  startInSuccessState = false,
   isPurchasing,
   isRestoring,
   onPurchase,
@@ -98,11 +100,11 @@ export function PaywallModal({
   const handleModalShow = () => {
     setError(null)
     setFailCount(0)
-    setShowSuccess(false)
+    setShowSuccess(startInSuccessState)
     successScaleAnim.setValue(0.8)
     scaleAnim.setValue(0.9)
     fadeAnim.setValue(0)
-    Animated.parallel([
+    const entranceAnimations = [
       Animated.spring(scaleAnim, {
         toValue: 1,
         tension: 50,
@@ -114,7 +116,20 @@ export function PaywallModal({
         duration: 200,
         useNativeDriver: true,
       }),
-    ]).start()
+    ]
+
+    if (startInSuccessState) {
+      entranceAnimations.push(
+        Animated.spring(successScaleAnim, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      )
+    }
+
+    Animated.parallel(entranceAnimations).start()
   }
 
   const transitionToSuccess = () => {
@@ -224,7 +239,21 @@ export function PaywallModal({
                   className="font-sans text-content-secondary text-center mt-2 mb-2"
                   style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
                 >
-                  {t('subscription.paywall.successBody')}
+                  {t('subscription.paywall.successBodyLine1')}
+                  {'\n'}
+                  <Text
+                    className="font-sans text-content-secondary"
+                    style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
+                  >
+                    {t('subscription.paywall.successBodyWelcomePrefix')}
+                    <Text
+                      className="font-sans-bold text-content-secondary"
+                      style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
+                    >
+                      Domani
+                    </Text>
+                    !
+                  </Text>
                 </Text>
 
                 <View style={styles.successChecks}>
@@ -249,7 +278,10 @@ export function PaywallModal({
                       </View>
                       <Text
                         className="font-sans text-content-primary ml-3"
-                        style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
+                        style={[
+                          styles.valuePropText,
+                          { fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight },
+                        ]}
                       >
                         {prop}
                       </Text>
@@ -379,7 +411,10 @@ export function PaywallModal({
                       </View>
                       <Text
                         className="font-sans text-content-primary ml-3"
-                        style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
+                        style={[
+                          styles.valuePropText,
+                          { fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight },
+                        ]}
                       >
                         {prop}
                       </Text>
@@ -509,8 +544,13 @@ const styles = StyleSheet.create({
   },
   valuePropRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    paddingHorizontal: 6,
     paddingVertical: 8,
+  },
+  valuePropText: {
+    flex: 1,
+    flexShrink: 1,
   },
   checkCircle: {
     width: 28,

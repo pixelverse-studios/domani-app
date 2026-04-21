@@ -11,9 +11,13 @@ import { isBetaPhase, type AppPhase } from '~/types/appConfig'
 
 interface DevToolsSectionProps {
   onOpenPaywall?: () => void
+  onOpenPaywallSuccessPreview?: () => void
 }
 
-export function DevToolsSection({ onOpenPaywall }: DevToolsSectionProps) {
+export function DevToolsSection({
+  onOpenPaywall,
+  onOpenPaywallSuccessPreview,
+}: DevToolsSectionProps) {
   const theme = useAppTheme()
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -236,6 +240,24 @@ export function DevToolsSection({ onOpenPaywall }: DevToolsSectionProps) {
           </Text>
           <Text className="font-sans text-xs mt-0.5" style={{ color: theme.colors.text.tertiary }}>
             Preview paywall regardless of subscription state
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {onOpenPaywallSuccessPreview && (
+        <TouchableOpacity
+          onPress={onOpenPaywallSuccessPreview}
+          activeOpacity={0.7}
+          style={{ ...buttonStyle, marginTop: 8 }}
+        >
+          <Text
+            className="font-sans-semibold text-sm"
+            style={{ color: theme.colors.text.primary }}
+          >
+            Preview Purchase Success
+          </Text>
+          <Text className="font-sans text-xs mt-0.5" style={{ color: theme.colors.text.tertiary }}>
+            Open the paywall directly in its post-purchase success state
           </Text>
         </TouchableOpacity>
       )}
