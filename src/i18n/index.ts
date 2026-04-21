@@ -10,11 +10,14 @@ import { ko } from './catalogs/ko'
 import { nl } from './catalogs/nl'
 import { pl } from './catalogs/pl'
 import { pt } from './catalogs/pt'
+import { mainUiSupplement } from './supplements/mainUi'
+import { settingsModalSupplement } from './supplements/settingsModals'
 import { sv } from './catalogs/sv'
 import { zhHans } from './catalogs/zhHans'
 import { zhHant } from './catalogs/zhHant'
+import type { TranslationCatalog } from './types'
 
-export const catalogs = {
+const baseCatalogs = {
   de,
   en,
   es,
@@ -31,6 +34,46 @@ export const catalogs = {
   zhHans,
   zhHant,
 } as const
+
+function mergeCatalogSections(base: unknown, supplemental: unknown): unknown {
+  if (supplemental === undefined) {
+    return base
+  }
+
+  if (Array.isArray(base) || Array.isArray(supplemental)) {
+    return supplemental
+  }
+
+  if (
+    base &&
+    supplemental &&
+    typeof base === 'object' &&
+    typeof supplemental === 'object'
+  ) {
+    const merged: Record<string, unknown> = { ...(base as Record<string, unknown>) }
+
+    for (const key of Object.keys(supplemental as Record<string, unknown>)) {
+      merged[key] = mergeCatalogSections(
+        (base as Record<string, unknown>)[key],
+        (supplemental as Record<string, unknown>)[key],
+      )
+    }
+
+    return merged
+  }
+
+  return supplemental
+}
+
+export const catalogs = Object.fromEntries(
+  Object.entries(baseCatalogs).map(([locale, catalog]) => [
+    locale,
+    mergeCatalogSections(
+      mergeCatalogSections(catalog, mainUiSupplement[locale as keyof typeof mainUiSupplement]),
+      settingsModalSupplement[locale as keyof typeof settingsModalSupplement],
+    ) as TranslationCatalog,
+  ]),
+) as { [K in keyof typeof baseCatalogs]: TranslationCatalog }
 
 export type CatalogLocale = keyof typeof catalogs
 

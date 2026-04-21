@@ -40,6 +40,8 @@ import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
 import { useCurrentDate } from '~/hooks/useCurrentDate'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useTutorialTarget } from '~/components/tutorial'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import type { TaskWithCategory } from '~/types'
 
 const NAME_PROMPT_DISMISSED_KEY = 'domani_name_prompt_dismissed'
@@ -49,6 +51,8 @@ export default function TodayScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const { status: subscriptionStatus, isLoading: subscriptionLoading } = useSubscription()
   const brandColor = theme.colors.brand.primary
   const { today: todayDate } = useCurrentDate()
@@ -122,7 +126,7 @@ export default function TodayScreen() {
       await updateProfile.mutateAsync({ full_name: nameInput.trim() })
       setShowNameModal(false)
     } catch (error) {
-      Alert.alert('Failed to save name', 'Please try again.')
+      Alert.alert(copy.today.saveNameErrorTitle, copy.today.saveNameErrorMessage)
     }
   }
 
@@ -138,7 +142,7 @@ export default function TodayScreen() {
     try {
       await toggleTask.mutateAsync({ taskId, completed })
     } catch (error) {
-      Alert.alert('Failed to update task', 'Please try again.')
+      Alert.alert(copy.today.updateTaskErrorTitle, copy.today.updateTaskErrorMessage)
     }
   }
 
@@ -151,7 +155,7 @@ export default function TodayScreen() {
     try {
       await deleteTask.mutateAsync(task.id)
     } catch (error) {
-      Alert.alert('Failed to delete task', 'Please try again.')
+      Alert.alert(copy.today.deleteTaskErrorTitle, copy.today.deleteTaskErrorMessage)
     }
   }
 
@@ -252,7 +256,7 @@ export default function TodayScreen() {
             backgroundColor: theme.colors.background,
           }}
         >
-          <AddTaskButton onPress={handleAddTask} label="Add More Tasks" />
+          <AddTaskButton onPress={handleAddTask} label={copy.today.addMoreTasks} />
         </View>
       )}
 
@@ -270,19 +274,19 @@ export default function TodayScreen() {
           >
             <View className="flex-row items-center justify-between mb-2">
               <Text className="text-lg font-semibold text-content-primary">
-                What should we call you?
+                {copy.today.namePromptTitle}
               </Text>
               <TouchableOpacity onPress={handleDismissNameModal} hitSlop={8}>
                 <X size={24} color={theme.colors.text.tertiary} />
               </TouchableOpacity>
             </View>
             <Text className="text-sm text-content-secondary mb-4">
-              Add your name to personalize your experience
+              {copy.today.namePromptSubtitle}
             </Text>
             <TextInput
               value={nameInput}
               onChangeText={setNameInput}
-              placeholder="Enter your name"
+              placeholder={copy.today.namePromptPlaceholder}
               placeholderTextColor={theme.colors.text.tertiary}
               autoFocus
               className="rounded-xl px-4 text-base mb-4"
@@ -306,7 +310,7 @@ export default function TodayScreen() {
               {updateProfile.isPending ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text className="text-white font-semibold">Save</Text>
+                <Text className="text-white font-semibold">{copy.today.namePromptSave}</Text>
               )}
             </TouchableOpacity>
           </View>

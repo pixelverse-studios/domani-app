@@ -1,6 +1,6 @@
-import type { TranslationCatalog } from '../types'
+import type { BaseTranslationCatalog } from '../types'
 
-export const sv: TranslationCatalog = {
+export const sv: BaseTranslationCatalog = {
   common: {
     today: 'Idag',
     tomorrow: 'Imorgon',

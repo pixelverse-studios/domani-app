@@ -7,10 +7,14 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 
 export function EmptyState() {
   const router = useRouter()
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const brandColor = theme.colors.brand.primary
   const { targetRef, measureTarget } = useTutorialTarget('plan_today_button')
   const { advanceFromTodayButton } = useTutorialAdvancement()
@@ -31,7 +35,7 @@ export function EmptyState() {
       </View>
 
       {/* Heading */}
-      <Text className="text-xl font-semibold text-content-primary mb-8">No tasks planned yet</Text>
+      <Text className="text-xl font-semibold text-content-primary mb-8">{copy.today.emptyTitle}</Text>
 
       {/* CTA Button - gradient background */}
       <View ref={targetRef} onLayout={measureTarget}>
@@ -54,7 +58,7 @@ export function EmptyState() {
             style={styles.gradient}
           >
             <Plus size={20} color="#ffffff" />
-            <Text className="text-white font-semibold text-base ml-2">Plan Today</Text>
+            <Text className="text-white font-semibold text-base ml-2">{copy.today.emptyCta}</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>

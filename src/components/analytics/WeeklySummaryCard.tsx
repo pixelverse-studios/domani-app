@@ -13,7 +13,10 @@ import Animated, {
 
 import { Text, Card } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import { DailyCompletionData } from '~/lib/analytics-queries'
+import { formatLocalizedWeekday } from '~/i18n/date'
 
 // Animation timing - matches StreaksCard
 const ICON_DURATION = 400
@@ -27,7 +30,7 @@ interface WeeklySummaryCardProps {
 }
 
 interface MostProductiveDay {
-  dayLabel: string
+  date: string
   taskCount: number
 }
 
@@ -41,7 +44,7 @@ function getMostProductiveDay(dailyData: DailyCompletionData[]): MostProductiveD
 
   for (const day of dailyData) {
     if (day.totalCompleted > 0 && (!best || day.totalCompleted > best.taskCount)) {
-      best = { dayLabel: day.dayLabel, taskCount: day.totalCompleted }
+      best = { date: day.date, taskCount: day.totalCompleted }
     }
   }
 
@@ -92,12 +95,12 @@ function getPerfectDaysCount(dailyData: DailyCompletionData[]): number {
 /**
  * Get a consistency label based on score
  */
-function getConsistencyLabel(score: number): string {
-  if (score >= 90) return 'Excellent'
-  if (score >= 75) return 'Great'
-  if (score >= 60) return 'Good'
-  if (score >= 40) return 'Fair'
-  return 'Building'
+function getConsistencyLabel(score: number, copy: ReturnType<typeof getMainScreenCopy>): string {
+  if (score >= 90) return copy.analytics.consistencyLabels.excellent
+  if (score >= 75) return copy.analytics.consistencyLabels.great
+  if (score >= 60) return copy.analytics.consistencyLabels.good
+  if (score >= 40) return copy.analytics.consistencyLabels.fair
+  return copy.analytics.consistencyLabels.building
 }
 
 interface AnimatedMetricProps {
@@ -194,6 +197,8 @@ function AnimatedNumber({ value, animationKey, index }: AnimatedNumberProps) {
 
 export function WeeklySummaryCard({ dailyData, animationKey = 0 }: WeeklySummaryCardProps) {
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
 
   // Calculate metrics
   const mostProductiveDay = getMostProductiveDay(dailyData)
@@ -212,7 +217,7 @@ export function WeeklySummaryCard({ dailyData, animationKey = 0 }: WeeklySummary
     <Card className="p-5">
       {/* Section header */}
       <Text className="text-xs font-medium text-content-tertiary uppercase tracking-wide mb-4">
-        Weekly Summary
+        {copy.analytics.weeklySummary}
       </Text>
 
       {/* Horizontal row of metrics */}
@@ -231,12 +236,14 @@ export function WeeklySummaryCard({ dailyData, animationKey = 0 }: WeeklySummary
           animationKey={animationKey}
         >
           <Text className="text-base font-bold text-content-primary">
-            {hasProductiveData ? mostProductiveDay.dayLabel : '--'}
+            {hasProductiveData
+              ? formatLocalizedWeekday(new Date(`${mostProductiveDay.date}T00:00:00`), locale, 'short')
+              : '--'}
           </Text>
           <Text className="text-xs text-content-secondary text-center mt-0.5">
-            {hasProductiveData ? `${mostProductiveDay.taskCount} tasks` : 'Best day'}
+            {hasProductiveData ? `${mostProductiveDay.taskCount} ${copy.analytics.tasks}` : copy.analytics.bestDay}
           </Text>
-          <Text className="text-xs text-content-tertiary">completed</Text>
+          <Text className="text-xs text-content-tertiary">{copy.analytics.completed}</Text>
         </AnimatedMetric>
 
         {/* Divider */}
@@ -256,12 +263,12 @@ export function WeeklySummaryCard({ dailyData, animationKey = 0 }: WeeklySummary
           animationKey={animationKey}
         >
           <Text className="text-base font-bold text-content-primary">
-            {hasConsistencyData ? getConsistencyLabel(consistencyScore) : '--'}
+            {hasConsistencyData ? getConsistencyLabel(consistencyScore, copy) : '--'}
           </Text>
           <Text className="text-xs text-content-secondary text-center mt-0.5">
-            {hasConsistencyData ? `${consistencyScore}%` : 'Consistency'}
+            {hasConsistencyData ? `${consistencyScore}%` : copy.analytics.consistency}
           </Text>
-          <Text className="text-xs text-content-tertiary">score</Text>
+          <Text className="text-xs text-content-tertiary">{copy.analytics.score}</Text>
         </AnimatedMetric>
 
         {/* Divider */}
@@ -281,9 +288,9 @@ export function WeeklySummaryCard({ dailyData, animationKey = 0 }: WeeklySummary
           animationKey={animationKey}
         >
           <AnimatedNumber value={perfectDays} animationKey={animationKey} index={2} />
-          <Text className="text-xs text-content-secondary text-center mt-0.5">Perfect</Text>
+          <Text className="text-xs text-content-secondary text-center mt-0.5">{copy.analytics.perfect}</Text>
           <Text className="text-xs text-content-tertiary">
-            {perfectDays === 1 ? 'day' : 'days'}
+            {perfectDays === 1 ? copy.analytics.day : copy.analytics.days}
           </Text>
         </AnimatedMetric>
       </View>

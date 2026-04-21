@@ -30,6 +30,7 @@ import { useAnalyticsIdentify } from '~/hooks/useAnalyticsIdentify'
 import { useSentryIdentify } from '~/hooks/useSentryIdentify'
 import { useAuthAnalytics } from '~/hooks/useAuthAnalytics'
 import { useAuth } from '~/hooks/useAuth'
+import { useTranslation } from '~/hooks/useTranslation'
 import { useAppConfigStore } from '~/stores/appConfigStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
@@ -39,12 +40,15 @@ import { useEveningRolloverOnAppOpen } from '~/hooks/useEveningRolloverOnAppOpen
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
 import { RolloverModal, CelebrationModal } from '~/components/planning'
 import { ErrorBoundary } from '~/components/ErrorBoundary'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 
 const queryClient = new QueryClient()
 
 function RootLayoutContent() {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
 
   // Clear React Query cache on sign out to prevent stale data leaking into new accounts.
   // Note: queryClient is stable for the lifetime of the provider — [] is intentional.
@@ -314,9 +318,9 @@ function RootLayoutContent() {
         visible={showEveningAppOpenRollover}
         mitTask={eveningAppOpenMitTask}
         otherTasks={eveningAppOpenOtherTasks}
-        title={eveningIsBeforeReminderTime ? "Yesterday's Unfinished Tasks" : "Today's Unfinished Tasks"}
-        subtitle={eveningIsBeforeReminderTime ? "Pick up where you left off" : "Carry them into tomorrow's plan"}
-        mitToggleLabel={eveningIsBeforeReminderTime ? "Make this today's top priority" : "Make this tomorrow's top priority"}
+        title={eveningIsBeforeReminderTime ? copy.planning.rolloverYesterdayTitle : copy.planning.rolloverTodayTitle}
+        subtitle={eveningIsBeforeReminderTime ? copy.planning.rolloverYesterdaySubtitle : copy.planning.rolloverTodaySubtitle}
+        mitToggleLabel={eveningIsBeforeReminderTime ? copy.planning.rolloverMitToday : copy.planning.rolloverMitTomorrow}
         onCarryForward={handleEveningAppOpenCarryForward}
         onStartFresh={handleEveningAppOpenStartFresh}
       />

@@ -4,9 +4,13 @@ import { TrendingUp } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 
 export function ProgressPlaceholderCard() {
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const brandColor = theme.colors.brand.primary
 
   return (
@@ -23,7 +27,7 @@ export function ProgressPlaceholderCard() {
         </View>
         <View className="flex-1">
           <Text className="text-base text-content-secondary">
-            Your progress will be tracked here once you add tasks
+            {copy.today.progressPlaceholder}
           </Text>
         </View>
       </View>

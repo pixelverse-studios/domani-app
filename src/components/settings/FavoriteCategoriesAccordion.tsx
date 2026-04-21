@@ -24,6 +24,7 @@ import * as Haptics from 'expo-haptics'
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import { useProfile } from '~/hooks/useProfile'
 import {
   useSortedCategories,
@@ -44,6 +45,7 @@ const MAX_FAVORITES = 4
 export function FavoriteCategoriesAccordion() {
   const theme = useAppTheme()
   const { locale, t } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const brandColor = theme.colors.brand.primary
   const { profile } = useProfile()
   const autoSort = profile?.auto_sort_categories ?? false
@@ -303,17 +305,17 @@ export function FavoriteCategoriesAccordion() {
             className="text-base font-sans-medium text-content-primary"
             style={{ marginLeft: 12 }}
           >
-            Favorite Categories
+            {copy.settings.favoriteCategories}
           </Text>
         </View>
 
         <View style={styles.headerRight}>
           {autoSort ? (
-            <Text style={{ color: textMuted, fontSize: 14 }}>Managed Smartly</Text>
+            <Text style={{ color: textMuted, fontSize: 14 }}>{copy.settings.managedSmartly}</Text>
           ) : (
             <>
               <Text style={{ color: textMuted, fontSize: 14, marginRight: 4 }}>
-                {selectedCount} selected
+                {copy.settings.selectedCount.replace('{{count}}', String(selectedCount))}
               </Text>
               <Animated.View style={chevronStyle}>
                 <ChevronDown size={18} color={iconColor} />
@@ -329,10 +331,10 @@ export function FavoriteCategoriesAccordion() {
           {/* Section Header */}
           <View style={styles.sectionHeader}>
             <Text className="text-sm font-sans-semibold text-content-primary">
-              Quick Access Categories
+              {copy.settings.quickAccessTitle}
             </Text>
             <Text style={{ color: textMuted, fontSize: 13, marginTop: 4 }}>
-              Select up to {MAX_FAVORITES} categories to display by default when adding tasks
+              {copy.settings.quickAccessDescription}
             </Text>
           </View>
 
@@ -347,7 +349,7 @@ export function FavoriteCategoriesAccordion() {
                 scrollEnabled={false}
               />
               <Text style={{ color: textMuted, fontSize: 12, marginTop: 8, textAlign: 'center' }}>
-                Hold and drag to reorder
+                {copy.settings.holdAndDrag}
               </Text>
             </View>
           )}

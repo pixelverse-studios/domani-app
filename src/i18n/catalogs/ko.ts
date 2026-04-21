@@ -1,6 +1,6 @@
-import type { TranslationCatalog } from '../types'
+import type { BaseTranslationCatalog } from '../types'
 
-export const ko: TranslationCatalog = {
+export const ko: BaseTranslationCatalog = {
   common: {
     today: '오늘',
     tomorrow: '내일',

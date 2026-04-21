@@ -22,6 +22,7 @@ import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
 import { useProfile } from '~/hooks/useProfile'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import {
   useCreateUserCategory,
   useDeleteUserCategory,
@@ -92,6 +93,7 @@ export function CategorySelector({
     useTutorialTarget('more_categories_button')
   const theme = useAppTheme()
   const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const { profile } = useProfile()
   const sortedCategories = useSortedCategories(profile?.auto_sort_categories ?? false)
   const favoriteCategories = useFavoriteCategories(profile?.auto_sort_categories ?? false)
@@ -239,11 +241,11 @@ export function CategorySelector({
     } catch (error) {
       console.error('Failed to create category:', error)
       if (isReservedNameError(error)) {
-        Alert.alert('Reserved Category Name', getReservedNameError())
+        Alert.alert(copy.planning.reservedCategoryNameTitle, getReservedNameError())
       } else if (isDuplicateNameError(error)) {
-        Alert.alert('Category already exists', 'A category with this name already exists.')
+        Alert.alert(copy.planning.categoryAlreadyExistsTitle, copy.planning.categoryAlreadyExistsBody)
       } else {
-        Alert.alert('Failed to create category', 'Please try again.')
+        Alert.alert(copy.planning.createCategoryErrorTitle, copy.planning.genericErrorMessage)
       }
     }
   }
@@ -282,11 +284,11 @@ export function CategorySelector({
       } catch (error) {
         console.error('Failed to create category:', error)
         if (isReservedNameError(error)) {
-          Alert.alert('Reserved Category Name', getReservedNameError())
+          Alert.alert(copy.planning.reservedCategoryNameTitle, getReservedNameError())
         } else if (isDuplicateNameError(error)) {
-          Alert.alert('Category already exists', 'A category with this name already exists.')
+          Alert.alert(copy.planning.categoryAlreadyExistsTitle, copy.planning.categoryAlreadyExistsBody)
         } else {
-          Alert.alert('Failed to create category', 'Please try again.')
+          Alert.alert(copy.planning.createCategoryErrorTitle, copy.planning.genericErrorMessage)
         }
       }
     } else {
@@ -327,7 +329,7 @@ export function CategorySelector({
       console.error('Failed to delete category:', error)
       setShowDeleteModal(false)
       setCategoryToDelete(null)
-      Alert.alert('Failed to delete category', 'Please try again.')
+      Alert.alert(copy.planning.deleteCategoryErrorTitle, copy.planning.genericErrorMessage)
     }
   }
 
@@ -441,7 +443,9 @@ export function CategorySelector({
   // Render the inline "+ New" pill in the bottom sheet
   const renderNewPill = () => {
     const showCreateLabel = hasSearchText && !exactMatchExists
-    const pillLabel = showCreateLabel ? `Create "${categorySearch.trim()}"` : 'New'
+    const pillLabel = showCreateLabel
+      ? copy.planning.createCategory.replace('{{name}}', categorySearch.trim())
+      : copy.planning.newCategoryButton
 
     return (
       <TouchableOpacity
@@ -475,7 +479,7 @@ export function CategorySelector({
       <View className="flex-row items-center justify-between mb-3">
         <View className="flex-row items-center">
           <Tag size={16} color={iconColor} />
-          <Text className="font-sans-medium text-content-primary ml-2">Category</Text>
+          <Text className="font-sans-medium text-content-primary ml-2">{copy.planning.category}</Text>
         </View>
 
         {/* Selected Category Badge */}
@@ -527,7 +531,7 @@ export function CategorySelector({
                 className="font-sans-medium"
                 style={{ color: theme.colors.text.secondary, fontSize: 13 }}
               >
-                +{additionalCount} more
+                {copy.planning.moreCategories.replace('{{count}}', String(additionalCount))}
               </Text>
             </TouchableOpacity>
           </View>
@@ -547,7 +551,7 @@ export function CategorySelector({
         >
           <Plus size={14} color={brandColor} />
           <Text className="font-sans-medium ml-1" style={{ color: brandColor, fontSize: 13 }}>
-            New
+            {copy.planning.newCategoryButton}
           </Text>
         </TouchableOpacity>
       </View>
@@ -598,7 +602,7 @@ export function CategorySelector({
                   className="font-sans-semibold text-lg"
                   style={{ color: theme.colors.text.primary }}
                 >
-                  Select Category
+                  {copy.planning.selectCategory}
                 </Text>
                 <TouchableOpacity
                   onPress={closeSheet}
@@ -625,7 +629,7 @@ export function CategorySelector({
                     ref={searchInputRef}
                     value={categorySearch}
                     onChangeText={setCategorySearch}
-                    placeholder="Search or create..."
+                    placeholder={copy.planning.searchOrCreateCategory}
                     placeholderTextColor={theme.colors.text.muted}
                     className="flex-1 font-sans px-3"
                     style={{
@@ -670,7 +674,7 @@ export function CategorySelector({
                     className="font-sans text-center"
                     style={{ color: theme.colors.text.muted }}
                   >
-                    No categories match &quot;{categorySearch.trim()}&quot;
+                    {copy.planning.noMatchingCategories.replace('{{name}}', categorySearch.trim())}
                   </Text>
                 </View>
               )}
@@ -691,10 +695,11 @@ export function CategorySelector({
       {/* Delete Category Confirmation Modal */}
       <ConfirmationModal
         visible={showDeleteModal}
-        title="Delete Category?"
+        title={copy.planning.deleteCategoryTitle}
         itemName={categoryToDelete?.label ?? ''}
-        description="Are you sure you want to delete:"
-        confirmLabel="Delete Category"
+        description={copy.common.deleteCategoryDescription}
+        confirmLabel={copy.planning.deleteCategoryConfirm}
+        cancelLabel={copy.common.cancel}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
         isLoading={deleteCategory.isPending}
@@ -725,13 +730,13 @@ export function CategorySelector({
                 className="font-sans-semibold text-lg mb-4"
                 style={{ color: theme.colors.text.primary }}
               >
-                New Category
+                {copy.planning.newCategory}
               </Text>
               <TextInput
                 ref={createInputRef}
                 value={newCategoryName}
                 onChangeText={setNewCategoryName}
-                placeholder="Category name"
+                placeholder={copy.planning.categoryNamePlaceholder}
                 placeholderTextColor={theme.colors.text.muted}
                 className="font-sans"
                 style={[
@@ -756,7 +761,7 @@ export function CategorySelector({
                   ]}
                 >
                   <Text className="font-sans-medium" style={{ color: theme.colors.text.secondary }}>
-                    Cancel
+                    {copy.common.cancel}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -772,7 +777,7 @@ export function CategorySelector({
                   ]}
                 >
                   <Text className="font-sans-medium text-white">
-                    {createCategory.isPending ? 'Creating...' : 'Create'}
+                    {createCategory.isPending ? copy.common.creating : copy.common.create}
                   </Text>
                 </TouchableOpacity>
               </View>

@@ -8,6 +8,8 @@ import { TaskCard } from './TaskCard'
 import { CARD_GAP } from './task-layouts'
 import { sortTasksByPriority } from '~/utils/sortTasks'
 import { useLayoutStore } from '~/stores/layoutStore'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import type { TaskWithCategory } from '~/types'
 
 interface TaskListProps {
@@ -17,6 +19,8 @@ interface TaskListProps {
 }
 
 export function TaskList({ tasks, onEditTask, onDeleteTask }: TaskListProps) {
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const [taskToDelete, setTaskToDelete] = useState<TaskWithCategory | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -28,7 +32,7 @@ export function TaskList({ tasks, onEditTask, onDeleteTask }: TaskListProps) {
   // Sort tasks by priority (high → medium → low), then alphabetically
   const sortedTasks = useMemo(() => sortTasksByPriority(tasks), [tasks])
 
-  const headerText = `Planned Tasks (${tasks.length})`
+  const headerText = `${copy.planning.header} (${tasks.length})`
 
   const handleDeletePress = useCallback(
     (taskId: string) => {
@@ -88,10 +92,11 @@ export function TaskList({ tasks, onEditTask, onDeleteTask }: TaskListProps) {
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
         visible={!!taskToDelete}
-        title="Delete Task?"
+        title={copy.common.deleteTaskTitle}
         itemName={taskToDelete?.title ?? ''}
-        description="Are you sure you want to delete:"
-        confirmLabel="Delete Task"
+        description={copy.common.deleteTaskDescription}
+        confirmLabel={copy.common.deleteTaskConfirm}
+        cancelLabel={copy.common.cancel}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
         isLoading={isDeleting}

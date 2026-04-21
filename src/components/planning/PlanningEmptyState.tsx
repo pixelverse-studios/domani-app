@@ -4,6 +4,8 @@ import { Calendar } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 
 interface PlanningEmptyStateProps {
   taskCount?: number
@@ -11,12 +13,14 @@ interface PlanningEmptyStateProps {
 
 export function PlanningEmptyState({ taskCount = 0 }: PlanningEmptyStateProps) {
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
 
   return (
     <View className="mx-5 mt-8">
       {/* Section header */}
       <View className="flex-row items-center mb-4">
-        <Text className="text-lg font-sans-semibold text-content-primary">Planned Tasks</Text>
+        <Text className="text-lg font-sans-semibold text-content-primary">{copy.planning.header}</Text>
         <Text
           className="font-sans ml-1"
           style={{ fontSize: 18, color: theme.colors.text.tertiary }}
@@ -38,7 +42,7 @@ export function PlanningEmptyState({ taskCount = 0 }: PlanningEmptyStateProps) {
           className="font-sans mt-4"
           style={{ fontSize: 16, color: theme.colors.text.secondary }}
         >
-          No tasks planned yet
+          {copy.planning.empty}
         </Text>
       </View>
     </View>

@@ -14,7 +14,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
-import { TIMEZONES } from './PreferencesSection'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
+import { getLocalizedDayPeriods, uses24HourClock } from '~/i18n/date'
+import type { AppLocale } from '~/i18n'
+import { TIMEZONES, getTimezoneOptionLabel } from './timezones'
 
 // ============================================================================
 // Name Edit Modal
@@ -38,6 +42,8 @@ export function NameModal({
   onClose,
 }: NameModalProps) {
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -47,7 +53,9 @@ export function NameModal({
           style={{ backgroundColor: theme.colors.card }}
         >
           <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-lg font-semibold text-content-primary">Edit Name</Text>
+            <Text className="text-lg font-semibold text-content-primary">
+              {copy.settings.profileName}
+            </Text>
             <TouchableOpacity onPress={onClose}>
               <X size={24} color={theme.colors.text.tertiary} />
             </TouchableOpacity>
@@ -55,7 +63,7 @@ export function NameModal({
           <TextInput
             value={name}
             onChangeText={onNameChange}
-            placeholder="Enter your name"
+            placeholder={copy.today.namePromptPlaceholder}
             placeholderTextColor={theme.colors.text.tertiary}
             autoFocus
             className="rounded-xl px-4 text-base mb-4"
@@ -77,7 +85,7 @@ export function NameModal({
             {isPending ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text className="text-white font-semibold">Save</Text>
+              <Text className="text-white font-semibold">{copy.today.namePromptSave}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -100,6 +108,8 @@ interface TimezoneModalProps {
 export function TimezoneModal({ visible, currentTimezone, onSelect, onClose }: TimezoneModalProps) {
   const theme = useAppTheme()
   const insets = useSafeAreaInsets()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -109,7 +119,7 @@ export function TimezoneModal({ visible, currentTimezone, onSelect, onClose }: T
             className="flex-row items-center justify-between p-5 border-b"
             style={{ borderColor: theme.colors.border.primary }}
           >
-            <Text className="text-lg font-semibold text-content-primary">Select Timezone</Text>
+            <Text className="text-lg font-semibold text-content-primary">{copy.settings.timezone}</Text>
             <TouchableOpacity onPress={onClose}>
               <X size={24} color={theme.colors.text.tertiary} />
             </TouchableOpacity>
@@ -126,7 +136,9 @@ export function TimezoneModal({ visible, currentTimezone, onSelect, onClose }: T
                   style={{ borderColor: theme.colors.border.divider }}
                 >
                   <View>
-                    <Text className="text-base text-content-primary">{tz.label}</Text>
+                    <Text className="text-base text-content-primary">
+                      {getTimezoneOptionLabel(tz.value, locale)}
+                    </Text>
                     <Text className="text-sm text-content-secondary">{tz.offset}</Text>
                   </View>
                   {isSelected && <Check size={20} color={theme.colors.brand.primary} />}
@@ -285,39 +297,55 @@ function TimeWheel({
 }
 
 interface AndroidTimePickerModalProps {
+  locale: AppLocale
   value: Date
   isPending: boolean
+  title: string
+  description: string
+  confirmLabel: string
   onConfirm: (date: Date) => void
   onCancel: () => void
 }
 
 function AndroidTimePickerModal({
+  locale,
   value,
   isPending,
+  title,
+  description,
+  confirmLabel,
   onConfirm,
   onCancel,
 }: AndroidTimePickerModalProps) {
   const theme = useAppTheme()
+  const is24Hour = uses24HourClock(locale)
+  const dayPeriods = getLocalizedDayPeriods(locale)
 
   const rawHour = value.getHours()
   const isAm = rawHour < 12
   const hour12 = rawHour % 12 || 12
 
   // Build item arrays
-  const hourItems = Array.from({ length: 12 }, (_, i) => String(i + 1))
+  const hourItems = is24Hour
+    ? Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'))
+    : Array.from({ length: 12 }, (_, i) => String(i + 1))
   const minuteItems = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'))
-  const amPmItems = ['AM', 'PM']
+  const amPmItems = [dayPeriods.am, dayPeriods.pm]
 
-  const [hourIndex, setHourIndex] = useState(hour12 - 1)
+  const [hourIndex, setHourIndex] = useState(is24Hour ? rawHour : hour12 - 1)
   const [minuteIndex, setMinuteIndex] = useState(value.getMinutes())
   const [amPmIndex, setAmPmIndex] = useState(isAm ? 0 : 1)
 
   const handleConfirm = () => {
-    const selectedHour12 = hourIndex + 1
-    const isPm = amPmIndex === 1
-    let hour24 = selectedHour12
-    if (isPm && selectedHour12 !== 12) hour24 = selectedHour12 + 12
-    if (!isPm && selectedHour12 === 12) hour24 = 0
+    let hour24 = hourIndex
+
+    if (!is24Hour) {
+      const selectedHour12 = hourIndex + 1
+      const isPm = amPmIndex === 1
+      hour24 = selectedHour12
+      if (isPm && selectedHour12 !== 12) hour24 = selectedHour12 + 12
+      if (!isPm && selectedHour12 === 12) hour24 = 0
+    }
 
     const result = new Date(value)
     result.setHours(hour24, minuteIndex, 0, 0)
@@ -359,7 +387,7 @@ function AndroidTimePickerModal({
               allowFontScaling={false}
               style={{ fontSize: 18, fontWeight: '600', color: textColor }}
             >
-              Planning Reminder
+              {title}
             </Text>
             <TouchableOpacity onPress={onCancel} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <X size={22} color={mutedColor} />
@@ -369,7 +397,7 @@ function AndroidTimePickerModal({
             allowFontScaling={false}
             style={{ fontSize: 13, color: theme.colors.text.secondary, marginBottom: 20 }}
           >
-            Get reminded to plan tomorrow&apos;s tasks
+            {description}
           </Text>
 
           {/* Wheel picker */}
@@ -417,18 +445,22 @@ function AndroidTimePickerModal({
               width={64}
             />
 
-            <View style={{ width: 12 }} />
+            {!is24Hour ? (
+              <>
+                <View style={{ width: 12 }} />
 
-            <TimeWheel
-              items={amPmItems}
-              selectedIndex={amPmIndex}
-              onIndexChange={setAmPmIndex}
-              primaryColor={brandColor}
-              textColor={textColor}
-              mutedColor={mutedColor}
-              bgColor={cardBg}
-              width={60}
-            />
+                <TimeWheel
+                  items={amPmItems}
+                  selectedIndex={amPmIndex}
+                  onIndexChange={setAmPmIndex}
+                  primaryColor={brandColor}
+                  textColor={textColor}
+                  mutedColor={mutedColor}
+                  bgColor={cardBg}
+                  width={60}
+                />
+              </>
+            ) : null}
           </View>
 
           {/* Save button */}
@@ -448,7 +480,7 @@ function AndroidTimePickerModal({
               <ActivityIndicator color="#fff" />
             ) : (
               <Text allowFontScaling={false} style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>
-                Save
+                {confirmLabel}
               </Text>
             )}
           </TouchableOpacity>
@@ -480,6 +512,11 @@ export function PlanningTimeModal({
   onClose,
 }: PlanningTimeModalProps) {
   const theme = useAppTheme()
+  const { locale, t } = useTranslation()
+  const copy = getMainScreenCopy(locale)
+  const is24Hour = uses24HourClock(locale)
+  const planningReminderTitle = copy.settings.planningReminder
+  const planningReminderDescription = t('onboarding.notificationSetup.planningReminderDescription')
 
   // On Android, use our custom themed wheel picker instead of the native dialog.
   // The native DateTimePicker with display="spinner" renders as a system AlertDialog
@@ -488,8 +525,12 @@ export function PlanningTimeModal({
     if (!visible) return null
     return (
       <AndroidTimePickerModal
+        locale={locale}
         value={selectedTime}
         isPending={isPending}
+        title={planningReminderTitle}
+        description={planningReminderDescription}
+        confirmLabel={copy.today.namePromptSave}
         onConfirm={(date) => {
           onTimeChange(date)
           onSave(date)
@@ -508,19 +549,18 @@ export function PlanningTimeModal({
           style={{ backgroundColor: theme.colors.card }}
         >
           <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-lg font-semibold text-content-primary">Planning Reminder</Text>
+            <Text className="text-lg font-semibold text-content-primary">{planningReminderTitle}</Text>
             <TouchableOpacity onPress={onClose}>
               <X size={24} color={theme.colors.text.tertiary} />
             </TouchableOpacity>
           </View>
-          <Text className="text-sm text-content-secondary mb-4">
-            Get reminded to plan tomorrow&apos;s tasks
-          </Text>
+          <Text className="text-sm text-content-secondary mb-4">{planningReminderDescription}</Text>
           <View className="items-center mb-4">
             <DateTimePicker
               value={selectedTime}
               mode="time"
               display="spinner"
+              is24Hour={is24Hour}
               onChange={(_event: unknown, date?: Date) => {
                 if (date) onTimeChange(date)
               }}
@@ -537,7 +577,7 @@ export function PlanningTimeModal({
             {isPending ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text className="text-white font-semibold">Save</Text>
+              <Text className="text-white font-semibold">{copy.today.namePromptSave}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -564,6 +604,9 @@ export function DeleteAccountModal({
   onClose,
 }: DeleteAccountModalProps) {
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
+  const modalCopy = copy.settings.deleteAccountModal
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -579,25 +622,25 @@ export function DeleteAccountModal({
 
           {/* Title */}
           <Text className="text-xl font-bold text-content-primary text-center mb-2">
-            Delete Your Account?
+            {modalCopy.title}
           </Text>
 
           {/* Description */}
-          <Text className="text-sm text-content-secondary text-center mb-4">
-            Your account and all data will be permanently deleted after 30 days. You can sign in
-            anytime before then to reactivate your account.
-          </Text>
+          <Text className="text-sm text-content-secondary text-center mb-4">{modalCopy.body}</Text>
 
           {/* What will be deleted */}
           <View className="w-full bg-red-500/10 rounded-xl p-3 mb-5">
             <Text className="text-xs font-medium text-red-500 mb-2">
-              This will permanently delete:
+              {modalCopy.consequencesTitle}
             </Text>
             <Text className="text-xs text-content-secondary">
-              {'\u2022'} All your plans and tasks{'\n'}
-              {'\u2022'} Custom categories{'\n'}
-              {'\u2022'} Progress history{'\n'}
-              {'\u2022'} Account settings
+              {'\u2022'} {modalCopy.consequences.plans}
+              {'\n'}
+              {'\u2022'} {modalCopy.consequences.categories}
+              {'\n'}
+              {'\u2022'} {modalCopy.consequences.history}
+              {'\n'}
+              {'\u2022'} {modalCopy.consequences.settings}
             </Text>
           </View>
 
@@ -612,7 +655,7 @@ export function DeleteAccountModal({
               {isPending ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text className="text-white font-semibold text-base">Delete Account</Text>
+                <Text className="text-white font-semibold text-base">{modalCopy.confirm}</Text>
               )}
             </TouchableOpacity>
 
@@ -623,7 +666,7 @@ export function DeleteAccountModal({
               className="w-full py-4 rounded-xl items-center"
               style={{ backgroundColor: theme.colors.interactive.hover }}
             >
-              <Text className="font-semibold text-base text-content-primary">Keep Account</Text>
+              <Text className="font-semibold text-base text-content-primary">{modalCopy.cancel}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -652,6 +695,9 @@ export function SmartCategoriesModal({
   onClose,
 }: SmartCategoriesModalProps) {
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
+  const modalCopy = copy.settings.smartCategoriesModal
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -670,14 +716,14 @@ export function SmartCategoriesModal({
 
           {/* Title */}
           <Text className="text-xl font-bold text-content-primary text-center mb-2">
-            {isEnabling ? 'Enable Smart Categories?' : 'Disable Smart Categories?'}
+            {isEnabling ? modalCopy.enableTitle : modalCopy.disableTitle}
           </Text>
 
           {/* Description */}
           <Text className="text-sm text-content-secondary text-center mb-6">
             {isEnabling
-              ? 'Your quick access categories will automatically adapt based on your usage patterns. This will override your current favorite categories.'
-              : 'Your categories will return to manual ordering. You can reorder them by going to Favorite Categories.'}
+              ? modalCopy.enableBody
+              : modalCopy.disableBody}
           </Text>
 
           {/* Buttons */}
@@ -693,7 +739,7 @@ export function SmartCategoriesModal({
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text className="text-white font-semibold text-base">
-                  {isEnabling ? 'Enable' : 'Disable'}
+                  {isEnabling ? modalCopy.enableConfirm : modalCopy.disableConfirm}
                 </Text>
               )}
             </TouchableOpacity>
@@ -705,7 +751,7 @@ export function SmartCategoriesModal({
               className="w-full py-4 rounded-xl items-center"
               style={{ backgroundColor: theme.colors.interactive.hover }}
             >
-              <Text className="font-semibold text-base text-content-primary">Cancel</Text>
+              <Text className="font-semibold text-base text-content-primary">{copy.common.cancel}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -713,4 +759,3 @@ export function SmartCategoriesModal({
     </Modal>
   )
 }
-

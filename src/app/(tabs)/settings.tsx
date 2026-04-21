@@ -37,6 +37,8 @@ import { isBetaPhase } from '~/types/appConfig'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 
 // Get app version from app.json (Expo handles this)
 import Constants from 'expo-constants'
@@ -60,6 +62,8 @@ function SettingsContent() {
   const router = useRouter()
   const { signOut } = useAuth()
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const { profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const subscription = useSubscription()
@@ -147,10 +151,10 @@ function SettingsContent() {
   }
 
   const handleSignOut = async () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(copy.settings.logOutTitle, copy.settings.logOutBody, [
+      { text: copy.common.cancel, style: 'cancel' },
       {
-        text: 'Log Out',
+        text: copy.settings.logOut,
         style: 'destructive',
         onPress: async () => {
           await signOut()
@@ -166,7 +170,7 @@ function SettingsContent() {
       setShowDeleteModal(false)
       setShowFarewellOverlay(true)
     } catch {
-      Alert.alert('Error', 'Failed to schedule account deletion. Please try again.')
+      Alert.alert(copy.settings.deleteErrorTitle, copy.settings.deleteErrorBody)
     }
   }
 
@@ -179,7 +183,7 @@ function SettingsContent() {
     try {
       await accountDeletion.cancelDeletion.mutateAsync()
     } catch {
-      Alert.alert('Error', 'Failed to cancel deletion. Please try again.')
+      Alert.alert(copy.settings.deleteErrorTitle, copy.settings.cancelDeletionErrorBody)
     }
   }
 
@@ -216,7 +220,7 @@ function SettingsContent() {
 
       setShowPlanningTimeModal(false)
     } catch {
-      Alert.alert('Error', 'Failed to save planning time. Please try again.')
+      Alert.alert(copy.settings.deleteErrorTitle, copy.settings.savePlanningTimeErrorBody)
     }
   }
 
@@ -250,7 +254,7 @@ function SettingsContent() {
         await cancelPlanningReminder()
       }
     } catch {
-      Alert.alert('Error', 'Failed to update notification setting. Please try again.')
+      Alert.alert(copy.settings.deleteErrorTitle, copy.settings.updateNotificationErrorBody)
     }
   }
 
@@ -284,7 +288,7 @@ function SettingsContent() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <Text className="text-2xl font-bold text-content-primary mt-4 mb-6">Settings</Text>
+        <Text className="text-2xl font-bold text-content-primary mt-4 mb-6">{copy.settings.title}</Text>
 
         {/* 1. Profile Section — always visible so signed-in users can see which account they're on */}
         <ProfileSection
@@ -308,13 +312,13 @@ function SettingsContent() {
           graceDaysRemaining={subscription.graceDaysRemaining}
           graceExpirationDate={subscription.graceExpirationDate}
           onStartTrial={() => subscription.startTrial()}
-          onRestore={async () => {
-            try {
-              await subscription.restore()
-            } catch {
-              Alert.alert('Restore Failed', 'Could not restore purchases. Please try again.')
-            }
-          }}
+              onRestore={async () => {
+                try {
+                  await subscription.restore()
+                } catch {
+              Alert.alert(copy.settings.restoreFailedTitle, copy.settings.restoreFailedBody)
+                }
+              }}
           onUpgrade={() => setShowPaywallModal(true)}
         />
 
@@ -364,7 +368,7 @@ function SettingsContent() {
         >
           <LogOut size={18} color={theme.colors.text.secondary} />
           <Text className="font-semibold ml-2" style={{ color: theme.colors.text.secondary }}>
-            Log Out
+            {copy.settings.logOut}
           </Text>
         </TouchableOpacity>
 

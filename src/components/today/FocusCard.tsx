@@ -6,16 +6,9 @@ import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useCardStyle } from '~/hooks/useCardStyle'
 import { useLayoutStore } from '~/stores/layoutStore'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import type { TaskWithCategory, DayType, DayTheme } from '~/types'
-
-// Theme to focus phrase mapping
-const THEME_FOCUS_PHRASES: Record<DayTheme, string> = {
-  work: 'productivity',
-  wellness: 'wellness',
-  personal: 'personal time',
-  learning: 'learning',
-  balanced: 'balance',
-}
 
 interface FocusCardProps {
   /** The MIT (Most Important Task) - top priority incomplete task */
@@ -34,28 +27,30 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
   const brandColor = theme.colors.brand.primary
   const layout = useLayoutStore((s) => s.taskLayout)
   const cardStyle = useCardStyle(layout)
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
 
   // Determine the focus message based on state
   const getFocusContent = () => {
     // Edge case: All tasks completed
     if (totalTasks > 0 && completedTasks === totalTasks) {
-      return {
-        icon: <PartyPopper size={32} color={brandColor} />,
-        iconBgColor: `${brandColor}1A`,
-        label: 'All Done!',
-        message: "You've crushed it today",
-        subtitle: null,
+        return {
+          icon: <PartyPopper size={32} color={brandColor} />,
+          iconBgColor: `${brandColor}1A`,
+          label: copy.today.allDoneLabel,
+          message: copy.today.allDoneMessage,
+          subtitle: null,
+        }
       }
-    }
 
     // Edge case: No tasks at all
     if (totalTasks === 0) {
       return {
         icon: <Sparkles size={32} color={brandColor} />,
         iconBgColor: `${brandColor}1A`,
-        label: "Today's Focus",
-        message: 'Plan your day',
-        subtitle: 'Add tasks to get started',
+        label: copy.today.focusLabel,
+        message: copy.today.noTasksMessage,
+        subtitle: copy.today.noTasksSubtitle,
       }
     }
 
@@ -63,7 +58,7 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
     if (mitTask) {
       // Edge case: Only MIT task (no other tasks to determine theme)
       const hasOtherTasks = totalTasks > 1 || (totalTasks === 1 && !mitTask)
-      const themePhrase = THEME_FOCUS_PHRASES[dayTheme.theme] ?? 'your day'
+      const themePhrase = copy.today.themePhrases[dayTheme.theme] ?? copy.today.themePhrases.balanced
       const themeSuffix = hasOtherTasks ? `, then focus on ${themePhrase}` : ''
 
       // If MIT is the only task, show simpler message
@@ -71,16 +66,16 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
         return {
           icon: <Target size={32} color={brandColor} />,
           iconBgColor: `${brandColor}1A`,
-          label: "Today's Focus",
+          label: copy.today.focusLabel,
           message: mitTask.title,
-          subtitle: 'Your most important task',
+          subtitle: copy.today.mostImportantTask,
         }
       }
 
       return {
         icon: <Target size={32} color={brandColor} />,
         iconBgColor: `${brandColor}1A`,
-        label: "Today's Focus",
+        label: copy.today.focusLabel,
         message: `${mitTask.title}${themeSuffix}`,
         subtitle: null,
       }
@@ -90,9 +85,9 @@ export function FocusCard({ mitTask, dayTheme, totalTasks, completedTasks }: Foc
     return {
       icon: <Target size={32} color={brandColor} />,
       iconBgColor: `${brandColor}1A`,
-      label: "Today's Vibe",
-      message: dayTheme.title,
-      subtitle: dayTheme.subtitle,
+      label: copy.today.vibeLabel,
+      message: copy.today.dayThemes[dayTheme.theme].title,
+      subtitle: copy.today.dayThemes[dayTheme.theme].subtitle,
     }
   }
 

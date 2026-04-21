@@ -5,6 +5,8 @@ import { LinearGradient } from 'expo-linear-gradient'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 
 interface AddTaskPlaceholderProps {
   onPress?: () => void
@@ -13,6 +15,8 @@ interface AddTaskPlaceholderProps {
 
 export function AddTaskPlaceholder({ onPress, disabled }: AddTaskPlaceholderProps) {
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const handlePress = () => {
     onPress?.()
   }
@@ -25,7 +29,7 @@ export function AddTaskPlaceholder({ onPress, disabled }: AddTaskPlaceholderProp
         style={styles.buttonContainer}
         className="mx-5 mt-6"
         accessibilityRole="button"
-        accessibilityLabel="Add new task"
+        accessibilityLabel={copy.planning.addNewTask}
         disabled={disabled}
       >
         <LinearGradient
@@ -36,7 +40,9 @@ export function AddTaskPlaceholder({ onPress, disabled }: AddTaskPlaceholderProp
           style={styles.gradient}
         >
           <Plus size={20} color="#ffffff" strokeWidth={2.5} />
-          <Text className="text-white font-sans-semibold text-base ml-2">Add New Task</Text>
+          <Text className="text-white font-sans-semibold text-base ml-2">
+            {copy.planning.addNewTask}
+          </Text>
         </LinearGradient>
       </TouchableOpacity>
     </View>

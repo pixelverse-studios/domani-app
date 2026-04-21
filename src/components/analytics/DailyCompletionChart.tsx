@@ -15,6 +15,8 @@ import { CircularProgress } from '~/components/ui/CircularProgress'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
 import { getLocalizedCategoryName } from '~/constants/systemCategories'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
+import { formatLocalizedWeekday } from '~/i18n/date'
 import type { DailyCompletionData, CompletionRateData } from '~/lib/analytics-queries'
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect)
@@ -133,6 +135,7 @@ export function DailyCompletionChart({
 }: DailyCompletionChartProps) {
   const theme = useAppTheme()
   const { locale, t } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const screenWidth = Dimensions.get('window').width
 
   // Get unique categories
@@ -279,7 +282,7 @@ export function DailyCompletionChart({
                 fill={labelColor}
                 textAnchor="middle"
               >
-                {day.dayLabel}
+                {formatLocalizedWeekday(new Date(`${day.date}T00:00:00`), locale, 'short')}
               </SvgText>
             </G>
           ))}
@@ -302,7 +305,7 @@ export function DailyCompletionChart({
             className="w-2.5 h-2.5 rounded-sm mr-1.5"
             style={{ backgroundColor: incompleteColor }}
           />
-          <Text className="text-xs text-content-secondary">Unfinished</Text>
+          <Text className="text-xs text-content-secondary">{copy.analytics.unfinished}</Text>
         </View>
       </View>
     </Card>

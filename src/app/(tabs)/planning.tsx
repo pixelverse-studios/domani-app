@@ -22,6 +22,7 @@ import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
 import { useCurrentDate } from '~/hooks/useCurrentDate'
 import { useEveningRolloverTasks } from '~/hooks/useEveningRolloverTasks'
@@ -65,6 +66,7 @@ export default function PlanningScreen() {
   useScreenTracking('planning')
   const theme = useAppTheme()
   const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const router = useRouter()
   const scrollViewRef = useRef<ScrollView>(null)
   const isMountedRef = useRef(true)
@@ -234,8 +236,8 @@ export default function PlanningScreen() {
         console.error('[EveningRollover] Failed to carry forward tasks:', error)
         // Keep modal open so user can retry or start fresh
         Alert.alert(
-          'Something went wrong',
-          "We couldn't carry your tasks forward. Please try again.",
+          copy.planning.carryForwardErrorTitle,
+          copy.planning.carryForwardErrorMessage,
         )
       }
     },
@@ -405,8 +407,8 @@ export default function PlanningScreen() {
       handleCloseForm()
     } catch (error) {
       Alert.alert(
-        editingTask ? 'Failed to update task' : 'Failed to create task',
-        'Please try again.',
+        editingTask ? copy.planning.updateTaskErrorTitle : copy.planning.createTaskErrorTitle,
+        copy.planning.genericErrorMessage,
       )
     }
   }
@@ -452,7 +454,7 @@ export default function PlanningScreen() {
     try {
       await deleteTask.mutateAsync(taskId)
     } catch (error) {
-      Alert.alert('Failed to delete task', 'Please try again.')
+      Alert.alert(copy.today.deleteTaskErrorTitle, copy.today.deleteTaskErrorMessage)
     }
   }
 
@@ -512,9 +514,9 @@ export default function PlanningScreen() {
         visible={showEveningRollover}
         mitTask={eveningMitTask}
         otherTasks={eveningOtherTasks}
-        title="Today's Unfinished Tasks"
-        subtitle="Carry them into tomorrow's plan"
-        mitToggleLabel="Make this tomorrow's top priority"
+        title={copy.planning.rolloverTodayTitle}
+        subtitle={copy.planning.rolloverTodaySubtitle}
+        mitToggleLabel={copy.planning.rolloverMitTomorrow}
         onCarryForward={handleEveningCarryForward}
         onStartFresh={handleEveningStartFresh}
       />

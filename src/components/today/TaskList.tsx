@@ -4,6 +4,8 @@ import { View } from 'react-native'
 import { TaskCard } from '~/components/planning/TaskCard'
 import { CARD_GAP } from '~/components/planning/task-layouts'
 import { Text, ConfirmationModal } from '~/components/ui'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import { sortTasksByPriority } from '~/utils/sortTasks'
 import { useLayoutStore } from '~/stores/layoutStore'
 import type { TaskWithCategory } from '~/types'
@@ -16,6 +18,8 @@ interface TaskListProps {
 }
 
 export function TaskList({ tasks, onToggle, onTaskPress, onDeleteTask }: TaskListProps) {
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const [taskToDelete, setTaskToDelete] = useState<TaskWithCategory | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const isGrid = useLayoutStore((s) => s.taskLayout) === 'grid'
@@ -58,7 +62,7 @@ export function TaskList({ tasks, onToggle, onTaskPress, onDeleteTask }: TaskLis
   if (incompleteTasks.length === 0) {
     return (
       <View className="items-center justify-center py-8 mx-5">
-        <Text className="text-slate-400 text-center">No tasks remaining. Great job!</Text>
+        <Text className="text-slate-400 text-center">{copy.today.tasksRemaining}</Text>
       </View>
     )
   }
@@ -85,10 +89,11 @@ export function TaskList({ tasks, onToggle, onTaskPress, onDeleteTask }: TaskLis
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
         visible={!!taskToDelete}
-        title="Delete Task?"
+        title={copy.common.deleteTaskTitle}
         itemName={taskToDelete?.title ?? ''}
-        description="Are you sure you want to delete:"
-        confirmLabel="Delete Task"
+        description={copy.common.deleteTaskDescription}
+        confirmLabel={copy.common.deleteTaskConfirm}
+        cancelLabel={copy.common.cancel}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
         isLoading={isDeleting}

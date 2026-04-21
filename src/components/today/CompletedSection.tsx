@@ -8,6 +8,8 @@ import { Text, ConfirmationModal } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { sortTasksByPriority } from '~/utils/sortTasks'
 import { useLayoutStore } from '~/stores/layoutStore'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import type { TaskWithCategory } from '~/types'
 
 function CompletedTasksList({
@@ -59,6 +61,8 @@ export function CompletedSection({
   onDeleteTask,
 }: CompletedSectionProps) {
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const brandColor = theme.colors.brand.primary
 
   const [isExpanded, setIsExpanded] = useState(false)
@@ -113,19 +117,19 @@ export function CompletedSection({
         onPress={() => setIsExpanded(!isExpanded)}
         className="flex-row items-center justify-between rounded-xl mx-5 px-4 py-3"
         style={{ backgroundColor: theme.colors.card }}
-        accessibilityLabel={isExpanded ? 'Collapse completed tasks' : 'Expand completed tasks'}
+        accessibilityLabel={isExpanded ? copy.today.completed : copy.today.completed}
       >
         <View className="flex-row items-center gap-2">
           <CheckCircle size={20} color={brandColor} />
           <Text className="text-base text-content-primary font-medium">
-            Completed ({completedTasks.length})
+            {copy.today.completed} ({completedTasks.length})
           </Text>
           <View
             className="px-2 py-0.5 rounded-full ml-2"
             style={{ backgroundColor: `${brandColor}1A` }}
           >
             <Text className="text-xs" style={{ color: brandColor }}>
-              Great job!
+              {copy.today.allDoneMessage}
             </Text>
           </View>
         </View>
@@ -149,10 +153,11 @@ export function CompletedSection({
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
         visible={!!taskToDelete}
-        title="Delete Task?"
+        title={copy.common.deleteTaskTitle}
         itemName={taskToDelete?.title ?? ''}
-        description="Are you sure you want to delete:"
-        confirmLabel="Delete Task"
+        description={copy.common.deleteTaskDescription}
+        confirmLabel={copy.common.deleteTaskConfirm}
+        cancelLabel={copy.common.cancel}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
         isLoading={isDeleting}

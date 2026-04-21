@@ -4,6 +4,8 @@ import { X, Check } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import { useLayoutStore, TASK_LAYOUTS, type TaskLayout } from '~/stores/layoutStore'
 
 interface LayoutPickerModalProps {
@@ -13,10 +15,14 @@ interface LayoutPickerModalProps {
 
 function LayoutPreview({
   layout,
+  localizedLabel,
+  localizedDescription,
   isSelected,
   onSelect,
 }: {
   layout: (typeof TASK_LAYOUTS)[number]
+  localizedLabel: string
+  localizedDescription: string
   isSelected: boolean
   onSelect: () => void
 }) {
@@ -38,9 +44,9 @@ function LayoutPreview({
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View style={{ flex: 1 }}>
-          <Text className="font-sans-semibold text-base text-content-primary">{layout.label}</Text>
+          <Text className="font-sans-semibold text-base text-content-primary">{localizedLabel}</Text>
           <Text className="font-sans text-sm text-content-secondary mt-0.5">
-            {layout.description}
+            {localizedDescription}
           </Text>
         </View>
         {isSelected && (
@@ -183,6 +189,8 @@ function LayoutMiniPreview({
 
 export function LayoutPickerModal({ visible, onClose }: LayoutPickerModalProps) {
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const taskLayout = useLayoutStore((s) => s.taskLayout)
   const setTaskLayout = useLayoutStore((s) => s.setTaskLayout)
 
@@ -201,22 +209,24 @@ export function LayoutPickerModal({ visible, onClose }: LayoutPickerModalProps) 
           {/* Header */}
           <View className="flex-row items-center justify-between px-5 pt-5 pb-3">
             <Text className="text-lg font-sans-semibold text-content-primary">
-              Task Card Layout
+              {copy.settings.layoutPickerTitle}
             </Text>
             <TouchableOpacity onPress={onClose} hitSlop={8}>
               <X size={24} color={theme.colors.text.tertiary} />
             </TouchableOpacity>
           </View>
 
-          <Text className="text-sm text-content-secondary px-5 mb-4">
-            Choose how your tasks are displayed
-          </Text>
+          <Text className="text-sm text-content-secondary px-5 mb-4">{copy.settings.layoutPickerBody}</Text>
 
           <ScrollView className="px-5" contentContainerStyle={{ paddingBottom: 40 }}>
             {TASK_LAYOUTS.map((layout) => (
               <LayoutPreview
                 key={layout.id}
                 layout={layout}
+                localizedLabel={copy.settings.layoutOptions[layout.id]?.label ?? layout.label}
+                localizedDescription={
+                  copy.settings.layoutOptions[layout.id]?.description ?? layout.description
+                }
                 isSelected={taskLayout === layout.id}
                 onSelect={() => handleSelect(layout.id)}
               />

@@ -149,6 +149,37 @@ export function uses24HourClock(locale: AppLocale) {
   return !parts.some((part) => part.type === 'dayPeriod')
 }
 
+export function getLocalizedDayPeriods(locale: AppLocale) {
+  const intlLocale = resolveIntlLocaleTag(locale)
+  const amParts = new Intl.DateTimeFormat(intlLocale, { hour: 'numeric' }).formatToParts(
+    new Date(Date.UTC(2024, 0, 15, 9, 0, 0)),
+  )
+  const pmParts = new Intl.DateTimeFormat(intlLocale, { hour: 'numeric' }).formatToParts(
+    new Date(Date.UTC(2024, 0, 15, 21, 0, 0)),
+  )
+
+  return {
+    am: amParts.find((part) => part.type === 'dayPeriod')?.value ?? 'AM',
+    pm: pmParts.find((part) => part.type === 'dayPeriod')?.value ?? 'PM',
+  }
+}
+
+export function formatLocalizedTimeZoneName(
+  timeZone: string,
+  locale: AppLocale,
+  fallbackLabel?: string,
+) {
+  const timeZoneName = new Intl.DateTimeFormat(resolveIntlLocaleTag(locale), {
+    timeZone,
+    timeZoneName: 'longGeneric',
+  })
+    .formatToParts(new Date(Date.UTC(2024, 0, 15, 12, 0, 0)))
+    .find((part) => part.type === 'timeZoneName')?.value
+    ?.trim()
+
+  return timeZoneName && timeZoneName.length > 0 ? timeZoneName : fallbackLabel ?? timeZone
+}
+
 export function formatLocalizedWeekday(date: Date, locale: AppLocale, format: 'long' | 'short') {
   return formatLocalizedDateWithOptions(date, locale, {
     weekday: format,

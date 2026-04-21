@@ -4,6 +4,8 @@ import { Check, ChevronRight } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import { type PlanningTarget } from './DayToggle'
 
 interface MoveToDayToggleProps {
@@ -20,13 +22,15 @@ export function MoveToDayToggle({
   disabled,
 }: MoveToDayToggleProps) {
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const target = otherDay(currentDay)
+  const targetLabel =
+    target === 'today' ? copy.planning.todayTarget : copy.planning.tomorrowTarget
   const brand = theme.colors.brand.primary
 
   const helper =
-    currentDay === 'today'
-      ? 'Not finishing this today?'
-      : 'Want to tackle this today instead?'
+    currentDay === 'today' ? copy.planning.moveHelperToday : copy.planning.moveHelperTomorrow
 
   const borderColor = moving ? brand : theme.colors.border.primary
   const bgColor = moving ? `${brand}14` : 'transparent'
@@ -39,7 +43,9 @@ export function MoveToDayToggle({
       accessibilityRole="button"
       accessibilityState={{ checked: moving, disabled }}
       accessibilityLabel={
-        moving ? `Cancel move to ${target}` : `Move task to ${target}`
+        moving
+          ? copy.planning.cancelMoveToTarget.replace('{{target}}', targetLabel)
+          : copy.planning.moveTaskToTarget.replace('{{target}}', targetLabel)
       }
       style={[styles.card, { borderColor, backgroundColor: bgColor }]}
     >
@@ -50,10 +56,10 @@ export function MoveToDayToggle({
               className="font-sans text-xs underline"
               style={{ color: theme.colors.text.tertiary, marginBottom: 1 }}
             >
-              Tap to undo
+              {copy.planning.tapToUndo}
             </Text>
             <Text className="font-sans-semibold text-sm" style={{ color: brand }}>
-              Moving to {capitalize(target)}
+              {copy.planning.movingToTarget.replace('{{target}}', capitalize(targetLabel))}
             </Text>
           </>
         ) : (
@@ -65,7 +71,7 @@ export function MoveToDayToggle({
               {helper}
             </Text>
             <Text className="font-sans-semibold text-sm" style={{ color: brand }}>
-              Move to {capitalize(target)}
+              {copy.planning.moveToTarget.replace('{{target}}', capitalize(targetLabel))}
             </Text>
           </>
         )}

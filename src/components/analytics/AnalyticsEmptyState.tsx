@@ -6,10 +6,14 @@ import { LinearGradient } from 'expo-linear-gradient'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 
 export function AnalyticsEmptyState() {
   const router = useRouter()
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const brandColor = theme.colors.brand.primary
 
   const handleStartPlanning = () => {
@@ -28,12 +32,12 @@ export function AnalyticsEmptyState() {
 
       {/* Heading */}
       <Text className="text-xl font-semibold text-content-primary mb-3 text-center">
-        No progress yet
+        {copy.analytics.emptyTitle}
       </Text>
 
       {/* Description */}
       <Text className="text-base text-content-secondary text-center mb-8 max-w-[280px]">
-        Start planning your days to see your productivity insights and trends here.
+        {copy.analytics.emptyBody}
       </Text>
 
       {/* CTA Button - gradient background */}
@@ -56,7 +60,7 @@ export function AnalyticsEmptyState() {
           style={styles.gradient}
         >
           <Plus size={20} color="#ffffff" />
-          <Text className="text-white font-semibold text-base ml-2">Start Planning</Text>
+          <Text className="text-white font-semibold text-base ml-2">{copy.analytics.emptyCta}</Text>
         </LinearGradient>
       </TouchableOpacity>
     </View>

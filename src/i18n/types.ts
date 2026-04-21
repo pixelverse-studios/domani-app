@@ -1,4 +1,6 @@
 import { en } from './catalogs/en'
+import { mainUiSupplement } from './supplements/mainUi'
+import { settingsModalSupplement } from './supplements/settingsModals'
 
 type Primitive = string | number | boolean | null | undefined
 
@@ -12,7 +14,10 @@ type WidenStrings<T> = T extends string
         ? { [K in keyof T]: WidenStrings<T[K]> }
         : T
 
-export type TranslationCatalog = WidenStrings<typeof en>
+export type BaseTranslationCatalog = WidenStrings<typeof en>
+export type TranslationCatalog = BaseTranslationCatalog &
+  WidenStrings<(typeof mainUiSupplement)['en']> &
+  WidenStrings<(typeof settingsModalSupplement)['en']>
 
 export type TranslationKey<T extends object = TranslationCatalog> = {
   [K in keyof T & string]: T[K] extends Primitive | readonly unknown[]

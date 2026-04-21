@@ -1,6 +1,6 @@
-import type { TranslationCatalog } from '../types'
+import type { BaseTranslationCatalog } from '../types'
 
-export const zhHant: TranslationCatalog = {
+export const zhHant: BaseTranslationCatalog = {
   common: {
     today: '今天',
     tomorrow: '明天',
