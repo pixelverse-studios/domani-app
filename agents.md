@@ -1001,32 +1001,44 @@ When the user mentions "preparing for a build", "ready for build", or similar, a
 The expected workflow is:
 
 1. determine the target environment
-2. make the temporary config changes required for that build type
+2. remind the user to put the single local `.env` file into the correct state for that build type
 3. let the user complete both Android and Xcode/iOS builds
-4. restore the repo and env files back to normal local development state after both builds finish
+4. remind the user to restore `.env` back to the normal local development state they want after both builds finish
 
-Do not leave temporary staging/production switches in place after the build workflow is complete.
+Do not silently edit, rename, swap, or restore env files on the user's behalf during build prep. This repo currently uses a single `.env` file, and the user manages its staging/production state manually by editing values in place. When helping with build prep, explicitly remind the user to flip `.env` into the correct state and verify the required values, but do not perform the env switching yourself unless the user explicitly asks.
 
 ### Internal / QA Build (Staging)
 
-1. Ensure `.env.local` is present with staging Supabase values.
-2. Ensure `.env.local` sets `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID=Domani Staging Lifetime`.
-3. Push pending staging migrations if needed: `npm run db:staging:push`.
-4. Increment version numbers if this build should produce a new installable artifact.
-5. Build Android and iOS/Xcode from the current local staging configuration.
-6. After both builds are complete, restore any temporary changes that were only needed for the build process.
+1. Remind the user that `.env` should currently contain staging / internal-build values before they build.
+2. Remind the user to verify `.env` contains the staging values they want to ship, including:
+   - `EXPO_PUBLIC_SUPABASE_URL`
+   - `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+   - `EXPO_PUBLIC_REVENUECAT_IOS_KEY`
+   - `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`
+   - `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID=Domani Staging Lifetime`
+   - any staging-only server/admin values they rely on locally
+3. If relevant, remind the user that staging webhook/server secrets must also match in the remote systems they use, such as Supabase project secrets and RevenueCat webhook settings.
+4. Push pending staging migrations if needed: `npm run db:staging:push`.
+5. Increment version numbers if this build should produce a new installable artifact.
+6. Build Android and iOS/Xcode from the current local staging configuration.
 
 ### Production Build
 
-1. Temporarily rename `.env.local` to `.env.local.bak` so local builds use production values from `.env`.
-2. Ensure the active production env provides `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID=Domani Lifetime`.
-3. Push pending production migrations only after staging verification: `npm run db:push`.
-4. Increment version numbers:
+1. Remind the user that `.env` must be flipped from staging/internal values to production values before building.
+2. Remind the user to manually place `.env` into the correct production state before building.
+3. Remind the user to verify the active production env includes:
+   - `EXPO_PUBLIC_SUPABASE_URL`
+   - `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+   - `EXPO_PUBLIC_REVENUECAT_IOS_KEY`
+   - `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`
+   - `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID=Domani Lifetime`
+   - any required production-only server/admin values they use locally
+4. Push pending production migrations only after staging verification: `npm run db:push`.
+5. Increment version numbers:
    - Android: update `versionCode` and `versionName` in `android/app/build.gradle`
    - iOS: update the app version in the appropriate local build path
-5. Build Android and iOS/Xcode.
-6. Restore `.env.local` from `.env.local.bak` after both builds are complete.
-7. Restore any other temporary build-only changes so the repo returns to normal local development state.
+6. Build Android and iOS/Xcode.
+7. After both builds are complete, remind the user to restore `.env` back to the normal development state they want to keep working in.
 
 ### Building & Deployment
 
