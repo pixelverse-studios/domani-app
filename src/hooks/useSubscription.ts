@@ -6,6 +6,7 @@ import { addDays, parseISO } from 'date-fns'
 
 import { supabase } from '~/lib/supabase'
 import { useAuth } from '~/hooks/useAuth'
+import { clearCurrentUserPurchaseRefundState } from '~/hooks/usePurchaseRefundState'
 import { useProfile } from '~/hooks/useProfile'
 import { useAppConfig } from '~/stores/appConfigStore'
 import { isBetaPhase } from '~/types/appConfig'
@@ -422,6 +423,12 @@ export function useSubscription() {
       if (info) {
         // Sync to Supabase
         await syncSubscriptionToSupabase(user?.id, info)
+        await clearCurrentUserPurchaseRefundState().catch((error) => {
+          console.warn('[useSubscription] Failed to clear persisted refund state after purchase', {
+            userId: user?.id ?? null,
+            error,
+          })
+        })
       }
       return info
     },
@@ -445,6 +452,12 @@ export function useSubscription() {
       const info = await restorePurchases()
       if (info) {
         await syncSubscriptionToSupabase(user?.id, info)
+        await clearCurrentUserPurchaseRefundState().catch((error) => {
+          console.warn('[useSubscription] Failed to clear persisted refund state after restore', {
+            userId: user?.id ?? null,
+            error,
+          })
+        })
       }
       const hasEntitlement = !!info?.entitlements.active[ENTITLEMENT_ID]
       console.log('[useSubscription] Restore mutation result', {
@@ -747,6 +760,11 @@ async function syncSubscriptionToSupabase(userId: string | undefined, customerIn
       })
       .eq('id', userId)
     if (tierError) throw tierError
+
+    const { error: clearRefundStateError } = await supabase.rpc(
+      'clear_current_user_refund_request_state',
+    )
+    if (clearRefundStateError) throw clearRefundStateError
 
     console.log('[useSubscription] Updated Supabase tier from RevenueCat', {
       userId,

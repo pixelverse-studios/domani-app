@@ -17,6 +17,7 @@ import {
   Receipt,
   ChevronRight,
   ShieldCheck,
+  CheckCircle2,
   BadgeHelp,
   Smartphone,
   RotateCcw,
@@ -26,6 +27,7 @@ import {
 import { Text } from '~/components/ui'
 import { GradientButton } from '~/components/ui/GradientButton'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { usePurchaseRefundState } from '~/hooks/usePurchaseRefundState'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useSubscription } from '~/hooks/useSubscription'
 import { useTranslation } from '~/hooks/useTranslation'
@@ -39,15 +41,28 @@ export default function PurchaseHelpScreen() {
   const insets = useSafeAreaInsets()
   const theme = useAppTheme()
   const subscription = useSubscription()
+  const purchaseRefundState = usePurchaseRefundState()
   const { catalog, t } = useTranslation()
   const { source } = useLocalSearchParams<{ source?: PurchaseHelpSource }>()
   const [isRequestingRefund, setIsRequestingRefund] = useState(false)
+  const [refundStatusState, setRefundStatusState] = useState<'idle' | 'submitted' | 'pending'>(
+    'idle',
+  )
   const helpTopics = catalog.subscription.purchaseHelp.helpTopics
   const isIos = Platform.OS === 'ios'
   const isRefunded = subscription.status === 'refunded'
   const isLifetime = subscription.status === 'lifetime'
   const canRequestIosRefund = subscription.canRequestIosRefund
-  const isBusy = subscription.isRestoring || isRequestingRefund
+  const hasPendingRefundReview = purchaseRefundState.refundState?.status === 'pending_review'
+  const canStartRefundRequest =
+    canRequestIosRefund && !hasPendingRefundReview && !purchaseRefundState.isLoading
+  const effectiveRefundStatusState =
+    refundStatusState !== 'idle' ? refundStatusState : hasPendingRefundReview ? 'pending' : 'idle'
+  const isBusy =
+    subscription.isRestoring ||
+    isRequestingRefund ||
+    purchaseRefundState.isMarkingPending ||
+    purchaseRefundState.isClearingState
 
   const platformAction =
     isIos
@@ -81,10 +96,18 @@ export default function PurchaseHelpScreen() {
       const status = await beginRefundRequestForActiveEntitlement()
 
       if (status === REFUND_REQUEST_STATUS.SUCCESS) {
-        Alert.alert(
-          t('subscription.purchaseHelp.iosRefundSuccessTitle'),
-          t('subscription.purchaseHelp.iosRefundSuccessBody'),
-        )
+        try {
+          await purchaseRefundState.markPending({
+            platform: 'ios',
+            source: source ?? 'purchase_help',
+          })
+        } catch (persistError) {
+          console.warn('[purchase-help] failed to persist refund pending state after success', {
+            source: source ?? 'purchase_help',
+            error: persistError,
+          })
+        }
+        setRefundStatusState('submitted')
         return
       }
 
@@ -96,7 +119,29 @@ export default function PurchaseHelpScreen() {
         t('subscription.purchaseHelp.iosRefundErrorTitle'),
         t('subscription.purchaseHelp.iosRefundErrorBody'),
       )
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+
+      if (message.includes('Refund already requested')) {
+        try {
+          await purchaseRefundState.markPending({
+            platform: 'ios',
+            source: source ?? 'purchase_help',
+            error: message,
+          })
+        } catch (persistError) {
+          console.warn(
+            '[purchase-help] failed to persist pending refund state after duplicate request',
+            {
+              source: source ?? 'purchase_help',
+              error: persistError,
+            },
+          )
+        }
+        setRefundStatusState('pending')
+        return
+      }
+
       Alert.alert(
         t('subscription.purchaseHelp.iosRefundErrorTitle'),
         t('subscription.purchaseHelp.iosRefundErrorBody'),
@@ -147,6 +192,94 @@ export default function PurchaseHelpScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         >
+          {effectiveRefundStatusState !== 'idle' ? (
+            <View className="flex-1 pt-8 pb-2">
+              <View
+                className="self-start rounded-full px-4 py-4"
+                style={{ backgroundColor: `${theme.colors.brand.primary}14` }}
+              >
+                <CheckCircle2 size={28} color={theme.colors.brand.primary} />
+              </View>
+
+              <Text
+                className="text-3xl font-sans-semibold mt-7 pr-6"
+                style={{ color: theme.colors.brand.primary }}
+              >
+                {effectiveRefundStatusState === 'pending'
+                  ? t('subscription.purchaseHelp.iosPendingTitle')
+                  : t('subscription.purchaseHelp.iosSubmittedTitle')}
+              </Text>
+              <Text
+                className="text-base text-content-secondary mt-3 pr-4"
+                style={{ lineHeight: 24 }}
+              >
+                {effectiveRefundStatusState === 'pending'
+                  ? t('subscription.purchaseHelp.iosPendingBody')
+                  : t('subscription.purchaseHelp.iosSubmittedBody')}
+              </Text>
+
+              <View
+                className="mt-8 pl-4 pr-1 py-1"
+                style={{
+                  borderLeftWidth: 2,
+                  borderLeftColor: `${theme.colors.brand.primary}33`,
+                }}
+              >
+                <Text className="text-sm font-sans-semibold text-content-primary mb-1">
+                  {effectiveRefundStatusState === 'pending'
+                    ? t('subscription.purchaseHelp.iosPendingNoteTitle')
+                    : t('subscription.purchaseHelp.iosSubmittedNoteTitle')}
+                </Text>
+                <Text
+                  className="text-sm text-content-secondary"
+                  style={{ lineHeight: 21 }}
+                >
+                  {effectiveRefundStatusState === 'pending'
+                    ? t('subscription.purchaseHelp.iosPendingNoteBody')
+                    : t('subscription.purchaseHelp.iosSubmittedNoteBody')}
+                </Text>
+              </View>
+
+              <View className="mt-10">
+                <GradientButton
+                  onPress={() => router.replace('/(tabs)/settings')}
+                  fullWidth
+                  icon={<CheckCircle2 size={18} color="#ffffff" />}
+                >
+                  {t('subscription.purchaseHelp.iosSubmittedDoneCta')}
+                </GradientButton>
+
+                <TouchableOpacity
+                  onPress={() => openBillingSupport('ios_refund_submitted_support')}
+                  activeOpacity={0.82}
+                  className="mt-4 py-4 flex-row items-center justify-between"
+                  style={{
+                    borderTopWidth: 1,
+                    borderTopColor: theme.colors.border.primary,
+                  }}
+                >
+                  <View className="flex-1 pr-4">
+                    <Text className="text-sm font-sans-semibold text-content-primary mb-1">
+                      {t('subscription.purchaseHelp.contactSupportCta')}
+                    </Text>
+                    <Text className="text-xs text-content-secondary" style={{ lineHeight: 19 }}>
+                      {effectiveRefundStatusState === 'pending'
+                        ? t('subscription.purchaseHelp.iosPendingSupportBody')
+                        : t('subscription.purchaseHelp.iosSubmittedSupportBody')}
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center">
+                    <MessageCircle size={16} color={theme.colors.brand.primary} />
+                    <ChevronRight
+                      size={18}
+                      color={theme.colors.text.tertiary}
+                      style={{ marginLeft: 10 }}
+                    />
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
           <View className="pt-4 pb-2">
             <Text
               className="text-3xl font-sans-semibold pr-6"
@@ -162,7 +295,7 @@ export default function PurchaseHelpScreen() {
             >
               {isRefunded
                 ? t('subscription.purchaseHelp.iosRefundedBody')
-                : canRequestIosRefund
+                : canStartRefundRequest
                   ? t('subscription.purchaseHelp.iosBody')
                   : t('subscription.purchaseHelp.iosUnavailableBody')}
             </Text>
@@ -184,7 +317,7 @@ export default function PurchaseHelpScreen() {
                   <Text className="text-sm font-sans-semibold text-content-primary mb-1">
                     {isRefunded
                       ? t('subscription.purchaseHelp.iosRefundedNoteTitle')
-                      : canRequestIosRefund
+                      : canStartRefundRequest
                         ? t('subscription.purchaseHelp.iosNoteTitle')
                         : t('subscription.purchaseHelp.iosUnavailableNoteTitle')}
                   </Text>
@@ -194,7 +327,7 @@ export default function PurchaseHelpScreen() {
                   >
                     {isRefunded
                       ? t('subscription.purchaseHelp.iosRefundedNoteBody')
-                      : canRequestIosRefund
+                      : canStartRefundRequest
                         ? t('subscription.purchaseHelp.iosNoteBody')
                         : t('subscription.purchaseHelp.iosUnavailableNoteBody')}
                   </Text>
@@ -212,7 +345,7 @@ export default function PurchaseHelpScreen() {
                 >
                   {t('subscription.purchaseHelp.iosRepurchaseCta')}
                 </GradientButton>
-              ) : canRequestIosRefund ? (
+              ) : canStartRefundRequest ? (
                 <GradientButton
                   onPress={handleRequestRefund}
                   disabled={!isLifetime || isBusy}
@@ -229,14 +362,14 @@ export default function PurchaseHelpScreen() {
                   openBillingSupport(
                     isRefunded
                       ? 'ios_refunded_purchase_help'
-                      : canRequestIosRefund
+                      : canStartRefundRequest
                         ? 'ios_refund_request_support'
                         : 'ios_refund_unavailable_support',
                   )
                 }
                 disabled={isBusy}
                 activeOpacity={0.82}
-                className={`${isRefunded || canRequestIosRefund ? 'mt-4' : 'mt-2'} py-4 flex-row items-center justify-between`}
+                className={`${isRefunded || canStartRefundRequest ? 'mt-4' : 'mt-2'} py-4 flex-row items-center justify-between`}
                 style={{
                   borderTopWidth: 1,
                   borderTopColor: theme.colors.border.primary,
@@ -250,7 +383,7 @@ export default function PurchaseHelpScreen() {
                   <Text className="text-xs text-content-secondary" style={{ lineHeight: 19 }}>
                     {isRefunded
                       ? t('subscription.purchaseHelp.iosRefundedSupportBody')
-                      : canRequestIosRefund
+                      : canStartRefundRequest
                         ? t('subscription.purchaseHelp.iosSupportBody')
                         : t('subscription.purchaseHelp.iosUnavailableSupportBody')}
                   </Text>
@@ -266,6 +399,7 @@ export default function PurchaseHelpScreen() {
               </TouchableOpacity>
             </View>
           </View>
+          )}
         </ScrollView>
       </View>
     )

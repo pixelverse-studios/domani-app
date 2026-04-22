@@ -154,6 +154,23 @@ export const en = {
       iosRefundSuccessTitle: 'Refund request opened',
       iosRefundSuccessBody:
         'Apple is now handling your refund request. They will review it and follow up with the result.',
+      iosSubmittedTitle: 'Refund request submitted',
+      iosSubmittedBody:
+        'Apple is reviewing your request now. If it is approved, Domani access will be updated once the refund is processed.',
+      iosSubmittedNoteTitle: 'What to expect',
+      iosSubmittedNoteBody:
+        'Refund decisions are handled by Apple. You may not see the result immediately, and access can take a little time to update after their decision.',
+      iosSubmittedDoneCta: 'Back to Settings',
+      iosSubmittedSupportBody:
+        'Contact support if your access does not update later or you need help understanding the refund result.',
+      iosPendingTitle: 'Refund request already in review',
+      iosPendingBody:
+        'Apple is still reviewing this refund request, or it has already reached a decision that is still propagating.',
+      iosPendingNoteTitle: 'What this means',
+      iosPendingNoteBody:
+        'You do not need to submit another refund request right now. Apple will continue the review flow from the original request.',
+      iosPendingSupportBody:
+        'Contact support if this status looks wrong or your Domani access does not update after Apple finishes the review.',
       iosRefundErrorTitle: 'Could not open Apple refund flow',
       iosRefundErrorBody:
         'We could not open Apple’s refund request right now. Try again or contact support if you still need help.',

@@ -159,6 +159,23 @@ export const es: TranslationCatalog = {
       iosRefundSuccessTitle: 'Solicitud de reembolso abierta',
       iosRefundSuccessBody:
         'Apple ya está gestionando tu solicitud de reembolso. La revisarán y te avisarán con el resultado.',
+      iosSubmittedTitle: 'Solicitud de reembolso enviada',
+      iosSubmittedBody:
+        'Apple está revisando tu solicitud ahora. Si se aprueba, el acceso de Domani se actualizará cuando el reembolso se procese.',
+      iosSubmittedNoteTitle: 'Qué esperar',
+      iosSubmittedNoteBody:
+        'Apple gestiona la decisión del reembolso. Es posible que no veas el resultado de inmediato y que el acceso tarde un poco en actualizarse después de su decisión.',
+      iosSubmittedDoneCta: 'Volver a Ajustes',
+      iosSubmittedSupportBody:
+        'Contacta con soporte si tu acceso no se actualiza más tarde o si necesitas ayuda para entender el resultado del reembolso.',
+      iosPendingTitle: 'La solicitud de reembolso ya está en revisión',
+      iosPendingBody:
+        'Apple sigue revisando esta solicitud de reembolso, o ya tomó una decisión que todavía se está propagando.',
+      iosPendingNoteTitle: 'Qué significa esto',
+      iosPendingNoteBody:
+        'No necesitas enviar otra solicitud de reembolso ahora mismo. Apple continuará el proceso de revisión desde la solicitud original.',
+      iosPendingSupportBody:
+        'Contacta con soporte si este estado parece incorrecto o si tu acceso a Domani no se actualiza después de que Apple termine la revisión.',
       iosRefundErrorTitle: 'No se pudo abrir el flujo de reembolso de Apple',
       iosRefundErrorBody:
         'No pudimos abrir la solicitud de reembolso de Apple en este momento. Inténtalo de nuevo o contacta con soporte si sigues necesitando ayuda.',

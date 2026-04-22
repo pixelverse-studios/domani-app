@@ -335,6 +335,8 @@ async function grantLifetimeAccess(
     throw error
   }
 
+  await clearRefundState(supabase, userId, event)
+
   await finalizeWebhookEvent(supabase, event, processedAction)
 
   console.log('[revenuecat-webhook] granted lifetime access', {
@@ -345,6 +347,52 @@ async function grantLifetimeAccess(
   })
 
   return null
+}
+
+async function clearRefundState(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  event: RevenueCatWebhookEvent,
+) {
+  const { error } = await supabase.from('purchase_refund_states').delete().eq('user_id', userId)
+
+  if (error) {
+    console.error('[revenuecat-webhook] failed to clear purchase refund state:', {
+      ...getEventLogContext(event),
+      userId,
+      error,
+    })
+    throw error
+  }
+}
+
+async function upsertApprovedRefundState(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  event: RevenueCatWebhookEvent,
+) {
+  const eventTimestamp = getEventTimestampIso(event)
+  const { error } = await supabase.from('purchase_refund_states').upsert(
+    {
+      user_id: userId,
+      platform: 'ios',
+      status: 'approved',
+      requested_at: eventTimestamp,
+      resolved_at: eventTimestamp,
+      last_source: `revenuecat:${event.type}`,
+      last_error: null,
+    },
+    { onConflict: 'user_id' },
+  )
+
+  if (error) {
+    console.error('[revenuecat-webhook] failed to persist approved refund state:', {
+      ...getEventLogContext(event),
+      userId,
+      error,
+    })
+    throw error
+  }
 }
 
 async function revokeLifetimeAccess(
@@ -380,6 +428,8 @@ async function revokeLifetimeAccess(
     })
     throw error
   }
+
+  await upsertApprovedRefundState(supabase, userId, event)
 
   await finalizeWebhookEvent(supabase, event, processedAction)
 
