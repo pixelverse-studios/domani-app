@@ -216,6 +216,35 @@ export const en = {
       iosActionBody:
         'Use this path if you need help with an Apple purchase, a refund request, or a billing question related to your App Store transaction.',
       iosActionCta: 'Continue with Apple purchase help',
+      androidTitle: 'Need help with a Google Play purchase?',
+      androidBody:
+        'Google Play handles Android refund requests. We can take you to your Google Play order history so you can report a problem for this Domani purchase.',
+      androidNoteTitle: 'What happens next',
+      androidNoteBody:
+        'Google Play usually decides refund requests within 1–4 days. If it has been more than 48 hours or your purchase state still looks wrong, contact support.',
+      androidRefundCta: 'Open Google Play Refund Help',
+      androidSupportBody:
+        'Contact support if the Google Play flow does not open, your purchase is missing, or the result does not match your Domani access.',
+      androidUnavailableTitle: 'Need help with billing on Android?',
+      androidUnavailableBody:
+        'This account does not currently look like an active paid Google Play purchase, so there is no refund path to open from Domani right now.',
+      androidUnavailableNoteTitle: 'What this means',
+      androidUnavailableNoteBody:
+        'If you expected a Google Play purchase on this account, support can help you verify the purchase state and next step.',
+      androidUnavailableSupportBody:
+        'Contact support if this Android account should already have an active Google Play purchase linked to it.',
+      androidOpenErrorTitle: 'Could not open Google Play',
+      androidOpenErrorBody:
+        'We could not open the Google Play refund flow right now. Try again or contact support if you still need help.',
+      androidRefundedTitle: 'Your access was removed',
+      androidRefundedBody:
+        'This Android purchase has already been refunded. To unlock Domani again, buy lifetime access again.',
+      androidRefundedNoteTitle: 'Already refunded',
+      androidRefundedNoteBody:
+        'Once Google Play refunds the purchase, access is removed. If you want to use Domani again, you will need to purchase lifetime access again.',
+      androidRepurchaseCta: 'Get Lifetime Access Again',
+      androidRefundedSupportBody:
+        'Contact support if your refunded Android state looks wrong or you need help understanding what happened.',
       androidActionTitle: 'Get billing help on Android',
       androidActionBody:
         'Use this path if you need help with a Google Play purchase, billing issue, or account-specific purchase question on Android.',

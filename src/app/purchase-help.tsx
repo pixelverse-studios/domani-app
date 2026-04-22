@@ -3,10 +3,10 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Platform,
   Alert,
   StyleSheet,
+  Linking,
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -20,8 +20,6 @@ import {
   CheckCircle2,
   BadgeHelp,
   Smartphone,
-  RotateCcw,
-  CircleHelp,
 } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
@@ -48,7 +46,6 @@ export default function PurchaseHelpScreen() {
   const [refundStatusState, setRefundStatusState] = useState<
     'idle' | 'submitted' | 'pending' | 'approved' | 'existing_request' | 'denied'
   >('idle')
-  const helpTopics = catalog.subscription.purchaseHelp.helpTopics
   const isIos = Platform.OS === 'ios'
   const isRefunded = subscription.status === 'refunded'
   const isLifetime = subscription.status === 'lifetime'
@@ -84,20 +81,27 @@ export default function PurchaseHelpScreen() {
     purchaseRefundState.isRecordingDuplicateRequestHint ||
     purchaseRefundState.isClearingState
 
-  const platformAction =
-    isIos
-      ? {
-          title: t('subscription.purchaseHelp.iosActionTitle'),
-          body: t('subscription.purchaseHelp.iosActionBody'),
-          cta: t('subscription.purchaseHelp.iosActionCta'),
-          context: 'ios_refund_request',
-        }
-      : {
-          title: t('subscription.purchaseHelp.androidActionTitle'),
-          body: t('subscription.purchaseHelp.androidActionBody'),
-          cta: t('subscription.purchaseHelp.androidActionCta'),
-          context: 'android_billing_help',
-        }
+  const androidRefundUrl = 'https://play.google.com/store/account/orderhistory'
+
+  const openExternalUrl = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url)
+      if (!supported) {
+        Alert.alert(
+          t('subscription.purchaseHelp.androidOpenErrorTitle'),
+          t('subscription.purchaseHelp.androidOpenErrorBody'),
+        )
+        return
+      }
+
+      await Linking.openURL(url)
+    } catch {
+      Alert.alert(
+        t('subscription.purchaseHelp.androidOpenErrorTitle'),
+        t('subscription.purchaseHelp.androidOpenErrorBody'),
+      )
+    }
+  }
 
   const openBillingSupport = (context: string) => {
     router.push({
@@ -173,23 +177,6 @@ export default function PurchaseHelpScreen() {
 
   const handleRepurchase = () => {
     router.push('/(tabs)/settings?openPaywall=1')
-  }
-
-  const handleRestore = async () => {
-    try {
-      const result = await subscription.restore()
-      if (!result) {
-        Alert.alert(
-          t('subscription.purchaseHelp.restoreNotFoundTitle'),
-          t('subscription.purchaseHelp.restoreNotFoundBody'),
-        )
-      }
-    } catch {
-      Alert.alert(
-        t('subscription.purchaseHelp.restoreErrorTitle'),
-        t('subscription.purchaseHelp.restoreErrorBody'),
-      )
-    }
   }
 
   if (isIos) {
@@ -474,185 +461,126 @@ export default function PurchaseHelpScreen() {
       </View>
 
       <ScrollView className="flex-1 px-5" showsVerticalScrollIndicator={false}>
-        <View
-          className="rounded-3xl p-6 mb-5"
-          style={{
-            backgroundColor: theme.colors.card,
-            borderWidth: 1,
-            borderColor: theme.colors.border.primary,
-          }}
-        >
-          <View
-            style={[
-              styles.heroIcon,
-              {
-                backgroundColor: `${theme.colors.brand.primary}14`,
-              },
-            ]}
+        <View className="pt-4 pb-2">
+          <Text
+            className="text-3xl font-sans-semibold pr-6"
+            style={{ color: theme.colors.brand.primary }}
           >
-            <BadgeHelp size={28} color={theme.colors.brand.primary} />
-          </View>
-
-          <Text className="text-3xl font-sans-semibold text-content-primary mt-5">
-            {t('subscription.purchaseHelp.title')}
+            {isRefunded
+              ? t('subscription.purchaseHelp.androidRefundedTitle')
+              : isLifetime
+                ? t('subscription.purchaseHelp.androidTitle')
+                : t('subscription.purchaseHelp.androidUnavailableTitle')}
           </Text>
           <Text
-            className="text-base text-content-secondary mt-3"
-            style={{ lineHeight: 23 }}
+            className="text-base text-content-secondary mt-3 pr-4"
+            style={{ lineHeight: 24 }}
           >
-            {t('subscription.purchaseHelp.subtitle')}
+            {isRefunded
+              ? t('subscription.purchaseHelp.androidRefundedBody')
+              : isLifetime
+                ? t('subscription.purchaseHelp.androidBody')
+                : t('subscription.purchaseHelp.androidUnavailableBody')}
           </Text>
 
           <View
-            className="rounded-2xl px-4 py-3 mt-5"
-            style={{ backgroundColor: `${theme.colors.brand.primary}10` }}
+            className="mt-7 pl-4 pr-1 py-1"
+            style={{
+              borderLeftWidth: 2,
+              borderLeftColor: 'rgba(245, 158, 11, 0.35)',
+            }}
           >
             <View className="flex-row items-start">
-              <Smartphone
-                size={16}
+              <ShieldCheck
+                size={17}
                 color={theme.colors.brand.primary}
                 style={{ marginTop: 2 }}
               />
-              <Text
-                className="text-sm text-content-secondary ml-2"
-                style={{ flex: 1, lineHeight: 20 }}
-              >
-                {t('subscription.purchaseHelp.platformNote')}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View
-          className="rounded-3xl p-5 mb-4"
-          style={{
-            backgroundColor: theme.colors.card,
-            borderWidth: 1,
-            borderColor: theme.colors.border.primary,
-          }}
-        >
-          <View className="flex-row items-center mb-3">
-            <Receipt size={18} color={theme.colors.brand.primary} />
-            <Text className="text-lg font-sans-semibold text-content-primary ml-2">
-              {platformAction.title}
-            </Text>
-          </View>
-          <Text className="text-sm text-content-secondary" style={{ lineHeight: 21 }}>
-            {platformAction.body}
-          </Text>
-          <GradientButton
-            onPress={() => openBillingSupport(platformAction.context)}
-            disabled={subscription.isRestoring}
-            fullWidth
-            style={{ marginTop: 16 }}
-          >
-            {platformAction.cta}
-          </GradientButton>
-        </View>
-
-        <View
-          className="rounded-3xl p-5 mb-4"
-          style={{
-            backgroundColor: theme.colors.card,
-            borderWidth: 1,
-            borderColor: theme.colors.border.primary,
-          }}
-        >
-          <View className="flex-row items-center justify-between">
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <View className="flex-row items-center mb-2">
-                <RotateCcw size={18} color={theme.colors.brand.primary} />
-                <Text className="text-lg font-sans-semibold text-content-primary ml-2">
-                  {t('subscription.purchaseHelp.restoreTitle')}
+              <View className="flex-1 ml-3">
+                <Text className="text-sm font-sans-semibold text-content-primary mb-1">
+                  {isRefunded
+                    ? t('subscription.purchaseHelp.androidRefundedNoteTitle')
+                    : isLifetime
+                      ? t('subscription.purchaseHelp.androidNoteTitle')
+                      : t('subscription.purchaseHelp.androidUnavailableNoteTitle')}
+                </Text>
+                <Text
+                  className="text-sm text-content-secondary"
+                  style={{ lineHeight: 21 }}
+                >
+                  {isRefunded
+                    ? t('subscription.purchaseHelp.androidRefundedNoteBody')
+                    : isLifetime
+                      ? t('subscription.purchaseHelp.androidNoteBody')
+                      : t('subscription.purchaseHelp.androidUnavailableNoteBody')}
                 </Text>
               </View>
-              <Text className="text-sm text-content-secondary" style={{ lineHeight: 21 }}>
-                {t('subscription.purchaseHelp.restoreBody')}
-              </Text>
             </View>
           </View>
 
-          <TouchableOpacity
-            onPress={handleRestore}
-            disabled={subscription.isRestoring}
-            activeOpacity={0.8}
-            className="py-3 rounded-xl flex-row items-center justify-center mt-4"
-            style={{
-              backgroundColor: theme.colors.interactive.hover,
-              borderWidth: 1,
-              borderColor: theme.colors.border.primary,
-              opacity: subscription.isRestoring ? 0.6 : 1,
-            }}
-          >
-            {subscription.isRestoring ? (
-              <ActivityIndicator size="small" color={theme.colors.text.secondary} />
-            ) : (
-              <>
-                <RotateCcw size={16} color={theme.colors.text.secondary} />
-                <Text
-                  className="text-sm font-sans-semibold ml-2"
-                  style={{ color: theme.colors.text.secondary }}
-                >
-                  {t('subscription.purchaseHelp.restoreCta')}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        <View
-          className="rounded-3xl p-5 mb-4"
-          style={{
-            backgroundColor: theme.colors.card,
-            borderWidth: 1,
-            borderColor: theme.colors.border.primary,
-          }}
-        >
-          <View className="flex-row items-center mb-3">
-            <CircleHelp size={18} color={theme.colors.brand.primary} />
-            <Text className="text-lg font-sans-semibold text-content-primary ml-2">
-              {t('subscription.purchaseHelp.helpWithTitle')}
-            </Text>
-          </View>
-
-          {helpTopics.map((topic) => (
-            <View key={topic} className="flex-row items-start mb-2.5">
-              <View
-                style={[
-                  styles.topicDot,
-                  {
-                    backgroundColor: theme.colors.brand.primary,
-                  },
-                ]}
-              />
-              <Text
-                className="text-sm text-content-secondary ml-3"
-                style={{ flex: 1, lineHeight: 20 }}
+          <View className="mt-9">
+            {isRefunded ? (
+              <GradientButton
+                onPress={handleRepurchase}
+                disabled={isBusy}
+                fullWidth
+                icon={<Receipt size={18} color="#ffffff" />}
               >
-                {topic}
-              </Text>
-            </View>
-          ))}
-        </View>
+                {t('subscription.purchaseHelp.androidRepurchaseCta')}
+              </GradientButton>
+            ) : isLifetime ? (
+              <GradientButton
+                onPress={() => openExternalUrl(androidRefundUrl)}
+                disabled={isBusy}
+                fullWidth
+                icon={<Smartphone size={18} color="#ffffff" />}
+              >
+                {t('subscription.purchaseHelp.androidRefundCta')}
+              </GradientButton>
+            ) : null}
 
-        <TouchableOpacity
-          onPress={() => openBillingSupport('purchase_help_general')}
-          activeOpacity={0.8}
-          className="flex-row items-center justify-center py-4 rounded-2xl mb-8"
-          style={{
-            borderWidth: 1,
-            borderColor: theme.colors.brand.primary,
-            backgroundColor: theme.colors.interactive.activeShadow,
-          }}
-        >
-          <MessageCircle size={18} color={theme.colors.brand.primary} />
-          <Text
-            className="font-sans-semibold ml-2"
-            style={{ color: theme.colors.brand.primary }}
-          >
-            {t('subscription.purchaseHelp.contactSupportCta')}
-          </Text>
-        </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() =>
+                openBillingSupport(
+                  isRefunded
+                    ? 'android_refunded_purchase_help'
+                    : isLifetime
+                      ? 'android_refund_request_support'
+                      : 'android_refund_unavailable_support',
+                )
+              }
+              disabled={isBusy}
+              activeOpacity={0.82}
+              className={`${isRefunded || isLifetime ? 'mt-4' : 'mt-2'} py-4 flex-row items-center justify-between`}
+              style={{
+                borderTopWidth: 1,
+                borderTopColor: theme.colors.border.primary,
+                opacity: isBusy ? 0.6 : 1,
+              }}
+            >
+              <View className="flex-1 pr-4">
+                <Text className="text-sm font-sans-semibold text-content-primary mb-1">
+                  {t('subscription.purchaseHelp.contactSupportCta')}
+                </Text>
+                <Text className="text-xs text-content-secondary" style={{ lineHeight: 19 }}>
+                  {isRefunded
+                    ? t('subscription.purchaseHelp.androidRefundedSupportBody')
+                    : isLifetime
+                      ? t('subscription.purchaseHelp.androidSupportBody')
+                      : t('subscription.purchaseHelp.androidUnavailableSupportBody')}
+                </Text>
+              </View>
+              <View className="flex-row items-center">
+                <MessageCircle size={16} color={theme.colors.brand.primary} />
+                <ChevronRight
+                  size={18}
+                  color={theme.colors.text.tertiary}
+                  style={{ marginLeft: 10 }}
+                />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
     </View>
   )
@@ -665,11 +593,5 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  topicDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 999,
-    marginTop: 7,
   },
 })
