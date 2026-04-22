@@ -156,8 +156,11 @@ export function useSubscription() {
   const { profile, isLoading: profileLoading } = useProfile()
   const queryClient = useQueryClient()
   const [isInitialized, setIsInitialized] = useState(false)
+  const [revenueCatAttributeSyncRetryToken, setRevenueCatAttributeSyncRetryToken] = useState(0)
   const previousUserId = useRef<string | undefined>(undefined)
   const previousRevenueCatAttributeSignatureRef = useRef<string | null>(null)
+  const revenueCatAttributeRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const previousAndroidMonetizationBreadcrumbRef = useRef<string | null>(null)
   // Tracks whether a trial-start mutation is currently in flight so that
   // unrelated profile-invalidation triggers (e.g. the AppState foreground
   // listener) don't race the optimistic update and overwrite it with stale
@@ -186,8 +189,24 @@ export function useSubscription() {
       if (previousUserId.current && !user?.id) {
         logoutRevenueCat()
         previousRevenueCatAttributeSignatureRef.current = null
+        previousAndroidMonetizationBreadcrumbRef.current = null
+        setRevenueCatAttributeSyncRetryToken(0)
+        if (revenueCatAttributeRetryTimeoutRef.current) {
+          clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
+          revenueCatAttributeRetryTimeoutRef.current = null
+        }
         if (isMounted) {
           setIsInitialized(false)
+        }
+      }
+
+      if (previousUserId.current && user?.id && previousUserId.current !== user.id) {
+        previousRevenueCatAttributeSignatureRef.current = null
+        previousAndroidMonetizationBreadcrumbRef.current = null
+        setRevenueCatAttributeSyncRetryToken(0)
+        if (revenueCatAttributeRetryTimeoutRef.current) {
+          clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
+          revenueCatAttributeRetryTimeoutRef.current = null
         }
       }
 
@@ -218,6 +237,15 @@ export function useSubscription() {
   }, [user?.id, shouldBypassRevenueCat])
 
   useEffect(() => {
+    return () => {
+      if (revenueCatAttributeRetryTimeoutRef.current) {
+        clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
+        revenueCatAttributeRetryTimeoutRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     if (!user?.id || !isInitialized || shouldBypassRevenueCat || !profile) return
 
     const attributeSignature = JSON.stringify({
@@ -244,6 +272,13 @@ export function useSubscription() {
         userId: user.id,
         error,
       })
+
+      if (!revenueCatAttributeRetryTimeoutRef.current) {
+        revenueCatAttributeRetryTimeoutRef.current = setTimeout(() => {
+          revenueCatAttributeRetryTimeoutRef.current = null
+          setRevenueCatAttributeSyncRetryToken((value) => value + 1)
+        }, 5000)
+      }
     })
   }, [
     isInitialized,
@@ -254,6 +289,7 @@ export function useSubscription() {
     profile?.full_name,
     profile?.signup_cohort,
     profile?.signup_method,
+    revenueCatAttributeSyncRetryToken,
   ])
 
   // Query for RevenueCat customer info (disabled during beta)
@@ -315,6 +351,25 @@ export function useSubscription() {
 
   useEffect(() => {
     if (Platform.OS !== 'android' || !user?.id) return
+
+    const breadcrumbSignature = JSON.stringify({
+      userId: user.id,
+      subscriptionStatus: subscriptionState.status,
+      offeringIdentifier,
+      revenueCatInitialized: isInitialized,
+      shouldBypassRevenueCat,
+      hasCustomerInfo: !!effectiveCustomerInfo,
+      activeEntitlementId: activeRevenueCatEntitlement ? ENTITLEMENT_ID : null,
+      activeEntitlementStore: activeRevenueCatEntitlement?.store ?? null,
+      activeProductIdentifier: activeRevenueCatEntitlement?.productIdentifier ?? null,
+      canRequestAndroidRefund,
+      refundedAt: profile?.refunded_at ?? null,
+      purchasedAt: profile?.purchased_at ?? null,
+      signupCohort: profile?.signup_cohort ?? null,
+    })
+
+    if (previousAndroidMonetizationBreadcrumbRef.current === breadcrumbSignature) return
+    previousAndroidMonetizationBreadcrumbRef.current = breadcrumbSignature
 
     addBreadcrumb('Resolved Android monetization state', 'monetization.android', {
       userId: user.id,

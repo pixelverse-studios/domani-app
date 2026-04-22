@@ -44,6 +44,7 @@ export default function PurchaseHelpScreen() {
   const { catalog, t } = useTranslation()
   const { source } = useLocalSearchParams<{ source?: PurchaseHelpSource }>()
   const [isRequestingRefund, setIsRequestingRefund] = useState(false)
+  const previousAndroidPurchaseHelpBreadcrumbRef = React.useRef<string | null>(null)
   const [refundStatusState, setRefundStatusState] = useState<
     'idle' | 'submitted' | 'pending' | 'approved' | 'existing_request' | 'denied'
   >('idle')
@@ -87,6 +88,20 @@ export default function PurchaseHelpScreen() {
 
   useEffect(() => {
     if (isIos) return
+
+    const breadcrumbSignature = JSON.stringify({
+      source: source ?? 'purchase_help',
+      subscriptionStatus: subscription.status,
+      canRequestAndroidRefund,
+      isRefunded,
+      persistedRefundStatus,
+      persistedClientHint,
+      isLoadingSubscription: subscription.isLoading,
+      isLoadingRefundState: purchaseRefundState.isLoading,
+    })
+
+    if (previousAndroidPurchaseHelpBreadcrumbRef.current === breadcrumbSignature) return
+    previousAndroidPurchaseHelpBreadcrumbRef.current = breadcrumbSignature
 
     addBreadcrumb('Viewed Android purchase help', 'purchase_help.android', {
       source: source ?? 'purchase_help',
