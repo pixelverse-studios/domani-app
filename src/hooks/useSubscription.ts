@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
-import { AppState } from 'react-native'
+import { AppState, Platform } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Purchases, { CustomerInfo, PurchasesPackage } from 'react-native-purchases'
 import { addDays, parseISO } from 'date-fns'
 
 import { supabase } from '~/lib/supabase'
 import { useAuth } from '~/hooks/useAuth'
+import { clearCurrentUserPurchaseRefundState } from '~/hooks/usePurchaseRefundState'
 import { useProfile } from '~/hooks/useProfile'
 import { useAppConfig } from '~/stores/appConfigStore'
 import { isBetaPhase } from '~/types/appConfig'
@@ -263,6 +264,8 @@ export function useSubscription() {
     isBeta,
     betaAccess,
   )
+  const hasActiveRevenueCatEntitlement = !!effectiveCustomerInfo?.entitlements.active[ENTITLEMENT_ID]
+  const canRequestIosRefund = Platform.OS === 'ios' && hasActiveRevenueCatEntitlement
 
   // Stable primitive for the effect dep array — avoids timer churn from Date object identity.
   const trialExpiresAt = subscriptionState.trialExpirationDate?.getTime() ?? null
@@ -330,6 +333,14 @@ export function useSubscription() {
   const startTrialMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated')
+      if (profile?.purchased_at) {
+        console.warn('[useSubscription] Blocking trial start for user with recorded purchase', {
+          userId: user.id,
+          purchasedAt: profile.purchased_at,
+          tier: profile.tier,
+        })
+        throw new Error('Trial cannot be started after purchase')
+      }
       if (subscriptionState.status !== 'pre_trial') {
         throw new Error('Trial cannot be started from current state')
       }
@@ -412,6 +423,12 @@ export function useSubscription() {
       if (info) {
         // Sync to Supabase
         await syncSubscriptionToSupabase(user?.id, info)
+        await clearCurrentUserPurchaseRefundState().catch((error) => {
+          console.warn('[useSubscription] Failed to clear persisted refund state after purchase', {
+            userId: user?.id ?? null,
+            error,
+          })
+        })
       }
       return info
     },
@@ -435,6 +452,12 @@ export function useSubscription() {
       const info = await restorePurchases()
       if (info) {
         await syncSubscriptionToSupabase(user?.id, info)
+        await clearCurrentUserPurchaseRefundState().catch((error) => {
+          console.warn('[useSubscription] Failed to clear persisted refund state after restore', {
+            userId: user?.id ?? null,
+            error,
+          })
+        })
       }
       const hasEntitlement = !!info?.entitlements.active[ENTITLEMENT_ID]
       console.log('[useSubscription] Restore mutation result', {
@@ -461,6 +484,7 @@ export function useSubscription() {
     isPurchasing: purchaseMutation.isPending,
     restore: restoreMutation.mutateAsync,
     isRestoring: restoreMutation.isPending,
+    canRequestIosRefund,
     refetch: refetchCustomerInfo,
   }
 }
@@ -541,6 +565,18 @@ function computeSubscriptionState(
   if (profile?.refunded_at) {
     return {
       status: 'refunded',
+      trialDaysRemaining: null,
+      trialExpirationDate: null,
+      graceDaysRemaining: null,
+      graceExpirationDate: null,
+    }
+  }
+
+  // A recorded lifetime purchase in Supabase is enough to restore the
+  // lifetime state when RevenueCat is temporarily unavailable or stale.
+  if (profile?.purchased_at) {
+    return {
+      status: 'lifetime',
       trialDaysRemaining: null,
       trialExpirationDate: null,
       graceDaysRemaining: null,
@@ -708,12 +744,27 @@ async function syncSubscriptionToSupabase(userId: string | undefined, customerIn
   if (entitlement) {
     const isTrialing = entitlement.periodType === 'TRIAL'
     const tier: 'trialing' | 'lifetime' = isTrialing ? 'trialing' : 'lifetime'
+    const purchasedAt =
+      !isTrialing
+        ? entitlement.originalPurchaseDate || entitlement.latestPurchaseDate || new Date().toISOString()
+        : null
+    const trialEndsAt = isTrialing ? entitlement.expirationDate : null
 
     const { error: tierError } = await supabase
       .from('profiles')
-      .update({ tier, refunded_at: null })
+      .update({
+        tier,
+        purchased_at: purchasedAt,
+        refunded_at: null,
+        trial_ends_at: trialEndsAt,
+      })
       .eq('id', userId)
     if (tierError) throw tierError
+
+    const { error: clearRefundStateError } = await supabase.rpc(
+      'clear_current_user_refund_request_state',
+    )
+    if (clearRefundStateError) throw clearRefundStateError
 
     console.log('[useSubscription] Updated Supabase tier from RevenueCat', {
       userId,

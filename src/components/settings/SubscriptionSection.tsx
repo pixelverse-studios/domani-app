@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, TouchableOpacity, ActivityIndicator } from 'react-native'
-import { Crown, Sparkles, RotateCcw } from 'lucide-react-native'
+import { Crown, Sparkles, RotateCcw, ChevronRight } from 'lucide-react-native'
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
@@ -21,6 +21,7 @@ interface SubscriptionSectionProps {
   onStartTrial: () => void
   onRestore: () => void
   onUpgrade: () => void
+  onOpenPurchaseHelp: () => void
 }
 
 /**
@@ -41,6 +42,7 @@ export function SubscriptionSection({
   onStartTrial,
   onRestore,
   onUpgrade,
+  onOpenPurchaseHelp,
 }: SubscriptionSectionProps) {
   const theme = useAppTheme()
   const { locale, t } = useTranslation()
@@ -300,38 +302,78 @@ export function SubscriptionSection({
               </>
             )}
 
-            {/* Lifetime — purchased, no CTAs */}
+            {/* Lifetime — purchased, show purchase help as the only action */}
             {status === 'lifetime' && (
-              <Text className="text-sm text-content-secondary">
-                {t('subscription.settings.lifetimeBody')}
-              </Text>
+              <>
+                <Text className="text-sm text-content-secondary">
+                  {t('subscription.settings.lifetimeBody')}
+                </Text>
+                <TouchableOpacity
+                  onPress={onOpenPurchaseHelp}
+                  disabled={isRestoring}
+                  activeOpacity={0.85}
+                  className="mt-4 pt-4 flex-row items-center justify-between"
+                  style={{
+                    borderTopWidth: 1,
+                    borderTopColor: 'rgba(245, 158, 11, 0.12)',
+                    opacity: isRestoring ? 0.5 : 1,
+                  }}
+                >
+                  <View className="flex-1 pr-4">
+                    <Text
+                      className="text-sm font-semibold mb-1"
+                      style={{ color: currentStatusConfig.color }}
+                    >
+                      {t('subscription.purchaseHelp.entryCta')}
+                    </Text>
+                    <Text className="text-xs leading-5 text-content-secondary">
+                      {t('subscription.settings.lifetimePurchaseHelpBody')}
+                    </Text>
+                  </View>
+                  <View
+                    className="h-10 w-10 rounded-full items-center justify-center"
+                    style={{ backgroundColor: 'rgba(245, 158, 11, 0.12)' }}
+                  >
+                    <ChevronRight size={18} color={currentStatusConfig.color} />
+                  </View>
+                </TouchableOpacity>
+              </>
             )}
           </View>
 
-          {/* Restore purchases — only shown for states where a prior purchase
-              could plausibly exist (expired, refunded, or trialing). Beta/pre_trial
-              have nothing to restore; lifetime already has the purchase applied. */}
-          {(status === 'expired' ||
-            status === 'refunded' ||
-            status === 'trialing' ||
-            status === 'grace_period') && (
-            <TouchableOpacity
-              onPress={onRestore}
-              disabled={isRestoring}
-              activeOpacity={0.7}
-              className="flex-row items-center justify-center py-2"
-            >
-              {isRestoring ? (
-                <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
-              ) : (
-                <>
-                  <RotateCcw size={14} color={theme.colors.text.tertiary} />
-                  <Text className="text-sm text-content-secondary ml-1.5">
-                    {t('subscription.settings.restorePurchases')}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+          {/* Restore remains useful for users who lost applied access after a prior
+              purchase. Keep it off the active lifetime view, which already has a
+              dedicated purchase-help action in the card. */}
+          {status === 'refunded' && (
+            <>
+              <TouchableOpacity
+                onPress={onRestore}
+                disabled={isRestoring}
+                activeOpacity={0.7}
+                className="flex-row items-center justify-center py-2"
+              >
+                {isRestoring ? (
+                  <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
+                ) : (
+                  <>
+                    <RotateCcw size={14} color={theme.colors.text.tertiary} />
+                    <Text className="text-sm text-content-secondary ml-1.5">
+                      {t('subscription.settings.restorePurchases')}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={onOpenPurchaseHelp}
+                disabled={isRestoring}
+                activeOpacity={0.7}
+                className="flex-row items-center justify-center py-2"
+              >
+                <Text className="text-sm font-sans-medium" style={{ color: theme.colors.brand.primary }}>
+                  {t('subscription.purchaseHelp.entryCta')}
+                </Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
       )}

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { View, ScrollView, TouchableOpacity, Alert } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useRouter, useFocusEffect } from 'expo-router'
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { LogOut } from 'lucide-react-native'
 import { format } from 'date-fns'
 
@@ -57,6 +57,7 @@ function SettingsContent() {
   useScreenTracking('settings')
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const { openPaywall } = useLocalSearchParams<{ openPaywall?: string }>()
   const { signOut } = useAuth()
   const theme = useAppTheme()
   const { profile, isLoading } = useProfile()
@@ -95,6 +96,13 @@ function SettingsContent() {
       }
     }
   }, [isTutorialActive, currentStep, tutorialScroll])
+
+  useEffect(() => {
+    if (openPaywall === '1') {
+      setShowPaywallModal(true)
+      router.replace('/(tabs)/settings')
+    }
+  }, [openPaywall, router])
 
   // Refresh permission status when screen comes into focus
   // Note: Skip on simulator as Notifications.getPermissionsAsync() can block the event loop
@@ -315,6 +323,7 @@ function SettingsContent() {
             }
           }}
           onUpgrade={() => setShowPaywallModal(true)}
+          onOpenPurchaseHelp={() => router.push('/purchase-help?source=settings')}
         />
 
         {/* 3–6. Categories, Notifications, Preferences, Support — hidden for
@@ -348,6 +357,26 @@ function SettingsContent() {
 
             <SupportSection onReplayTutorial={handleReplayTutorial} />
           </>
+        )}
+
+        {__DEV__ && (
+          <TouchableOpacity
+            onPress={() => router.push('/notification-setup')}
+            activeOpacity={0.7}
+            className="py-3.5 px-4 rounded-xl mb-4"
+            style={{
+              backgroundColor: theme.colors.interactive.hover,
+              borderWidth: 1,
+              borderColor: theme.colors.border.primary,
+            }}
+          >
+            <Text className="font-semibold text-content-primary">
+              Reopen Notification Onboarding
+            </Text>
+            <Text className="text-sm text-content-secondary mt-1">
+              Dev-only shortcut to revisit the trial-start reminder screen.
+            </Text>
+          </TouchableOpacity>
         )}
 
         {/* Log Out Button */}

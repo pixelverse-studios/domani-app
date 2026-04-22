@@ -1,4 +1,9 @@
-import Purchases, { LOG_LEVEL, PurchasesOffering, PurchasesPackage } from 'react-native-purchases'
+import Purchases, {
+  LOG_LEVEL,
+  PurchasesOffering,
+  PurchasesPackage,
+  REFUND_REQUEST_STATUS,
+} from 'react-native-purchases'
 import { Platform } from 'react-native'
 
 // RevenueCat API keys - these should be in environment variables for production
@@ -154,6 +159,15 @@ export async function logoutRevenueCat() {
     await Purchases.logOut()
     console.log('[RevenueCat] User logged out')
   } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+
+    // RevenueCat can already be in its anonymous state during sign-out races.
+    // In that case there is nothing left to do, so don't surface noisy logs.
+    if (errorMessage.includes('current user is anonymous')) {
+      console.log('[RevenueCat] Logout skipped - current user already anonymous')
+      return
+    }
+
     // Ignore rate limit errors (code 16, status 429) - these happen when
     // another request is in flight, which is common during rapid auth changes
     if (
@@ -311,6 +325,20 @@ export async function restorePurchases() {
     return customerInfo
   } catch (error) {
     console.error('[RevenueCat] Restore error:', error)
+    throw error
+  }
+}
+
+/**
+ * Begin an iOS refund request for the user's active entitlement.
+ */
+export async function beginRefundRequestForActiveEntitlement(): Promise<REFUND_REQUEST_STATUS> {
+  try {
+    const status = await Purchases.beginRefundRequestForActiveEntitlement()
+    console.log('[RevenueCat] Refund request started', { status })
+    return status
+  } catch (error) {
+    console.error('[RevenueCat] Refund request error:', error)
     throw error
   }
 }

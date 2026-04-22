@@ -135,6 +135,114 @@ export const es: TranslationCatalog = {
       oneTimePurchaseNote: 'Compra única. Sin cargos recurrentes.',
       restorePurchases: 'Restaurar compras',
     },
+    purchaseHelp: {
+      title: 'Ayuda con compras',
+      subtitle:
+        'Llega al siguiente paso correcto para reembolsos, restauraciones y preguntas de facturación desde una sola pantalla compartida de Domani.',
+      iosEyebrow: 'Compra de Apple',
+      iosTitle: '¿Buscas un reembolso?',
+      iosBody:
+        'Los reembolsos de compras en iPhone los gestiona Apple. Podemos llevarte directamente al flujo de reembolso de Apple para tu compra de Domani.',
+      iosUnavailableBody:
+        'No pudimos encontrar una compra activa de Apple en este dispositivo o cuenta para enviar una solicitud de reembolso en este momento.',
+      iosNoteTitle: 'Qué pasa después',
+      iosNoteBody:
+        'Apple revisa las solicitudes de reembolso directamente. La aprobación no es instantánea y normalmente te informan después con la decisión.',
+      iosUnavailableNoteTitle: 'Solicitud de reembolso no disponible',
+      iosUnavailableNoteBody:
+        'Normalmente esto significa que no hay una compra activa del App Store vinculada a esta cuenta o dispositivo. Soporte puede ayudarte a revisar el estado de la compra.',
+      iosRefundCta: 'Solicitar reembolso',
+      iosSupportBody:
+        'Usa soporte si la hoja de reembolso de Apple no se abre o si tu situación de compra no parece correcta.',
+      iosUnavailableSupportBody:
+        'Contacta con soporte si esta cuenta debería tener una compra activa de Apple o si necesitas ayuda para volver a vincular el estado correcto de la compra.',
+      iosRefundSuccessTitle: 'Solicitud de reembolso abierta',
+      iosRefundSuccessBody:
+        'Apple ya está gestionando tu solicitud de reembolso. La revisarán y te avisarán con el resultado.',
+      iosSubmittedTitle: 'Solicitud de reembolso enviada',
+      iosSubmittedBody:
+        'Apple está revisando tu solicitud ahora. Si se aprueba, el acceso de Domani se actualizará cuando el reembolso se procese.',
+      iosSubmittedNoteTitle: 'Qué esperar',
+      iosSubmittedNoteBody:
+        'Apple gestiona la decisión del reembolso. Es posible que no veas el resultado de inmediato y que el acceso tarde un poco en actualizarse después de su decisión.',
+      iosSubmittedDoneCta: 'Volver a Ajustes',
+      iosSubmittedSupportBody:
+        'Contacta con soporte si tu acceso no se actualiza más tarde o si necesitas ayuda para entender el resultado del reembolso.',
+      iosPendingTitle: 'La solicitud de reembolso ya está en revisión',
+      iosPendingBody:
+        'Apple sigue revisando esta solicitud de reembolso, o ya tomó una decisión que todavía se está propagando.',
+      iosPendingNoteTitle: 'Qué significa esto',
+      iosPendingNoteBody:
+        'No necesitas enviar otra solicitud de reembolso ahora mismo. Apple continuará el proceso de revisión desde la solicitud original.',
+      iosPendingSupportBody:
+        'Contacta con soporte si este estado parece incorrecto o si tu acceso a Domani no se actualiza después de que Apple termine la revisión.',
+      iosExistingRequestTitle: 'Ya existe una solicitud de reembolso',
+      iosExistingRequestBody:
+        'Apple ya recibió una solicitud de reembolso para esta compra. El resultado puede seguir en curso, o el estado final todavía puede estar actualizándose.',
+      iosExistingRequestNoteTitle: 'Qué significa esto',
+      iosExistingRequestNoteBody:
+        'No necesitas enviar otra solicitud de reembolso ahora mismo. Vuelve a comprobarlo más tarde o contacta con soporte si tu acceso a Domani sigue viéndose incorrecto.',
+      iosExistingRequestSupportBody:
+        'Contacta con soporte si esta compra ya debería aparecer como reembolsada o si tu acceso sigue viéndose incorrecto más tarde.',
+      iosApprovedTitle: 'Reembolso completado',
+      iosApprovedBody:
+        'Apple ya completó este reembolso. Si tu acceso todavía no se ha actualizado, debería refrescarse en breve.',
+      iosApprovedNoteTitle: 'Qué significa esto',
+      iosApprovedNoteBody:
+        'No necesitas solicitar otro reembolso. Si quieres volver a usar Domani cuando se elimine el acceso, puedes comprar acceso de por vida otra vez.',
+      iosApprovedDoneCta: 'Volver a Ajustes',
+      iosApprovedSupportBody:
+        'Contacta con soporte si tu acceso sigue viéndose incorrecto después de que el reembolso ya se haya completado.',
+      iosDeniedTitle: 'El reembolso no fue aprobado',
+      iosDeniedBody:
+        'Apple no aprobó la última solicitud de reembolso para esta compra. Si todavía crees que algo está mal, contacta con soporte.',
+      iosDeniedNoteTitle: 'Qué significa esto',
+      iosDeniedNoteBody:
+        'Esta compra sigue apareciendo como activa, así que Domani no ha eliminado el acceso. Soporte puede ayudarte si el resultado parece incorrecto.',
+      iosDeniedDoneCta: 'Volver a Ajustes',
+      iosDeniedSupportBody:
+        'Contacta con soporte si necesitas ayuda para entender la decisión o si este estado de compra parece incorrecto.',
+      iosRefundErrorTitle: 'No se pudo abrir el flujo de reembolso de Apple',
+      iosRefundErrorBody:
+        'No pudimos abrir la solicitud de reembolso de Apple en este momento. Inténtalo de nuevo o contacta con soporte si sigues necesitando ayuda.',
+      iosRefundedEyebrow: 'Compra reembolsada',
+      iosRefundedTitle: 'Tu acceso fue eliminado',
+      iosRefundedBody:
+        'Esta compra de iPhone ya fue reembolsada. Para volver a desbloquear Domani, tendrás que comprar acceso de por vida otra vez.',
+      iosRefundedNoteTitle: 'Ya fue reembolsada',
+      iosRefundedNoteBody:
+        'Cuando Apple reembolsa la compra, el acceso se elimina. Si quieres usar Domani otra vez, tendrás que comprar acceso de por vida de nuevo.',
+      iosRepurchaseCta: 'Obtener acceso de por vida otra vez',
+      iosRefundedSupportBody:
+        'Contacta con soporte si tu estado de reembolso parece incorrecto o necesitas ayuda para entender qué pasó.',
+      platformNote:
+        'Las opciones de reembolso y facturación son distintas en iPhone y Android. Domani te guiará por la ruta de soporte correcta para tu dispositivo.',
+      iosActionTitle: 'Solicitar ayuda de reembolso en iPhone',
+      iosActionBody:
+        'Usa esta ruta si necesitas ayuda con una compra de Apple, una solicitud de reembolso o una pregunta de facturación relacionada con tu transacción del App Store.',
+      iosActionCta: 'Continuar con ayuda de compra de Apple',
+      androidActionTitle: 'Obtener ayuda de facturación en Android',
+      androidActionBody:
+        'Usa esta ruta si necesitas ayuda con una compra de Google Play, un problema de facturación o una pregunta sobre compras en Android.',
+      androidActionCta: 'Continuar con ayuda de facturación de Android',
+      restoreTitle: 'Restaurar una compra anterior',
+      restoreBody:
+        'Si ya compraste acceso de por vida con esta cuenta, intenta restaurarlo primero antes de abrir una solicitud de soporte.',
+      restoreCta: 'Restaurar compras',
+      restoreNotFoundTitle: 'No se encontraron compras',
+      restoreNotFoundBody: 'No pudimos encontrar una compra anterior para esta cuenta.',
+      restoreErrorTitle: 'Falló la restauración',
+      restoreErrorBody: 'No se pudieron restaurar las compras. Inténtalo de nuevo.',
+      helpWithTitle: 'Esta pantalla puede ayudarte con',
+      helpTopics: [
+        'Preguntas sobre reembolsos y siguientes pasos',
+        'Restaurar una compra anterior',
+        'Problemas de facturación o recibos',
+        'Enviarte a la ruta de soporte correcta para tu plataforma',
+      ],
+      contactSupportCta: 'Contactar con soporte',
+      entryCta: 'Ayuda con compras',
+    },
     settings: {
       sectionTitle: 'Tu plan',
       currentPlan: 'Plan actual',
@@ -162,6 +270,8 @@ export const es: TranslationCatalog = {
         'Tareas ilimitadas - Todas las funciones desbloqueadas hasta el {{date}}',
       trialingBodyNoDate: 'Tareas ilimitadas - Todas las funciones desbloqueadas',
       lifetimeBody: 'Tareas ilimitadas - Todas las funciones desbloqueadas para siempre',
+      lifetimePurchaseHelpBody:
+        'Obtén ayuda con tu compra de Apple o Google, incluida la orientación sobre reembolsos.',
       getLifetimeAccess: 'Obtener acceso de por vida',
       restorePurchases: 'Restaurar compras',
     },

@@ -436,7 +436,7 @@ export function PaywallModal({
                       <TouchableOpacity
                         onPress={() => {
                           onClose()
-                          router.push('/contact-support')
+                          router.push('/purchase-help?source=paywall')
                         }}
                         activeOpacity={0.7}
                         style={styles.contactSupport}

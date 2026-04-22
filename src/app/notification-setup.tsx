@@ -176,27 +176,27 @@ export default function NotificationSetupScreen() {
           </Text>
         </View>
 
-        {/* Plan Reminder Section */}
         <View style={styles.reminderSection}>
-          {/* Notification opt-in toggle */}
           <View style={[styles.toggleRow, { backgroundColor: themeColors.pickerBackground }]}>
             <Text style={[styles.toggleLabel, { color: themeColors.sectionTitle }]}>
               {t('onboarding.notificationSetup.toggleLabel')}
             </Text>
-            <Switch
-              value={reminderOptedIn}
-              onValueChange={setReminderOptedIn}
-              trackColor={{
-                false: theme.colors.border.primary,
-                true: brandColor,
-              }}
-              thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
-              ios_backgroundColor={theme.colors.border.primary}
-            />
+            <View style={styles.toggleSwitchWrap}>
+              <Switch
+                value={reminderOptedIn}
+                onValueChange={setReminderOptedIn}
+                trackColor={{
+                  false: theme.colors.border.primary,
+                  true: brandColor,
+                }}
+                thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
+                ios_backgroundColor={theme.colors.border.primary}
+              />
+            </View>
           </View>
 
           <View
-            style={[styles.pickerWrapper, { opacity: reminderOptedIn ? 1 : 0.4 }]}
+            style={[styles.pickerWrapper, { opacity: reminderOptedIn ? 1 : 0.38 }]}
             pointerEvents={reminderOptedIn ? 'auto' : 'none'}
           >
             {Platform.OS === 'android' && !showPlanPicker ? (
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: 32,
   },
   eyebrow: {
     fontSize: 12,
@@ -290,22 +290,25 @@ const styles = StyleSheet.create({
     lineHeight: 36,
     textAlign: 'center',
     letterSpacing: 0.3,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
     letterSpacing: 0.2,
-    lineHeight: 24,
-    maxWidth: 320,
+    lineHeight: 22,
+    maxWidth: 332,
   },
   reminderSection: {
-    marginBottom: 24,
+    marginBottom: 26,
   },
   infoSection: {
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    minHeight: 122,
+    justifyContent: 'center',
+    marginBottom: 22,
   },
   infoTitle: {
     fontSize: 15,
@@ -321,47 +324,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    minHeight: 92,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    marginBottom: 18,
   },
-  pickerWrapper: {},
+  pickerWrapper: {
+    alignItems: 'center',
+  },
   toggleLabel: {
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 17,
+    fontWeight: '600',
     flex: 1,
     marginRight: 12,
+  },
+  toggleSwitchWrap: {
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
   },
   pickerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 16,
-    height: 165,
+    height: 194,
     overflow: 'hidden',
+    width: '100%',
   },
   picker: {
-    width: 280,
-    height: 180,
+    width: 368,
+    height: 212,
+    transform: [{ scaleX: 1.16 }, { scaleY: 1.12 }],
   },
   androidTimeButton: {
     borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    minHeight: 194,
+    paddingVertical: 22,
+    paddingHorizontal: 28,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   androidTimeText: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '600',
   },
   spacer: {
     flex: 1,
-    minHeight: 8,
+    minHeight: 18,
   },
   buttonContainer: {
     paddingTop: 8,
   },
   continueButton: {
     borderRadius: 16,
+    minHeight: 72,
     paddingVertical: 18,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
@@ -370,8 +387,8 @@ const styles = StyleSheet.create({
   },
   continueButtonText: {
     color: '#ffffff',
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 19,
+    fontWeight: '700',
     letterSpacing: 0.4,
   },
 })
