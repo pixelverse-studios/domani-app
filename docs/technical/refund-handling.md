@@ -7,6 +7,10 @@ Domani sells a lifetime, non-renewing purchase through RevenueCat.
 The backend source of truth for refund state is the RevenueCat webhook in
 `supabase/functions/revenuecat-webhook/index.ts`.
 
+The app also persists refund-request UI state in
+`public.purchase_refund_states` so purchase-help can avoid re-offering the
+same refund action when the platform has already received the request.
+
 The client subscription state machine in `src/hooks/useSubscription.ts`
 interprets:
 
@@ -56,6 +60,69 @@ Each event is claimed in the log table before profile state changes are applied.
 If the handler fails before completion, the claim is released so a later retry
 can process the event again.
 
+## Purchase Refund State Tracking
+
+The table `public.purchase_refund_states` stores the app-facing refund-request
+state used by purchase-help.
+
+Current meanings:
+
+- `status = 'pending_review'`
+  - the user successfully opened Apple’s refund flow from the app
+  - or the current app session has a strong signal that the refund request is in flight
+- `status = 'approved'`
+  - the RevenueCat webhook has confirmed the refund outcome and access was revoked
+- `client_hint = 'duplicate_request'`
+  - the app hit Apple’s “refund already requested” path and suppresses re-submission
+  - this is a softer hint than an authoritative backend status
+
+The row is cleared when:
+
+- a valid purchase restores lifetime access
+- a refund is reversed
+- the user re-purchases successfully
+
+## Purchase-Help Platform Behavior
+
+### iOS
+
+- paid App Store users get a native refund CTA through StoreKit / RevenueCat
+- duplicate refund requests are suppressed through `purchase_refund_states`
+- approved refunds transition the user into the refunded / locked state
+
+### Android
+
+- paid Google Play users are sent to Google Play order history / refund help
+- Android refund completion still resolves through the backend webhook pipeline
+- Android eligibility is only shown when RevenueCat reports the active entitlement
+  store as `PLAY_STORE`
+
+## Observability
+
+Current observability lives in three places:
+
+1. RevenueCat webhook logs
+   - `public.revenuecat_webhook_events`
+   - edge-function logs in `supabase/functions/revenuecat-webhook`
+2. App-side refund state
+   - `public.purchase_refund_states`
+3. Client diagnostics / breadcrumbs
+   - iOS purchase-help refund state transitions
+   - Android purchase-help handoff breadcrumbs
+   - Android monetization eligibility breadcrumbs
+   - RevenueCat subscriber attribute sync logs
+
+RevenueCat subscriber attributes now mirror a small support-facing subset of
+user data:
+
+- email
+- display name
+- push token when available
+- `signup_cohort`
+- `signup_method`
+- `app_platform`
+- device identifiers collected through RevenueCat where platform permissions allow
+
 ## QA Checklist
 
 When testing refunds in staging:
@@ -64,11 +131,13 @@ When testing refunds in staging:
    - `profiles.tier = 'lifetime'`
    - `profiles.purchased_at IS NOT NULL`
    - `profiles.refunded_at IS NULL`
+   - `purchase_refund_states` has no row for the user
 2. Issue a refund and verify:
    - a revenuecat webhook event row is recorded
    - `profiles.tier = 'none'`
    - `profiles.purchased_at IS NULL`
    - `profiles.refunded_at IS NOT NULL`
+   - `purchase_refund_states.status = 'approved'`
    - the app resolves to `refunded`
    - locked/refunded copy is shown in app
 3. Attempt restore with no active entitlement and verify:
@@ -77,7 +146,12 @@ When testing refunds in staging:
 4. Re-purchase or reverse refund and verify:
    - `profiles.tier = 'lifetime'`
    - `profiles.refunded_at IS NULL`
+   - `purchase_refund_states` row is cleared
    - the app leaves refunded state
+
+See also:
+
+- [`purchase-help-verification.md`](./purchase-help-verification.md)
 
 ## Notes
 
