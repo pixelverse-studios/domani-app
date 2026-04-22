@@ -221,6 +221,35 @@ export const es: TranslationCatalog = {
       iosActionBody:
         'Usa esta ruta si necesitas ayuda con una compra de Apple, una solicitud de reembolso o una pregunta de facturación relacionada con tu transacción del App Store.',
       iosActionCta: 'Continuar con ayuda de compra de Apple',
+      androidTitle: '¿Necesitas ayuda con una compra de Google Play?',
+      androidBody:
+        'Google Play gestiona las solicitudes de reembolso en Android. Podemos llevarte al historial de pedidos de Google Play para que informes un problema con esta compra de Domani.',
+      androidNoteTitle: 'Qué pasa después',
+      androidNoteBody:
+        'Google Play normalmente decide las solicitudes de reembolso en 1–4 días. Si ya pasaron más de 48 horas o el estado de tu compra sigue viéndose incorrecto, contacta con soporte.',
+      androidRefundCta: 'Abrir ayuda de reembolso de Google Play',
+      androidSupportBody:
+        'Contacta con soporte si el flujo de Google Play no se abre, tu compra no aparece o el resultado no coincide con tu acceso en Domani.',
+      androidUnavailableTitle: '¿Necesitas ayuda de facturación en Android?',
+      androidUnavailableBody:
+        'Esta cuenta no parece tener actualmente una compra activa y pagada de Google Play, así que Domani no puede abrir una ruta de reembolso desde aquí ahora mismo.',
+      androidUnavailableNoteTitle: 'Qué significa esto',
+      androidUnavailableNoteBody:
+        'Si esperabas una compra de Google Play en esta cuenta, soporte puede ayudarte a verificar el estado de la compra y el siguiente paso.',
+      androidUnavailableSupportBody:
+        'Contacta con soporte si esta cuenta de Android ya debería tener vinculada una compra activa de Google Play.',
+      androidOpenErrorTitle: 'No se pudo abrir Google Play',
+      androidOpenErrorBody:
+        'No pudimos abrir el flujo de reembolso de Google Play en este momento. Inténtalo de nuevo o contacta con soporte si sigues necesitando ayuda.',
+      androidRefundedTitle: 'Tu acceso fue eliminado',
+      androidRefundedBody:
+        'Esta compra de Android ya fue reembolsada. Para volver a desbloquear Domani, tendrás que comprar acceso de por vida otra vez.',
+      androidRefundedNoteTitle: 'Ya fue reembolsada',
+      androidRefundedNoteBody:
+        'Cuando Google Play reembolsa la compra, el acceso se elimina. Si quieres usar Domani otra vez, tendrás que comprar acceso de por vida de nuevo.',
+      androidRepurchaseCta: 'Obtener acceso de por vida otra vez',
+      androidRefundedSupportBody:
+        'Contacta con soporte si tu estado de reembolso en Android parece incorrecto o necesitas ayuda para entender qué pasó.',
       androidActionTitle: 'Obtener ayuda de facturación en Android',
       androidActionBody:
         'Usa esta ruta si necesitas ayuda con una compra de Google Play, un problema de facturación o una pregunta sobre compras en Android.',
