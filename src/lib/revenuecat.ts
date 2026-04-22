@@ -99,6 +99,11 @@ function getOfferingSummary(offering: PurchasesOffering | null | undefined) {
   }
 }
 
+function normalizeSubscriberAttributeValue(value: string | null | undefined) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
+
 /**
  * Initialize RevenueCat SDK
  * Call this once on app startup after user authentication
@@ -148,6 +153,66 @@ export async function loginRevenueCat(userId: string) {
     console.error('[RevenueCat] Login error:', error)
     throw error
   }
+}
+
+interface RevenueCatSubscriberAttributesInput {
+  email?: string | null
+  displayName?: string | null
+  pushToken?: string | null
+  signupCohort?: string | null
+  signupMethod?: string | null
+}
+
+/**
+ * Keep RevenueCat subscriber attributes useful for support and dashboard inspection.
+ * Supabase remains the source of truth; this only mirrors a small, non-sensitive subset.
+ */
+export async function syncRevenueCatSubscriberAttributes(
+  input: RevenueCatSubscriberAttributesInput,
+) {
+  const email = normalizeSubscriberAttributeValue(input.email)
+  const displayName = normalizeSubscriberAttributeValue(input.displayName)
+  const pushToken = normalizeSubscriberAttributeValue(input.pushToken)
+  const signupCohort = normalizeSubscriberAttributeValue(input.signupCohort)
+  const signupMethod = normalizeSubscriberAttributeValue(input.signupMethod)
+
+  const customAttributes: Record<string, string | null> = {
+    signup_cohort: signupCohort,
+    signup_method: signupMethod,
+    app_platform: Platform.OS,
+  }
+
+  const results = await Promise.allSettled([
+    Purchases.setEmail(email),
+    Purchases.setDisplayName(displayName),
+    Purchases.setPushToken(pushToken),
+    Purchases.setAttributes(customAttributes),
+    Purchases.collectDeviceIdentifiers(),
+  ])
+
+  const rejectedResults = results.filter(
+    (result): result is PromiseRejectedResult => result.status === 'rejected',
+  )
+
+  if (rejectedResults.length > 0) {
+    const syncError = new Error('Failed to sync one or more RevenueCat subscriber attributes')
+
+    console.warn('[RevenueCat] Failed to sync some subscriber attributes', {
+      rejectedCount: rejectedResults.length,
+      errors: rejectedResults.map((result) => String(result.reason)),
+    })
+
+    throw syncError
+  }
+
+  console.log('[RevenueCat] Synced subscriber attributes', {
+    hasEmail: !!email,
+    hasDisplayName: !!displayName,
+    hasPushToken: !!pushToken,
+    signupCohort,
+    signupMethod,
+    platform: Platform.OS,
+  })
 }
 
 /**

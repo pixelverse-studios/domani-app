@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   View,
   ScrollView,
@@ -30,6 +30,7 @@ import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useSubscription } from '~/hooks/useSubscription'
 import { useTranslation } from '~/hooks/useTranslation'
 import { beginRefundRequestForActiveEntitlement } from '~/lib/revenuecat'
+import { addBreadcrumb, captureException, captureMessage } from '~/lib/sentry'
 
 type PurchaseHelpSource = 'locked' | 'settings' | 'paywall'
 
@@ -50,6 +51,7 @@ export default function PurchaseHelpScreen() {
   const isRefunded = subscription.status === 'refunded'
   const isLifetime = subscription.status === 'lifetime'
   const canRequestIosRefund = subscription.canRequestIosRefund
+  const canRequestAndroidRefund = subscription.canRequestAndroidRefund
   const persistedRefundStatus = purchaseRefundState.refundState?.status ?? null
   const persistedClientHint = purchaseRefundState.refundState?.client_hint ?? null
   const hasPendingRefundReview = persistedRefundStatus === 'pending_review'
@@ -83,10 +85,43 @@ export default function PurchaseHelpScreen() {
 
   const androidRefundUrl = 'https://play.google.com/store/account/orderhistory'
 
+  useEffect(() => {
+    if (isIos) return
+
+    addBreadcrumb('Viewed Android purchase help', 'purchase_help.android', {
+      source: source ?? 'purchase_help',
+      subscriptionStatus: subscription.status,
+      canRequestAndroidRefund,
+      isRefunded,
+      persistedRefundStatus,
+      persistedClientHint,
+      isLoadingSubscription: subscription.isLoading,
+      isLoadingRefundState: purchaseRefundState.isLoading,
+    })
+  }, [
+    canRequestAndroidRefund,
+    isIos,
+    isRefunded,
+    persistedClientHint,
+    persistedRefundStatus,
+    purchaseRefundState.isLoading,
+    source,
+    subscription.isLoading,
+    subscription.status,
+  ])
+
   const openExternalUrl = async (url: string) => {
     try {
+      addBreadcrumb('Attempting Android external billing handoff', 'purchase_help.android', {
+        source: source ?? 'purchase_help',
+        url,
+        subscriptionStatus: subscription.status,
+        canRequestAndroidRefund,
+      })
+
       const supported = await Linking.canOpenURL(url)
       if (!supported) {
+        captureMessage('Android purchase help URL cannot be opened', 'warning')
         Alert.alert(
           t('subscription.purchaseHelp.androidOpenErrorTitle'),
           t('subscription.purchaseHelp.androidOpenErrorBody'),
@@ -95,7 +130,18 @@ export default function PurchaseHelpScreen() {
       }
 
       await Linking.openURL(url)
-    } catch {
+      addBreadcrumb('Opened Android external billing handoff', 'purchase_help.android', {
+        source: source ?? 'purchase_help',
+        url,
+      })
+    } catch (error) {
+      captureException(error instanceof Error ? error : new Error(String(error)), {
+        context: 'purchase_help_android_open_external_url',
+        source: source ?? 'purchase_help',
+        url,
+        subscriptionStatus: subscription.status,
+        canRequestAndroidRefund,
+      })
       Alert.alert(
         t('subscription.purchaseHelp.androidOpenErrorTitle'),
         t('subscription.purchaseHelp.androidOpenErrorBody'),
@@ -104,6 +150,16 @@ export default function PurchaseHelpScreen() {
   }
 
   const openBillingSupport = (context: string) => {
+    if (!isIos) {
+      addBreadcrumb('Opened Android billing support from purchase help', 'purchase_help.android', {
+        source: source ?? 'purchase_help',
+        context,
+        subscriptionStatus: subscription.status,
+        canRequestAndroidRefund,
+        isRefunded,
+      })
+    }
+
     router.push({
       pathname: '/contact-support',
       params: {
@@ -176,6 +232,13 @@ export default function PurchaseHelpScreen() {
   }
 
   const handleRepurchase = () => {
+    if (!isIos) {
+      addBreadcrumb('Tapped Android repurchase CTA from purchase help', 'purchase_help.android', {
+        source: source ?? 'purchase_help',
+        subscriptionStatus: subscription.status,
+      })
+    }
+
     router.push('/(tabs)/settings?openPaywall=1')
   }
 
@@ -468,7 +531,7 @@ export default function PurchaseHelpScreen() {
           >
             {isRefunded
               ? t('subscription.purchaseHelp.androidRefundedTitle')
-              : isLifetime
+              : canRequestAndroidRefund
                 ? t('subscription.purchaseHelp.androidTitle')
                 : t('subscription.purchaseHelp.androidUnavailableTitle')}
           </Text>
@@ -478,7 +541,7 @@ export default function PurchaseHelpScreen() {
           >
             {isRefunded
               ? t('subscription.purchaseHelp.androidRefundedBody')
-              : isLifetime
+              : canRequestAndroidRefund
                 ? t('subscription.purchaseHelp.androidBody')
                 : t('subscription.purchaseHelp.androidUnavailableBody')}
           </Text>
@@ -500,7 +563,7 @@ export default function PurchaseHelpScreen() {
                 <Text className="text-sm font-sans-semibold text-content-primary mb-1">
                   {isRefunded
                     ? t('subscription.purchaseHelp.androidRefundedNoteTitle')
-                    : isLifetime
+                    : canRequestAndroidRefund
                       ? t('subscription.purchaseHelp.androidNoteTitle')
                       : t('subscription.purchaseHelp.androidUnavailableNoteTitle')}
                 </Text>
@@ -510,7 +573,7 @@ export default function PurchaseHelpScreen() {
                 >
                   {isRefunded
                     ? t('subscription.purchaseHelp.androidRefundedNoteBody')
-                    : isLifetime
+                    : canRequestAndroidRefund
                       ? t('subscription.purchaseHelp.androidNoteBody')
                       : t('subscription.purchaseHelp.androidUnavailableNoteBody')}
                 </Text>
@@ -528,7 +591,7 @@ export default function PurchaseHelpScreen() {
               >
                 {t('subscription.purchaseHelp.androidRepurchaseCta')}
               </GradientButton>
-            ) : isLifetime ? (
+            ) : canRequestAndroidRefund ? (
               <GradientButton
                 onPress={() => openExternalUrl(androidRefundUrl)}
                 disabled={isBusy}
@@ -544,14 +607,14 @@ export default function PurchaseHelpScreen() {
                 openBillingSupport(
                   isRefunded
                     ? 'android_refunded_purchase_help'
-                    : isLifetime
+                    : canRequestAndroidRefund
                       ? 'android_refund_request_support'
                       : 'android_refund_unavailable_support',
                 )
               }
               disabled={isBusy}
               activeOpacity={0.82}
-              className={`${isRefunded || isLifetime ? 'mt-4' : 'mt-2'} py-4 flex-row items-center justify-between`}
+              className={`${isRefunded || canRequestAndroidRefund ? 'mt-4' : 'mt-2'} py-4 flex-row items-center justify-between`}
               style={{
                 borderTopWidth: 1,
                 borderTopColor: theme.colors.border.primary,
@@ -565,7 +628,7 @@ export default function PurchaseHelpScreen() {
                 <Text className="text-xs text-content-secondary" style={{ lineHeight: 19 }}>
                   {isRefunded
                     ? t('subscription.purchaseHelp.androidRefundedSupportBody')
-                    : isLifetime
+                    : canRequestAndroidRefund
                       ? t('subscription.purchaseHelp.androidSupportBody')
                       : t('subscription.purchaseHelp.androidUnavailableSupportBody')}
                 </Text>

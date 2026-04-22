@@ -5,6 +5,7 @@ import Purchases, { CustomerInfo, PurchasesPackage } from 'react-native-purchase
 import { addDays, parseISO } from 'date-fns'
 
 import { supabase } from '~/lib/supabase'
+import { addBreadcrumb } from '~/lib/sentry'
 import { useAuth } from '~/hooks/useAuth'
 import { clearCurrentUserPurchaseRefundState } from '~/hooks/usePurchaseRefundState'
 import { useProfile } from '~/hooks/useProfile'
@@ -15,6 +16,7 @@ import {
   initializeRevenueCat,
   loginRevenueCat,
   logoutRevenueCat,
+  syncRevenueCatSubscriberAttributes,
   getOfferings,
   getOfferingForCohort,
   purchasePackage,
@@ -155,6 +157,7 @@ export function useSubscription() {
   const queryClient = useQueryClient()
   const [isInitialized, setIsInitialized] = useState(false)
   const previousUserId = useRef<string | undefined>(undefined)
+  const previousRevenueCatAttributeSignatureRef = useRef<string | null>(null)
   // Tracks whether a trial-start mutation is currently in flight so that
   // unrelated profile-invalidation triggers (e.g. the AppState foreground
   // listener) don't race the optimistic update and overwrite it with stale
@@ -182,6 +185,7 @@ export function useSubscription() {
       // Handle logout when user signs out (previous user existed, now gone)
       if (previousUserId.current && !user?.id) {
         logoutRevenueCat()
+        previousRevenueCatAttributeSignatureRef.current = null
         if (isMounted) {
           setIsInitialized(false)
         }
@@ -212,6 +216,45 @@ export function useSubscription() {
       isMounted = false
     }
   }, [user?.id, shouldBypassRevenueCat])
+
+  useEffect(() => {
+    if (!user?.id || !isInitialized || shouldBypassRevenueCat || !profile) return
+
+    const attributeSignature = JSON.stringify({
+      email: user.email ?? null,
+      displayName: profile.full_name ?? null,
+      pushToken: profile.expo_push_token ?? null,
+      signupCohort: profile.signup_cohort ?? null,
+      signupMethod: profile.signup_method ?? null,
+    })
+
+    if (previousRevenueCatAttributeSignatureRef.current === attributeSignature) return
+
+    previousRevenueCatAttributeSignatureRef.current = attributeSignature
+
+    syncRevenueCatSubscriberAttributes({
+      email: user.email ?? null,
+      displayName: profile.full_name ?? null,
+      pushToken: profile.expo_push_token ?? null,
+      signupCohort: profile.signup_cohort ?? null,
+      signupMethod: profile.signup_method ?? null,
+    }).catch((error) => {
+      previousRevenueCatAttributeSignatureRef.current = null
+      console.warn('[useSubscription] Failed to sync RevenueCat subscriber attributes', {
+        userId: user.id,
+        error,
+      })
+    })
+  }, [
+    isInitialized,
+    shouldBypassRevenueCat,
+    user?.email,
+    user?.id,
+    profile?.expo_push_token,
+    profile?.full_name,
+    profile?.signup_cohort,
+    profile?.signup_method,
+  ])
 
   // Query for RevenueCat customer info (disabled during beta)
   const {
@@ -264,8 +307,43 @@ export function useSubscription() {
     isBeta,
     betaAccess,
   )
-  const hasActiveRevenueCatEntitlement = !!effectiveCustomerInfo?.entitlements.active[ENTITLEMENT_ID]
+  const activeRevenueCatEntitlement = effectiveCustomerInfo?.entitlements.active[ENTITLEMENT_ID]
+  const hasActiveRevenueCatEntitlement = !!activeRevenueCatEntitlement
   const canRequestIosRefund = Platform.OS === 'ios' && hasActiveRevenueCatEntitlement
+  const canRequestAndroidRefund =
+    Platform.OS === 'android' && activeRevenueCatEntitlement?.store === 'PLAY_STORE'
+
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !user?.id) return
+
+    addBreadcrumb('Resolved Android monetization state', 'monetization.android', {
+      userId: user.id,
+      subscriptionStatus: subscriptionState.status,
+      offeringIdentifier,
+      revenueCatInitialized: isInitialized,
+      shouldBypassRevenueCat,
+      hasCustomerInfo: !!effectiveCustomerInfo,
+      activeEntitlementId: activeRevenueCatEntitlement ? ENTITLEMENT_ID : null,
+      activeEntitlementStore: activeRevenueCatEntitlement?.store ?? null,
+      activeProductIdentifier: activeRevenueCatEntitlement?.productIdentifier ?? null,
+      canRequestAndroidRefund,
+      refundedAt: profile?.refunded_at ?? null,
+      purchasedAt: profile?.purchased_at ?? null,
+      signupCohort: profile?.signup_cohort ?? null,
+    })
+  }, [
+    activeRevenueCatEntitlement,
+    canRequestAndroidRefund,
+    effectiveCustomerInfo,
+    isInitialized,
+    offeringIdentifier,
+    profile?.purchased_at,
+    profile?.refunded_at,
+    profile?.signup_cohort,
+    shouldBypassRevenueCat,
+    subscriptionState.status,
+    user?.id,
+  ])
 
   // Stable primitive for the effect dep array — avoids timer churn from Date object identity.
   const trialExpiresAt = subscriptionState.trialExpirationDate?.getTime() ?? null
@@ -485,6 +563,7 @@ export function useSubscription() {
     restore: restoreMutation.mutateAsync,
     isRestoring: restoreMutation.isPending,
     canRequestIosRefund,
+    canRequestAndroidRefund,
     refetch: refetchCustomerInfo,
   }
 }
