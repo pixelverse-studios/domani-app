@@ -45,19 +45,30 @@ export default function PurchaseHelpScreen() {
   const { catalog, t } = useTranslation()
   const { source } = useLocalSearchParams<{ source?: PurchaseHelpSource }>()
   const [isRequestingRefund, setIsRequestingRefund] = useState(false)
-  const [refundStatusState, setRefundStatusState] = useState<'idle' | 'submitted' | 'pending'>(
-    'idle',
-  )
+  const [refundStatusState, setRefundStatusState] = useState<
+    'idle' | 'submitted' | 'pending' | 'approved'
+  >('idle')
   const helpTopics = catalog.subscription.purchaseHelp.helpTopics
   const isIos = Platform.OS === 'ios'
   const isRefunded = subscription.status === 'refunded'
   const isLifetime = subscription.status === 'lifetime'
   const canRequestIosRefund = subscription.canRequestIosRefund
-  const hasPendingRefundReview = purchaseRefundState.refundState?.status === 'pending_review'
+  const persistedRefundStatus = purchaseRefundState.refundState?.status ?? null
+  const hasPendingRefundReview = persistedRefundStatus === 'pending_review'
+  const hasApprovedRefund = persistedRefundStatus === 'approved'
   const canStartRefundRequest =
-    canRequestIosRefund && !hasPendingRefundReview && !purchaseRefundState.isLoading
+    canRequestIosRefund &&
+    !hasPendingRefundReview &&
+    !hasApprovedRefund &&
+    !purchaseRefundState.isLoading
   const effectiveRefundStatusState =
-    refundStatusState !== 'idle' ? refundStatusState : hasPendingRefundReview ? 'pending' : 'idle'
+    refundStatusState !== 'idle'
+      ? refundStatusState
+      : persistedRefundStatus === 'pending_review'
+        ? 'pending'
+        : persistedRefundStatus === 'approved'
+          ? 'approved'
+          : 'idle'
   const isBusy =
     subscription.isRestoring ||
     isRequestingRefund ||
@@ -123,21 +134,6 @@ export default function PurchaseHelpScreen() {
       const message = error instanceof Error ? error.message : String(error)
 
       if (message.includes('Refund already requested')) {
-        try {
-          await purchaseRefundState.markPending({
-            platform: 'ios',
-            source: source ?? 'purchase_help',
-            error: message,
-          })
-        } catch (persistError) {
-          console.warn(
-            '[purchase-help] failed to persist pending refund state after duplicate request',
-            {
-              source: source ?? 'purchase_help',
-              error: persistError,
-            },
-          )
-        }
         setRefundStatusState('pending')
         return
       }
@@ -207,7 +203,9 @@ export default function PurchaseHelpScreen() {
               >
                 {effectiveRefundStatusState === 'pending'
                   ? t('subscription.purchaseHelp.iosPendingTitle')
-                  : t('subscription.purchaseHelp.iosSubmittedTitle')}
+                  : effectiveRefundStatusState === 'approved'
+                    ? t('subscription.purchaseHelp.iosApprovedTitle')
+                    : t('subscription.purchaseHelp.iosSubmittedTitle')}
               </Text>
               <Text
                 className="text-base text-content-secondary mt-3 pr-4"
@@ -215,7 +213,9 @@ export default function PurchaseHelpScreen() {
               >
                 {effectiveRefundStatusState === 'pending'
                   ? t('subscription.purchaseHelp.iosPendingBody')
-                  : t('subscription.purchaseHelp.iosSubmittedBody')}
+                  : effectiveRefundStatusState === 'approved'
+                    ? t('subscription.purchaseHelp.iosApprovedBody')
+                    : t('subscription.purchaseHelp.iosSubmittedBody')}
               </Text>
 
               <View
@@ -228,7 +228,9 @@ export default function PurchaseHelpScreen() {
                 <Text className="text-sm font-sans-semibold text-content-primary mb-1">
                   {effectiveRefundStatusState === 'pending'
                     ? t('subscription.purchaseHelp.iosPendingNoteTitle')
-                    : t('subscription.purchaseHelp.iosSubmittedNoteTitle')}
+                    : effectiveRefundStatusState === 'approved'
+                      ? t('subscription.purchaseHelp.iosApprovedNoteTitle')
+                      : t('subscription.purchaseHelp.iosSubmittedNoteTitle')}
                 </Text>
                 <Text
                   className="text-sm text-content-secondary"
@@ -236,7 +238,9 @@ export default function PurchaseHelpScreen() {
                 >
                   {effectiveRefundStatusState === 'pending'
                     ? t('subscription.purchaseHelp.iosPendingNoteBody')
-                    : t('subscription.purchaseHelp.iosSubmittedNoteBody')}
+                    : effectiveRefundStatusState === 'approved'
+                      ? t('subscription.purchaseHelp.iosApprovedNoteBody')
+                      : t('subscription.purchaseHelp.iosSubmittedNoteBody')}
                 </Text>
               </View>
 
@@ -246,7 +250,9 @@ export default function PurchaseHelpScreen() {
                   fullWidth
                   icon={<CheckCircle2 size={18} color="#ffffff" />}
                 >
-                  {t('subscription.purchaseHelp.iosSubmittedDoneCta')}
+                  {effectiveRefundStatusState === 'approved'
+                    ? t('subscription.purchaseHelp.iosApprovedDoneCta')
+                    : t('subscription.purchaseHelp.iosSubmittedDoneCta')}
                 </GradientButton>
 
                 <TouchableOpacity
@@ -265,7 +271,9 @@ export default function PurchaseHelpScreen() {
                     <Text className="text-xs text-content-secondary" style={{ lineHeight: 19 }}>
                       {effectiveRefundStatusState === 'pending'
                         ? t('subscription.purchaseHelp.iosPendingSupportBody')
-                        : t('subscription.purchaseHelp.iosSubmittedSupportBody')}
+                        : effectiveRefundStatusState === 'approved'
+                          ? t('subscription.purchaseHelp.iosApprovedSupportBody')
+                          : t('subscription.purchaseHelp.iosSubmittedSupportBody')}
                     </Text>
                   </View>
                   <View className="flex-row items-center">

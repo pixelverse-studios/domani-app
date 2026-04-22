@@ -159,6 +159,15 @@ export async function logoutRevenueCat() {
     await Purchases.logOut()
     console.log('[RevenueCat] User logged out')
   } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+
+    // RevenueCat can already be in its anonymous state during sign-out races.
+    // In that case there is nothing left to do, so don't surface noisy logs.
+    if (errorMessage.includes('current user is anonymous')) {
+      console.log('[RevenueCat] Logout skipped - current user already anonymous')
+      return
+    }
+
     // Ignore rate limit errors (code 16, status 429) - these happen when
     // another request is in flight, which is common during rapid auth changes
     if (

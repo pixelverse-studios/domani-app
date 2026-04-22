@@ -176,6 +176,15 @@ export const es: TranslationCatalog = {
         'No necesitas enviar otra solicitud de reembolso ahora mismo. Apple continuará el proceso de revisión desde la solicitud original.',
       iosPendingSupportBody:
         'Contacta con soporte si este estado parece incorrecto o si tu acceso a Domani no se actualiza después de que Apple termine la revisión.',
+      iosApprovedTitle: 'Reembolso completado',
+      iosApprovedBody:
+        'Apple ya completó este reembolso. Si tu acceso todavía no se ha actualizado, debería refrescarse en breve.',
+      iosApprovedNoteTitle: 'Qué significa esto',
+      iosApprovedNoteBody:
+        'No necesitas solicitar otro reembolso. Si quieres volver a usar Domani cuando se elimine el acceso, puedes comprar acceso de por vida otra vez.',
+      iosApprovedDoneCta: 'Volver a Ajustes',
+      iosApprovedSupportBody:
+        'Contacta con soporte si tu acceso sigue viéndose incorrecto después de que el reembolso ya se haya completado.',
       iosRefundErrorTitle: 'No se pudo abrir el flujo de reembolso de Apple',
       iosRefundErrorBody:
         'No pudimos abrir la solicitud de reembolso de Apple en este momento. Inténtalo de nuevo o contacta con soporte si sigues necesitando ayuda.',

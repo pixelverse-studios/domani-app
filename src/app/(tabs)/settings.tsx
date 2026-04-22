@@ -359,6 +359,26 @@ function SettingsContent() {
           </>
         )}
 
+        {__DEV__ && (
+          <TouchableOpacity
+            onPress={() => router.push('/notification-setup')}
+            activeOpacity={0.7}
+            className="py-3.5 px-4 rounded-xl mb-4"
+            style={{
+              backgroundColor: theme.colors.interactive.hover,
+              borderWidth: 1,
+              borderColor: theme.colors.border.primary,
+            }}
+          >
+            <Text className="font-semibold text-content-primary">
+              Reopen Notification Onboarding
+            </Text>
+            <Text className="text-sm text-content-secondary mt-1">
+              Dev-only shortcut to revisit the trial-start reminder screen.
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Log Out Button */}
         <TouchableOpacity
           onPress={handleSignOut}

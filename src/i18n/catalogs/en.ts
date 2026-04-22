@@ -171,6 +171,15 @@ export const en = {
         'You do not need to submit another refund request right now. Apple will continue the review flow from the original request.',
       iosPendingSupportBody:
         'Contact support if this status looks wrong or your Domani access does not update after Apple finishes the review.',
+      iosApprovedTitle: 'Refund completed',
+      iosApprovedBody:
+        'Apple has already completed this refund. If your access has not updated yet, it should refresh shortly.',
+      iosApprovedNoteTitle: 'What this means',
+      iosApprovedNoteBody:
+        'You do not need to request another refund. If you want to use Domani again after access is removed, you can purchase lifetime access again.',
+      iosApprovedDoneCta: 'Back to Settings',
+      iosApprovedSupportBody:
+        'Contact support if your access still looks incorrect after the refund has already been completed.',
       iosRefundErrorTitle: 'Could not open Apple refund flow',
       iosRefundErrorBody:
         'We could not open Apple’s refund request right now. Try again or contact support if you still need help.',
