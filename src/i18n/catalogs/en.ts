@@ -171,6 +171,14 @@ export const en = {
         'You do not need to submit another refund request right now. Apple will continue the review flow from the original request.',
       iosPendingSupportBody:
         'Contact support if this status looks wrong or your Domani access does not update after Apple finishes the review.',
+      iosExistingRequestTitle: 'A refund request already exists',
+      iosExistingRequestBody:
+        'Apple has already received a refund request for this purchase. The result may still be in progress, or the final outcome may still be updating.',
+      iosExistingRequestNoteTitle: 'What this means',
+      iosExistingRequestNoteBody:
+        'You do not need to submit another refund request right now. Check back later or contact support if your Domani access still looks wrong.',
+      iosExistingRequestSupportBody:
+        'Contact support if this purchase should already be refunded or if your access still looks incorrect later.',
       iosApprovedTitle: 'Refund completed',
       iosApprovedBody:
         'Apple has already completed this refund. If your access has not updated yet, it should refresh shortly.',
@@ -180,6 +188,15 @@ export const en = {
       iosApprovedDoneCta: 'Back to Settings',
       iosApprovedSupportBody:
         'Contact support if your access still looks incorrect after the refund has already been completed.',
+      iosDeniedTitle: 'Refund was not approved',
+      iosDeniedBody:
+        'Apple did not approve the last refund request for this purchase. If you still believe something is wrong, contact support.',
+      iosDeniedNoteTitle: 'What this means',
+      iosDeniedNoteBody:
+        'This purchase still appears active, so Domani has not removed access. Support can help if the outcome looks incorrect.',
+      iosDeniedDoneCta: 'Back to Settings',
+      iosDeniedSupportBody:
+        'Contact support if you need help understanding the decision or if this purchase state looks incorrect.',
       iosRefundErrorTitle: 'Could not open Apple refund flow',
       iosRefundErrorBody:
         'We could not open Apple’s refund request right now. Try again or contact support if you still need help.',

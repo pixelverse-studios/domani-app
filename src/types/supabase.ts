@@ -575,35 +575,38 @@ export type Database = {
       }
       purchase_refund_states: {
         Row: {
+          client_hint: string | null
           created_at: string
           last_error: string | null
           last_source: string | null
           platform: string
           requested_at: string
           resolved_at: string | null
-          status: Database['public']['Enums']['refund_request_status']
+          status: Database['public']['Enums']['refund_request_status'] | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          client_hint?: string | null
           created_at?: string
           last_error?: string | null
           last_source?: string | null
           platform: string
           requested_at?: string
           resolved_at?: string | null
-          status: Database['public']['Enums']['refund_request_status']
+          status?: Database['public']['Enums']['refund_request_status'] | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          client_hint?: string | null
           created_at?: string
           last_error?: string | null
           last_source?: string | null
           platform?: string
           requested_at?: string
           resolved_at?: string | null
-          status?: Database['public']['Enums']['refund_request_status']
+          status?: Database['public']['Enums']['refund_request_status'] | null
           updated_at?: string
           user_id?: string
         }
@@ -1068,6 +1071,10 @@ export type Database = {
         Args: { p_error?: string | null; p_platform?: string; p_source?: string | null }
         Returns: Database['public']['Tables']['purchase_refund_states']['Row']
       }
+      record_current_user_duplicate_refund_request_hint: {
+        Args: { p_error?: string | null; p_platform?: string; p_source?: string | null }
+        Returns: Database['public']['Tables']['purchase_refund_states']['Row']
+      }
       log_audit_event: {
         Args: {
           p_action: Database['public']['Enums']['audit_action']
@@ -1120,7 +1127,7 @@ export type Database = {
         | 'login_attempt'
         | 'login_error'
         | 'read'
-      refund_request_status: 'pending_review' | 'approved'
+      refund_request_status: 'pending_review' | 'approved' | 'denied'
       signup_cohort: 'friends_family' | 'early_adopter' | 'general'
       task_priority: 'top' | 'high' | 'medium' | 'low'
       tier: 'none' | 'trialing' | 'lifetime'
@@ -1267,7 +1274,7 @@ export const Constants = {
         'login_error',
         'read',
       ],
-      refund_request_status: ['pending_review', 'approved'],
+      refund_request_status: ['pending_review', 'approved', 'denied'],
       signup_cohort: ['friends_family', 'early_adopter', 'general'],
       task_priority: ['top', 'high', 'medium', 'low'],
       tier: ['none', 'trialing', 'lifetime'],

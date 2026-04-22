@@ -46,7 +46,7 @@ export default function PurchaseHelpScreen() {
   const { source } = useLocalSearchParams<{ source?: PurchaseHelpSource }>()
   const [isRequestingRefund, setIsRequestingRefund] = useState(false)
   const [refundStatusState, setRefundStatusState] = useState<
-    'idle' | 'submitted' | 'pending' | 'approved'
+    'idle' | 'submitted' | 'pending' | 'approved' | 'existing_request' | 'denied'
   >('idle')
   const helpTopics = catalog.subscription.purchaseHelp.helpTopics
   const isIos = Platform.OS === 'ios'
@@ -54,25 +54,34 @@ export default function PurchaseHelpScreen() {
   const isLifetime = subscription.status === 'lifetime'
   const canRequestIosRefund = subscription.canRequestIosRefund
   const persistedRefundStatus = purchaseRefundState.refundState?.status ?? null
+  const persistedClientHint = purchaseRefundState.refundState?.client_hint ?? null
   const hasPendingRefundReview = persistedRefundStatus === 'pending_review'
   const hasApprovedRefund = persistedRefundStatus === 'approved'
+  const hasDeniedRefund = persistedRefundStatus === 'denied'
+  const hasDuplicateRequestHint =
+    persistedRefundStatus === null && persistedClientHint === 'duplicate_request'
   const canStartRefundRequest =
     canRequestIosRefund &&
     !hasPendingRefundReview &&
     !hasApprovedRefund &&
+    !hasDeniedRefund &&
+    !hasDuplicateRequestHint &&
     !purchaseRefundState.isLoading
   const effectiveRefundStatusState =
-    refundStatusState !== 'idle'
-      ? refundStatusState
+    persistedRefundStatus === 'approved'
+      ? 'approved'
       : persistedRefundStatus === 'pending_review'
         ? 'pending'
-        : persistedRefundStatus === 'approved'
-          ? 'approved'
-          : 'idle'
+        : persistedRefundStatus === 'denied'
+          ? 'denied'
+          : hasDuplicateRequestHint
+            ? 'existing_request'
+            : refundStatusState
   const isBusy =
     subscription.isRestoring ||
     isRequestingRefund ||
     purchaseRefundState.isMarkingPending ||
+    purchaseRefundState.isRecordingDuplicateRequestHint ||
     purchaseRefundState.isClearingState
 
   const platformAction =
@@ -134,7 +143,22 @@ export default function PurchaseHelpScreen() {
       const message = error instanceof Error ? error.message : String(error)
 
       if (message.includes('Refund already requested')) {
-        setRefundStatusState('pending')
+        try {
+          await purchaseRefundState.recordDuplicateRequestHint({
+            platform: 'ios',
+            source: source ?? 'purchase_help',
+            error: message,
+          })
+        } catch (persistError) {
+          console.warn(
+            '[purchase-help] failed to persist duplicate refund request hint',
+            {
+              source: source ?? 'purchase_help',
+              error: persistError,
+            },
+          )
+        }
+        setRefundStatusState('existing_request')
         return
       }
 
@@ -203,8 +227,12 @@ export default function PurchaseHelpScreen() {
               >
                 {effectiveRefundStatusState === 'pending'
                   ? t('subscription.purchaseHelp.iosPendingTitle')
-                  : effectiveRefundStatusState === 'approved'
+                  : effectiveRefundStatusState === 'existing_request'
+                    ? t('subscription.purchaseHelp.iosExistingRequestTitle')
+                    : effectiveRefundStatusState === 'approved'
                     ? t('subscription.purchaseHelp.iosApprovedTitle')
+                    : effectiveRefundStatusState === 'denied'
+                      ? t('subscription.purchaseHelp.iosDeniedTitle')
                     : t('subscription.purchaseHelp.iosSubmittedTitle')}
               </Text>
               <Text
@@ -213,8 +241,12 @@ export default function PurchaseHelpScreen() {
               >
                 {effectiveRefundStatusState === 'pending'
                   ? t('subscription.purchaseHelp.iosPendingBody')
-                  : effectiveRefundStatusState === 'approved'
+                  : effectiveRefundStatusState === 'existing_request'
+                    ? t('subscription.purchaseHelp.iosExistingRequestBody')
+                    : effectiveRefundStatusState === 'approved'
                     ? t('subscription.purchaseHelp.iosApprovedBody')
+                    : effectiveRefundStatusState === 'denied'
+                      ? t('subscription.purchaseHelp.iosDeniedBody')
                     : t('subscription.purchaseHelp.iosSubmittedBody')}
               </Text>
 
@@ -228,8 +260,12 @@ export default function PurchaseHelpScreen() {
                 <Text className="text-sm font-sans-semibold text-content-primary mb-1">
                   {effectiveRefundStatusState === 'pending'
                     ? t('subscription.purchaseHelp.iosPendingNoteTitle')
-                    : effectiveRefundStatusState === 'approved'
+                    : effectiveRefundStatusState === 'existing_request'
+                      ? t('subscription.purchaseHelp.iosExistingRequestNoteTitle')
+                      : effectiveRefundStatusState === 'approved'
                       ? t('subscription.purchaseHelp.iosApprovedNoteTitle')
+                      : effectiveRefundStatusState === 'denied'
+                        ? t('subscription.purchaseHelp.iosDeniedNoteTitle')
                       : t('subscription.purchaseHelp.iosSubmittedNoteTitle')}
                 </Text>
                 <Text
@@ -238,8 +274,12 @@ export default function PurchaseHelpScreen() {
                 >
                   {effectiveRefundStatusState === 'pending'
                     ? t('subscription.purchaseHelp.iosPendingNoteBody')
-                    : effectiveRefundStatusState === 'approved'
+                    : effectiveRefundStatusState === 'existing_request'
+                      ? t('subscription.purchaseHelp.iosExistingRequestNoteBody')
+                      : effectiveRefundStatusState === 'approved'
                       ? t('subscription.purchaseHelp.iosApprovedNoteBody')
+                      : effectiveRefundStatusState === 'denied'
+                        ? t('subscription.purchaseHelp.iosDeniedNoteBody')
                       : t('subscription.purchaseHelp.iosSubmittedNoteBody')}
                 </Text>
               </View>
@@ -252,6 +292,8 @@ export default function PurchaseHelpScreen() {
                 >
                   {effectiveRefundStatusState === 'approved'
                     ? t('subscription.purchaseHelp.iosApprovedDoneCta')
+                    : effectiveRefundStatusState === 'denied'
+                      ? t('subscription.purchaseHelp.iosDeniedDoneCta')
                     : t('subscription.purchaseHelp.iosSubmittedDoneCta')}
                 </GradientButton>
 
@@ -271,8 +313,12 @@ export default function PurchaseHelpScreen() {
                     <Text className="text-xs text-content-secondary" style={{ lineHeight: 19 }}>
                       {effectiveRefundStatusState === 'pending'
                         ? t('subscription.purchaseHelp.iosPendingSupportBody')
-                        : effectiveRefundStatusState === 'approved'
+                        : effectiveRefundStatusState === 'existing_request'
+                          ? t('subscription.purchaseHelp.iosExistingRequestSupportBody')
+                          : effectiveRefundStatusState === 'approved'
                           ? t('subscription.purchaseHelp.iosApprovedSupportBody')
+                          : effectiveRefundStatusState === 'denied'
+                            ? t('subscription.purchaseHelp.iosDeniedSupportBody')
                           : t('subscription.purchaseHelp.iosSubmittedSupportBody')}
                     </Text>
                   </View>

@@ -176,6 +176,14 @@ export const es: TranslationCatalog = {
         'No necesitas enviar otra solicitud de reembolso ahora mismo. Apple continuará el proceso de revisión desde la solicitud original.',
       iosPendingSupportBody:
         'Contacta con soporte si este estado parece incorrecto o si tu acceso a Domani no se actualiza después de que Apple termine la revisión.',
+      iosExistingRequestTitle: 'Ya existe una solicitud de reembolso',
+      iosExistingRequestBody:
+        'Apple ya recibió una solicitud de reembolso para esta compra. El resultado puede seguir en curso, o el estado final todavía puede estar actualizándose.',
+      iosExistingRequestNoteTitle: 'Qué significa esto',
+      iosExistingRequestNoteBody:
+        'No necesitas enviar otra solicitud de reembolso ahora mismo. Vuelve a comprobarlo más tarde o contacta con soporte si tu acceso a Domani sigue viéndose incorrecto.',
+      iosExistingRequestSupportBody:
+        'Contacta con soporte si esta compra ya debería aparecer como reembolsada o si tu acceso sigue viéndose incorrecto más tarde.',
       iosApprovedTitle: 'Reembolso completado',
       iosApprovedBody:
         'Apple ya completó este reembolso. Si tu acceso todavía no se ha actualizado, debería refrescarse en breve.',
@@ -185,6 +193,15 @@ export const es: TranslationCatalog = {
       iosApprovedDoneCta: 'Volver a Ajustes',
       iosApprovedSupportBody:
         'Contacta con soporte si tu acceso sigue viéndose incorrecto después de que el reembolso ya se haya completado.',
+      iosDeniedTitle: 'El reembolso no fue aprobado',
+      iosDeniedBody:
+        'Apple no aprobó la última solicitud de reembolso para esta compra. Si todavía crees que algo está mal, contacta con soporte.',
+      iosDeniedNoteTitle: 'Qué significa esto',
+      iosDeniedNoteBody:
+        'Esta compra sigue apareciendo como activa, así que Domani no ha eliminado el acceso. Soporte puede ayudarte si el resultado parece incorrecto.',
+      iosDeniedDoneCta: 'Volver a Ajustes',
+      iosDeniedSupportBody:
+        'Contacta con soporte si necesitas ayuda para entender la decisión o si este estado de compra parece incorrecto.',
       iosRefundErrorTitle: 'No se pudo abrir el flujo de reembolso de Apple',
       iosRefundErrorBody:
         'No pudimos abrir la solicitud de reembolso de Apple en este momento. Inténtalo de nuevo o contacta con soporte si sigues necesitando ayuda.',

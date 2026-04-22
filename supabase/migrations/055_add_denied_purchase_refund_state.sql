@@ -1,15 +1,19 @@
--- DEV-784 exploration follow-up:
--- This migration version exists in staging history because the denied refund
--- state was briefly explored. The final implementation intentionally keeps the
--- persisted refund-request model limited to:
---   - pending_review
---   - approved
---
--- We keep this no-op migration in the repo solely to preserve local/remote
--- migration history alignment for future db push operations.
+-- DEV-784 follow-up:
+-- Extend purchase_refund_states so the local migration history matches staging.
+-- The current app UX does not rely on `denied`, but the staging schema already
+-- includes it in the enum, so local migrations and generated types must match.
 
 DO $$
 BEGIN
-  -- Intentionally no-op.
-  NULL;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_enum
+    WHERE enumlabel = 'denied'
+      AND enumtypid = 'public.refund_request_status'::regtype
+  ) THEN
+    ALTER TYPE public.refund_request_status ADD VALUE 'denied';
+  END IF;
 END $$;
+
+COMMENT ON COLUMN public.purchase_refund_states.status IS
+'Current known refund-request state. pending_review means Apple has an in-flight request; approved means the refund was granted; denied means Apple did not approve the request.';

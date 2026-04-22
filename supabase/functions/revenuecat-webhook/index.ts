@@ -377,6 +377,7 @@ async function upsertApprovedRefundState(
       user_id: userId,
       platform: 'ios',
       status: 'approved',
+      client_hint: null,
       requested_at: eventTimestamp,
       resolved_at: eventTimestamp,
       last_source: `revenuecat:${event.type}`,
