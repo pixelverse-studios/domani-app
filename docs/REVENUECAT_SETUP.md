@@ -6,6 +6,7 @@ Complete guide for setting up in-app purchases with RevenueCat and App Store Con
 
 - iOS setup details live in [APP_STORE_CONNECT_SETUP.md](/Users/phil/PVS-local/Projects/domani/domani-app/docs/APP_STORE_CONNECT_SETUP.md)
 - Android service-account setup for RevenueCat lives in [GOOGLE_PLAY_SERVICE_ACCOUNT_REVENUECAT.md](/Users/phil/PVS-local/Projects/domani/domani-app/docs/technical/GOOGLE_PLAY_SERVICE_ACCOUNT_REVENUECAT.md)
+- refund-notification and webhook verification setup lives in [revenuecat-server-notifications-setup.md](/Users/phil/PVS-local/Projects/domani/domani-app/docs/technical/revenuecat-server-notifications-setup.md)
 
 If you are working on the Google Play side of RevenueCat setup, start with the Android service-account guide before configuring the RevenueCat dashboard.
 
