@@ -24,10 +24,7 @@ The intended flow is:
 1. Apple App Store or Google Play emits a purchase / refund lifecycle event.
 2. RevenueCat receives and interprets the platform event.
 3. RevenueCat forwards the normalized webhook event to Domani's Supabase Edge Function.
-4. Supabase updates:
-   - `public.profiles`
-   - `public.purchase_refund_states`
-   - `public.revenuecat_webhook_events`
+4. Supabase updates `public.profiles` with the authoritative purchase or refund timestamps and access state.
 
 Without the platform-to-RevenueCat step, refunded users may keep access longer than they should.
 
@@ -37,12 +34,8 @@ The repo-side pieces already exist:
 
 - RevenueCat webhook handler:
   [supabase/functions/revenuecat-webhook/index.ts](/Users/phil/PVS-local/Projects/domani/domani-app/supabase/functions/revenuecat-webhook/index.ts)
-- purchase / refund verification migrations:
+- purchase / refund tracking migration:
   - [supabase/migrations/044_add_purchase_tracking_columns.sql](/Users/phil/PVS-local/Projects/domani/domani-app/supabase/migrations/044_add_purchase_tracking_columns.sql)
-  - [supabase/migrations/051_add_revenuecat_webhook_events.sql](/Users/phil/PVS-local/Projects/domani/domani-app/supabase/migrations/051_add_revenuecat_webhook_events.sql)
-  - [supabase/migrations/054_add_purchase_refund_states.sql](/Users/phil/PVS-local/Projects/domani/domani-app/supabase/migrations/054_add_purchase_refund_states.sql)
-  - [supabase/migrations/055_add_denied_purchase_refund_state.sql](/Users/phil/PVS-local/Projects/domani/domani-app/supabase/migrations/055_add_denied_purchase_refund_state.sql)
-  - [supabase/migrations/056_add_purchase_refund_client_hints.sql](/Users/phil/PVS-local/Projects/domani/domani-app/supabase/migrations/056_add_purchase_refund_client_hints.sql)
 
 This ticket is mostly about completing the missing external configuration and documenting verification.
 
@@ -164,33 +157,29 @@ Bearer <REVENUECAT_WEBHOOK_SECRET>
 
 ### Database Verification
 
-After a sandbox purchase or refund, verify:
+After a sandbox purchase or refund, verify the affected profile directly:
 
 ```sql
 select *
-from public.revenuecat_webhook_events
-order by created_at desc
-limit 20;
+from public.profiles
+where id = '<SUPABASE_AUTH_USER_ID>';
 ```
 
 For a purchase:
 
-- `event_type` shows an initial purchase event
-- `processed_action` shows a grant path
+- `tier = 'lifetime'`
 - `public.profiles.purchased_at IS NOT NULL`
 - `public.profiles.refunded_at IS NULL`
 
 For a refund:
 
-- `event_type` shows `REFUND` or equivalent RevenueCat event
-- `processed_action` shows a revoke path
+- `tier = 'none'`
 - `public.profiles.purchased_at IS NULL`
 - `public.profiles.refunded_at IS NOT NULL`
-- `public.purchase_refund_states.status = 'approved'` when applicable
 
 ### Current Known Risk
 
-If `public.revenuecat_webhook_events` remains empty after sandbox purchase / refund tests, the RevenueCat -> Supabase leg is still broken even if Apple / Google -> RevenueCat is configured.
+If the target `public.profiles` row does not change after sandbox purchase / refund tests, the RevenueCat -> Supabase leg is still broken even if Apple / Google -> RevenueCat is configured.
 
 ## Terms Of Service Refund Policy Copy
 
@@ -215,7 +204,7 @@ For ticket completion, capture:
 - [ ] RevenueCat receiving Android lifecycle notifications
 - [ ] RevenueCat webhook forwarding into Supabase verified
 - [ ] Sandbox refund event observed in RevenueCat
-- [ ] Supabase refund state updated from webhook
+- [ ] Supabase profile access revoked and `refunded_at` recorded from webhook
 - [ ] Refund policy added to live Terms of Service
 
 ## What This Ticket Does Not Complete Locally
