@@ -90,8 +90,13 @@ interface RevenueCatWebhookPayload {
 }
 
 const REVENUECAT_WEBHOOK_SECRET = Deno.env.get('REVENUECAT_WEBHOOK_SECRET')
-const LIFETIME_PRODUCT_IDS = new Set(['domani_lifetime'])
+const LIFETIME_PRODUCT_IDS = new Set([
+  'domani_lifetime',
+  'domani_lifetime_early',
+  'domani_lifetime_friends',
+])
 const REFUND_LIKE_CANCELLATION_REASONS = new Set(['CUSTOMER_SUPPORT'])
+const APP_STORE_EVENT_STORES = new Set(['APP_STORE', 'MAC_APP_STORE'])
 
 function getEventLogContext(event: RevenueCatWebhookEvent) {
   return {
@@ -102,7 +107,8 @@ function getEventLogContext(event: RevenueCatWebhookEvent) {
     entitlementIds: Array.isArray(event.entitlement_ids) ? event.entitlement_ids : [],
     store: typeof event.store === 'string' ? event.store : null,
     environment: typeof event.environment === 'string' ? event.environment : null,
-    eventTimestampMs: typeof event.event_timestamp_ms === 'number' ? event.event_timestamp_ms : null,
+    eventTimestampMs:
+      typeof event.event_timestamp_ms === 'number' ? event.event_timestamp_ms : null,
     originalTransactionId:
       typeof event.original_transaction_id === 'string' ? event.original_transaction_id : null,
     transactionId: typeof event.transaction_id === 'string' ? event.transaction_id : null,
@@ -147,7 +153,9 @@ function getRevenueCatIdentityCandidates(event: RevenueCatWebhookEvent): string[
 }
 
 function getAliases(event: RevenueCatWebhookEvent): string[] {
-  return Array.isArray(event.aliases) ? event.aliases.filter((alias): alias is string => typeof alias === 'string') : []
+  return Array.isArray(event.aliases)
+    ? event.aliases.filter((alias): alias is string => typeof alias === 'string')
+    : []
 }
 
 function isRefundLikeCancellation(event: RevenueCatWebhookEvent) {
@@ -162,6 +170,28 @@ function isRefundLikeCancellation(event: RevenueCatWebhookEvent) {
     !!cancelReason &&
     REFUND_LIKE_CANCELLATION_REASONS.has(cancelReason)
   )
+}
+
+function getProductId(event: RevenueCatWebhookEvent) {
+  return typeof event.product_id === 'string' ? event.product_id : null
+}
+
+function isLifetimeProductEvent(event: RevenueCatWebhookEvent) {
+  const productId = getProductId(event)
+  return !!productId && LIFETIME_PRODUCT_IDS.has(productId)
+}
+
+function isAppStoreEvent(event: RevenueCatWebhookEvent) {
+  const store = typeof event.store === 'string' ? event.store.toUpperCase() : null
+  return !!store && APP_STORE_EVENT_STORES.has(store)
+}
+
+async function ignoreNonLifetimeProduct(
+  supabase: ReturnType<typeof createClient>,
+  event: RevenueCatWebhookEvent,
+) {
+  await finalizeWebhookEvent(supabase, event, 'ignored_non_lifetime_product')
+  console.log('[revenuecat-webhook] non-lifetime product ignored', getEventLogContext(event))
 }
 
 async function claimWebhookEvent(
@@ -241,7 +271,10 @@ async function releaseWebhookClaim(
 ) {
   if (!event.id) return
 
-  const { error } = await supabase.from('revenuecat_webhook_events').delete().eq('event_id', event.id)
+  const { error } = await supabase
+    .from('revenuecat_webhook_events')
+    .delete()
+    .eq('event_id', event.id)
 
   if (error) {
     console.error('[revenuecat-webhook] failed to release claimed event:', {
@@ -430,7 +463,9 @@ async function revokeLifetimeAccess(
     throw error
   }
 
-  await upsertApprovedRefundState(supabase, userId, event)
+  if (isAppStoreEvent(event)) {
+    await upsertApprovedRefundState(supabase, userId, event)
+  }
 
   await finalizeWebhookEvent(supabase, event, processedAction)
 
@@ -532,16 +567,28 @@ Deno.serve(async (req) => {
     switch (event.type) {
       case 'INITIAL_PURCHASE':
       case 'NON_RENEWING_PURCHASE': {
+        if (!isLifetimeProductEvent(event)) {
+          await ignoreNonLifetimeProduct(supabase, event)
+          break
+        }
         const response = await grantLifetimeAccess(supabase, event, 'granted_lifetime')
         if (response) return response
         break
       }
       case 'REFUND': {
+        if (!isLifetimeProductEvent(event)) {
+          await ignoreNonLifetimeProduct(supabase, event)
+          break
+        }
         const response = await revokeLifetimeAccess(supabase, event, 'revoked_refund')
         if (response) return response
         break
       }
       case 'REFUND_REVERSED': {
+        if (!isLifetimeProductEvent(event)) {
+          await ignoreNonLifetimeProduct(supabase, event)
+          break
+        }
         const response = await grantLifetimeAccess(supabase, event, 'restored_refund')
         if (response) return response
         break

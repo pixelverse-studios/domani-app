@@ -4,6 +4,12 @@
 
 Domani sells a lifetime, non-renewing purchase through RevenueCat.
 
+Current lifetime product IDs:
+
+- `domani_lifetime`
+- `domani_lifetime_early`
+- `domani_lifetime_friends`
+
 The backend source of truth for refund state is the RevenueCat webhook in
 `supabase/functions/revenuecat-webhook/index.ts`.
 
@@ -26,7 +32,11 @@ The webhook currently treats these events as authoritative:
 - `NON_RENEWING_PURCHASE` -> grant lifetime access
 - `REFUND` -> revoke lifetime access and mark `refunded_at`
 - `REFUND_REVERSED` -> restore lifetime access and clear `refunded_at`
-- `CANCELLATION` with `CUSTOMER_SUPPORT` for the lifetime product -> revoke access
+- `CANCELLATION` with `CUSTOMER_SUPPORT` for a lifetime product -> revoke access
+
+Purchase, refund, and refund-reversal events for products outside the lifetime
+SKU list are logged as `ignored_non_lifetime_product` and do not mutate profile
+access.
 
 For `CANCELLATION`, only refund-like reasons are treated as revocation:
 
@@ -71,7 +81,7 @@ Current meanings:
   - the user successfully opened Apple’s refund flow from the app
   - or the current app session has a strong signal that the refund request is in flight
 - `status = 'approved'`
-  - the RevenueCat webhook has confirmed the refund outcome and access was revoked
+  - the RevenueCat webhook has confirmed an App Store refund outcome and access was revoked
 - `client_hint = 'duplicate_request'`
   - the app hit Apple’s “refund already requested” path and suppresses re-submission
   - this is a softer hint than an authoritative backend status
@@ -96,6 +106,8 @@ The row is cleared when:
 - Android refund completion still resolves through the backend webhook pipeline
 - Android eligibility is only shown when RevenueCat reports the active entitlement
   store as `PLAY_STORE`
+- Android refunds revoke access through `profiles`, but do not write Apple
+  refund-request rows to `purchase_refund_states`
 
 ## Observability
 
