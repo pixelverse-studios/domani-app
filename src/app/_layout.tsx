@@ -296,6 +296,7 @@ function RootLayoutContent() {
         <Stack.Screen name="login" />
         <Stack.Screen name="notification-setup" />
         <Stack.Screen name="contact-support" />
+        <Stack.Screen name="purchase-help" />
         <Stack.Screen name="auth/callback" options={{ presentation: 'modal' }} />
       </Stack>
 

@@ -8,7 +8,7 @@ import {
   Platform,
   Alert,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   ArrowLeft,
@@ -47,13 +47,20 @@ const MIN_DESCRIPTION_LENGTH = 6
 export default function ContactSupportScreen() {
   useScreenTracking('contact_support')
   const router = useRouter()
+  const params = useLocalSearchParams<{
+    category?: SupportCategory
+  }>()
   const insets = useSafeAreaInsets()
   const theme = useAppTheme()
   const brandColor = theme.colors.brand.primary
   const createSupportRequest = useCreateSupportRequest()
 
   // Form state
-  const [selectedCategory, setSelectedCategory] = useState<SupportCategory | null>(null)
+  const initialCategory =
+    params.category && SUPPORT_CATEGORIES.some((item) => item.id === params.category)
+      ? params.category
+      : null
+  const [selectedCategory, setSelectedCategory] = useState<SupportCategory | null>(initialCategory)
   const [description, setDescription] = useState('')
   const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'success'>('idle')
 

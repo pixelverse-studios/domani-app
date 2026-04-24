@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { View, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native'
-import { Lock, Crown, RotateCcw, Settings, AlertCircle } from 'lucide-react-native'
+import { Lock, Crown, RotateCcw, Settings, AlertCircle, BadgeHelp } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -87,26 +87,43 @@ export function LockedScreen() {
           </GradientButton>
         </View>
 
-        {/* Restore purchases */}
-        <TouchableOpacity
-          onPress={handleRestore}
-          disabled={subscription.isRestoring}
-          activeOpacity={0.7}
-          style={styles.restoreButton}
-          accessibilityLabel={t('subscription.locked.restorePurchases')}
-          accessibilityRole="button"
-        >
-          {subscription.isRestoring ? (
-            <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
-          ) : (
-            <>
-              <RotateCcw size={14} color={theme.colors.text.tertiary} />
+        {isRefunded && (
+          <>
+            {/* Restore purchases */}
+            <TouchableOpacity
+              onPress={handleRestore}
+              disabled={subscription.isRestoring}
+              activeOpacity={0.7}
+              style={styles.restoreButton}
+              accessibilityLabel={t('subscription.locked.restorePurchases')}
+              accessibilityRole="button"
+            >
+              {subscription.isRestoring ? (
+                <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
+              ) : (
+                <>
+                  <RotateCcw size={14} color={theme.colors.text.tertiary} />
+                  <Text className="text-sm text-content-secondary ml-1.5">
+                    {t('subscription.locked.restorePurchases')}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push('/purchase-help?source=locked')}
+              activeOpacity={0.7}
+              style={styles.purchaseHelpButton}
+              accessibilityLabel={t('subscription.purchaseHelp.entryCta')}
+              accessibilityRole="button"
+            >
+              <BadgeHelp size={14} color={theme.colors.text.tertiary} />
               <Text className="text-sm text-content-secondary ml-1.5">
-                {t('subscription.locked.restorePurchases')}
+                {t('subscription.purchaseHelp.entryCta')}
               </Text>
-            </>
-          )}
-        </TouchableOpacity>
+            </TouchableOpacity>
+          </>
+        )}
 
         {/* Restore error */}
         {restoreError && (
@@ -182,6 +199,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     marginTop: 4,
+  },
+  purchaseHelpButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
   },
   errorRow: {
     flexDirection: 'row',

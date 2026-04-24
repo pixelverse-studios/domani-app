@@ -13,6 +13,11 @@ import type {
   PublicPricingTier,
 } from '~/types/appConfig'
 
+const DEFAULT_PHASE_CONFIG: PhaseConfig = {
+  current: 'production',
+  show_badge: false,
+}
+
 // Default feature flags (fallback when remote config unavailable)
 const DEFAULT_FEATURES: FeatureFlags = {
   feedback_enabled: true,
@@ -40,21 +45,32 @@ interface AppConfigState {
   error: string | null
   lastFetchedAt: number | null
   hasFetchedConfigThisSession: boolean
-  ignoreRevenueCatForDebug: boolean
 
   // Actions
   fetchConfig: () => Promise<void>
   isFeatureEnabled: (feature: keyof FeatureFlags) => boolean
   setPhaseOverride: (phase: AppPhase) => void
-  setIgnoreRevenueCatForDebug: (ignore: boolean) => void
 }
+
+type PersistedAppConfigState = Partial<
+  Pick<
+    AppConfigState,
+    | 'phase'
+    | 'showBadge'
+    | 'features'
+    | 'featureFlagsByPhase'
+    | 'publicPricing'
+    | 'betaAccess'
+    | 'lastFetchedAt'
+  >
+>
 
 export const useAppConfigStore = create<AppConfigState>()(
   persist(
     (set, get) => ({
-      // Initial state - defaults to closed_beta with badge shown
-      phase: 'closed_beta',
-      showBadge: true,
+      // Default to production so stale or missing config does not grant beta mode.
+      phase: DEFAULT_PHASE_CONFIG.current,
+      showBadge: DEFAULT_PHASE_CONFIG.show_badge,
       features: DEFAULT_FEATURES,
       featureFlagsByPhase: null,
       publicPricing: 'early_adopter',
@@ -63,7 +79,6 @@ export const useAppConfigStore = create<AppConfigState>()(
       error: null,
       lastFetchedAt: null,
       hasFetchedConfigThisSession: false,
-      ignoreRevenueCatForDebug: false,
 
       fetchConfig: async () => {
         set({ isLoading: true, error: null })
@@ -74,8 +89,8 @@ export const useAppConfigStore = create<AppConfigState>()(
 
           if (error) throw error
 
-          let phase: AppPhase = 'closed_beta'
-          let showBadge = true
+          let phase: AppPhase = DEFAULT_PHASE_CONFIG.current
+          let showBadge = DEFAULT_PHASE_CONFIG.show_badge
           let featureFlagsByPhase: FeatureFlagsByPhase | null = null
           let publicPricing: PublicPricingTier = 'early_adopter'
           let betaAccess: BetaAccessConfig = DEFAULT_BETA_ACCESS
@@ -143,20 +158,23 @@ export const useAppConfigStore = create<AppConfigState>()(
       setPhaseOverride: (phase: AppPhase) => {
         set({ phase })
       },
-
-      setIgnoreRevenueCatForDebug: (ignore: boolean) => {
-        set({ ignoreRevenueCatForDebug: ignore })
-      },
     }),
     {
       name: 'app-config-storage',
+      version: 1,
       storage: createJSONStorage(() => AsyncStorage),
-      // Only persist these fields (not loading state)
+      migrate: (persistedState: unknown) => {
+        const state = (persistedState ?? {}) as PersistedAppConfigState
+
+        return {
+          publicPricing: state.publicPricing ?? 'early_adopter',
+          betaAccess: state.betaAccess ?? DEFAULT_BETA_ACCESS,
+          lastFetchedAt: state.lastFetchedAt ?? null,
+        }
+      },
+      // Persist only non-phase config. Phase and derived feature state must come
+      // from a fresh fetch each launch so stale beta values cannot stick locally.
       partialize: (state) => ({
-        phase: state.phase,
-        showBadge: state.showBadge,
-        features: state.features,
-        featureFlagsByPhase: state.featureFlagsByPhase,
         publicPricing: state.publicPricing,
         betaAccess: state.betaAccess,
         lastFetchedAt: state.lastFetchedAt,

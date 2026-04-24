@@ -224,7 +224,21 @@ export function PaywallModal({
                   className="font-sans text-content-secondary text-center mt-2 mb-2"
                   style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
                 >
-                  {t('subscription.paywall.successBody')}
+                  {t('subscription.paywall.successBodyLine1')}
+                  {'\n'}
+                  <Text
+                    className="font-sans text-content-secondary"
+                    style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
+                  >
+                    {t('subscription.paywall.successBodyWelcomePrefix')}
+                    <Text
+                      className="font-sans-bold text-content-secondary"
+                      style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
+                    >
+                      Domani
+                    </Text>
+                    !
+                  </Text>
                 </Text>
 
                 <View style={styles.successChecks}>
@@ -249,7 +263,10 @@ export function PaywallModal({
                       </View>
                       <Text
                         className="font-sans text-content-primary ml-3"
-                        style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
+                        style={[
+                          styles.valuePropText,
+                          { fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight },
+                        ]}
                       >
                         {prop}
                       </Text>
@@ -379,7 +396,10 @@ export function PaywallModal({
                       </View>
                       <Text
                         className="font-sans text-content-primary ml-3"
-                        style={{ fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight }}
+                        style={[
+                          styles.valuePropText,
+                          { fontSize: layout.bodyFontSize, lineHeight: layout.bodyLineHeight },
+                        ]}
                       >
                         {prop}
                       </Text>
@@ -416,7 +436,7 @@ export function PaywallModal({
                       <TouchableOpacity
                         onPress={() => {
                           onClose()
-                          router.push('/contact-support')
+                          router.push('/purchase-help?source=paywall')
                         }}
                         activeOpacity={0.7}
                         style={styles.contactSupport}
@@ -509,8 +529,13 @@ const styles = StyleSheet.create({
   },
   valuePropRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    paddingHorizontal: 6,
     paddingVertical: 8,
+  },
+  valuePropText: {
+    flex: 1,
+    flexShrink: 1,
   },
   checkCircle: {
     width: 28,

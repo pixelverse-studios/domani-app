@@ -71,25 +71,13 @@ export const en = {
     notificationSetup: {
       eyebrow: '14-day free trial',
       title: 'Your trial has started',
-      subtitle:
-        'Explore Domani with full access now, then decide later if you want lifetime access.',
-      liveHeadline: 'Your full-access trial is live now',
-      liveDetail: 'Set your evening reminder, then start planning tomorrow.',
-      daysLeftHeadline: 'You have {{count}} days to explore Domani',
-      daysLeftDetail:
-        'Your trial runs through {{date}}. Set your evening reminder, then start planning tomorrow with full access.',
-      oneDayHeadline: 'You have 1 day left in your trial',
-      oneDayDetail:
-        'Your trial runs through {{date}}. Set your evening reminder, then make the most of your last full day with Domani.',
-      endsTodayHeadline: 'Your trial ends today',
-      endsTodayDetail:
-        'Your trial access runs through {{date}}. Set your evening reminder now so you do not miss your final day with full access.',
-      planningReminderTitle: 'Planning Reminder',
+      subtitle: 'Everything is unlocked. Explore freely for 14 days, then decide.',
+      planningReminderTitle: 'Remind me to plan',
       planningReminderDescription: 'Choose when you want to be reminded.',
-      toggleLabel: 'Send me a daily reminder',
+      toggleLabel: 'Remind me to plan',
       taskRemindersTitle: 'Task Reminders',
       taskRemindersDescription:
-        'Each task has its own reminder. You can set individual reminder times when creating or editing tasks.',
+        'Set individual reminders on each task when creating or editing.',
       continue: 'Continue to Domani',
     },
   },
@@ -166,18 +154,18 @@ export const en = {
       discountBadgeFriendsFamily: '86% off',
       valueProps: [
         'Unlimited daily tasks',
-        'Plan tomorrow, tonight',
+        'Evening planning, morning clarity.',
         'All features, forever',
         'No subscriptions, ever',
       ],
       successProps: [
-        'Plan tomorrow, tonight',
         'Small daily wins build lasting habits',
         'Built to keep you focused, not busy',
         'The strategy top performers swear by',
       ],
       successTitle: 'You’re All Set!',
-      successBody: 'Lifetime access unlocked. Welcome to Domani.',
+      successBodyLine1: 'Lifetime access unlocked.',
+      successBodyWelcomePrefix: 'Welcome to ',
       successPrimaryCta: 'Start Planning',
       dismiss: 'Dismiss',
       close: 'Close',
@@ -192,6 +180,143 @@ export const en = {
       contactSupport: 'Contact Support',
       oneTimePurchaseNote: 'One-time purchase. No recurring charges.',
       restorePurchases: 'Restore Purchases',
+    },
+    purchaseHelp: {
+      title: 'Purchase Help',
+      subtitle:
+        'Get to the right next step for refunds, restores, and billing questions from one shared Domani screen.',
+      iosEyebrow: 'Apple Purchase',
+      iosTitle: 'Looking for a refund?',
+      iosBody:
+        'Refunds for iPhone purchases are handled by Apple. We can take you straight into Apple’s refund flow for your Domani purchase.',
+      iosUnavailableBody:
+        'We could not find an active Apple purchase on this device or account to submit for refund right now.',
+      iosNoteTitle: 'What happens next',
+      iosNoteBody:
+        'Apple reviews refund requests directly. Approval is not instant, and they typically follow up later with the decision.',
+      iosUnavailableNoteTitle: 'Refund request unavailable',
+      iosUnavailableNoteBody:
+        'This usually means there is no active App Store purchase currently linked for this account or device. Support can help you sort out the purchase state.',
+      iosRefundCta: 'Request Refund',
+      iosSupportBody:
+        'Use support if the Apple refund sheet does not open or your purchase situation looks incorrect.',
+      iosUnavailableSupportBody:
+        'Contact support if this account should have an active Apple purchase or you need help re-linking the right purchase state.',
+      iosRefundSuccessTitle: 'Refund request opened',
+      iosRefundSuccessBody:
+        'Apple is now handling your refund request. They will review it and follow up with the result.',
+      iosSubmittedTitle: 'Refund request submitted',
+      iosSubmittedBody:
+        'Apple is reviewing your request now. If it is approved, Domani access will be updated once the refund is processed.',
+      iosSubmittedNoteTitle: 'What to expect',
+      iosSubmittedNoteBody:
+        'Refund decisions are handled by Apple. You may not see the result immediately, and access can take a little time to update after their decision.',
+      iosSubmittedDoneCta: 'Back to Settings',
+      iosSubmittedSupportBody:
+        'Contact support if your access does not update later or you need help understanding the refund result.',
+      iosPendingTitle: 'Refund request already in review',
+      iosPendingBody:
+        'Apple is still reviewing this refund request, or it has already reached a decision that is still propagating.',
+      iosPendingNoteTitle: 'What this means',
+      iosPendingNoteBody:
+        'You do not need to submit another refund request right now. Apple will continue the review flow from the original request.',
+      iosPendingSupportBody:
+        'Contact support if this status looks wrong or your Domani access does not update after Apple finishes the review.',
+      iosExistingRequestTitle: 'A refund request already exists',
+      iosExistingRequestBody:
+        'Apple has already received a refund request for this purchase. The result may still be in progress, or the final outcome may still be updating.',
+      iosExistingRequestNoteTitle: 'What this means',
+      iosExistingRequestNoteBody:
+        'You do not need to submit another refund request right now. Check back later or contact support if your Domani access still looks wrong.',
+      iosExistingRequestSupportBody:
+        'Contact support if this purchase should already be refunded or if your access still looks incorrect later.',
+      iosApprovedTitle: 'Refund completed',
+      iosApprovedBody:
+        'Apple has already completed this refund. If your access has not updated yet, it should refresh shortly.',
+      iosApprovedNoteTitle: 'What this means',
+      iosApprovedNoteBody:
+        'You do not need to request another refund. If you want to use Domani again after access is removed, you can purchase lifetime access again.',
+      iosApprovedDoneCta: 'Back to Settings',
+      iosApprovedSupportBody:
+        'Contact support if your access still looks incorrect after the refund has already been completed.',
+      iosDeniedTitle: 'Refund was not approved',
+      iosDeniedBody:
+        'Apple did not approve the last refund request for this purchase. If you still believe something is wrong, contact support.',
+      iosDeniedNoteTitle: 'What this means',
+      iosDeniedNoteBody:
+        'This purchase still appears active, so Domani has not removed access. Support can help if the outcome looks incorrect.',
+      iosDeniedDoneCta: 'Back to Settings',
+      iosDeniedSupportBody:
+        'Contact support if you need help understanding the decision or if this purchase state looks incorrect.',
+      iosRefundErrorTitle: 'Could not open Apple refund flow',
+      iosRefundErrorBody:
+        'We could not open Apple’s refund request right now. Try again or contact support if you still need help.',
+      iosRefundedEyebrow: 'Purchase Refunded',
+      iosRefundedTitle: 'Your access was removed',
+      iosRefundedBody:
+        'This iPhone purchase has already been refunded. To unlock Domani again, buy lifetime access again.',
+      iosRefundedNoteTitle: 'Already refunded',
+      iosRefundedNoteBody:
+        'Once Apple refunds the purchase, access is removed. If you want to use Domani again, you will need to purchase lifetime access again.',
+      iosRepurchaseCta: 'Get Lifetime Access Again',
+      iosRefundedSupportBody:
+        'Contact support if your refunded state looks wrong or you need help understanding what happened.',
+      platformNote:
+        'Refund and billing options differ between iPhone and Android. Domani will guide you into the right support path for your device.',
+      iosActionTitle: 'Request refund help on iPhone',
+      iosActionBody:
+        'Use this path if you need help with an Apple purchase, a refund request, or a billing question related to your App Store transaction.',
+      iosActionCta: 'Continue with Apple purchase help',
+      androidTitle: 'Need help with a Google Play purchase?',
+      androidBody:
+        'Google Play handles Android refund requests. We can take you to your Google Play order history so you can report a problem for this Domani purchase.',
+      androidNoteTitle: 'What happens next',
+      androidNoteBody:
+        'Google Play usually decides refund requests within 1–4 days. If it has been more than 48 hours or your purchase state still looks wrong, contact support.',
+      androidRefundCta: 'Open Google Play Refund Help',
+      androidSupportBody:
+        'Contact support if the Google Play flow does not open, your purchase is missing, or the result does not match your Domani access.',
+      androidUnavailableTitle: 'Need help with billing on Android?',
+      androidUnavailableBody:
+        'This account does not currently look like an active paid Google Play purchase, so there is no refund path to open from Domani right now.',
+      androidUnavailableNoteTitle: 'What this means',
+      androidUnavailableNoteBody:
+        'If you expected a Google Play purchase on this account, support can help you verify the purchase state and next step.',
+      androidUnavailableSupportBody:
+        'Contact support if this Android account should already have an active Google Play purchase linked to it.',
+      androidOpenErrorTitle: 'Could not open Google Play',
+      androidOpenErrorBody:
+        'We could not open the Google Play refund flow right now. Try again or contact support if you still need help.',
+      androidRefundedTitle: 'Your access was removed',
+      androidRefundedBody:
+        'This Android purchase has already been refunded. To unlock Domani again, buy lifetime access again.',
+      androidRefundedNoteTitle: 'Already refunded',
+      androidRefundedNoteBody:
+        'Once Google Play refunds the purchase, access is removed. If you want to use Domani again, you will need to purchase lifetime access again.',
+      androidRepurchaseCta: 'Get Lifetime Access Again',
+      androidRefundedSupportBody:
+        'Contact support if your refunded Android state looks wrong or you need help understanding what happened.',
+      androidActionTitle: 'Get billing help on Android',
+      androidActionBody:
+        'Use this path if you need help with a Google Play purchase, billing issue, or account-specific purchase question on Android.',
+      androidActionCta: 'Continue with Android billing help',
+      restoreTitle: 'Restore a previous purchase',
+      restoreBody:
+        'If you already bought lifetime access on this account, try restoring first before opening a support request.',
+      restoreCta: 'Restore Purchases',
+      restoreNotFoundTitle: 'No purchases found',
+      restoreNotFoundBody: 'We could not find a previous purchase for this account.',
+      restoreErrorTitle: 'Restore failed',
+      restoreErrorBody: 'Could not restore purchases. Please try again.',
+      helpWithTitle: 'This screen can help with',
+      helpTopics: [
+        'Refund questions and next steps',
+        'Restoring a previous purchase',
+        'Billing or receipt issues',
+        'Getting routed to the right support path for your platform',
+      ],
+      contactSupportCta: 'Contact Support',
+      entryCta: 'Purchase Help',
     },
     settings: {
       sectionTitle: 'Your Plan',
@@ -219,6 +344,8 @@ export const en = {
       trialingBodyWithDate: 'Unlimited tasks - All features unlocked through {{date}}',
       trialingBodyNoDate: 'Unlimited tasks - All features unlocked',
       lifetimeBody: 'Unlimited tasks - All features unlocked forever',
+      lifetimePurchaseHelpBody:
+        'Get help with your Apple or Google purchase, including refund guidance.',
       getLifetimeAccess: 'Get Lifetime Access',
       restorePurchases: 'Restore Purchases',
     },
