@@ -14,8 +14,19 @@ type WidenStrings<T> = T extends string
         ? { [K in keyof T]: WidenStrings<T[K]> }
         : T
 
-export type BaseTranslationCatalog = WidenStrings<typeof en>
-export type TranslationCatalog = BaseTranslationCatalog &
+type DeepPartial<T> = T extends string
+  ? string
+  : T extends readonly (infer U)[]
+    ? readonly WidenStrings<U>[]
+    : T extends Primitive
+      ? T
+      : T extends object
+        ? { [K in keyof T]?: DeepPartial<T[K]> } & Record<string, unknown>
+        : T
+
+export type FullBaseTranslationCatalog = WidenStrings<typeof en>
+export type BaseTranslationCatalog = DeepPartial<FullBaseTranslationCatalog>
+export type TranslationCatalog = FullBaseTranslationCatalog &
   WidenStrings<(typeof mainUiSupplement)['en']> &
   WidenStrings<(typeof settingsModalSupplement)['en']>
 

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { format, differenceInCalendarDays } from 'date-fns'
+import { format } from 'date-fns'
 
 import { Button, Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
@@ -12,9 +12,8 @@ import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { NotificationService } from '~/lib/notifications'
 import { useNotificationStore } from '~/stores/notificationStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
-import { formatLocalizedDate, formatLocalizedTime } from '~/i18n/date'
+import { formatLocalizedTime } from '~/i18n/date'
 import { useUpdateProfile } from '~/hooks/useProfile'
-import { useProfile } from '~/hooks/useProfile'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { useTranslation } from '~/hooks/useTranslation'
 
@@ -40,7 +39,6 @@ export default function NotificationSetupScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const updateProfile = useUpdateProfile()
-  const { profile } = useProfile()
   const theme = useAppTheme()
   const { locale, t } = useTranslation()
   const brandColor = theme.colors.brand.primary
@@ -62,38 +60,6 @@ export default function NotificationSetupScreen() {
 
   // Android picker visibility state
   const [showPlanPicker, setShowPlanPicker] = useState(Platform.OS === 'ios')
-
-  const trialSummary = useMemo(() => {
-    if (!profile?.trial_ends_at) {
-      return {
-        headline: t('onboarding.notificationSetup.liveHeadline'),
-        detail: t('onboarding.notificationSetup.liveDetail'),
-      }
-    }
-
-    const trialEnd = new Date(profile.trial_ends_at)
-    const daysRemaining = Math.max(differenceInCalendarDays(trialEnd, new Date()), 0)
-    const endDateLabel = formatLocalizedDate(trialEnd, 'MMMM d', locale)
-
-    if (daysRemaining > 1) {
-      return {
-        headline: t('onboarding.notificationSetup.daysLeftHeadline', { count: daysRemaining }),
-        detail: t('onboarding.notificationSetup.daysLeftDetail', { date: endDateLabel }),
-      }
-    }
-
-    if (daysRemaining === 1) {
-      return {
-        headline: t('onboarding.notificationSetup.oneDayHeadline'),
-        detail: t('onboarding.notificationSetup.oneDayDetail', { date: endDateLabel }),
-      }
-    }
-
-    return {
-      headline: t('onboarding.notificationSetup.endsTodayHeadline'),
-      detail: t('onboarding.notificationSetup.endsTodayDetail', { date: endDateLabel }),
-    }
-  }, [locale, profile?.trial_ends_at, t])
 
   const handleContinue = async () => {
     setLoading(true)
@@ -175,7 +141,6 @@ export default function NotificationSetupScreen() {
     sectionTitle: theme.colors.text.primary,
     sectionDescription: theme.colors.text.secondary,
     pickerBackground: `${brandColor}0D`, // 5% opacity
-    trialCardBackground: `${brandColor}12`, // 7% opacity
     pickerText: theme.colors.text.primary,
     androidTimeText: brandColor,
     androidButtonBg: `${brandColor}1A`, // 10% opacity
@@ -211,43 +176,27 @@ export default function NotificationSetupScreen() {
           </Text>
         </View>
 
-        <View style={[styles.trialCard, { backgroundColor: themeColors.trialCardBackground }]}>
-          <Text style={[styles.trialCardTitle, { color: themeColors.sectionTitle }]}>
-            {trialSummary.headline}
-          </Text>
-          <Text style={[styles.trialCardDescription, { color: themeColors.sectionDescription }]}>
-            {trialSummary.detail}
-          </Text>
-        </View>
-
-        {/* Plan Reminder Section */}
         <View style={styles.reminderSection}>
-          <Text style={[styles.sectionTitle, { color: themeColors.sectionTitle }]}>
-            {t('onboarding.notificationSetup.planningReminderTitle')}
-          </Text>
-          <Text style={[styles.sectionDescription, { color: themeColors.sectionDescription }]}>
-            {t('onboarding.notificationSetup.planningReminderDescription')}
-          </Text>
-
-          {/* Notification opt-in toggle */}
           <View style={[styles.toggleRow, { backgroundColor: themeColors.pickerBackground }]}>
             <Text style={[styles.toggleLabel, { color: themeColors.sectionTitle }]}>
               {t('onboarding.notificationSetup.toggleLabel')}
             </Text>
-            <Switch
-              value={reminderOptedIn}
-              onValueChange={setReminderOptedIn}
-              trackColor={{
-                false: theme.colors.border.primary,
-                true: brandColor,
-              }}
-              thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
-              ios_backgroundColor={theme.colors.border.primary}
-            />
+            <View style={styles.toggleSwitchWrap}>
+              <Switch
+                value={reminderOptedIn}
+                onValueChange={setReminderOptedIn}
+                trackColor={{
+                  false: theme.colors.border.primary,
+                  true: brandColor,
+                }}
+                thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
+                ios_backgroundColor={theme.colors.border.primary}
+              />
+            </View>
           </View>
 
           <View
-            style={[styles.pickerWrapper, { opacity: reminderOptedIn ? 1 : 0.4 }]}
+            style={[styles.pickerWrapper, { opacity: reminderOptedIn ? 1 : 0.38 }]}
             pointerEvents={reminderOptedIn ? 'auto' : 'none'}
           >
             {Platform.OS === 'android' && !showPlanPicker ? (
@@ -326,7 +275,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 32,
   },
   eyebrow: {
     fontSize: 12,
@@ -341,36 +290,25 @@ const styles = StyleSheet.create({
     lineHeight: 36,
     textAlign: 'center',
     letterSpacing: 0.3,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
     letterSpacing: 0.2,
-    lineHeight: 24,
-  },
-  trialCard: {
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    marginBottom: 24,
-  },
-  trialCardTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  trialCardDescription: {
-    fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 22,
+    maxWidth: 332,
   },
   reminderSection: {
-    marginBottom: 24,
+    marginBottom: 26,
   },
   infoSection: {
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    minHeight: 122,
+    justifyContent: 'center',
+    marginBottom: 22,
   },
   infoTitle: {
     fontSize: 15,
@@ -381,62 +319,66 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    minHeight: 92,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    marginBottom: 18,
   },
-  pickerWrapper: {},
+  pickerWrapper: {
+    alignItems: 'center',
+  },
   toggleLabel: {
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 17,
+    fontWeight: '600',
     flex: 1,
     marginRight: 12,
+  },
+  toggleSwitchWrap: {
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
   },
   pickerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 16,
-    height: 165,
+    height: 194,
     overflow: 'hidden',
+    width: '100%',
   },
   picker: {
-    width: 280,
-    height: 180,
+    width: 368,
+    height: 212,
+    transform: [{ scaleX: 1.16 }, { scaleY: 1.12 }],
   },
   androidTimeButton: {
     borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    minHeight: 194,
+    paddingVertical: 22,
+    paddingHorizontal: 28,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   androidTimeText: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '600',
   },
   spacer: {
     flex: 1,
-    minHeight: 8,
+    minHeight: 18,
   },
   buttonContainer: {
     paddingTop: 8,
   },
   continueButton: {
     borderRadius: 16,
+    minHeight: 72,
     paddingVertical: 18,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
@@ -445,8 +387,8 @@ const styles = StyleSheet.create({
   },
   continueButtonText: {
     color: '#ffffff',
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 19,
+    fontWeight: '700',
     letterSpacing: 0.4,
   },
 })

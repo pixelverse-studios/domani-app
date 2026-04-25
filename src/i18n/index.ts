@@ -69,7 +69,10 @@ export const catalogs = Object.fromEntries(
   Object.entries(baseCatalogs).map(([locale, catalog]) => [
     locale,
     mergeCatalogSections(
-      mergeCatalogSections(catalog, mainUiSupplement[locale as keyof typeof mainUiSupplement]),
+      mergeCatalogSections(
+        mergeCatalogSections(en, catalog),
+        mainUiSupplement[locale as keyof typeof mainUiSupplement],
+      ),
       settingsModalSupplement[locale as keyof typeof settingsModalSupplement],
     ) as TranslationCatalog,
   ]),

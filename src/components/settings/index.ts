@@ -23,8 +23,6 @@ export { NotificationsSection } from './NotificationsSection'
 export { PreferencesSection } from './PreferencesSection'
 export { SupportSection } from './SupportSection'
 export { DangerZoneSection } from './DangerZoneSection'
-export { DevToolsSection } from './DevToolsSection'
-export { TIMEZONES } from './timezones'
 
 // Modals
 export {

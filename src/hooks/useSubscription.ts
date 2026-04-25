@@ -1,19 +1,22 @@
 import { useEffect, useState, useRef } from 'react'
-import { AppState } from 'react-native'
+import { AppState, Platform } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Purchases, { CustomerInfo, PurchasesPackage } from 'react-native-purchases'
 import { addDays, parseISO } from 'date-fns'
 
 import { supabase } from '~/lib/supabase'
+import { addBreadcrumb } from '~/lib/sentry'
 import { useAuth } from '~/hooks/useAuth'
+import { clearCurrentUserPurchaseRefundState } from '~/hooks/usePurchaseRefundState'
 import { useProfile } from '~/hooks/useProfile'
-import { useAppConfig, useAppConfigStore } from '~/stores/appConfigStore'
+import { useAppConfig } from '~/stores/appConfigStore'
 import { isBetaPhase } from '~/types/appConfig'
 import type { Profile } from '~/types'
 import {
   initializeRevenueCat,
   loginRevenueCat,
   logoutRevenueCat,
+  syncRevenueCatSubscriberAttributes,
   getOfferings,
   getOfferingForCohort,
   purchasePackage,
@@ -153,18 +156,21 @@ export function useSubscription() {
   const { profile, isLoading: profileLoading } = useProfile()
   const queryClient = useQueryClient()
   const [isInitialized, setIsInitialized] = useState(false)
+  const [revenueCatAttributeSyncRetryToken, setRevenueCatAttributeSyncRetryToken] = useState(0)
   const previousUserId = useRef<string | undefined>(undefined)
+  const previousRevenueCatAttributeSignatureRef = useRef<string | null>(null)
+  const revenueCatAttributeRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const previousAndroidMonetizationBreadcrumbRef = useRef<string | null>(null)
   // Tracks whether a trial-start mutation is currently in flight so that
   // unrelated profile-invalidation triggers (e.g. the AppState foreground
   // listener) don't race the optimistic update and overwrite it with stale
   // pre-mutation data.
   const isStartTrialPendingRef = useRef(false)
   const { phase, betaAccess } = useAppConfig()
-  const ignoreRevenueCatForDebug = useAppConfigStore((s) => s.ignoreRevenueCatForDebug)
 
   // Check if we're in beta (skip RevenueCat entirely during beta)
   const isBeta = isBetaPhase(phase)
-  const shouldBypassRevenueCat = isBeta || (__DEV__ && ignoreRevenueCatForDebug)
+  const shouldBypassRevenueCat = isBeta
 
   // Initialize RevenueCat when user changes (skip during beta)
   useEffect(() => {
@@ -182,8 +188,25 @@ export function useSubscription() {
       // Handle logout when user signs out (previous user existed, now gone)
       if (previousUserId.current && !user?.id) {
         logoutRevenueCat()
+        previousRevenueCatAttributeSignatureRef.current = null
+        previousAndroidMonetizationBreadcrumbRef.current = null
+        setRevenueCatAttributeSyncRetryToken(0)
+        if (revenueCatAttributeRetryTimeoutRef.current) {
+          clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
+          revenueCatAttributeRetryTimeoutRef.current = null
+        }
         if (isMounted) {
           setIsInitialized(false)
+        }
+      }
+
+      if (previousUserId.current && user?.id && previousUserId.current !== user.id) {
+        previousRevenueCatAttributeSignatureRef.current = null
+        previousAndroidMonetizationBreadcrumbRef.current = null
+        setRevenueCatAttributeSyncRetryToken(0)
+        if (revenueCatAttributeRetryTimeoutRef.current) {
+          clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
+          revenueCatAttributeRetryTimeoutRef.current = null
         }
       }
 
@@ -213,6 +236,62 @@ export function useSubscription() {
     }
   }, [user?.id, shouldBypassRevenueCat])
 
+  useEffect(() => {
+    return () => {
+      if (revenueCatAttributeRetryTimeoutRef.current) {
+        clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
+        revenueCatAttributeRetryTimeoutRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!user?.id || !isInitialized || shouldBypassRevenueCat || !profile) return
+
+    const attributeSignature = JSON.stringify({
+      email: user.email ?? null,
+      displayName: profile.full_name ?? null,
+      pushToken: profile.expo_push_token ?? null,
+      signupCohort: profile.signup_cohort ?? null,
+      signupMethod: profile.signup_method ?? null,
+    })
+
+    if (previousRevenueCatAttributeSignatureRef.current === attributeSignature) return
+
+    previousRevenueCatAttributeSignatureRef.current = attributeSignature
+
+    syncRevenueCatSubscriberAttributes({
+      email: user.email ?? null,
+      displayName: profile.full_name ?? null,
+      pushToken: profile.expo_push_token ?? null,
+      signupCohort: profile.signup_cohort ?? null,
+      signupMethod: profile.signup_method ?? null,
+    }).catch((error) => {
+      previousRevenueCatAttributeSignatureRef.current = null
+      console.warn('[useSubscription] Failed to sync RevenueCat subscriber attributes', {
+        userId: user.id,
+        error,
+      })
+
+      if (!revenueCatAttributeRetryTimeoutRef.current) {
+        revenueCatAttributeRetryTimeoutRef.current = setTimeout(() => {
+          revenueCatAttributeRetryTimeoutRef.current = null
+          setRevenueCatAttributeSyncRetryToken((value) => value + 1)
+        }, 5000)
+      }
+    })
+  }, [
+    isInitialized,
+    shouldBypassRevenueCat,
+    user?.email,
+    user?.id,
+    profile?.expo_push_token,
+    profile?.full_name,
+    profile?.signup_cohort,
+    profile?.signup_method,
+    revenueCatAttributeSyncRetryToken,
+  ])
+
   // Query for RevenueCat customer info (disabled during beta)
   const {
     data: customerInfo,
@@ -240,6 +319,10 @@ export function useSubscription() {
     retry: false, // Don't retry if RevenueCat is not configured
   })
 
+  // When RevenueCat is bypassed for beta mode, cached customer info must not
+  // continue affecting the subscription state machine.
+  const effectiveCustomerInfo = shouldBypassRevenueCat ? null : customerInfo
+
   // Get the cohort-specific offering identifier
   const offeringIdentifier = getOfferingForCohort(profile?.signup_cohort)
 
@@ -256,10 +339,66 @@ export function useSubscription() {
   // see computeSubscriptionState for the full state machine.
   const subscriptionState: SubscriptionState = computeSubscriptionState(
     profile,
-    customerInfo,
+    effectiveCustomerInfo,
     isBeta,
     betaAccess,
   )
+  const activeRevenueCatEntitlement = effectiveCustomerInfo?.entitlements.active[ENTITLEMENT_ID]
+  const hasActiveRevenueCatEntitlement = !!activeRevenueCatEntitlement
+  const canRequestIosRefund = Platform.OS === 'ios' && hasActiveRevenueCatEntitlement
+  const canRequestAndroidRefund =
+    Platform.OS === 'android' && activeRevenueCatEntitlement?.store === 'PLAY_STORE'
+
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !user?.id) return
+
+    const breadcrumbSignature = JSON.stringify({
+      userId: user.id,
+      subscriptionStatus: subscriptionState.status,
+      offeringIdentifier,
+      revenueCatInitialized: isInitialized,
+      shouldBypassRevenueCat,
+      hasCustomerInfo: !!effectiveCustomerInfo,
+      activeEntitlementId: activeRevenueCatEntitlement ? ENTITLEMENT_ID : null,
+      activeEntitlementStore: activeRevenueCatEntitlement?.store ?? null,
+      activeProductIdentifier: activeRevenueCatEntitlement?.productIdentifier ?? null,
+      canRequestAndroidRefund,
+      refundedAt: profile?.refunded_at ?? null,
+      purchasedAt: profile?.purchased_at ?? null,
+      signupCohort: profile?.signup_cohort ?? null,
+    })
+
+    if (previousAndroidMonetizationBreadcrumbRef.current === breadcrumbSignature) return
+    previousAndroidMonetizationBreadcrumbRef.current = breadcrumbSignature
+
+    addBreadcrumb('Resolved Android monetization state', 'monetization.android', {
+      userId: user.id,
+      subscriptionStatus: subscriptionState.status,
+      offeringIdentifier,
+      revenueCatInitialized: isInitialized,
+      shouldBypassRevenueCat,
+      hasCustomerInfo: !!effectiveCustomerInfo,
+      activeEntitlementId: activeRevenueCatEntitlement ? ENTITLEMENT_ID : null,
+      activeEntitlementStore: activeRevenueCatEntitlement?.store ?? null,
+      activeProductIdentifier: activeRevenueCatEntitlement?.productIdentifier ?? null,
+      canRequestAndroidRefund,
+      refundedAt: profile?.refunded_at ?? null,
+      purchasedAt: profile?.purchased_at ?? null,
+      signupCohort: profile?.signup_cohort ?? null,
+    })
+  }, [
+    activeRevenueCatEntitlement,
+    canRequestAndroidRefund,
+    effectiveCustomerInfo,
+    isInitialized,
+    offeringIdentifier,
+    profile?.purchased_at,
+    profile?.refunded_at,
+    profile?.signup_cohort,
+    shouldBypassRevenueCat,
+    subscriptionState.status,
+    user?.id,
+  ])
 
   // Stable primitive for the effect dep array — avoids timer churn from Date object identity.
   const trialExpiresAt = subscriptionState.trialExpirationDate?.getTime() ?? null
@@ -327,6 +466,14 @@ export function useSubscription() {
   const startTrialMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated')
+      if (profile?.purchased_at) {
+        console.warn('[useSubscription] Blocking trial start for user with recorded purchase', {
+          userId: user.id,
+          purchasedAt: profile.purchased_at,
+          tier: profile.tier,
+        })
+        throw new Error('Trial cannot be started after purchase')
+      }
       if (subscriptionState.status !== 'pre_trial') {
         throw new Error('Trial cannot be started from current state')
       }
@@ -409,6 +556,12 @@ export function useSubscription() {
       if (info) {
         // Sync to Supabase
         await syncSubscriptionToSupabase(user?.id, info)
+        await clearCurrentUserPurchaseRefundState().catch((error) => {
+          console.warn('[useSubscription] Failed to clear persisted refund state after purchase', {
+            userId: user?.id ?? null,
+            error,
+          })
+        })
       }
       return info
     },
@@ -432,6 +585,12 @@ export function useSubscription() {
       const info = await restorePurchases()
       if (info) {
         await syncSubscriptionToSupabase(user?.id, info)
+        await clearCurrentUserPurchaseRefundState().catch((error) => {
+          console.warn('[useSubscription] Failed to clear persisted refund state after restore', {
+            userId: user?.id ?? null,
+            error,
+          })
+        })
       }
       const hasEntitlement = !!info?.entitlements.active[ENTITLEMENT_ID]
       console.log('[useSubscription] Restore mutation result', {
@@ -458,6 +617,8 @@ export function useSubscription() {
     isPurchasing: purchaseMutation.isPending,
     restore: restoreMutation.mutateAsync,
     isRestoring: restoreMutation.isPending,
+    canRequestIosRefund,
+    canRequestAndroidRefund,
     refetch: refetchCustomerInfo,
   }
 }
@@ -538,6 +699,18 @@ function computeSubscriptionState(
   if (profile?.refunded_at) {
     return {
       status: 'refunded',
+      trialDaysRemaining: null,
+      trialExpirationDate: null,
+      graceDaysRemaining: null,
+      graceExpirationDate: null,
+    }
+  }
+
+  // A recorded lifetime purchase in Supabase is enough to restore the
+  // lifetime state when RevenueCat is temporarily unavailable or stale.
+  if (profile?.purchased_at) {
+    return {
+      status: 'lifetime',
       trialDaysRemaining: null,
       trialExpirationDate: null,
       graceDaysRemaining: null,
@@ -705,9 +878,27 @@ async function syncSubscriptionToSupabase(userId: string | undefined, customerIn
   if (entitlement) {
     const isTrialing = entitlement.periodType === 'TRIAL'
     const tier: 'trialing' | 'lifetime' = isTrialing ? 'trialing' : 'lifetime'
+    const purchasedAt =
+      !isTrialing
+        ? entitlement.originalPurchaseDate || entitlement.latestPurchaseDate || new Date().toISOString()
+        : null
+    const trialEndsAt = isTrialing ? entitlement.expirationDate : null
 
-    const { error: tierError } = await supabase.from('profiles').update({ tier }).eq('id', userId)
+    const { error: tierError } = await supabase
+      .from('profiles')
+      .update({
+        tier,
+        purchased_at: purchasedAt,
+        refunded_at: null,
+        trial_ends_at: trialEndsAt,
+      })
+      .eq('id', userId)
     if (tierError) throw tierError
+
+    const { error: clearRefundStateError } = await supabase.rpc(
+      'clear_current_user_refund_request_state',
+    )
+    if (clearRefundStateError) throw clearRefundStateError
 
     console.log('[useSubscription] Updated Supabase tier from RevenueCat', {
       userId,

@@ -573,6 +573,60 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_refund_states: {
+        Row: {
+          client_hint: string | null
+          created_at: string
+          last_error: string | null
+          last_source: string | null
+          platform: string
+          requested_at: string
+          resolved_at: string | null
+          status: Database['public']['Enums']['refund_request_status'] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_hint?: string | null
+          created_at?: string
+          last_error?: string | null
+          last_source?: string | null
+          platform: string
+          requested_at?: string
+          resolved_at?: string | null
+          status?: Database['public']['Enums']['refund_request_status'] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_hint?: string | null
+          created_at?: string
+          last_error?: string | null
+          last_source?: string | null
+          platform?: string
+          requested_at?: string
+          resolved_at?: string | null
+          status?: Database['public']['Enums']['refund_request_status'] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'purchase_refund_states_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'purchase_refund_states_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
+            referencedRelation: 'profiles_dashboard'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       support_requests: {
         Row: {
           app_build: string | null
@@ -976,6 +1030,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      clear_current_user_refund_request_state: {
+        Args: never
+        Returns: undefined
+      }
       cleanup_expired_sessions: { Args: never; Returns: undefined }
       delete_expired_accounts: { Args: never; Returns: undefined }
       delete_user_by_email: { Args: { target_email: string }; Returns: string }
@@ -1009,6 +1067,14 @@ export type Database = {
       }
       is_beta_phase: { Args: never; Returns: boolean }
       is_email_subscribed: { Args: { p_email: string }; Returns: boolean }
+      mark_current_user_refund_request_pending: {
+        Args: { p_error?: string | null; p_platform?: string; p_source?: string | null }
+        Returns: Database['public']['Tables']['purchase_refund_states']['Row']
+      }
+      record_current_user_duplicate_refund_request_hint: {
+        Args: { p_error?: string | null; p_platform?: string; p_source?: string | null }
+        Returns: Database['public']['Tables']['purchase_refund_states']['Row']
+      }
       log_audit_event: {
         Args: {
           p_action: Database['public']['Enums']['audit_action']
@@ -1061,6 +1127,7 @@ export type Database = {
         | 'login_attempt'
         | 'login_error'
         | 'read'
+      refund_request_status: 'pending_review' | 'approved' | 'denied'
       signup_cohort: 'friends_family' | 'early_adopter' | 'general'
       task_priority: 'top' | 'high' | 'medium' | 'low'
       tier: 'none' | 'trialing' | 'lifetime'
@@ -1207,6 +1274,7 @@ export const Constants = {
         'login_error',
         'read',
       ],
+      refund_request_status: ['pending_review', 'approved', 'denied'],
       signup_cohort: ['friends_family', 'early_adopter', 'general'],
       task_priority: ['top', 'high', 'medium', 'low'],
       tier: ['none', 'trialing', 'lifetime'],
