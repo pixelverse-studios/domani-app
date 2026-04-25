@@ -149,7 +149,8 @@ When testing refunds in staging:
    - `profiles.tier = 'none'`
    - `profiles.purchased_at IS NULL`
    - `profiles.refunded_at IS NOT NULL`
-   - `purchase_refund_states.status = 'approved'`
+   - iOS/App Store: `purchase_refund_states.status = 'approved'`
+   - Android/Play Store: no `purchase_refund_states` row is written
    - the app resolves to `refunded`
    - locked/refunded copy is shown in app
 3. Attempt restore with no active entitlement and verify:
