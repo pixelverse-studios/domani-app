@@ -49,15 +49,6 @@ export default function ContactSupportScreen() {
   const brandColor = theme.colors.brand.primary
   const createSupportRequest = useCreateSupportRequest()
 
-  // Form state
-  const initialCategory =
-    params.category && SUPPORT_CATEGORIES.some((item) => item.id === params.category)
-      ? params.category
-      : null
-  const [selectedCategory, setSelectedCategory] = useState<SupportCategory | null>(initialCategory)
-  const [description, setDescription] = useState('')
-  const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'success'>('idle')
-
   const supportCategories = [
     {
       id: 'technical_issue' as SupportCategory,
@@ -72,6 +63,15 @@ export default function ContactSupportScreen() {
     },
     { id: 'other' as SupportCategory, label: t('support.categories.other'), icon: MessageCircle },
   ] as const
+
+  // Form state
+  const initialCategory =
+    params.category && supportCategories.some((item) => item.id === params.category)
+      ? params.category
+      : null
+  const [selectedCategory, setSelectedCategory] = useState<SupportCategory | null>(initialCategory)
+  const [description, setDescription] = useState('')
+  const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'success'>('idle')
 
   // Derived state
   const isValid = selectedCategory !== null && description.trim().length >= MIN_DESCRIPTION_LENGTH
