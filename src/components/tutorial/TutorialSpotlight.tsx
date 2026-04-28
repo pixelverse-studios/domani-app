@@ -14,139 +14,18 @@ import { router } from 'expo-router'
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
+import { useTranslation } from '~/hooks/useTranslation'
 import { useTutorialStore, TutorialStep, TutorialTargetMeasurement } from '~/stores/tutorialStore'
 
-/**
- * Configuration for each tutorial step
- */
-const STEP_CONFIG: Record<
-  TutorialStep,
-  {
-    title: string
-    description: string
-    position: 'above' | 'below' | 'center'
-    showNext?: boolean
-    showSkip?: boolean
-    stepNumber?: number
-    requiresInteraction?: boolean
-    /** When "Next" is tapped, advance to this step instead of just hiding overlay */
-    nextStepOnNext?: TutorialStep
-  }
-> = {
-  welcome: { title: '', description: '', position: 'center' },
-  plan_today_button: {
-    title: 'Plan Your Day',
-    description: 'Tap here to add your first task for today.',
-    position: 'above',
-    showSkip: true,
-    stepNumber: 1,
-    requiresInteraction: true,
-  },
-  today_add_task_button: {
-    title: 'Add More Tasks',
-    description: 'This is your Today view with existing tasks. Tap here to add another task.',
-    position: 'above',
-    showSkip: true,
-    stepNumber: 1,
-    requiresInteraction: true,
-  },
-  title_input: {
-    title: 'Name Your Task',
-    description: 'Keep it short and actionable.',
-    position: 'below',
-    showSkip: true,
-    stepNumber: 2,
-    requiresInteraction: true,
-  },
-  category_selector: {
-    title: 'Create a Custom Category',
-    description: 'Tap "+ New" to create your first custom category.',
-    position: 'above',
-    showSkip: true,
-    stepNumber: 3,
-    requiresInteraction: true,
-  },
-  create_category: {
-    title: 'Create Your Own',
-    description: 'Tap "+ New" to add a custom category.',
-    position: 'above',
-    showSkip: true,
-    stepNumber: 3,
-    requiresInteraction: true,
-  },
-  more_categories_button: {
-    title: 'See All Categories',
-    description: 'Tap here to view and manage all your categories.',
-    position: 'above',
-    showSkip: true,
-    stepNumber: 3,
-    requiresInteraction: true,
-  },
-  priority_selector: {
-    title: 'Set Your Priority',
-    description: 'How important is this task?',
-    position: 'above',
-    showSkip: true,
-    stepNumber: 4,
-    requiresInteraction: true,
-  },
-  top_priority: {
-    title: 'Your #1 Priority',
-    description: 'This becomes your Most Important Task — the one thing you must complete today.',
-    position: 'above',
-    showNext: true,
-    showSkip: true,
-    stepNumber: 4,
-  },
-  day_toggle: {
-    title: 'Plan Ahead',
-    description: 'Schedule for today or prep tomorrow tonight.',
-    position: 'below',
-    showSkip: true,
-    stepNumber: 5,
-    requiresInteraction: true,
-  },
-  complete_form: {
-    title: 'Finish Up',
-    description: 'Notes and reminders are optional. Tap "Add Task" to create your first task!',
-    position: 'above',
-    showNext: true,
-    showSkip: true,
-    stepNumber: 5,
-  },
-  task_created: {
-    title: 'Task Created!',
-    description:
-      "Here's your task! Notice the category and priority. Let's see it on your Today screen.",
-    position: 'above',
-    showNext: true,
-  },
-  today_screen: {
-    title: 'Your Focus View',
-    description:
-      "Your most important task and daily progress live here. Next, let's explore a few helpful Settings.",
-    position: 'below',
-    showNext: true,
-    stepNumber: 5,
-  },
-  cleanup: { title: '', description: '', position: 'center' },
-  completion: { title: '', description: '', position: 'center' },
-  // Settings tutorial steps
-  settings_categories: {
-    title: 'Smart Categories',
-    description:
-      'Welcome to Settings! Smart Categories learns your habits and auto-sorts your favorites. You can disable it to pick manually.',
-    position: 'below',
-    showNext: true,
-    showSkip: true,
-  },
-  settings_reminders: {
-    title: 'Reminder Shortcuts',
-    description:
-      'Set up quick reminder presets for common times like morning, afternoon, or evening.',
-    position: 'above',
-    showNext: true,
-  },
+type TutorialStepConfig = {
+  title: string
+  description: string
+  position: 'above' | 'below' | 'center'
+  showNext?: boolean
+  showSkip?: boolean
+  stepNumber?: number
+  requiresInteraction?: boolean
+  nextStepOnNext?: TutorialStep
 }
 
 const SPOTLIGHT_STEPS: TutorialStep[] = [
@@ -175,7 +54,119 @@ const TOTAL_STEPS = 5
 export function TutorialSpotlight() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions()
   const theme = useAppTheme()
+  const { t } = useTranslation()
   const brandColor = theme.colors.brand.primary
+  const stepConfigMap: Record<TutorialStep, TutorialStepConfig> = {
+    welcome: { title: '', description: '', position: 'center' },
+    plan_today_button: {
+      title: t('tutorial.steps.planTodayButtonTitle'),
+      description: t('tutorial.steps.planTodayButtonDescription'),
+      position: 'above',
+      showSkip: true,
+      stepNumber: 1,
+      requiresInteraction: true,
+    },
+    today_add_task_button: {
+      title: t('tutorial.steps.todayAddTaskButtonTitle'),
+      description: t('tutorial.steps.todayAddTaskButtonDescription'),
+      position: 'above',
+      showSkip: true,
+      stepNumber: 1,
+      requiresInteraction: true,
+    },
+    title_input: {
+      title: t('tutorial.steps.titleInputTitle'),
+      description: t('tutorial.steps.titleInputDescription'),
+      position: 'below',
+      showSkip: true,
+      stepNumber: 2,
+      requiresInteraction: true,
+    },
+    category_selector: {
+      title: t('tutorial.steps.categorySelectorTitle'),
+      description: t('tutorial.steps.categorySelectorDescription'),
+      position: 'above',
+      showSkip: true,
+      stepNumber: 3,
+      requiresInteraction: true,
+    },
+    create_category: {
+      title: t('tutorial.steps.createCategoryTitle'),
+      description: t('tutorial.steps.createCategoryDescription'),
+      position: 'above',
+      showSkip: true,
+      stepNumber: 3,
+      requiresInteraction: true,
+    },
+    more_categories_button: {
+      title: t('tutorial.steps.moreCategoriesButtonTitle'),
+      description: t('tutorial.steps.moreCategoriesButtonDescription'),
+      position: 'above',
+      showSkip: true,
+      stepNumber: 3,
+      requiresInteraction: true,
+    },
+    priority_selector: {
+      title: t('tutorial.steps.prioritySelectorTitle'),
+      description: t('tutorial.steps.prioritySelectorDescription'),
+      position: 'above',
+      showSkip: true,
+      stepNumber: 4,
+      requiresInteraction: true,
+    },
+    top_priority: {
+      title: t('tutorial.steps.topPriorityTitle'),
+      description: t('tutorial.steps.topPriorityDescription'),
+      position: 'above',
+      showNext: true,
+      showSkip: true,
+      stepNumber: 4,
+    },
+    day_toggle: {
+      title: t('tutorial.steps.dayToggleTitle'),
+      description: t('tutorial.steps.dayToggleDescription'),
+      position: 'below',
+      showSkip: true,
+      stepNumber: 5,
+      requiresInteraction: true,
+    },
+    complete_form: {
+      title: t('tutorial.steps.completeFormTitle'),
+      description: t('tutorial.steps.completeFormDescription'),
+      position: 'above',
+      showNext: true,
+      showSkip: true,
+      stepNumber: 5,
+    },
+    task_created: {
+      title: t('tutorial.steps.taskCreatedTitle'),
+      description: t('tutorial.steps.taskCreatedDescription'),
+      position: 'above',
+      showNext: true,
+    },
+    today_screen: {
+      title: t('tutorial.steps.todayScreenTitle'),
+      description: t('tutorial.steps.todayScreenDescription'),
+      position: 'below',
+      showNext: true,
+      stepNumber: 5,
+    },
+    cleanup: { title: '', description: '', position: 'center' },
+    completion: { title: '', description: '', position: 'center' },
+    settings_categories: {
+      title: t('tutorial.steps.settingsCategoriesTitle'),
+      description: t('tutorial.steps.settingsCategoriesDescription'),
+      position: 'below',
+      showNext: true,
+      showSkip: true,
+    },
+    settings_reminders: {
+      title: t('tutorial.steps.settingsRemindersTitle'),
+      description: t('tutorial.steps.settingsRemindersDescription'),
+      position: 'above',
+      showNext: true,
+    },
+  }
 
   const {
     isActive,
@@ -195,7 +186,7 @@ export function TutorialSpotlight() {
   const tooltipScale = useSharedValue(0.9)
   const tooltipTranslateY = useSharedValue(20)
 
-  const stepConfig = currentStep ? STEP_CONFIG[currentStep] : null
+  const stepConfig = currentStep ? stepConfigMap[currentStep] : null
   const measurement = currentStep ? targetMeasurements[currentStep] : null
   const isSpotlightStep = currentStep && SPOTLIGHT_STEPS.includes(currentStep)
   const isVisible =
@@ -434,7 +425,10 @@ export function TutorialSpotlight() {
               />
             ))}
             <Text className="text-xs ml-2" style={{ color: theme.colors.text.secondary }}>
-              {stepConfig.stepNumber} of {TOTAL_STEPS}
+              {t('tutorial.progress', {
+                current: stepConfig.stepNumber,
+                total: TOTAL_STEPS,
+              })}
             </Text>
           </View>
         )}
@@ -454,7 +448,7 @@ export function TutorialSpotlight() {
         <View style={styles.buttonRow}>
           {stepConfig.showSkip && (
             <TouchableOpacity onPress={handleSkip} style={styles.skipButton} activeOpacity={0.6}>
-              <Text className="text-content-tertiary text-sm">Skip tour</Text>
+              <Text className="text-content-tertiary text-sm">{t('common.actions.skipTour')}</Text>
             </TouchableOpacity>
           )}
 
@@ -465,7 +459,7 @@ export function TutorialSpotlight() {
               activeOpacity={0.8}
             >
               <Text className="font-sans-semibold text-sm" style={{ color: brandColor }}>
-                Next
+                {t('common.actions.next')}
               </Text>
             </TouchableOpacity>
           )}
@@ -476,7 +470,9 @@ export function TutorialSpotlight() {
               style={[styles.nextButton, { backgroundColor: brandColor }]}
               activeOpacity={0.8}
             >
-              <Text className="text-white font-sans-semibold text-sm">Got it</Text>
+              <Text className="text-white font-sans-semibold text-sm">
+                {t('common.actions.gotIt')}
+              </Text>
             </TouchableOpacity>
           )}
         </View>

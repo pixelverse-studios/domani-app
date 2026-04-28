@@ -5,6 +5,41 @@ export const en = {
     uncategorized: 'Uncategorized',
     custom: 'Custom',
     selectTime: 'Select Time',
+    notifications: 'Notifications',
+    tabs: {
+      today: 'Today',
+      planning: 'Planning',
+      feedback: 'Feedback',
+      progress: 'Progress',
+      settings: 'Settings',
+    },
+    actions: {
+      cancel: 'Cancel',
+      close: 'Close',
+      save: 'Save',
+      done: 'Done',
+      delete: 'Delete',
+      deleting: 'Deleting...',
+      enable: 'Enable',
+      disable: 'Disable',
+      logOut: 'Log Out',
+      keepAccount: 'Keep Account',
+      submit: 'Submit',
+      next: 'Next',
+      gotIt: 'Got it',
+      skipTour: 'Skip tour',
+      planToday: 'Plan Today',
+      addTask: 'Add Task',
+      addMoreTasks: 'Add More Tasks',
+    },
+    confirmation: {
+      deleteDescription: 'Are you sure you want to delete:',
+      cannotUndo: 'This cannot be undone.',
+    },
+    errors: {
+      title: 'Error',
+      tryAgain: 'Please try again.',
+    },
   },
   greetings: {
     morning: 'Good morning',
@@ -97,6 +132,10 @@ export const en = {
     header: {
       planningFor: 'Planning for',
     },
+    emptyState: {
+      plannedTasks: 'Planned Tasks',
+      noTasks: 'No tasks planned yet',
+    },
     reminder: {
       addReminder: 'Add Reminder',
       reminderOn: 'Reminder On',
@@ -110,11 +149,232 @@ export const en = {
     },
   },
   settings: {
+    screenTitle: 'Settings',
+    logOutConfirmTitle: 'Log Out',
+    logOutConfirmMessage: 'Are you sure you want to log out?',
+    restoreFailedTitle: 'Restore Failed',
+    restoreFailedMessage: 'Could not restore purchases. Please try again.',
+    deletionScheduleFailed: 'Failed to schedule account deletion. Please try again.',
+    deletionCancelFailed: 'Failed to cancel deletion. Please try again.',
+    planningTimeSaveFailed: 'Failed to save planning time. Please try again.',
+    notificationToggleFailed: 'Failed to update notification setting. Please try again.',
+    nameModal: {
+      title: 'Edit Name',
+      placeholder: 'Enter your name',
+    },
+    timezoneModal: {
+      title: 'Select Timezone',
+    },
+    planningTimeModal: {
+      title: 'Planning Reminder',
+      description: "Get reminded to plan tomorrow's tasks",
+    },
+    favoriteCategories: {
+      title: 'Favorite Categories',
+      managedSmartly: 'Managed Smartly',
+      selectedCount: '{{count}} selected',
+      quickAccessTitle: 'Quick Access Categories',
+      quickAccessDescription:
+        'Select up to {{count}} categories to display by default when adding tasks',
+      reorderHint: 'Hold and drag to reorder',
+    },
+    dangerZone: {
+      title: 'Danger Zone',
+      pendingTitle: 'Account Scheduled for Deletion',
+      daysRemaining: '{{count}} days remaining',
+      deletionMessagePrefix: 'Your account will be permanently deleted on ',
+      deletionMessageSuffix: '. Sign in anytime before then to reactivate.',
+      cancelDeletion: 'Cancel Deletion',
+      deleteAccount: 'Delete Account',
+    },
+    deleteAccountModal: {
+      title: 'Delete Your Account?',
+      description:
+        'Your account and all data will be permanently deleted after 30 days. You can sign in anytime before then to reactivate your account.',
+      listTitle: 'This will permanently delete:',
+      listPlansTasks: 'All your plans and tasks',
+      listCustomCategories: 'Custom categories',
+      listProgressHistory: 'Progress history',
+      listAccountSettings: 'Account settings',
+    },
+    smartCategoriesModal: {
+      enableTitle: 'Enable Smart Categories?',
+      disableTitle: 'Disable Smart Categories?',
+      enableDescription:
+        'Your quick access categories will automatically adapt based on your usage patterns. This will override your current favorite categories.',
+      disableDescription:
+        'Your categories will return to manual ordering. You can reorder them by going to Favorite Categories.',
+    },
     reminderShortcuts: {
       title: 'Reminder Shortcuts',
       customizeTitle: 'Customize Shortcuts',
       description: 'Tap to change the preset times shown when adding reminders',
       shortcutLabel: 'Shortcut {{count}}',
+    },
+  },
+  today: {
+    namePrompt: {
+      title: 'What should we call you?',
+      description: 'Add your name to personalize your experience',
+      saveFailedTitle: 'Failed to save name',
+      saveFailedMessage: 'Please try again.',
+    },
+    progress: {
+      placeholder: 'Your progress will be tracked here once you add tasks',
+      title: "Today's Progress",
+      completed: 'Completed',
+      unfinished: 'Unfinished',
+    },
+    emptyState: {
+      title: 'No tasks planned yet',
+    },
+    focus: {
+      allDoneLabel: 'All Done!',
+      allDoneMessage: "You've crushed it today",
+      focusLabel: "Today's Focus",
+      planDayMessage: 'Plan your day',
+      addTasksSubtitle: 'Add tasks to get started',
+      mostImportantTask: 'Your most important task',
+      vibeLabel: "Today's Vibe",
+      themeSuffix: ', then focus on {{phrase}}',
+      themePhrases: {
+        work: 'productivity',
+        wellness: 'wellness',
+        personal: 'personal time',
+        learning: 'learning',
+        balanced: 'balance',
+      },
+    },
+    dayThemes: {
+      work: {
+        title: 'Productivity Day',
+        subtitle: 'Heads down, results ahead',
+      },
+      wellness: {
+        title: 'Self-Care Day',
+        subtitle: 'Investing in yourself',
+      },
+      personal: {
+        title: 'Life Admin Day',
+        subtitle: 'Taking care of what matters',
+      },
+      learning: {
+        title: 'Growth Day',
+        subtitle: 'Expanding your horizons',
+      },
+      balanced: {
+        title: 'Balanced Day',
+        subtitle: 'A well-rounded day ahead',
+      },
+    },
+  },
+  feedback: {
+    categories: {
+      bugReport: 'Bug Report',
+      featureIdea: 'Feature Idea',
+      whatILove: 'What I Love',
+      general: 'General',
+    },
+    title: 'Share Your Thoughts',
+    subtitle: 'Help us make Domani better! Your feedback shapes our development.',
+    categoryPrompt: 'What would you like to share?',
+    messageLabel: 'Your Message',
+    disabledMessage: 'Select a category to start',
+    placeholders: {
+      bugReport: 'Describe the bug you encountered...',
+      featureIdea: 'Tell us about your feature idea...',
+      whatILove: 'Share what you love about Domani...',
+      general: 'Share your thoughts with us...',
+    },
+    submitCta: 'Send Feedback',
+    submitFailedTitle: 'Failed to send feedback',
+    success: {
+      title: 'Feedback Received!',
+      message:
+        "Thank you for sharing your thoughts! We've received your message and will review it soon. Your input helps us build a better Domani.",
+      action: 'Submit More Feedback',
+      bannerTitle: 'We appreciate you!',
+      bannerDescription:
+        "Every piece of feedback matters. You're helping shape the future of productivity.",
+    },
+    betaBanner: {
+      title: "You're a Beta Tester!",
+      description:
+        "Your feedback directly shapes Domani's future. Every submission is read by our team and helps prioritize what we build next.",
+    },
+  },
+  support: {
+    categories: {
+      technicalIssue: 'Technical Issue',
+      accountHelp: 'Account Help',
+      billingQuestion: 'Billing Question',
+      other: 'Other',
+    },
+    title: 'Contact Support',
+    subtitle: 'Submit a request and get personalized help from our team',
+    categoryPrompt: 'What do you need help with?',
+    issueLabel: 'Describe your issue',
+    disabledMessage: 'Select a category to start',
+    placeholders: {
+      technicalIssue: "Describe the technical problem you're experiencing.",
+      accountHelp: 'Describe what help you need with your account.',
+      billingQuestion: 'Describe your billing question or concern.',
+      other: 'Describe what you need help with.',
+    },
+    submitCta: 'Submit Support Request',
+    submitFailedTitle: 'Failed to submit request',
+    success: {
+      message:
+        "We've received your support request and our team will get back to you within 24 hours. Check your email for updates.",
+      action: 'Submit Another Request',
+      bannerTitle: "We're on it!",
+      bannerDescription:
+        "Your ticket has been assigned to our support team. We'll investigate and respond as soon as possible.",
+    },
+    responseBanner: {
+      title: 'Quick Response Time',
+      description:
+        'Our support team typically responds within 24 hours. All requests are handled with care and attention.',
+    },
+  },
+  tutorial: {
+    progress: '{{current}} of {{total}}',
+    steps: {
+      planTodayButtonTitle: 'Plan Your Day',
+      planTodayButtonDescription: 'Tap here to add your first task for today.',
+      todayAddTaskButtonTitle: 'Add More Tasks',
+      todayAddTaskButtonDescription:
+        'This is your Today view with existing tasks. Tap here to add another task.',
+      titleInputTitle: 'Name Your Task',
+      titleInputDescription: 'Keep it short and actionable.',
+      categorySelectorTitle: 'Create a Custom Category',
+      categorySelectorDescription: 'Tap "+ New" to create your first custom category.',
+      createCategoryTitle: 'Create Your Own',
+      createCategoryDescription: 'Tap "+ New" to add a custom category.',
+      moreCategoriesButtonTitle: 'See All Categories',
+      moreCategoriesButtonDescription: 'Tap here to view and manage all your categories.',
+      prioritySelectorTitle: 'Set Your Priority',
+      prioritySelectorDescription: 'How important is this task?',
+      topPriorityTitle: 'Your #1 Priority',
+      topPriorityDescription:
+        'This becomes your Most Important Task — the one thing you must complete today.',
+      dayToggleTitle: 'Plan Ahead',
+      dayToggleDescription: 'Schedule for today or prep tomorrow tonight.',
+      completeFormTitle: 'Finish Up',
+      completeFormDescription:
+        'Notes and reminders are optional. Tap "Add Task" to create your first task!',
+      taskCreatedTitle: 'Task Created!',
+      taskCreatedDescription:
+        "Here's your task! Notice the category and priority. Let's see it on your Today screen.",
+      todayScreenTitle: 'Your Focus View',
+      todayScreenDescription:
+        "Your most important task and daily progress live here. Next, let's explore a few helpful Settings.",
+      settingsCategoriesTitle: 'Smart Categories',
+      settingsCategoriesDescription:
+        'Welcome to Settings! Smart Categories learns your habits and auto-sorts your favorites. You can disable it to pick manually.',
+      settingsRemindersTitle: 'Reminder Shortcuts',
+      settingsRemindersDescription:
+        'Set up quick reminder presets for common times like morning, afternoon, or evening.',
     },
   },
   analytics: {
