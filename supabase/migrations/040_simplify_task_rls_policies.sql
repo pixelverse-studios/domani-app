@@ -29,6 +29,7 @@ CREATE POLICY "Users can view own tasks"
 
 -- INSERT: Users can create tasks if they own them and have an active tier
 DROP POLICY IF EXISTS "Users can insert tasks with tier limit" ON public.tasks;
+DROP POLICY IF EXISTS "Users can insert tasks" ON public.tasks;
 CREATE POLICY "Users can insert tasks"
     ON public.tasks
     FOR INSERT
