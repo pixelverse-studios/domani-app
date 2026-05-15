@@ -235,16 +235,27 @@ export default function FeedbackScreen() {
           {submitState === 'submitting' ? (
             <ActivityIndicator color={isValid ? '#ffffff' : textSecondary} />
           ) : (
-            <>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
               <Send size={18} color={isValid ? '#ffffff' : textSecondary} />
               <Text
                 className={`font-semibold text-base ml-2 ${
                   isValid ? 'text-white' : 'text-content-tertiary'
                 }`}
+                style={{
+                  lineHeight: Platform.OS === 'android' ? 20 : undefined,
+                  textAlignVertical: Platform.OS === 'android' ? 'center' : undefined,
+                  includeFontPadding: Platform.OS === 'android' ? false : undefined,
+                }}
               >
                 {copy.feedback.submit}
               </Text>
-            </>
+            </View>
           )}
         </TouchableOpacity>
 
