@@ -23,7 +23,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/AppIcon-sage.png",
+        "foregroundImage": "./assets/android-adaptive-icon-foreground.png",
         "backgroundColor": "#FAF8F5"
       },
       "splash": {
