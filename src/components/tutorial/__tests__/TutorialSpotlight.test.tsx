@@ -1,0 +1,154 @@
+import React from 'react'
+
+import { act, fireEvent, renderWithProviders, screen } from '~/test/test-utils'
+import {
+  type TutorialStep,
+  type TutorialTargetMeasurement,
+  useTutorialStore,
+} from '~/stores/tutorialStore'
+import { TutorialSpotlight } from '../TutorialSpotlight'
+
+jest.mock('~/hooks/useTutorialAnalytics', () => ({
+  useTutorialAnalytics: jest.fn(() => ({
+    trackStepViewed: jest.fn(),
+    trackTutorialSkipped: jest.fn(),
+    trackTutorialCompleted: jest.fn(),
+  })),
+}))
+
+const tutorialSteps: TutorialStep[] = [
+  'welcome',
+  'plan_today_button',
+  'today_add_task_button',
+  'title_input',
+  'category_selector',
+  'create_category',
+  'more_categories_button',
+  'priority_selector',
+  'top_priority',
+  'day_toggle',
+  'complete_form',
+  'task_created',
+  'today_screen',
+  'cleanup',
+  'completion',
+  'settings_categories',
+  'settings_reminders',
+]
+
+function emptyMeasurements(): Record<TutorialStep, TutorialTargetMeasurement | null> {
+  return Object.fromEntries(tutorialSteps.map((step) => [step, null])) as Record<
+    TutorialStep,
+    TutorialTargetMeasurement | null
+  >
+}
+
+function visibleMeasurements(
+  step: TutorialStep,
+): Record<TutorialStep, TutorialTargetMeasurement | null> {
+  return {
+    ...emptyMeasurements(),
+    [step]: { x: 24, y: 120, width: 180, height: 48 },
+  }
+}
+
+function setSpotlightStep(step: TutorialStep) {
+  act(() => {
+    useTutorialStore.setState({
+      isActive: true,
+      currentStep: step,
+      hasCompletedTutorial: false,
+      isLoading: false,
+      isOverlayHidden: false,
+      targetMeasurements: visibleMeasurements(step),
+    })
+  })
+}
+
+describe('TutorialSpotlight', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+    jest.clearAllMocks()
+    useTutorialStore.setState({
+      isActive: false,
+      currentStep: null,
+      hasCompletedTutorial: false,
+      isLoading: false,
+      isOverlayHidden: false,
+      targetMeasurements: emptyMeasurements(),
+    })
+  })
+
+  afterEach(() => {
+    jest.runOnlyPendingTimers()
+    jest.useRealTimers()
+  })
+
+  it('advances overlay controls to the next passive step', () => {
+    setSpotlightStep('top_priority')
+
+    renderWithProviders(<TutorialSpotlight />)
+
+    fireEvent.press(screen.getByText('Got it'))
+    act(() => {
+      jest.advanceTimersByTime(150)
+    })
+
+    expect(useTutorialStore.getState().currentStep).toBe('complete_form')
+  })
+
+  it('skips and completes the tutorial from the overlay', () => {
+    setSpotlightStep('priority_selector')
+
+    renderWithProviders(<TutorialSpotlight />)
+
+    fireEvent.press(screen.getByText('Skip tour'))
+    act(() => {
+      jest.advanceTimersByTime(150)
+    })
+
+    expect(useTutorialStore.getState()).toMatchObject({
+      isActive: false,
+      currentStep: null,
+      hasCompletedTutorial: true,
+    })
+  })
+
+  it('marks the tutorial complete from the final done step', () => {
+    setSpotlightStep('settings_reminders')
+
+    renderWithProviders(<TutorialSpotlight />)
+
+    fireEvent.press(screen.getByText('Got it'))
+    act(() => {
+      jest.advanceTimersByTime(150)
+    })
+
+    expect(useTutorialStore.getState()).toMatchObject({
+      isActive: false,
+      currentStep: null,
+      hasCompletedTutorial: true,
+    })
+  })
+
+  it('falls forward when an optional target is missing', () => {
+    act(() => {
+      useTutorialStore.setState({
+        isActive: true,
+        currentStep: 'more_categories_button',
+        hasCompletedTutorial: false,
+        isLoading: false,
+        isOverlayHidden: false,
+        targetMeasurements: emptyMeasurements(),
+      })
+    })
+
+    renderWithProviders(<TutorialSpotlight />)
+
+    act(() => {
+      jest.advanceTimersByTime(600)
+    })
+
+    expect(useTutorialStore.getState().currentStep).toBe('priority_selector')
+  })
+})
