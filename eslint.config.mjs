@@ -14,7 +14,7 @@ export default tseslint.config(
     plugins: {
       react,
       'react-hooks': reactHooks,
-      'domani': {
+      domani: {
         rules: {
           'no-hardcoded-colors': noHardcodedColors,
           'no-dark-mode-patterns': noDarkModePatterns,
@@ -59,6 +59,12 @@ export default tseslint.config(
       // React hooks rules
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
+      // React Compiler rules are too noisy for the current Reanimated/ref-heavy codebase.
+      'react-hooks/immutability': 'off',
+      'react-hooks/preserve-manual-memoization': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+      'react/no-unescaped-entities': 'off',
       // Allow require() for React Native compatibility
       '@typescript-eslint/no-require-imports': 'off',
       // Theme enforcement — use useAppTheme() tokens instead of hardcoded colors
@@ -76,6 +82,9 @@ export default tseslint.config(
       'vendor/**',
       'android/**',
       'ios/**',
+      'eslint-rules/**',
+      'jest.setup.js',
+      'scripts/**',
       '*.config.js',
       'babel.config.js',
       'metro.config.js',
