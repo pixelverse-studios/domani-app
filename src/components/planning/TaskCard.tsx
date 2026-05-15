@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState } from 'react'
 import {
   View,
   TouchableOpacity,
@@ -18,90 +18,66 @@ import {
   Bell,
   Crown,
 } from 'lucide-react-native'
-import { format, parseISO } from 'date-fns'
 
 import { Text } from '~/components/ui'
-import { useAppTheme } from '~/hooks/useAppTheme'
-import type { TaskWithCategory } from '~/types'
 import { getCategoryIcon } from '~/utils/categoryIcons'
+import { useLayoutStore } from '~/stores/layoutStore'
+import { useTaskCardData } from './task-layouts/shared'
+import {
+  CompactTaskCard,
+  MinimalTaskCard,
+  DetailedTaskCard,
+  GridTaskCard,
+  ChecklistTaskCard,
+} from './task-layouts'
+import type { TaskCardProps } from './task-layouts/shared'
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
-interface TaskCardProps {
-  task: TaskWithCategory
-  onEdit?: (taskId: string) => void
-  onDelete?: (taskId: string) => void
-  onToggleComplete?: (taskId: string, completed: boolean) => void
-  showCheckbox?: boolean
+export function TaskCard(props: TaskCardProps) {
+  const taskLayout = useLayoutStore((s) => s.taskLayout)
+
+  if (taskLayout === 'compact') return <CompactTaskCard {...props} />
+  if (taskLayout === 'minimal') return <MinimalTaskCard {...props} />
+  if (taskLayout === 'detailed') return <DetailedTaskCard {...props} />
+  if (taskLayout === 'grid') return <GridTaskCard {...props} />
+  if (taskLayout === 'checklist') return <ChecklistTaskCard {...props} />
+
+  return <DefaultTaskCard {...props} />
 }
 
-/**
- * Format a reminder time for display.
- * Returns a compact format like "9 AM" or "1:30 PM"
- * @param date - Already-parsed Date object to avoid inconsistent parsing
- */
-function formatReminderTime(date: Date): string {
-  const minutes = date.getMinutes()
-
-  // Use format without minutes if on the hour
-  if (minutes === 0) {
-    return format(date, 'h a') // "9 AM"
-  }
-  return format(date, 'h:mm a') // "1:30 PM"
-}
-
-export function TaskCard({
+function DefaultTaskCard({
   task,
   onEdit,
   onDelete,
   onToggleComplete,
   showCheckbox = false,
 }: TaskCardProps) {
-  const theme = useAppTheme()
+  const {
+    theme,
+    isCompleted,
+    priority,
+    priorityColor,
+    priorityBadgeBg,
+    category,
+    categoryName,
+    isUserCategory,
+    hasNotes,
+    reminderInfo,
+    iconColor,
+    dividerColor,
+    buttonBg,
+  } = useTaskCardData(task)
+
   const [isNotesExpanded, setIsNotesExpanded] = useState(false)
-
-  const isCompleted = !!task.completed_at
-  const priority = task.priority || 'medium'
-
-  const priorityColor = theme.priority[priority]?.color ?? theme.priority.medium.color
-  const priorityBadgeBg = `${priorityColor}26` // 15% opacity
-
-  // Get category info (prefer user category, fall back to system category)
-  const category = task.user_category || task.system_category
-  const categoryName = category?.name || 'Uncategorized'
-  const isUserCategory = !!task.user_category
-
-  const hasNotes = !!task.notes?.trim()
-
-  // Check if task has a future reminder
-  // Use parseISO to correctly handle Postgres timestamp format
-  // Postgres returns "2026-01-23 14:06:23.592+00" which iOS JavaScriptCore
-  // may misinterpret as local time. parseISO handles this correctly.
-  const reminderInfo = useMemo(() => {
-    if (!task.reminder_at) return null
-
-    try {
-      const reminderDate = parseISO(task.reminder_at)
-      return {
-        time: formatReminderTime(reminderDate),
-        isPast: reminderDate <= new Date(),
-      }
-    } catch {
-      return null
-    }
-  }, [task.reminder_at])
 
   const handleToggleNotes = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
     setIsNotesExpanded((prev) => !prev)
   }
-
-  const iconColor = theme.colors.text.tertiary
-  const dividerColor = `${theme.colors.border.primary}33`
-  const buttonBg = theme.colors.interactive.hover
 
   const handleToggleComplete = () => {
     onToggleComplete?.(task.id, !isCompleted)

@@ -14,6 +14,8 @@ import Animated, {
 import { Text } from '~/components/ui'
 import { useTutorialTarget } from '~/components/tutorial'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 
 export type Priority = 'top' | 'high' | 'medium' | 'low'
 
@@ -26,13 +28,6 @@ interface PrioritySelectorProps {
   editingTaskId?: string
   disabled?: boolean
 }
-
-const PRIORITIES: { key: Priority; label: string }[] = [
-  { key: 'top', label: 'Top' },
-  { key: 'high', label: 'High' },
-  { key: 'medium', label: 'Med' },
-  { key: 'low', label: 'Low' },
-]
 
 const PILL_SPRING = {
   damping: 18,
@@ -47,6 +42,8 @@ export function PrioritySelector({
   editingTaskId,
   disabled = false,
 }: PrioritySelectorProps) {
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   // Register as target for both priority_selector and top_priority tutorial steps
   const { targetRef: prioritySelectorRef, measureTarget: measurePrioritySelector } =
     useTutorialTarget('priority_selector')
@@ -78,6 +75,12 @@ export function PrioritySelector({
   }, [measurePrioritySelector, measureTopPriority])
 
   const theme = useAppTheme()
+  const PRIORITIES: { key: Priority; label: string }[] = [
+    { key: 'top', label: copy.planning.top },
+    { key: 'high', label: copy.planning.high },
+    { key: 'medium', label: copy.planning.medium },
+    { key: 'low', label: copy.planning.low },
+  ]
 
   const priorityColors = {
     top: theme.priority.top.color,
@@ -155,7 +158,7 @@ export function PrioritySelector({
       {/* Priority Label */}
       <View className="flex-row items-center mb-3">
         <Triangle size={16} color={theme.colors.text.tertiary} />
-        <Text className="font-sans-medium text-content-primary ml-2">Priority</Text>
+        <Text className="font-sans-medium text-content-primary ml-2">{copy.planning.priority}</Text>
       </View>
 
       {/* Priority Selector Container */}
@@ -225,7 +228,7 @@ export function PrioritySelector({
         >
           <Crown size={14} color={priorityColors.top} />
           <Text className="font-sans text-sm ml-2" style={{ color: priorityColors.top }}>
-            This will be your top priority task
+            {copy.planning.topPriorityMessage}
           </Text>
         </Animated.View>
       )}
@@ -244,9 +247,9 @@ export function PrioritySelector({
         >
           <AlertTriangle size={14} color={amberColor} />
           <Text className="flex-1 ml-2" style={{ color: amberColor }}>
-            <Text className="font-sans text-sm">This will replace </Text>
+            <Text className="font-sans text-sm">{copy.planning.replaceTopPriorityPrefix}</Text>
             <Text className="font-sans-bold text-sm">{existingTopPriorityTask.title}</Text>
-            <Text className="font-sans text-sm"> as your top priority</Text>
+            <Text className="font-sans text-sm">{copy.planning.replaceTopPrioritySuffix}</Text>
           </Text>
         </Animated.View>
       )}

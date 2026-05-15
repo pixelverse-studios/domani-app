@@ -5,6 +5,8 @@ import { useRouter } from 'expo-router'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import { SectionHeader } from './SectionHeader'
 import { SettingsRow } from './SettingsRow'
 
@@ -18,13 +20,15 @@ interface SupportSectionProps {
 export function SupportSection({ onReplayTutorial }: SupportSectionProps) {
   const router = useRouter()
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
 
   return (
     <>
-      <SectionHeader title="Support" />
+      <SectionHeader title={copy.settings.supportSection} />
       <View className="mb-6">
         <SettingsRow
-          label="Replay Tutorial"
+          label={copy.settings.replayTutorial}
           onPress={onReplayTutorial}
           icon={Sparkles}
           showChevron={false}
@@ -41,7 +45,7 @@ export function SupportSection({ onReplayTutorial }: SupportSectionProps) {
         >
           <HelpCircle size={18} color={theme.colors.brand.primary} />
           <Text style={{ color: theme.colors.brand.primary, fontWeight: '600', marginLeft: 8 }}>
-            Contact for Support
+            {copy.settings.contactSupport}
           </Text>
         </TouchableOpacity>
       </View>

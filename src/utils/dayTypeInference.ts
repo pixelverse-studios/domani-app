@@ -8,6 +8,7 @@
 import type { TaskWithCategory } from '~/types'
 import { getTheme } from '~/theme/themes'
 import { THEME_KEYWORDS, THEME_COLORS, type DayTheme } from '~/constants/systemCategories'
+import type { TranslationCatalog } from '~/i18n/types'
 
 export interface DayType {
   theme: DayTheme
@@ -60,6 +61,8 @@ const DAY_TYPE_CONFIG: Record<DayTheme, Omit<DayType, 'theme'>> = {
   },
 }
 
+type DayThemeTranslations = TranslationCatalog['today']['dayThemes']
+
 /**
  * Maps a category name to a theme using keyword matching
  */
@@ -108,9 +111,44 @@ function getTaskTheme(task: TaskWithCategory): DayTheme {
  * - Otherwise, it's a "balanced" day
  */
 export function inferDayType(tasks: TaskWithCategory[]): DayType {
+  return inferDayTypeWithTranslations(tasks)
+}
+
+export function inferDayTypeWithTranslations(
+  tasks: TaskWithCategory[],
+  translations?: DayThemeTranslations,
+): DayType {
+  const localizedConfig: Record<DayTheme, Omit<DayType, 'theme'>> = {
+    work: {
+      ...DAY_TYPE_CONFIG.work,
+      title: translations?.work.title ?? DAY_TYPE_CONFIG.work.title,
+      subtitle: translations?.work.subtitle ?? DAY_TYPE_CONFIG.work.subtitle,
+    },
+    wellness: {
+      ...DAY_TYPE_CONFIG.wellness,
+      title: translations?.wellness.title ?? DAY_TYPE_CONFIG.wellness.title,
+      subtitle: translations?.wellness.subtitle ?? DAY_TYPE_CONFIG.wellness.subtitle,
+    },
+    personal: {
+      ...DAY_TYPE_CONFIG.personal,
+      title: translations?.personal.title ?? DAY_TYPE_CONFIG.personal.title,
+      subtitle: translations?.personal.subtitle ?? DAY_TYPE_CONFIG.personal.subtitle,
+    },
+    learning: {
+      ...DAY_TYPE_CONFIG.learning,
+      title: translations?.learning.title ?? DAY_TYPE_CONFIG.learning.title,
+      subtitle: translations?.learning.subtitle ?? DAY_TYPE_CONFIG.learning.subtitle,
+    },
+    balanced: {
+      ...DAY_TYPE_CONFIG.balanced,
+      title: translations?.balanced.title ?? DAY_TYPE_CONFIG.balanced.title,
+      subtitle: translations?.balanced.subtitle ?? DAY_TYPE_CONFIG.balanced.subtitle,
+    },
+  }
+
   if (tasks.length === 0) {
     // Edge case: no tasks defaults to balanced
-    return { theme: 'balanced', ...DAY_TYPE_CONFIG.balanced }
+    return { theme: 'balanced', ...localizedConfig.balanced }
   }
 
   // Count tasks per theme
@@ -152,7 +190,7 @@ export function inferDayType(tasks: TaskWithCategory[]): DayType {
 
   return {
     theme: dominantTheme,
-    ...DAY_TYPE_CONFIG[dominantTheme],
+    ...localizedConfig[dominantTheme],
   }
 }
 

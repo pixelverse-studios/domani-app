@@ -22,16 +22,47 @@ npx supabase gen types typescript --project-id exxnnlhxcjujxnnwwrxv > src/types/
 Types location: `src/types/supabase.ts`
 Convenience aliases: `src/types/index.ts`
 
+## Environments
+
+| Environment | Supabase Project | Config | Used For |
+|-------------|-----------------|--------|----------|
+| **Local dev** | Staging (`ftgltnzejaxasdvfkqut`) | `.env.local` overrides `.env` | Day-to-day development, simulator testing |
+| **Internal test builds** | Staging (`ftgltnzejaxasdvfkqut`) | Build with `.env.local` active | QA builds shared with testers |
+| **Production builds** | Production (`exxnnlhxcjujxnnwwrxv`) | `.env` only (remove/rename `.env.local`) | Play Store / TestFlight releases |
+
+**Switching environments:**
+- `.env.local` is auto-loaded by Expo and overrides `.env` values
+- `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID` should match the target environment:
+  - staging / internal QA: `Domani Staging Lifetime`
+  - production: `Domani Lifetime`
+- For production builds, temporarily rename `.env.local` → `.env.local.bak` so only `.env` (production) values are used
+- Restore `.env.local` after the production build
+
 ## Common Commands
 
 ```bash
 npm start          # Start Expo dev server
 npm run ios        # Run on iOS simulator
 npm run android    # Run on Android emulator
-npm run db:types   # Regenerate Supabase types
+npm run db:types   # Regenerate Supabase types (production)
 npm run typecheck  # TypeScript validation
 npm run lint       # ESLint
 npm run format     # Prettier
+```
+
+### Database Commands — Staging
+
+```bash
+npm run db:staging:push    # Push migrations to staging DB
+npm run db:staging:reset   # Reset staging DB with all migrations
+npm run db:staging:types   # Generate types from staging schema
+```
+
+### Database Commands — Production
+
+```bash
+npm run db:push            # Push migrations to production (ONLY after staging verification)
+npm run db:types           # Generate types from production schema
 ```
 
 ## Future Work & TODO Tracking
@@ -98,7 +129,6 @@ This ensures nothing falls through the cracks between development sessions.
 - `development-plan.md` - Full project spec, architecture, and business logic
 - `docs/FUTURE_WORK.md` - Backlog of planned features and improvements
 - `docs/plans/` - Implementation plans for major features
-- `docs/audits/mobile/` - Session audit logs (what was built, decisions made)
 
 ## Key Architecture Decisions
 
@@ -109,23 +139,50 @@ This ensures nothing falls through the cracks between development sessions.
 
 ## Build Preparation
 
-**IMPORTANT:** When the user mentions "preparing for a build", "ready for build", or similar, always:
+**IMPORTANT:** When the user mentions "preparing for a build", "ready for build", or similar, **always ask first:** "Is this an **internal/QA build** (staging) or a **production build** (Play Store / TestFlight)?"
 
-1. **Increment version numbers** before building:
+The intent of this workflow is:
+
+1. determine the target environment
+2. make the temporary config changes required for that build type
+3. let the user complete both Android and Xcode/iOS builds
+4. restore the repo and env files back to normal local development state after both builds finish
+
+Do not leave temporary staging/production switches in place after the build workflow is complete.
+
+### Internal / QA Build (Staging)
+
+1. Ensure `.env.local` is present with staging Supabase values
+2. Ensure `.env.local` sets `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID=Domani Staging Lifetime`
+3. Push any pending migrations to staging: `npm run db:staging:push`
+4. Increment version numbers (same as production)
+5. Build Android and iOS/Xcode from the current local staging config
+6. Distribute to testers if needed
+7. After both builds are finished, restore any temporary changes that were made only for the build process
+
+### Production Build
+
+1. **Rename `.env.local`** → `.env.local.bak` so the app uses production Supabase values from `.env`
+2. Ensure the active production env includes `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID=Domani Lifetime`
+3. Push any pending migrations to production: `npm run db:push` (only after staging verification)
+4. Increment version numbers:
    - **Android:** Update `versionCode` (integer, must increment) and `versionName` in `android/app/build.gradle`
    - **iOS:** Update via `app.json` or Xcode (EAS handles this automatically with `autoIncrement`)
+5. Commit the version bump before building
+6. Build Android and iOS/Xcode
+7. **Restore `.env.local`** from `.env.local.bak` after both builds are complete
+8. Restore any other temporary build-only changes so the repo returns to normal local development state
 
-2. **Version file locations:**
-   - `android/app/build.gradle` - lines ~95-96 (`versionCode` and `versionName`)
-   - `app.json` - `expo.version` (display version)
+### Version File Locations
 
-3. **Commit the version bump** before building
+- `android/app/build.gradle` - lines ~95-96 (`versionCode` and `versionName`)
+- `app.json` - `expo.version` (display version)
 
 **Current versions (update after each build):**
 
-- Android versionCode: 101
-- Android versionName: 1.0.23
-- app.json version: 1.0.23
+- Android versionCode: 114
+- Android versionName: 1.0.36
+- app.json version: 1.0.36
 - iOS uses EAS auto-increment
 
 ## Linear Ticket Creation

@@ -13,7 +13,10 @@ import { MessageCircle, Bug, Lightbulb, Heart, Rocket, Send } from 'lucide-react
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
-import { useCreateBetaFeedback, type FeedbackCategory } from '~/hooks/useBetaFeedback'
+import { useCreateFeedback, type FeedbackCategory } from '~/hooks/useFeedback'
+import { useSubscriptionStatus } from '~/hooks/useSubscription'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import {
   CategoryGrid,
   SubjectField,
@@ -24,30 +27,43 @@ import {
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 
 // Category configuration
-const FEEDBACK_CATEGORIES = [
-  { id: 'bug_report' as FeedbackCategory, label: 'Bug Report', icon: Bug },
-  { id: 'feature_idea' as FeedbackCategory, label: 'Feature Idea', icon: Lightbulb },
-  { id: 'what_i_love' as FeedbackCategory, label: 'What I Love', icon: Heart },
-  { id: 'general' as FeedbackCategory, label: 'General', icon: MessageCircle },
-] as const
-
 const MIN_MESSAGE_LENGTH = 1
 
 export default function FeedbackScreen() {
   useScreenTracking('feedback')
   const insets = useSafeAreaInsets()
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const brandColor = theme.colors.brand.primary
-  const createFeedback = useCreateBetaFeedback()
+  const createFeedback = useCreateFeedback()
+  // Lightweight read-only status — avoids spinning up a second AppState
+  // listener / trial timer just to check for the beta banner.
+  const { status: subscriptionStatus } = useSubscriptionStatus()
 
   // Form state
   const [selectedCategory, setSelectedCategory] = useState<FeedbackCategory | null>(null)
   const [message, setMessage] = useState('')
   const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'success'>('idle')
 
+  const feedbackCategories = [
+    { id: 'bug_report' as FeedbackCategory, label: copy.feedback.categories.bugReport, icon: Bug },
+    {
+      id: 'feature_idea' as FeedbackCategory,
+      label: copy.feedback.categories.featureIdea,
+      icon: Lightbulb,
+    },
+    {
+      id: 'what_i_love' as FeedbackCategory,
+      label: copy.feedback.categories.whatILove,
+      icon: Heart,
+    },
+    { id: 'general' as FeedbackCategory, label: copy.feedback.categories.general, icon: MessageCircle },
+  ] as const
+
   // Derived state
   const isValid = selectedCategory !== null && message.trim().length >= MIN_MESSAGE_LENGTH
-  const selectedCategoryConfig = FEEDBACK_CATEGORIES.find((c) => c.id === selectedCategory)
+  const selectedCategoryConfig = feedbackCategories.find((c) => c.id === selectedCategory)
 
   // Colors
   const textSecondary = theme.colors.text.secondary
@@ -73,7 +89,7 @@ export default function FeedbackScreen() {
     } catch (error) {
       setSubmitState('idle')
       console.error('Failed to submit feedback:', error)
-      Alert.alert('Failed to send feedback', 'Please try again.')
+      Alert.alert(copy.feedback.submitErrorTitle, copy.feedback.submitErrorMessage)
     }
   }
 
@@ -87,13 +103,13 @@ export default function FeedbackScreen() {
   const getPlaceholderText = (category: FeedbackCategory): string => {
     switch (category) {
       case 'bug_report':
-        return 'Describe the bug you encountered...'
+        return copy.feedback.placeholders.bugReport
       case 'feature_idea':
-        return 'Tell us about your feature idea...'
+        return copy.feedback.placeholders.featureIdea
       case 'what_i_love':
-        return 'Share what you love about Domani...'
+        return copy.feedback.placeholders.whatILove
       case 'general':
-        return 'Share your thoughts with us...'
+        return copy.feedback.placeholders.general
     }
   }
 
@@ -118,25 +134,24 @@ export default function FeedbackScreen() {
               <MessageCircle size={28} color="#ffffff" />
             </View>
             <Text className="text-2xl font-bold text-content-primary mb-2">
-              Share Your Thoughts
+              {copy.feedback.title}
             </Text>
             <Text className="text-base text-content-secondary">
-              Help us make Domani better! Your feedback shapes our development.
+              {copy.feedback.subtitle}
             </Text>
           </View>
 
           {/* Success Content */}
           <FormSuccessState
-            title="Feedback Received!"
-            message="Thank you for sharing your thoughts! We've received your message and will review it soon. Your input helps us build a better Domani."
-            actionLabel="Submit More Feedback"
+            title={copy.feedback.successTitle}
+            message={copy.feedback.successMessage}
+            actionLabel={copy.feedback.successAction}
             actionIcon={MessageCircle}
             onAction={handleSubmitAnother}
             banner={{
               icon: Heart,
-              title: 'We appreciate you!',
-              description:
-                "Every piece of feedback matters. You're helping shape the future of productivity.",
+              title: copy.feedback.appreciationTitle,
+              description: copy.feedback.appreciationMessage,
             }}
           />
 
@@ -167,20 +182,20 @@ export default function FeedbackScreen() {
           >
             <MessageCircle size={28} color="#ffffff" />
           </View>
-          <Text className="text-2xl font-bold text-content-primary mb-2">Share Your Thoughts</Text>
+          <Text className="text-2xl font-bold text-content-primary mb-2">{copy.feedback.title}</Text>
           <Text className="text-base text-content-secondary">
-            Help us make Domani better! Your feedback shapes our development.
+            {copy.feedback.subtitle}
           </Text>
         </View>
 
         {/* Category Selection */}
         <Text className="text-sm text-content-secondary mb-3">
-          What would you like to share? <Text className="text-red-500">*</Text>
+          {copy.feedback.categoryPrompt} <Text className="text-red-500">*</Text>
         </Text>
 
         <View className="mb-6">
           <CategoryGrid
-            categories={FEEDBACK_CATEGORIES}
+            categories={feedbackCategories}
             selectedId={selectedCategory}
             onSelect={(id) => setSelectedCategory(id as FeedbackCategory)}
           />
@@ -197,7 +212,7 @@ export default function FeedbackScreen() {
 
         {/* Message Field */}
         <FormTextArea
-          label="Your Message"
+          label={copy.feedback.messageLabel}
           value={message}
           onChange={setMessage}
           placeholder={selectedCategory ? getPlaceholderText(selectedCategory) : ''}
@@ -206,7 +221,7 @@ export default function FeedbackScreen() {
           onClear={handleClearMessage}
           minCharacters={MIN_MESSAGE_LENGTH}
           showMinLabel={false}
-          disabledMessage="Select a category to start"
+          disabledMessage={copy.feedback.disabledMessage}
         />
 
         {/* Submit Button */}
@@ -227,19 +242,23 @@ export default function FeedbackScreen() {
                   isValid ? 'text-white' : 'text-content-tertiary'
                 }`}
               >
-                Send Feedback
+                {copy.feedback.submit}
               </Text>
             </>
           )}
         </TouchableOpacity>
 
-        {/* Beta Tester Banner */}
-        <InfoBanner
-          icon={Rocket}
-          title="You're a Beta Tester!"
-          description="Your feedback directly shapes Domani's future. Every submission is read by our team and helps prioritize what we build next."
-          variant="purple"
-        />
+        {/* Beta Tester Banner — only shown while the app is in a beta phase.
+            Gated via the subscription state machine (DEV-696) so the check is
+            consistent with how other beta-specific UI is gated elsewhere. */}
+        {subscriptionStatus === 'beta' && (
+          <InfoBanner
+            icon={Rocket}
+            title={copy.feedback.betaTitle}
+            description={copy.feedback.betaDescription}
+            variant="purple"
+          />
+        )}
 
         {/* Bottom Padding */}
         <View style={{ height: insets.bottom + 16 }} />

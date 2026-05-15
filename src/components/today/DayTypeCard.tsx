@@ -5,6 +5,8 @@ import { Briefcase, Heart, Home, BookOpen, Scale } from 'lucide-react-native'
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { inferDayType } from '~/utils/dayTypeInference'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import type { TaskWithCategory, DayType } from '~/types'
 
 interface DayTypeCardProps {
@@ -36,6 +38,8 @@ const DEFAULT_ICON_BG = '#8B9DAF33'
 export function DayTypeCard({ tasks }: DayTypeCardProps) {
   const theme = useAppTheme()
   const dayType = useMemo(() => inferDayType(tasks), [tasks])
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
 
   const IconComponent = ICON_MAP[dayType.iconName] || DEFAULT_ICON
   const iconBgColor = ICON_BG_COLORS_HEX[dayType.iconName] || DEFAULT_ICON_BG
@@ -57,9 +61,13 @@ export function DayTypeCard({ tasks }: DayTypeCardProps) {
           <IconComponent size={32} color={dayType.accentColor} />
         </View>
         <View className="flex-1">
-          <Text className="text-sm text-content-secondary mb-1">Today&apos;s Vibe</Text>
-          <Text className="text-xl font-medium text-content-primary">{dayType.title}</Text>
-          <Text className="text-base text-content-secondary mt-1">{dayType.subtitle}</Text>
+          <Text className="text-sm text-content-secondary mb-1">{copy.today.vibeLabel}</Text>
+          <Text className="text-xl font-medium text-content-primary">
+            {copy.today.dayThemes[dayType.theme].title}
+          </Text>
+          <Text className="text-base text-content-secondary mt-1">
+            {copy.today.dayThemes[dayType.theme].subtitle}
+          </Text>
         </View>
       </View>
     </View>

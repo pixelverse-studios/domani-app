@@ -17,6 +17,13 @@ import { X } from 'lucide-react-native'
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import {
+  useSubscription,
+  isLocked as computeIsLocked,
+  needsToStartTrial,
+} from '~/hooks/useSubscription'
+import { LockedScreen } from '~/components/LockedScreen'
+import { PreTrialScreen } from '~/components/PreTrialScreen'
+import {
   TodayHeader,
   ProgressCard,
   FocusCard,
@@ -28,11 +35,13 @@ import {
   EmptyState,
 } from '~/components/today'
 import { inferDayType } from '~/utils/dayTypeInference'
-import { useTodayPlan } from '~/hooks/usePlans'
 import { useTasks, useToggleTask, useDeleteTask } from '~/hooks/useTasks'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
+import { useCurrentDate } from '~/hooks/useCurrentDate'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useTutorialTarget } from '~/components/tutorial'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import type { TaskWithCategory } from '~/types'
 
 const NAME_PROMPT_DISMISSED_KEY = 'domani_name_prompt_dismissed'
@@ -42,9 +51,12 @@ export default function TodayScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
+  const { status: subscriptionStatus, isLoading: subscriptionLoading } = useSubscription()
   const brandColor = theme.colors.brand.primary
-  const { data: plan, isLoading: planLoading, refetch: refetchPlan } = useTodayPlan()
-  const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useTasks(plan?.id)
+  const { today: todayDate } = useCurrentDate()
+  const { data: tasks = [], isLoading: tasksLoading, refetch: refetchTasks } = useTasks(todayDate)
   const { profile, isLoading: profileLoading } = useProfile()
   const toggleTask = useToggleTask()
   const deleteTask = useDeleteTask()
@@ -77,31 +89,12 @@ export default function TodayScreen() {
     checkNamePrompt()
   }, [profile, profileLoading])
 
-  const handleSaveName = async () => {
-    if (!nameInput.trim()) return
-
-    try {
-      await updateProfile.mutateAsync({ full_name: nameInput.trim() })
-      setShowNameModal(false)
-    } catch (error) {
-      Alert.alert('Failed to save name', 'Please try again.')
-    }
-  }
-
-  const handleDismissNameModal = async () => {
-    await AsyncStorage.setItem(NAME_PROMPT_DISMISSED_KEY, 'true')
-    setShowNameModal(false)
-  }
-
-  const isLoading = planLoading || tasksLoading || profileLoading
   const [refreshing, setRefreshing] = React.useState(false)
 
   // Calculate progress
   const completedCount = useMemo(() => {
     return tasks.filter((task: TaskWithCategory) => task.completed_at).length
   }, [tasks])
-
-  const totalCount = tasks.length
 
   // Extract MIT task (top priority, not completed)
   const mitTask = useMemo(() => {
@@ -114,11 +107,42 @@ export default function TodayScreen() {
     return inferDayType(nonMitTasks)
   }, [tasks])
 
+  // Gate the Today screen for users who haven't started a trial or whose
+  // trial has expired. Placed AFTER all hook declarations to satisfy the
+  // Rules of Hooks — hook count must be stable across renders.
+  if (!subscriptionLoading) {
+    if (computeIsLocked(subscriptionStatus)) {
+      return <LockedScreen />
+    }
+    if (needsToStartTrial(subscriptionStatus)) {
+      return <PreTrialScreen />
+    }
+  }
+
+  const handleSaveName = async () => {
+    if (!nameInput.trim()) return
+
+    try {
+      await updateProfile.mutateAsync({ full_name: nameInput.trim() })
+      setShowNameModal(false)
+    } catch (error) {
+      Alert.alert(copy.today.saveNameErrorTitle, copy.today.saveNameErrorMessage)
+    }
+  }
+
+  const handleDismissNameModal = async () => {
+    await AsyncStorage.setItem(NAME_PROMPT_DISMISSED_KEY, 'true')
+    setShowNameModal(false)
+  }
+
+  const isLoading = tasksLoading || profileLoading
+  const totalCount = tasks.length
+
   const handleToggleTask = async (taskId: string, completed: boolean) => {
     try {
       await toggleTask.mutateAsync({ taskId, completed })
     } catch (error) {
-      Alert.alert('Failed to update task', 'Please try again.')
+      Alert.alert(copy.today.updateTaskErrorTitle, copy.today.updateTaskErrorMessage)
     }
   }
 
@@ -131,7 +155,7 @@ export default function TodayScreen() {
     try {
       await deleteTask.mutateAsync(task.id)
     } catch (error) {
-      Alert.alert('Failed to delete task', 'Please try again.')
+      Alert.alert(copy.today.deleteTaskErrorTitle, copy.today.deleteTaskErrorMessage)
     }
   }
 
@@ -146,7 +170,7 @@ export default function TodayScreen() {
 
   const handleRefresh = async () => {
     setRefreshing(true)
-    await Promise.all([refetchPlan(), refetchTasks()])
+    await refetchTasks()
     setRefreshing(false)
   }
 
@@ -232,7 +256,7 @@ export default function TodayScreen() {
             backgroundColor: theme.colors.background,
           }}
         >
-          <AddTaskButton onPress={handleAddTask} label="Add More Tasks" />
+          <AddTaskButton onPress={handleAddTask} label={copy.today.addMoreTasks} />
         </View>
       )}
 
@@ -250,19 +274,19 @@ export default function TodayScreen() {
           >
             <View className="flex-row items-center justify-between mb-2">
               <Text className="text-lg font-semibold text-content-primary">
-                What should we call you?
+                {copy.today.namePromptTitle}
               </Text>
               <TouchableOpacity onPress={handleDismissNameModal} hitSlop={8}>
                 <X size={24} color={theme.colors.text.tertiary} />
               </TouchableOpacity>
             </View>
             <Text className="text-sm text-content-secondary mb-4">
-              Add your name to personalize your experience
+              {copy.today.namePromptSubtitle}
             </Text>
             <TextInput
               value={nameInput}
               onChangeText={setNameInput}
-              placeholder="Enter your name"
+              placeholder={copy.today.namePromptPlaceholder}
               placeholderTextColor={theme.colors.text.tertiary}
               autoFocus
               className="rounded-xl px-4 text-base mb-4"
@@ -286,7 +310,7 @@ export default function TodayScreen() {
               {updateProfile.isPending ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text className="text-white font-semibold">Save</Text>
+                <Text className="text-white font-semibold">{copy.today.namePromptSave}</Text>
               )}
             </TouchableOpacity>
           </View>

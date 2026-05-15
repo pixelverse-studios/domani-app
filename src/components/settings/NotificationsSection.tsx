@@ -4,6 +4,9 @@ import { ClipboardClock, BellOff, ChevronRight, Bell } from 'lucide-react-native
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { formatLocalizedTime } from '~/i18n/date'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import { SectionHeader } from './SectionHeader'
 import { SettingsRow } from './SettingsRow'
 import { ReminderShortcutsSection } from './ReminderShortcutsSection'
@@ -34,23 +37,21 @@ export function NotificationsSection({
   onOpenSettings,
 }: NotificationsSectionProps) {
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
 
   // Format time for display
   const formatTimeDisplay = (timeString: string | null) => {
-    if (!timeString) return 'Not set'
+    if (!timeString) return copy.settings.notSet
     const [hours, minutes] = timeString.split(':')
     const date = new Date()
     date.setHours(parseInt(hours), parseInt(minutes))
-    const h = date.getHours()
-    const m = date.getMinutes()
-    const ampm = h >= 12 ? 'PM' : 'AM'
-    const hour12 = h % 12 || 12
-    return `${hour12}:${m.toString().padStart(2, '0')} ${ampm}`
+    return formatLocalizedTime(date, locale)
   }
 
   return (
     <>
-      <SectionHeader title="Notifications & Reminders" />
+      <SectionHeader title={copy.settings.notificationsSection} />
       {isLoading ? (
         <NotificationsSkeleton />
       ) : (
@@ -64,7 +65,9 @@ export function NotificationsSection({
               <View className="mr-3">
                 <Bell size={20} color={theme.colors.text.tertiary} />
               </View>
-              <Text className="text-base text-content-primary">Planning Reminder Notification</Text>
+              <Text className="text-base text-content-primary">
+                {copy.settings.planningReminderNotification}
+              </Text>
             </View>
             <Switch
               value={planningReminderEnabled}
@@ -83,7 +86,7 @@ export function NotificationsSection({
           {planningReminderEnabled ? (
             // Variant A — notifications ON: standard settings row
             <SettingsRow
-              label="Planning Reminder"
+              label={copy.settings.planningReminder}
               value={formatTimeDisplay(planningReminderTime)}
               onPress={isUpdating ? undefined : onEditPlanningTime}
               icon={ClipboardClock}
@@ -102,9 +105,11 @@ export function NotificationsSection({
                   <ClipboardClock size={20} color={theme.colors.text.tertiary} />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-base text-content-primary">Evening Planning Time</Text>
+                  <Text className="text-base text-content-primary">
+                    {copy.settings.eveningPlanningTime}
+                  </Text>
                   <Text className="text-xs text-content-tertiary mt-0.5">
-                    Notifications are off — this time still triggers the in-app planning prompt
+                    {copy.settings.notificationsOffBody}
                   </Text>
                 </View>
               </View>
@@ -129,8 +134,12 @@ export function NotificationsSection({
                   <BellOff size={20} color="#f59e0b" />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-base text-content-primary">Notifications Disabled</Text>
-                  <Text className="text-xs text-content-secondary">Tap to enable in Settings</Text>
+                  <Text className="text-base text-content-primary">
+                    {copy.settings.notificationsDisabled}
+                  </Text>
+                  <Text className="text-xs text-content-secondary">
+                    {copy.settings.tapToEnableInSettings}
+                  </Text>
                 </View>
               </View>
               <ChevronRight size={18} color="#f59e0b" />

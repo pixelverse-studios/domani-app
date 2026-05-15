@@ -165,32 +165,7 @@ export function isPastReminderTime(planningReminderTime: string): boolean {
 /**
  * AsyncStorage key for tracking the evening rollover prompt.
  */
-export const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
-
-/**
- * Check if the user was already shown the evening rollover prompt today
- *
- * Supports both legacy date-only format (YYYY-MM-DD) and new ISO timestamp format.
- * Intentionally lets AsyncStorage errors propagate so the React Query caller
- * can apply its default of `true` (fail-closed: suppress the prompt on error).
- */
-export async function wasEveningPromptedToday(): Promise<boolean> {
-  const storedValue = await AsyncStorage.getItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
-  if (!storedValue) return false
-
-  const today = format(new Date(), 'yyyy-MM-dd')
-
-  // Handle both old date-only format (YYYY-MM-DD) and new ISO timestamp format
-  if (storedValue.length === 10) {
-    // Old format: date string like "2026-03-03"
-    return storedValue === today
-  }
-
-  // New format: ISO timestamp — parse to local date for comparison
-  // (toISOString() stores UTC which can differ from local date near midnight)
-  const storedDate = format(new Date(storedValue), 'yyyy-MM-dd')
-  return storedDate === today
-}
+const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
 
 /**
  * Mark the user as having been shown the evening rollover prompt.
@@ -227,9 +202,7 @@ export async function clearEveningPromptState(): Promise<void> {
  * @param planningReminderTime - Postgres time format "HH:mm:ss"
  * @returns Promise<boolean> - true if prompted in current cycle, false otherwise
  */
-export async function wasPromptedInCurrentCycle(
-  planningReminderTime: string,
-): Promise<boolean> {
+export async function wasPromptedInCurrentCycle(planningReminderTime: string): Promise<boolean> {
   const storedValue = await AsyncStorage.getItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
   if (!storedValue) return false
 
@@ -273,8 +246,8 @@ export async function wasPromptedInCurrentCycle(
 export interface CarryForwardInput {
   /** IDs of tasks to carry forward */
   selectedTaskIds: string[]
-  /** ID of the plan to add tasks to (today's plan) */
-  targetPlanId: string
+  /** Target date to carry tasks to (YYYY-MM-DD) */
+  targetDate: string
   /** If true, the carried MIT becomes today's MIT (priority = 'top') */
   shouldMakeMIT: boolean
   /** If true, preserve original reminder times (adjusted to today) */
@@ -294,7 +267,7 @@ export interface CarryForwardInput {
  * @example
  * const createdTasks = await carryForwardTasks({
  *   selectedTaskIds: ['task-id-1', 'task-id-2'],
- *   targetPlanId: 'today-plan-id',
+ *   targetDate: '2026-04-03',
  *   shouldMakeMIT: true,
  *   keepReminderTimes: true,
  * })
@@ -305,21 +278,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
   } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  // FIX 1: CRITICAL - Verify user owns the target plan
-  const { data: targetPlan, error: planError } = await supabase
-    .from('plans')
-    .select('user_id')
-    .eq('id', input.targetPlanId)
-    .single()
-
-  if (planError || !targetPlan) {
-    throw new Error('Unauthorized: Target plan does not belong to user')
-  }
-  if (targetPlan.user_id !== user.id) {
-    throw new Error('Unauthorized: Target plan does not belong to user')
-  }
-
-  // FIX 2: CRITICAL - Add explicit user_id check to source tasks query
+  // Scope to authenticated user's tasks only
   // Fetch original tasks with all data including category relations
   const { data: selectedTasks, error: fetchError } = await supabase
     .from('tasks')
@@ -369,11 +328,10 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
         }
       }
 
-      // Create new task in target plan
+      // Create new task for target date
       const { data: newTask, error: createError } = await supabase
         .from('tasks')
         .insert({
-          plan_id: input.targetPlanId,
           user_id: user.id,
           title: originalTask.title,
           description: originalTask.description,
@@ -383,6 +341,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
           estimated_duration_minutes: originalTask.estimated_duration_minutes,
           notes: originalTask.notes,
           reminder_at: newReminderAt,
+          scheduled_date: input.targetDate,
           // Do NOT set: is_mit (auto-set by trigger), completed_at, notification_id
         })
         .select(

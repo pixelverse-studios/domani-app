@@ -6,7 +6,12 @@ import * as AuthSession from 'expo-auth-session'
 import * as AppleAuthentication from 'expo-apple-authentication'
 
 import { supabase, sendAccountEmail } from '~/lib/supabase'
+import { sendDiscordNotification } from '~/lib/discord'
 import { captureException, addBreadcrumb } from '~/lib/sentry'
+import { useTranslation } from '~/hooks/useTranslation'
+import { formatLocalizedDate } from '~/i18n/date'
+import type { AppLocale } from '~/i18n'
+import type { TranslationKey, TranslationValues } from '~/i18n/types'
 
 // Configure web browser for OAuth
 WebBrowser.maybeCompleteAuthSession()
@@ -64,6 +69,8 @@ const checkPendingDeletion = async (
   userName: string | undefined,
   signOutFn: () => Promise<void>,
   onReactivated: () => void,
+  locale: AppLocale,
+  t: (key: TranslationKey, values?: TranslationValues) => string,
 ): Promise<boolean> => {
   try {
     const { data: profile, error } = await supabase
@@ -77,19 +84,19 @@ const checkPendingDeletion = async (
     }
 
     // Account is pending deletion - show reactivation prompt
-    const deletionDate = new Date(profile.deletion_scheduled_for!).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    })
+    const deletionDate = formatLocalizedDate(
+      new Date(profile.deletion_scheduled_for!),
+      'MMMM d, yyyy',
+      locale,
+    )
 
     return new Promise((resolve) => {
       Alert.alert(
-        'Account Scheduled for Deletion',
-        `Your account is scheduled to be deleted on ${deletionDate}. Would you like to reactivate it?`,
+        t('auth.pendingDeletion.title'),
+        t('auth.pendingDeletion.message', { date: deletionDate }),
         [
           {
-            text: 'Reactivate',
+            text: t('auth.actions.reactivate'),
             onPress: async () => {
               // Cancel the deletion
               const { error: cancelError } = await supabase.rpc('cancel_account_deletion', {
@@ -112,7 +119,7 @@ const checkPendingDeletion = async (
             },
           },
           {
-            text: 'Keep Deletion',
+            text: t('auth.actions.keepDeletion'),
             style: 'destructive',
             onPress: async () => {
               await signOutFn()
@@ -173,36 +180,61 @@ const validateUserExists = async (userId: string): Promise<boolean> => {
 }
 
 // Ensure user has a profile row and set timezone if not already set
-const ensureProfileExists = async (userId: string, email: string, fullName?: string | null) => {
+const ensureProfileExists = async (
+  userId: string,
+  email: string,
+  fullName?: string | null,
+  signupMethod?: string,
+) => {
   try {
     console.log('[AuthProvider] Checking profile for user:', userId)
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('id, timezone')
+      .select('id, timezone, created_at')
       .eq('id', userId)
       .single()
 
     if (error) {
       if (error.code === 'PGRST116') {
-        // Profile doesn't exist (no rows returned), create it
-        // This is the fallback - normally the database trigger creates the profile
-        console.log('[AuthProvider] Profile not found, creating for user:', userId)
-        const deviceTimezone = getDeviceTimezone()
-        const { error: insertError } = await supabase.from('profiles').insert({
-          id: userId,
-          email: email,
-          full_name: fullName || null,
-          timezone: deviceTimezone,
-        })
-        if (insertError) {
-          // If insert fails, it might be because profile was just created by trigger
-          // This is expected in some race conditions - log but don't treat as fatal
+        console.log('[AuthProvider] Profile not found, recovering for user:', userId)
+        const { data: recoveredProfile, error: recoverError } = await supabase.rpc(
+          'ensure_current_user_profile',
+        )
+
+        if (recoverError) {
           console.warn(
-            '[AuthProvider] Profile insert failed (may already exist):',
-            insertError.code,
+            '[AuthProvider] Profile recovery failed:',
+            recoverError.code,
+            recoverError.message,
           )
-        } else {
-          console.log('[AuthProvider] Profile created successfully')
+          return
+        }
+
+        console.log('[AuthProvider] Profile recovered successfully')
+
+        const createdAt = recoveredProfile?.created_at
+          ? new Date(recoveredProfile.created_at).getTime()
+          : 0
+        if (createdAt && Date.now() - createdAt < 60_000) {
+          sendDiscordNotification({
+            type: 'new_signup',
+            email,
+            name: fullName,
+            signupMethod,
+            timezone: recoveredProfile?.timezone ?? undefined,
+          })
+        }
+
+        if (!recoveredProfile?.timezone || recoveredProfile.timezone === 'UTC') {
+          const deviceTimezone = getDeviceTimezone()
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ timezone: deviceTimezone })
+            .eq('id', userId)
+
+          if (updateError) {
+            console.warn('[AuthProvider] Failed to set recovered profile timezone:', updateError)
+          }
         }
       } else {
         // Some other error (not "no rows") - log it
@@ -210,6 +242,20 @@ const ensureProfileExists = async (userId: string, email: string, fullName?: str
       }
     } else if (profile) {
       console.log('[AuthProvider] Profile found:', profile.id, 'timezone:', profile.timezone)
+
+      // Check if this is a brand new signup (created within the last 60 seconds)
+      const createdAt = new Date(profile.created_at).getTime()
+      const isNewSignup = Date.now() - createdAt < 60_000
+      if (isNewSignup) {
+        sendDiscordNotification({
+          type: 'new_signup',
+          email,
+          name: fullName,
+          signupMethod,
+          timezone: profile.timezone ?? undefined,
+        })
+      }
+
       // Profile exists - check if timezone needs to be set
       // Treat null, undefined, or 'UTC' as "not set" since UTC is the old default
       if (!profile.timezone || profile.timezone === 'UTC') {
@@ -246,6 +292,7 @@ interface AuthContextValue {
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const { locale, t } = useTranslation()
   const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
@@ -313,9 +360,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
             // Sign out and alert the user (run async)
             supabase.auth.signOut().then(() => {
-              Alert.alert('Account Already Exists', 'An account with this email already exists.', [
-                { text: 'OK' },
-              ])
+              Alert.alert(
+                t('auth.errors.accountExistsTitle'),
+                t('auth.errors.accountExistsMessage'),
+                [{ text: t('auth.actions.ok') }],
+              )
               setSession(null)
               setUser(null)
             })
@@ -340,14 +389,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               }
             },
             () => setAccountReactivated(true),
+            locale,
+            t,
           )
         }
-        ensureProfileExists(session.user.id, session.user.email!, fullName)
+        const signupMethod = session.user.app_metadata?.provider
+        ensureProfileExists(session.user.id, session.user.email!, fullName, signupMethod)
       }
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [locale, t])
 
   const signInWithGoogle = async () => {
     try {

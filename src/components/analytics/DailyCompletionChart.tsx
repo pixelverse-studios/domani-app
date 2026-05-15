@@ -13,6 +13,10 @@ import Animated, {
 import { Text, Card } from '~/components/ui'
 import { CircularProgress } from '~/components/ui/CircularProgress'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getLocalizedCategoryName } from '~/constants/systemCategories'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
+import { formatLocalizedWeekday } from '~/i18n/date'
 import type { DailyCompletionData, CompletionRateData } from '~/lib/analytics-queries'
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect)
@@ -130,10 +134,19 @@ export function DailyCompletionChart({
   animationKey = 0,
 }: DailyCompletionChartProps) {
   const theme = useAppTheme()
+  const { locale, t } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const screenWidth = Dimensions.get('window').width
 
   // Get unique categories
-  const categories = useMemo(() => getUniqueCategories(dailyData), [dailyData])
+  const categories = useMemo(
+    () =>
+      getUniqueCategories(dailyData).map((category) => ({
+        ...category,
+        name: getLocalizedCategoryName(category.name, locale),
+      })),
+    [dailyData, locale],
+  )
 
   // Colors
   const incompleteColor = theme.colors.border.primary
@@ -211,9 +224,11 @@ export function DailyCompletionChart({
           animationKey={animationKey}
         />
         <View className="ml-4 flex-1">
-          <Text className="text-base font-semibold text-content-primary">Completion Rate</Text>
+          <Text className="text-base font-semibold text-content-primary">
+            {t('analytics.completionRate')}
+          </Text>
           <Text className="text-sm text-content-secondary mt-0.5">
-            {totalCompleted} of {totalTasks} tasks done
+            {t('analytics.tasksDone', { completed: totalCompleted, total: totalTasks })}
           </Text>
         </View>
       </View>
@@ -223,7 +238,7 @@ export function DailyCompletionChart({
 
       {/* Section label */}
       <Text className="text-xs font-medium text-content-tertiary uppercase tracking-wide mb-3">
-        Last 7 Days
+        {t('analytics.lastNDays', { count: 7 })}
       </Text>
 
       {/* Chart - Seamless stacked bars with clipPath */}
@@ -267,7 +282,7 @@ export function DailyCompletionChart({
                 fill={labelColor}
                 textAnchor="middle"
               >
-                {day.dayLabel}
+                {formatLocalizedWeekday(new Date(`${day.date}T00:00:00`), locale, 'short')}
               </SvgText>
             </G>
           ))}
@@ -290,7 +305,7 @@ export function DailyCompletionChart({
             className="w-2.5 h-2.5 rounded-sm mr-1.5"
             style={{ backgroundColor: incompleteColor }}
           />
-          <Text className="text-xs text-content-secondary">Unfinished</Text>
+          <Text className="text-xs text-content-secondary">{copy.analytics.unfinished}</Text>
         </View>
       </View>
     </Card>

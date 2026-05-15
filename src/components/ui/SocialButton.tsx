@@ -15,6 +15,7 @@ interface SocialButtonProps {
   disabled?: boolean
   comingSoon?: boolean
   className?: string
+  label?: string
 }
 
 // Google "G" logo - official colors
@@ -48,6 +49,7 @@ export const SocialButton = ({
   disabled = false,
   comingSoon = false,
   className,
+  label,
 }: SocialButtonProps) => {
   const theme = useAppTheme()
   // Note: isDark kept for provider brand colors (Google/Apple guidelines), not app theme
@@ -86,7 +88,7 @@ export const SocialButton = ({
   return (
     <TouchableOpacity
       accessibilityRole="button"
-      accessibilityLabel={config.label}
+      accessibilityLabel={label ?? config.label}
       onPress={onPress}
       disabled={isDisabled}
       activeOpacity={0.8}
@@ -112,7 +114,7 @@ export const SocialButton = ({
       ) : (
         <View style={styles.content}>
           <View style={styles.iconContainer}>{config.icon}</View>
-          <Text style={[styles.label, { color: textColor }]}>{config.label}</Text>
+          <Text style={[styles.label, { color: textColor }]}>{label ?? config.label}</Text>
         </View>
       )}
     </TouchableOpacity>

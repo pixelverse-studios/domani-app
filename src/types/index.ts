@@ -13,32 +13,32 @@ import type { Tables, TablesInsert, TablesUpdate, Enums } from './supabase'
 
 // Convenience type aliases for common tables
 export type Profile = Tables<'profiles'>
-export type Plan = Tables<'plans'>
 export type Task = Tables<'tasks'>
 export type SystemCategory = Tables<'system_categories'>
 export type UserCategory = Tables<'user_categories'>
 export type UserCategoryPreference = Tables<'user_category_preferences'>
 export type SupportRequest = Tables<'support_requests'>
-export type BetaFeedback = Tables<'beta_feedback'>
+export type Feedback = Tables<'beta_feedback'>
+export type PurchaseRefundState = Tables<'purchase_refund_states'>
 
 // Insert types
 export type ProfileInsert = TablesInsert<'profiles'>
-export type PlanInsert = TablesInsert<'plans'>
 export type TaskInsert = TablesInsert<'tasks'>
 export type UserCategoryInsert = TablesInsert<'user_categories'>
 export type UserCategoryPreferenceInsert = TablesInsert<'user_category_preferences'>
 export type SupportRequestInsert = TablesInsert<'support_requests'>
-export type BetaFeedbackInsert = TablesInsert<'beta_feedback'>
+export type FeedbackInsert = TablesInsert<'beta_feedback'>
+export type PurchaseRefundStateInsert = TablesInsert<'purchase_refund_states'>
 
 // Update types
 export type ProfileUpdate = TablesUpdate<'profiles'>
-export type PlanUpdate = TablesUpdate<'plans'>
 export type TaskUpdate = TablesUpdate<'tasks'>
 export type UserCategoryUpdate = TablesUpdate<'user_categories'>
+export type PurchaseRefundStateUpdate = TablesUpdate<'purchase_refund_states'>
 
 // Enum types
 export type Tier = Enums<'tier'>
-export type PlanStatus = Enums<'plan_status'>
+export type RefundRequestStatus = Enums<'refund_request_status'>
 
 // Priority type - matches database enum
 export type TaskPriority = Enums<'task_priority'>

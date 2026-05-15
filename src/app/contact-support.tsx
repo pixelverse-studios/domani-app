@@ -8,7 +8,7 @@ import {
   Platform,
   Alert,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   ArrowLeft,
@@ -33,33 +33,49 @@ import {
   InfoBanner,
   FormSuccessState,
 } from '~/components/forms'
-
-// Category configuration
-const SUPPORT_CATEGORIES = [
-  { id: 'technical_issue' as SupportCategory, label: 'Technical Issue', icon: Settings },
-  { id: 'account_help' as SupportCategory, label: 'Account Help', icon: User },
-  { id: 'billing_question' as SupportCategory, label: 'Billing Question', icon: CreditCard },
-  { id: 'other' as SupportCategory, label: 'Other', icon: MessageCircle },
-] as const
+import { useTranslation } from '~/hooks/useTranslation'
 
 const MIN_DESCRIPTION_LENGTH = 6
 
 export default function ContactSupportScreen() {
   useScreenTracking('contact_support')
   const router = useRouter()
+  const params = useLocalSearchParams<{
+    category?: SupportCategory
+  }>()
   const insets = useSafeAreaInsets()
   const theme = useAppTheme()
+  const { t } = useTranslation()
   const brandColor = theme.colors.brand.primary
   const createSupportRequest = useCreateSupportRequest()
 
+  const supportCategories = [
+    {
+      id: 'technical_issue' as SupportCategory,
+      label: t('support.categories.technicalIssue'),
+      icon: Settings,
+    },
+    { id: 'account_help' as SupportCategory, label: t('support.categories.accountHelp'), icon: User },
+    {
+      id: 'billing_question' as SupportCategory,
+      label: t('support.categories.billingQuestion'),
+      icon: CreditCard,
+    },
+    { id: 'other' as SupportCategory, label: t('support.categories.other'), icon: MessageCircle },
+  ] as const
+
   // Form state
-  const [selectedCategory, setSelectedCategory] = useState<SupportCategory | null>(null)
+  const initialCategory =
+    params.category && supportCategories.some((item) => item.id === params.category)
+      ? params.category
+      : null
+  const [selectedCategory, setSelectedCategory] = useState<SupportCategory | null>(initialCategory)
   const [description, setDescription] = useState('')
   const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'success'>('idle')
 
   // Derived state
   const isValid = selectedCategory !== null && description.trim().length >= MIN_DESCRIPTION_LENGTH
-  const selectedCategoryConfig = SUPPORT_CATEGORIES.find((c) => c.id === selectedCategory)
+  const selectedCategoryConfig = supportCategories.find((c) => c.id === selectedCategory)
 
   // Colors
   const textSecondary = theme.colors.text.secondary
@@ -81,7 +97,7 @@ export default function ContactSupportScreen() {
     } catch (error) {
       setSubmitState('idle')
       console.error('Failed to submit support request:', error)
-      Alert.alert('Failed to submit request', 'Please try again.')
+      Alert.alert(t('support.submitFailedTitle'), t('common.errors.tryAgain'))
     }
   }
 
@@ -95,13 +111,13 @@ export default function ContactSupportScreen() {
   const getPlaceholderText = (category: SupportCategory): string => {
     switch (category) {
       case 'technical_issue':
-        return "Describe the technical problem you're experiencing."
+        return t('support.placeholders.technicalIssue')
       case 'account_help':
-        return 'Describe what help you need with your account.'
+        return t('support.placeholders.accountHelp')
       case 'billing_question':
-        return 'Describe your billing question or concern.'
+        return t('support.placeholders.billingQuestion')
       case 'other':
-        return 'Describe what you need help with.'
+        return t('support.placeholders.other')
     }
   }
 
@@ -128,22 +144,19 @@ export default function ContactSupportScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Title */}
-          <Text className="text-2xl font-bold text-content-primary mb-2">Contact Support</Text>
-          <Text className="text-base text-content-secondary mb-8">
-            Submit a request and get personalized help from our team
-          </Text>
+          <Text className="text-2xl font-bold text-content-primary mb-2">{t('support.title')}</Text>
+          <Text className="text-base text-content-secondary mb-8">{t('support.subtitle')}</Text>
 
           {/* Success Content */}
           <FormSuccessState
-            message="We've received your support request and our team will get back to you within 24 hours. Check your email for updates."
-            actionLabel="Submit Another Request"
+            message={t('support.success.message')}
+            actionLabel={t('support.success.action')}
             actionIcon={MessageSquare}
             onAction={handleSubmitAnother}
             banner={{
               icon: PartyPopper,
-              title: "We're on it!",
-              description:
-                "Your ticket has been assigned to our support team. We'll investigate and respond as soon as possible.",
+              title: t('support.success.bannerTitle'),
+              description: t('support.success.bannerDescription'),
             }}
           />
         </ScrollView>
@@ -177,19 +190,17 @@ export default function ContactSupportScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Title */}
-        <Text className="text-2xl font-bold text-content-primary mb-2">Contact Support</Text>
-        <Text className="text-base text-content-secondary mb-6">
-          Submit a request and get personalized help from our team
-        </Text>
+        <Text className="text-2xl font-bold text-content-primary mb-2">{t('support.title')}</Text>
+        <Text className="text-base text-content-secondary mb-6">{t('support.subtitle')}</Text>
 
         {/* Category Selection */}
         <Text className="text-sm text-content-secondary mb-3">
-          What do you need help with? <Text className="text-red-500">*</Text>
+          {t('support.categoryPrompt')} <Text className="text-red-500">*</Text>
         </Text>
 
         <View className="mb-6">
           <CategoryGrid
-            categories={SUPPORT_CATEGORIES}
+            categories={supportCategories}
             selectedId={selectedCategory}
             onSelect={(id) => setSelectedCategory(id as SupportCategory)}
           />
@@ -206,14 +217,14 @@ export default function ContactSupportScreen() {
 
         {/* Description Field */}
         <FormTextArea
-          label="Describe your issue"
+          label={t('support.issueLabel')}
           value={description}
           onChange={setDescription}
           placeholder={selectedCategory ? getPlaceholderText(selectedCategory) : ''}
           disabled={!selectedCategory}
           minCharacters={MIN_DESCRIPTION_LENGTH}
           showMinLabel={true}
-          disabledMessage="Select a category to start"
+          disabledMessage={t('support.disabledMessage')}
         />
 
         {/* Submit Button */}
@@ -234,7 +245,7 @@ export default function ContactSupportScreen() {
                   isValid ? 'text-white' : 'text-content-tertiary'
                 }`}
               >
-                Submit Support Request
+                {t('support.submitCta')}
               </Text>
             </>
           )}
@@ -243,8 +254,8 @@ export default function ContactSupportScreen() {
         {/* Quick Response Time Banner */}
         <InfoBanner
           icon={Clock}
-          title="Quick Response Time"
-          description="Our support team typically responds within 24 hours. All requests are handled with care and attention."
+          title={t('support.responseBanner.title')}
+          description={t('support.responseBanner.description')}
           variant="purple"
         />
 

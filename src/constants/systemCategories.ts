@@ -7,6 +7,8 @@
  * @module systemCategories
  */
 
+import { getCatalogLocale, type AppLocale, type CatalogLocale } from '~/i18n'
+
 // ============================================================================
 // TypeScript Types
 // ============================================================================
@@ -37,6 +39,117 @@ export interface SystemCategoryDefinition {
   readonly color: string
   /** Display order position (0-3) */
   readonly position: number
+}
+
+const SYSTEM_CATEGORY_LABELS: Record<CatalogLocale, Record<SystemCategoryId, string>> = {
+  de: {
+    work: 'Arbeit',
+    personal: 'Persönlich',
+    wellness: 'Wohlbefinden',
+    home: 'Zuhause',
+  },
+  en: {
+    work: 'Work',
+    personal: 'Personal',
+    wellness: 'Wellness',
+    home: 'Home',
+  },
+  es: {
+    work: 'Trabajo',
+    personal: 'Personal',
+    wellness: 'Bienestar',
+    home: 'Hogar',
+  },
+  fr: {
+    work: 'Travail',
+    personal: 'Personnel',
+    wellness: 'Bien-être',
+    home: 'Maison',
+  },
+  hi: {
+    work: 'काम',
+    personal: 'व्यक्तिगत',
+    wellness: 'स्वास्थ्य',
+    home: 'घर',
+  },
+  id: {
+    work: 'Kerja',
+    personal: 'Pribadi',
+    wellness: 'Kesehatan',
+    home: 'Rumah',
+  },
+  it: {
+    work: 'Lavoro',
+    personal: 'Personale',
+    wellness: 'Benessere',
+    home: 'Casa',
+  },
+  ja: {
+    work: '仕事',
+    personal: '個人',
+    wellness: 'ウェルネス',
+    home: '家',
+  },
+  ko: {
+    work: '업무',
+    personal: '개인',
+    wellness: '웰니스',
+    home: '집',
+  },
+  nl: {
+    work: 'Werk',
+    personal: 'Persoonlijk',
+    wellness: 'Welzijn',
+    home: 'Thuis',
+  },
+  pl: {
+    work: 'Praca',
+    personal: 'Osobiste',
+    wellness: 'Dobre samopoczucie',
+    home: 'Dom',
+  },
+  pt: {
+    work: 'Trabalho',
+    personal: 'Pessoal',
+    wellness: 'Bem-estar',
+    home: 'Casa',
+  },
+  sv: {
+    work: 'Arbete',
+    personal: 'Personligt',
+    wellness: 'Välmående',
+    home: 'Hem',
+  },
+  zhHans: {
+    work: '工作',
+    personal: '个人',
+    wellness: '健康',
+    home: '家',
+  },
+  zhHant: {
+    work: '工作',
+    personal: '個人',
+    wellness: '健康',
+    home: '家',
+  },
+}
+
+const UNCATEGORIZED_LABELS: Record<CatalogLocale, string> = {
+  de: 'Ohne Kategorie',
+  en: 'Uncategorized',
+  es: 'Sin categoría',
+  fr: 'Sans catégorie',
+  hi: 'बिना श्रेणी',
+  id: 'Tanpa kategori',
+  it: 'Senza categoria',
+  ja: '未分類',
+  ko: '분류 없음',
+  nl: 'Zonder categorie',
+  pl: 'Bez kategorii',
+  pt: 'Sem categoria',
+  sv: 'Utan kategori',
+  zhHans: '未分类',
+  zhHant: '未分類',
 }
 
 // ============================================================================
@@ -139,6 +252,35 @@ export function getCategoryById(id: SystemCategoryId): SystemCategoryDefinition 
  */
 export function getCategoryByName(name: SystemCategoryName): SystemCategoryDefinition | undefined {
   return CATEGORY_BY_NAME[name]
+}
+
+export function getSystemCategoryIdByName(name: string): SystemCategoryId | undefined {
+  return CATEGORY_BY_NAME[name as SystemCategoryName]?.id
+}
+
+export function getLocalizedSystemCategoryName(
+  input: SystemCategoryId | SystemCategoryName,
+  locale: AppLocale,
+): string {
+  const catalogLocale = getCatalogLocale(locale)
+  const category =
+    getCategoryById(input as SystemCategoryId) ?? getCategoryByName(input as SystemCategoryName)
+
+  if (!category) return String(input)
+
+  return SYSTEM_CATEGORY_LABELS[catalogLocale]?.[category.id] ?? category.name
+}
+
+export function getLocalizedCategoryName(name: string, locale: AppLocale): string {
+  const catalogLocale = getCatalogLocale(locale)
+  if (name === 'Uncategorized') {
+    return UNCATEGORIZED_LABELS[catalogLocale] ?? UNCATEGORIZED_LABELS.en
+  }
+
+  const systemCategoryId = getSystemCategoryIdByName(name)
+  if (!systemCategoryId) return name
+
+  return getLocalizedSystemCategoryName(systemCategoryId, locale)
 }
 
 /**

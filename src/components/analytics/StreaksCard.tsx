@@ -13,6 +13,8 @@ import Animated, {
 
 import { Text, Card } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 
 // Animation timing - faster than main chart (secondary content)
 const ICON_DURATION = 400
@@ -147,12 +149,14 @@ export function StreaksCard({
 }: StreaksCardProps) {
   const theme = useAppTheme()
   const brandColor = theme.colors.brand.primary
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
 
   return (
     <Card className="p-5">
       {/* Section header */}
       <Text className="text-xs font-medium text-content-tertiary uppercase tracking-wide mb-4">
-        Streaks & Focus
+        {copy.analytics.streaksTitle}
       </Text>
 
       {/* Horizontal row of metrics */}
@@ -168,8 +172,8 @@ export function StreaksCard({
             </View>
           }
           value={planningStreak}
-          label="Planning"
-          sublabel="streak"
+          label={copy.analytics.planning}
+          sublabel={copy.analytics.streak}
           index={0}
           animationKey={animationKey}
         />
@@ -188,8 +192,8 @@ export function StreaksCard({
             </View>
           }
           value={executionStreak}
-          label="Execution"
-          sublabel="streak"
+          label={copy.analytics.execution}
+          sublabel={copy.analytics.streak}
           index={1}
           animationKey={animationKey}
         />
@@ -210,7 +214,7 @@ export function StreaksCard({
           value={mitCompletionRate}
           suffix="%"
           label="MIT"
-          sublabel="completion"
+          sublabel={copy.analytics.completion}
           index={2}
           animationKey={animationKey}
         />

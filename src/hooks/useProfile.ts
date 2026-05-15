@@ -13,10 +13,14 @@ export function useProfile() {
     queryFn: async () => {
       if (!user?.id) return null
 
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle()
 
       if (error) throw error
-      return data as Profile
+      return data as Profile | null
     },
     enabled: !!user?.id,
   })
@@ -46,11 +50,31 @@ export function useUpdateProfile() {
         .select()
         .single()
 
-      if (error) throw error
-      return data as Profile
+      if (!error && data) {
+        return data as Profile
+      }
+
+      if (error?.code !== 'PGRST116' && error) {
+        throw error
+      }
+
+      const { error: ensureProfileError } = await supabase.rpc('ensure_current_user_profile')
+
+      if (ensureProfileError) throw ensureProfileError
+
+      const { data: recoveredProfile, error: retryError } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id)
+        .select()
+        .single()
+
+      if (retryError) throw retryError
+      return recoveredProfile as Profile
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['profile', user?.id], data)
+      queryClient.invalidateQueries({ queryKey: ['planningReminderTime'] })
     },
   })
 }

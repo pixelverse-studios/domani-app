@@ -4,6 +4,8 @@ import { Trash2, AlertTriangle, ChevronRight } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import { SectionHeader } from './SectionHeader'
 
 interface DangerZoneSectionProps {
@@ -27,10 +29,12 @@ export function DangerZoneSection({
   onCancelDeletion,
 }: DangerZoneSectionProps) {
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
 
   return (
     <>
-      <SectionHeader title="Danger Zone" />
+      <SectionHeader title={copy.settings.dangerZone} />
       <View
         className="mb-8 border rounded-xl overflow-hidden"
         style={{ borderColor: `${theme.colors.accent.brick}4D` }}
@@ -50,17 +54,15 @@ export function DangerZoneSection({
                   className="text-base font-medium"
                   style={{ color: theme.colors.accent.brick }}
                 >
-                  Account Scheduled for Deletion
+                  {copy.settings.pendingDeletionTitle}
                 </Text>
                 <Text className="text-sm text-content-secondary">
-                  {daysRemaining} days remaining
+                  {copy.settings.daysRemaining.replace('{{count}}', String(daysRemaining ?? 0))}
                 </Text>
               </View>
             </View>
             <Text className="text-sm text-content-secondary mb-4">
-              Your account will be permanently deleted on{' '}
-              <Text className="font-medium text-content-primary">{deletionDate}</Text>. Sign in
-              anytime before then to reactivate.
+              {copy.settings.pendingDeletionBody.replace('{{date}}', deletionDate ?? '')}
             </Text>
             <TouchableOpacity
               onPress={onCancelDeletion}
@@ -72,7 +74,7 @@ export function DangerZoneSection({
               {isCancelling ? (
                 <ActivityIndicator color={theme.colors.text.tertiary} />
               ) : (
-                <Text className="text-content-primary font-semibold">Cancel Deletion</Text>
+                <Text className="text-content-primary font-semibold">{copy.settings.cancelDeletion}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -87,7 +89,7 @@ export function DangerZoneSection({
             <View className="flex-row items-center">
               <Trash2 size={20} color={theme.colors.accent.brick} />
               <Text className="text-base ml-3" style={{ color: theme.colors.accent.brick }}>
-                Delete Account
+                {copy.settings.deleteAccount}
               </Text>
             </View>
             <ChevronRight size={18} color={theme.colors.accent.brick} />

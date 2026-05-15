@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { View, ScrollView, TouchableOpacity, Alert } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useRouter, useFocusEffect } from 'expo-router'
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { LogOut } from 'lucide-react-native'
 import { format } from 'date-fns'
 
@@ -15,24 +15,29 @@ import {
   PreferencesSection,
   SupportSection,
   DangerZoneSection,
-  DevToolsSection,
+
   NameModal,
   TimezoneModal,
   PlanningTimeModal,
   DeleteAccountModal,
   SmartCategoriesModal,
 } from '~/components/settings'
+import { PaywallModal } from '~/components/PaywallModal'
+import { LayoutPickerModal } from '~/components/settings/LayoutPickerModal'
 import { TutorialScrollProvider, useTutorialScroll } from '~/components/tutorial'
 import { useAuth } from '~/hooks/useAuth'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
-import { useSubscription } from '~/hooks/useSubscription'
+import { useSubscription, hasFullAccess } from '~/hooks/useSubscription'
 import { useNotifications } from '~/hooks/useNotifications'
 import { useAccountDeletion } from '~/hooks/useAccountDeletion'
 import { useAppConfig } from '~/stores/appConfigStore'
+import { isBetaPhase } from '~/types/appConfig'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 
 // Get app version from app.json (Expo handles this)
 import Constants from 'expo-constants'
@@ -54,8 +59,11 @@ function SettingsContent() {
   useScreenTracking('settings')
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const { openPaywall } = useLocalSearchParams<{ openPaywall?: string }>()
   const { signOut } = useAuth()
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const { profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const subscription = useSubscription()
@@ -93,6 +101,13 @@ function SettingsContent() {
     }
   }, [isTutorialActive, currentStep, tutorialScroll])
 
+  useEffect(() => {
+    if (openPaywall === '1') {
+      setShowPaywallModal(true)
+      router.replace('/(tabs)/settings')
+    }
+  }, [openPaywall, router])
+
   // Refresh permission status when screen comes into focus
   // Note: Skip on simulator as Notifications.getPermissionsAsync() can block the event loop
   useFocusEffect(
@@ -110,14 +125,25 @@ function SettingsContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showFarewellOverlay, setShowFarewellOverlay] = useState(false)
   const [showSmartCategoriesModal, setShowSmartCategoriesModal] = useState(false)
+  const [showLayoutModal, setShowLayoutModal] = useState(false)
   const [pendingSmartCategoriesValue, setPendingSmartCategoriesValue] = useState(false)
+  const [showPaywallModal, setShowPaywallModal] = useState(false)
 
   // Form states
   const [editName, setEditName] = useState('')
   const [selectedTime, setSelectedTime] = useState(new Date())
 
-  // Beta check
-  const isBeta = phase === 'closed_beta' || phase === 'open_beta'
+  // Beta check (kept as a local convenience; the subscription state machine
+  // already collapses beta into status='beta'). Used by ProfileSection for the
+  // "Beta Tester" badge styling.
+  const isBeta = isBetaPhase(phase)
+
+  // Gate the "normal" settings sections when the user needs to act on their
+  // subscription state (expired → purchase required, pre_trial → trial required).
+  // Derived from the state-machine helper so adding a new non-access status
+  // in the future automatically includes it here without an extra edit.
+  // During loading, nothing is gated to avoid a flash of limited content.
+  const isGated = !subscription.isLoading && !hasFullAccess(subscription.status)
 
   // ===========================================================================
   // Handlers
@@ -132,10 +158,10 @@ function SettingsContent() {
   }
 
   const handleSignOut = async () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(copy.settings.logOutTitle, copy.settings.logOutBody, [
+      { text: copy.common.cancel, style: 'cancel' },
       {
-        text: 'Log Out',
+        text: copy.settings.logOut,
         style: 'destructive',
         onPress: async () => {
           await signOut()
@@ -151,7 +177,7 @@ function SettingsContent() {
       setShowDeleteModal(false)
       setShowFarewellOverlay(true)
     } catch {
-      Alert.alert('Error', 'Failed to schedule account deletion. Please try again.')
+      Alert.alert(copy.settings.deleteErrorTitle, copy.settings.deleteErrorBody)
     }
   }
 
@@ -164,7 +190,7 @@ function SettingsContent() {
     try {
       await accountDeletion.cancelDeletion.mutateAsync()
     } catch {
-      Alert.alert('Error', 'Failed to cancel deletion. Please try again.')
+      Alert.alert(copy.settings.deleteErrorTitle, copy.settings.cancelDeletionErrorBody)
     }
   }
 
@@ -201,7 +227,7 @@ function SettingsContent() {
 
       setShowPlanningTimeModal(false)
     } catch {
-      Alert.alert('Error', 'Failed to save planning time. Please try again.')
+      Alert.alert(copy.settings.deleteErrorTitle, copy.settings.savePlanningTimeErrorBody)
     }
   }
 
@@ -235,7 +261,7 @@ function SettingsContent() {
         await cancelPlanningReminder()
       }
     } catch {
-      Alert.alert('Error', 'Failed to update notification setting. Please try again.')
+      Alert.alert(copy.settings.deleteErrorTitle, copy.settings.updateNotificationErrorBody)
     }
   }
 
@@ -269,9 +295,9 @@ function SettingsContent() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <Text className="text-2xl font-bold text-content-primary mt-4 mb-6">Settings</Text>
+        <Text className="text-2xl font-bold text-content-primary mt-4 mb-6">{copy.settings.title}</Text>
 
-        {/* 1. Profile Section */}
+        {/* 1. Profile Section — always visible so signed-in users can see which account they're on */}
         <ProfileSection
           isLoading={isLoading}
           fullName={profile?.full_name}
@@ -280,48 +306,82 @@ function SettingsContent() {
           onEditName={openNameModal}
         />
 
-        {/* 2. Subscription Section - only shown when NOT in beta */}
-        {!isBeta && (
-          <SubscriptionSection
-            isLoading={subscription.isLoading}
-            status={subscription.status}
-            canStartTrial={subscription.canStartTrial}
-            isStartingTrial={subscription.isStartingTrial}
-            isRestoring={subscription.isRestoring}
-            trialDaysRemaining={subscription.trialDaysRemaining}
-            onStartTrial={() => subscription.startTrial()}
-            onRestore={() => subscription.restore()}
-          />
+        {/* 2. Subscription Section - always shown; SubscriptionSection renders
+            an appropriate variant per status (including a "Full Access" row
+            for beta testers). */}
+        <SubscriptionSection
+          isLoading={subscription.isLoading}
+          status={subscription.status}
+          isStartingTrial={subscription.isStartingTrial}
+          isRestoring={subscription.isRestoring}
+          trialDaysRemaining={subscription.trialDaysRemaining}
+          trialExpirationDate={subscription.trialExpirationDate}
+          graceDaysRemaining={subscription.graceDaysRemaining}
+          graceExpirationDate={subscription.graceExpirationDate}
+          onStartTrial={() => subscription.startTrial()}
+              onRestore={async () => {
+                try {
+                  await subscription.restore()
+                } catch {
+              Alert.alert(copy.settings.restoreFailedTitle, copy.settings.restoreFailedBody)
+                }
+              }}
+          onUpgrade={() => setShowPaywallModal(true)}
+          onOpenPurchaseHelp={() => router.push('/purchase-help?source=settings')}
+        />
+
+        {/* 3–6. Categories, Notifications, Preferences, Support — hidden for
+            gated states (expired/pre_trial) so locked/limbo users see only
+            the subscription CTA and account management. */}
+        {!isGated && (
+          <>
+            <CategoriesSection
+              isLoading={isLoading}
+              autoSortCategories={profile?.auto_sort_categories ?? false}
+              onToggleSmartCategories={handleSmartCategoriesToggle}
+            />
+
+            <NotificationsSection
+              isLoading={isLoading}
+              planningReminderTime={profile?.planning_reminder_time || null}
+              planningReminderEnabled={profile?.planning_reminder_enabled ?? false}
+              permissionStatus={permissionStatus}
+              isUpdating={updateProfile.isPending}
+              onEditPlanningTime={openPlanningTimeModal}
+              onTogglePlanningReminder={handleTogglePlanningReminder}
+              onOpenSettings={openSettings}
+            />
+
+            <PreferencesSection
+              isLoading={isLoading}
+              timezone={profile?.timezone || null}
+              onEditTimezone={() => setShowTimezoneModal(true)}
+              onEditLayout={() => setShowLayoutModal(true)}
+            />
+
+            <SupportSection onReplayTutorial={handleReplayTutorial} />
+          </>
         )}
 
-        {/* 3. Categories Section */}
-        <CategoriesSection
-          isLoading={isLoading}
-          autoSortCategories={profile?.auto_sort_categories ?? false}
-          onToggleSmartCategories={handleSmartCategoriesToggle}
-        />
-
-        {/* 4. Notifications & Reminders Section */}
-        <NotificationsSection
-          isLoading={isLoading}
-          planningReminderTime={profile?.planning_reminder_time || null}
-          planningReminderEnabled={profile?.planning_reminder_enabled ?? false}
-          permissionStatus={permissionStatus}
-          isUpdating={updateProfile.isPending}
-          onEditPlanningTime={openPlanningTimeModal}
-          onTogglePlanningReminder={handleTogglePlanningReminder}
-          onOpenSettings={openSettings}
-        />
-
-        {/* 5. Preferences Section */}
-        <PreferencesSection
-          isLoading={isLoading}
-          timezone={profile?.timezone || null}
-          onEditTimezone={() => setShowTimezoneModal(true)}
-        />
-
-        {/* 6. Support Section */}
-        <SupportSection onReplayTutorial={handleReplayTutorial} />
+        {__DEV__ && (
+          <TouchableOpacity
+            onPress={() => router.push('/notification-setup')}
+            activeOpacity={0.7}
+            className="py-3.5 px-4 rounded-xl mb-4"
+            style={{
+              backgroundColor: theme.colors.interactive.hover,
+              borderWidth: 1,
+              borderColor: theme.colors.border.primary,
+            }}
+          >
+            <Text className="font-semibold text-content-primary">
+              Reopen Notification Onboarding
+            </Text>
+            <Text className="text-sm text-content-secondary mt-1">
+              Dev-only shortcut to revisit the trial-start reminder screen.
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Log Out Button */}
         <TouchableOpacity
@@ -336,7 +396,7 @@ function SettingsContent() {
         >
           <LogOut size={18} color={theme.colors.text.secondary} />
           <Text className="font-semibold ml-2" style={{ color: theme.colors.text.secondary }}>
-            Log Out
+            {copy.settings.logOut}
           </Text>
         </TouchableOpacity>
 
@@ -349,9 +409,6 @@ function SettingsContent() {
           onOpenDeleteModal={() => setShowDeleteModal(true)}
           onCancelDeletion={handleCancelDeletion}
         />
-
-        {/* Dev Tools — visible during beta, gate before public release */}
-        <DevToolsSection />
 
         {/* App Version */}
         <Text className="text-center text-sm text-content-tertiary mb-4">
@@ -401,6 +458,26 @@ function SettingsContent() {
         isPending={updateProfile.isPending}
         onConfirm={confirmSmartCategoriesChange}
         onClose={() => setShowSmartCategoriesModal(false)}
+      />
+
+      <PaywallModal
+        visible={showPaywallModal}
+        onClose={() => setShowPaywallModal(false)}
+        offerings={subscription.offerings ?? null}
+        offeringIdentifier={subscription.offeringIdentifier}
+        isPurchasing={subscription.isPurchasing}
+        isRestoring={subscription.isRestoring}
+        onPurchase={async (pkg) => {
+          return await subscription.purchase(pkg)
+        }}
+        onRestore={async () => {
+          return await subscription.restore()
+        }}
+      />
+
+      <LayoutPickerModal
+        visible={showLayoutModal}
+        onClose={() => setShowLayoutModal(false)}
       />
 
       {/* Farewell overlay after scheduling deletion */}

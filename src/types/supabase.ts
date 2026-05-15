@@ -4,7 +4,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: '13.0.5'
+    PostgrestVersion: '14.4'
   }
   public: {
     Tables: {
@@ -57,15 +57,7 @@ export type Database = {
           user_agent?: string | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: 'admin_audit_log_user_id_fkey'
-            columns: ['user_id']
-            isOneToOne: false
-            referencedRelation: 'admin_users_overview'
-            referencedColumns: ['id']
-          },
-        ]
+        Relationships: []
       }
       admin_sessions: {
         Row: {
@@ -184,13 +176,6 @@ export type Database = {
             foreignKeyName: 'beta_feedback_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
-            referencedRelation: 'admin_user_task_details'
-            referencedColumns: ['user_id']
-          },
-          {
-            foreignKeyName: 'beta_feedback_user_id_fkey'
-            columns: ['user_id']
-            isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
@@ -198,7 +183,7 @@ export type Database = {
             foreignKeyName: 'beta_feedback_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
-            referencedRelation: 'user_overview'
+            referencedRelation: 'profiles_dashboard'
             referencedColumns: ['id']
           },
         ]
@@ -380,13 +365,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'email_campaigns_created_by_fkey'
-            columns: ['created_by']
-            isOneToOne: false
-            referencedRelation: 'admin_users_overview'
-            referencedColumns: ['id']
-          },
-          {
             foreignKeyName: 'email_campaigns_template_id_fkey'
             columns: ['template_id']
             isOneToOne: false
@@ -456,15 +434,7 @@ export type Database = {
           updated_at?: string | null
           variables?: Json | null
         }
-        Relationships: [
-          {
-            foreignKeyName: 'email_templates_created_by_fkey'
-            columns: ['created_by']
-            isOneToOne: false
-            referencedRelation: 'admin_users_overview'
-            referencedColumns: ['id']
-          },
-        ]
+        Relationships: []
       }
       email_unsubscribes: {
         Row: {
@@ -513,70 +483,6 @@ export type Database = {
           },
         ]
       }
-      plans: {
-        Row: {
-          completed_at: string | null
-          completion_rate: number | null
-          created_at: string
-          evening_notes: string | null
-          id: string
-          locked_at: string | null
-          morning_notes: string | null
-          planned_for: string
-          status: Database['public']['Enums']['plan_status']
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          completed_at?: string | null
-          completion_rate?: number | null
-          created_at?: string
-          evening_notes?: string | null
-          id?: string
-          locked_at?: string | null
-          morning_notes?: string | null
-          planned_for: string
-          status?: Database['public']['Enums']['plan_status']
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          completed_at?: string | null
-          completion_rate?: number | null
-          created_at?: string
-          evening_notes?: string | null
-          id?: string
-          locked_at?: string | null
-          morning_notes?: string | null
-          planned_for?: string
-          status?: Database['public']['Enums']['plan_status']
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'plans_user_id_fkey'
-            columns: ['user_id']
-            isOneToOne: false
-            referencedRelation: 'admin_user_task_details'
-            referencedColumns: ['user_id']
-          },
-          {
-            foreignKeyName: 'plans_user_id_fkey'
-            columns: ['user_id']
-            isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'plans_user_id_fkey'
-            columns: ['user_id']
-            isOneToOne: false
-            referencedRelation: 'user_overview'
-            referencedColumns: ['id']
-          },
-        ]
-      }
       profiles: {
         Row: {
           auto_sort_categories: boolean | null
@@ -588,11 +494,14 @@ export type Database = {
           expo_push_token: string | null
           full_name: string | null
           id: string
+          last_active_at: string | null
           notification_onboarding_completed: boolean
           planning_reminder_enabled: boolean
           planning_reminder_time: string | null
+          purchased_at: string | null
           push_token_invalid_at: string | null
           push_token_last_verified_at: string | null
+          refunded_at: string | null
           reminder_shortcuts: Json | null
           revenuecat_user_id: string | null
           signup_cohort: Database['public']['Enums']['signup_cohort'] | null
@@ -614,11 +523,14 @@ export type Database = {
           expo_push_token?: string | null
           full_name?: string | null
           id: string
+          last_active_at?: string | null
           notification_onboarding_completed?: boolean
           planning_reminder_enabled?: boolean
           planning_reminder_time?: string | null
+          purchased_at?: string | null
           push_token_invalid_at?: string | null
           push_token_last_verified_at?: string | null
+          refunded_at?: string | null
           reminder_shortcuts?: Json | null
           revenuecat_user_id?: string | null
           signup_cohort?: Database['public']['Enums']['signup_cohort'] | null
@@ -640,11 +552,14 @@ export type Database = {
           expo_push_token?: string | null
           full_name?: string | null
           id?: string
+          last_active_at?: string | null
           notification_onboarding_completed?: boolean
           planning_reminder_enabled?: boolean
           planning_reminder_time?: string | null
+          purchased_at?: string | null
           push_token_invalid_at?: string | null
           push_token_last_verified_at?: string | null
+          refunded_at?: string | null
           reminder_shortcuts?: Json | null
           revenuecat_user_id?: string | null
           signup_cohort?: Database['public']['Enums']['signup_cohort'] | null
@@ -656,12 +571,58 @@ export type Database = {
           tutorial_completed_at?: string | null
           updated_at?: string
         }
+        Relationships: []
+      }
+      purchase_refund_states: {
+        Row: {
+          client_hint: string | null
+          created_at: string
+          last_error: string | null
+          last_source: string | null
+          platform: string
+          requested_at: string
+          resolved_at: string | null
+          status: Database['public']['Enums']['refund_request_status'] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_hint?: string | null
+          created_at?: string
+          last_error?: string | null
+          last_source?: string | null
+          platform: string
+          requested_at?: string
+          resolved_at?: string | null
+          status?: Database['public']['Enums']['refund_request_status'] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_hint?: string | null
+          created_at?: string
+          last_error?: string | null
+          last_source?: string | null
+          platform?: string
+          requested_at?: string
+          resolved_at?: string | null
+          status?: Database['public']['Enums']['refund_request_status'] | null
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: [
           {
-            foreignKeyName: 'profiles_id_fkey'
-            columns: ['id']
+            foreignKeyName: 'purchase_refund_states_user_id_fkey'
+            columns: ['user_id']
             isOneToOne: true
-            referencedRelation: 'admin_users_overview'
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'purchase_refund_states_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
+            referencedRelation: 'profiles_dashboard'
             referencedColumns: ['id']
           },
         ]
@@ -726,13 +687,6 @@ export type Database = {
             foreignKeyName: 'support_requests_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
-            referencedRelation: 'admin_user_task_details'
-            referencedColumns: ['user_id']
-          },
-          {
-            foreignKeyName: 'support_requests_user_id_fkey'
-            columns: ['user_id']
-            isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
@@ -740,7 +694,7 @@ export type Database = {
             foreignKeyName: 'support_requests_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
-            referencedRelation: 'user_overview'
+            referencedRelation: 'profiles_dashboard'
             referencedColumns: ['id']
           },
         ]
@@ -805,13 +759,6 @@ export type Database = {
             foreignKeyName: 'task_time_blocks_task_id_fkey'
             columns: ['task_id']
             isOneToOne: false
-            referencedRelation: 'admin_user_task_details'
-            referencedColumns: ['task_id']
-          },
-          {
-            foreignKeyName: 'task_time_blocks_task_id_fkey'
-            columns: ['task_id']
-            isOneToOne: false
             referencedRelation: 'tasks'
             referencedColumns: ['id']
           },
@@ -828,11 +775,11 @@ export type Database = {
           is_mit: boolean
           notes: string | null
           notification_id: string | null
-          plan_id: string
           position: number
           priority: Database['public']['Enums']['task_priority'] | null
           reminder_at: string | null
           rolled_over_at: string | null
+          scheduled_date: string | null
           system_category_id: string | null
           title: string
           updated_at: string
@@ -849,11 +796,11 @@ export type Database = {
           is_mit?: boolean
           notes?: string | null
           notification_id?: string | null
-          plan_id: string
           position?: number
           priority?: Database['public']['Enums']['task_priority'] | null
           reminder_at?: string | null
           rolled_over_at?: string | null
+          scheduled_date?: string | null
           system_category_id?: string | null
           title: string
           updated_at?: string
@@ -870,11 +817,11 @@ export type Database = {
           is_mit?: boolean
           notes?: string | null
           notification_id?: string | null
-          plan_id?: string
           position?: number
           priority?: Database['public']['Enums']['task_priority'] | null
           reminder_at?: string | null
           rolled_over_at?: string | null
+          scheduled_date?: string | null
           system_category_id?: string | null
           title?: string
           updated_at?: string
@@ -882,20 +829,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: 'tasks_plan_id_fkey'
-            columns: ['plan_id']
-            isOneToOne: false
-            referencedRelation: 'admin_user_task_details'
-            referencedColumns: ['plan_id']
-          },
-          {
-            foreignKeyName: 'tasks_plan_id_fkey'
-            columns: ['plan_id']
-            isOneToOne: false
-            referencedRelation: 'plans'
-            referencedColumns: ['id']
-          },
           {
             foreignKeyName: 'tasks_system_category_id_fkey'
             columns: ['system_category_id']
@@ -914,13 +847,6 @@ export type Database = {
             foreignKeyName: 'tasks_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
-            referencedRelation: 'admin_user_task_details'
-            referencedColumns: ['user_id']
-          },
-          {
-            foreignKeyName: 'tasks_user_id_fkey'
-            columns: ['user_id']
-            isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
@@ -928,7 +854,7 @@ export type Database = {
             foreignKeyName: 'tasks_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
-            referencedRelation: 'user_overview'
+            referencedRelation: 'profiles_dashboard'
             referencedColumns: ['id']
           },
         ]
@@ -975,13 +901,6 @@ export type Database = {
             foreignKeyName: 'user_categories_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
-            referencedRelation: 'admin_user_task_details'
-            referencedColumns: ['user_id']
-          },
-          {
-            foreignKeyName: 'user_categories_user_id_fkey'
-            columns: ['user_id']
-            isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
@@ -989,7 +908,7 @@ export type Database = {
             foreignKeyName: 'user_categories_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
-            referencedRelation: 'user_overview'
+            referencedRelation: 'profiles_dashboard'
             referencedColumns: ['id']
           },
         ]
@@ -1037,13 +956,6 @@ export type Database = {
             foreignKeyName: 'user_category_preferences_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
-            referencedRelation: 'admin_user_task_details'
-            referencedColumns: ['user_id']
-          },
-          {
-            foreignKeyName: 'user_category_preferences_user_id_fkey'
-            columns: ['user_id']
-            isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
@@ -1051,7 +963,7 @@ export type Database = {
             foreignKeyName: 'user_category_preferences_user_id_fkey'
             columns: ['user_id']
             isOneToOne: false
-            referencedRelation: 'user_overview'
+            referencedRelation: 'profiles_dashboard'
             referencedColumns: ['id']
           },
         ]
@@ -1097,151 +1009,43 @@ export type Database = {
       }
     }
     Views: {
-      admin_tasks_by_user: {
-        Row: {
-          completed_at: string | null
-          email: string | null
-          full_name: string | null
-          is_mit: boolean | null
-          planned_for: string | null
-          status: string | null
-          task_created: string | null
-          task_title: string | null
-        }
-        Relationships: []
-      }
-      admin_user_task_details: {
-        Row: {
-          category_color: string | null
-          category_icon: string | null
-          category_name: string | null
-          category_type: string | null
-          completed_at: string | null
-          description: string | null
-          estimated_duration_minutes: number | null
-          full_name: string | null
-          is_mit: boolean | null
-          notes: string | null
-          plan_id: string | null
-          plan_status: Database['public']['Enums']['plan_status'] | null
-          planned_for: string | null
-          position: number | null
-          priority: Database['public']['Enums']['task_priority'] | null
-          system_category_id: string | null
-          task_created_at: string | null
-          task_id: string | null
-          task_status: string | null
-          task_title: string | null
-          task_updated_at: string | null
-          tier: Database['public']['Enums']['tier'] | null
-          user_category_id: string | null
-          user_email: string | null
-          user_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'profiles_id_fkey'
-            columns: ['user_id']
-            isOneToOne: true
-            referencedRelation: 'admin_users_overview'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'tasks_system_category_id_fkey'
-            columns: ['system_category_id']
-            isOneToOne: false
-            referencedRelation: 'system_categories'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'tasks_user_category_id_fkey'
-            columns: ['user_category_id']
-            isOneToOne: false
-            referencedRelation: 'user_categories'
-            referencedColumns: ['id']
-          },
-        ]
-      }
-      admin_user_tasks_today: {
-        Row: {
-          category: string | null
-          completed_at: string | null
-          email: string | null
-          estimated_duration_minutes: number | null
-          full_name: string | null
-          is_most_important: boolean | null
-          plan_status: Database['public']['Enums']['plan_status'] | null
-          planned_for: string | null
-          priority: Database['public']['Enums']['task_priority'] | null
-          task_created_at: string | null
-          task_description: string | null
-          task_notes: string | null
-          task_order: number | null
-          task_status: string | null
-          task_title: string | null
-        }
-        Relationships: []
-      }
-      admin_users_overview: {
+      profiles_dashboard: {
         Row: {
           created_at: string | null
-          custom_categories: number | null
+          deleted_at: string | null
           email: string | null
-          feedback_count: number | null
           full_name: string | null
           id: string | null
+          last_active_at: string | null
           last_sign_in_at: string | null
-          plans_count: number | null
-          support_count: number | null
-          tasks_count: number | null
-          tier: Database['public']['Enums']['tier'] | null
+          signup_cohort: Database['public']['Enums']['signup_cohort'] | null
+          signup_method: string | null
+          timezone: string | null
         }
         Relationships: []
-      }
-      user_overview: {
-        Row: {
-          completed_tasks: number | null
-          created_at: string | null
-          email: string | null
-          full_name: string | null
-          id: string | null
-          planning_reminder_time: string | null
-          tier: Database['public']['Enums']['tier'] | null
-          timezone: string | null
-          total_plans: number | null
-          total_tasks: number | null
-          updated_at: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'profiles_id_fkey'
-            columns: ['id']
-            isOneToOne: true
-            referencedRelation: 'admin_users_overview'
-            referencedColumns: ['id']
-          },
-        ]
       }
     }
     Functions: {
-      can_add_task: { Args: { p_plan_id: string }; Returns: boolean }
-      can_add_task_to_plan: {
-        Args: { p_plan_id: string; p_user_id: string }
-        Returns: boolean
-      }
       cancel_account_deletion: {
         Args: { p_user_id: string }
+        Returns: undefined
+      }
+      clear_current_user_refund_request_state: {
+        Args: never
         Returns: undefined
       }
       cleanup_expired_sessions: { Args: never; Returns: undefined }
       delete_expired_accounts: { Args: never; Returns: undefined }
       delete_user_by_email: { Args: { target_email: string }; Returns: string }
-      get_favorite_category_ids: { Args: { p_user_id: string }; Returns: Json }
-      get_or_create_plan: { Args: { p_date: string }; Returns: string }
-      get_remaining_task_slots: {
-        Args: { p_plan_id: string; p_user_id: string }
-        Returns: number
+      ensure_current_user_profile: {
+        Args: never
+        Returns: Database['public']['Tables']['profiles']['Row']
       }
+      ensure_profile_exists_for_auth_user: {
+        Args: { p_user_id: string }
+        Returns: Database['public']['Tables']['profiles']['Row']
+      }
+      get_favorite_category_ids: { Args: { p_user_id: string }; Returns: Json }
       get_user_cohort: { Args: { p_user_id: string }; Returns: string }
       get_user_role_level: { Args: { p_user_id: string }; Returns: number }
       get_user_tier: { Args: { p_user_id: string }; Returns: string }
@@ -1263,6 +1067,14 @@ export type Database = {
       }
       is_beta_phase: { Args: never; Returns: boolean }
       is_email_subscribed: { Args: { p_email: string }; Returns: boolean }
+      mark_current_user_refund_request_pending: {
+        Args: { p_error?: string | null; p_platform?: string; p_source?: string | null }
+        Returns: Database['public']['Tables']['purchase_refund_states']['Row']
+      }
+      record_current_user_duplicate_refund_request_hint: {
+        Args: { p_error?: string | null; p_platform?: string; p_source?: string | null }
+        Returns: Database['public']['Tables']['purchase_refund_states']['Row']
+      }
       log_audit_event: {
         Args: {
           p_action: Database['public']['Enums']['audit_action']
@@ -1315,7 +1127,7 @@ export type Database = {
         | 'login_attempt'
         | 'login_error'
         | 'read'
-      plan_status: 'draft' | 'locked' | 'active' | 'completed'
+      refund_request_status: 'pending_review' | 'approved' | 'denied'
       signup_cohort: 'friends_family' | 'early_adopter' | 'general'
       task_priority: 'top' | 'high' | 'medium' | 'low'
       tier: 'none' | 'trialing' | 'lifetime'
@@ -1462,7 +1274,7 @@ export const Constants = {
         'login_error',
         'read',
       ],
-      plan_status: ['draft', 'locked', 'active', 'completed'],
+      refund_request_status: ['pending_review', 'approved', 'denied'],
       signup_cohort: ['friends_family', 'early_adopter', 'general'],
       task_priority: ['top', 'high', 'medium', 'low'],
       tier: ['none', 'trialing', 'lifetime'],

@@ -23,6 +23,8 @@ import * as Haptics from 'expo-haptics'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import { useProfile } from '~/hooks/useProfile'
 import {
   useSortedCategories,
@@ -30,6 +32,7 @@ import {
   useUpdateCategoryPositions,
   type UnifiedCategory,
 } from '~/hooks/useCategories'
+import { getLocalizedCategoryName } from '~/constants/systemCategories'
 import { getCategoryIcon } from '~/utils/categoryIcons'
 
 // Enable LayoutAnimation on Android
@@ -41,6 +44,8 @@ const MAX_FAVORITES = 4
 
 export function FavoriteCategoriesAccordion() {
   const theme = useAppTheme()
+  const { locale, t } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const brandColor = theme.colors.brand.primary
   const { profile } = useProfile()
   const autoSort = profile?.auto_sort_categories ?? false
@@ -89,8 +94,12 @@ export function FavoriteCategoriesAccordion() {
   const otherCategories = useMemo(() => {
     return allCategories
       .filter((cat) => !selectedIds.has(cat.id))
-      .sort((a, b) => a.name.localeCompare(b.name))
-  }, [allCategories, selectedIds])
+      .sort((a, b) => {
+        const aLabel = a.isSystem ? getLocalizedCategoryName(a.name, locale) : a.name
+        const bLabel = b.isSystem ? getLocalizedCategoryName(b.name, locale) : b.name
+        return aLabel.localeCompare(bLabel, locale)
+      })
+  }, [allCategories, locale, selectedIds])
 
   const selectedCount = selectedIds.size
   const canSelectMore = selectedCount < MAX_FAVORITES
@@ -185,11 +194,13 @@ export function FavoriteCategoriesAccordion() {
             {getCategoryIcon({ category, color: category.color, size: 16 })}
           </View>
           <Text className="text-base text-content-primary" style={{ marginLeft: 12 }}>
-            {category.name}
+            {category.isSystem ? getLocalizedCategoryName(category.name, locale) : category.name}
           </Text>
           {!category.isSystem && (
             <View style={[styles.customBadge, { backgroundColor: `${brandColor}1A` }]}>
-              <Text style={{ color: brandColor, fontSize: 10, fontWeight: '500' }}>Custom</Text>
+              <Text style={{ color: brandColor, fontSize: 10, fontWeight: '500' }}>
+                {t('common.custom')}
+              </Text>
             </View>
           )}
         </View>
@@ -246,12 +257,12 @@ export function FavoriteCategoriesAccordion() {
                 {getCategoryIcon({ category: item, color: item.color, size: 16 })}
               </View>
               <Text className="text-base text-content-primary" style={{ marginLeft: 12 }}>
-                {item.name}
+                {item.isSystem ? getLocalizedCategoryName(item.name, locale) : item.name}
               </Text>
               {!item.isSystem && (
                 <View style={[styles.customBadge, { backgroundColor: `${brandColor}1A` }]}>
                   <Text style={{ color: selectedHeartColor, fontSize: 10, fontWeight: '500' }}>
-                    Custom
+                    {t('common.custom')}
                   </Text>
                 </View>
               )}
@@ -270,6 +281,8 @@ export function FavoriteCategoriesAccordion() {
       brandColor,
       iconColor,
       selectedHeartColor,
+      locale,
+      t,
     ],
   )
 
@@ -292,17 +305,17 @@ export function FavoriteCategoriesAccordion() {
             className="text-base font-sans-medium text-content-primary"
             style={{ marginLeft: 12 }}
           >
-            Favorite Categories
+            {copy.settings.favoriteCategories}
           </Text>
         </View>
 
         <View style={styles.headerRight}>
           {autoSort ? (
-            <Text style={{ color: textMuted, fontSize: 14 }}>Managed Smartly</Text>
+            <Text style={{ color: textMuted, fontSize: 14 }}>{copy.settings.managedSmartly}</Text>
           ) : (
             <>
               <Text style={{ color: textMuted, fontSize: 14, marginRight: 4 }}>
-                {selectedCount} selected
+                {copy.settings.selectedCount.replace('{{count}}', String(selectedCount))}
               </Text>
               <Animated.View style={chevronStyle}>
                 <ChevronDown size={18} color={iconColor} />
@@ -318,10 +331,10 @@ export function FavoriteCategoriesAccordion() {
           {/* Section Header */}
           <View style={styles.sectionHeader}>
             <Text className="text-sm font-sans-semibold text-content-primary">
-              Quick Access Categories
+              {copy.settings.quickAccessTitle}
             </Text>
             <Text style={{ color: textMuted, fontSize: 13, marginTop: 4 }}>
-              Select up to {MAX_FAVORITES} categories to display by default when adding tasks
+              {copy.settings.quickAccessDescription}
             </Text>
           </View>
 
@@ -336,7 +349,7 @@ export function FavoriteCategoriesAccordion() {
                 scrollEnabled={false}
               />
               <Text style={{ color: textMuted, fontSize: 12, marginTop: 8, textAlign: 'center' }}>
-                Hold and drag to reorder
+                {copy.settings.holdAndDrag}
               </Text>
             </View>
           )}

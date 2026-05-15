@@ -4,6 +4,8 @@ import { Sparkles, Info } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import { useTutorialTarget } from '~/components/tutorial'
 import { SectionHeader } from './SectionHeader'
 import { FavoriteCategoriesAccordion } from './FavoriteCategoriesAccordion'
@@ -24,20 +26,22 @@ export function CategoriesSection({
   onToggleSmartCategories,
 }: CategoriesSectionProps) {
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const brandColor = theme.colors.brand.primary
   const { targetRef, measureTarget } = useTutorialTarget('settings_categories')
 
   const showSmartCategoriesInfo = () => {
     Alert.alert(
-      'Smart Categories',
-      'Favorite categories automatically adjust based on usage frequency. The app learns your habits and displays your most-used categories.',
-      [{ text: 'Got it' }],
+      copy.settings.smartCategoriesTitle,
+      copy.settings.smartCategoriesBody,
+      [{ text: copy.settings.gotIt }],
     )
   }
 
   return (
     <View ref={targetRef} onLayout={measureTarget}>
-      <SectionHeader title="Categories" />
+      <SectionHeader title={copy.settings.categoriesSection} />
       {isLoading ? (
         <CategoriesSkeleton />
       ) : (
@@ -54,7 +58,7 @@ export function CategoriesSection({
                 fill={autoSortCategories ? brandColor : 'transparent'}
               />
               <Text className="text-base font-sans-medium text-content-primary ml-3">
-                Smart Categories
+                {copy.settings.smartCategories}
               </Text>
               <TouchableOpacity
                 className="ml-2"

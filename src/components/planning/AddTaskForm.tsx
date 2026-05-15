@@ -31,8 +31,11 @@ import { useTutorialStore } from '~/stores/tutorialStore'
 import { CategorySelector } from './CategorySelector'
 import { PrioritySelector, type Priority } from './PrioritySelector'
 import { type PlanningTarget } from './DayToggle'
+import { MoveToDayToggle } from './MoveToDayToggle'
 import { ReminderSection } from './ReminderSection'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 
 type Category = 'work' | 'wellness' | 'personal' | 'home' | string
 type SubmitState = 'idle' | 'submitting' | 'success'
@@ -59,6 +62,7 @@ interface AddTaskFormProps {
     priority: Priority
     notes?: string | null
     reminderAt?: string | null // ISO timestamp
+    plannedFor?: PlanningTarget // Only set when editing (form-level day override)
   }) => Promise<void> | void
   initialValues?: InitialFormValues
   isEditing?: boolean
@@ -89,6 +93,8 @@ export function AddTaskForm({
   onScrollToBottom,
 }: AddTaskFormProps) {
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const titleInputRef = useRef<TextInput>(null)
   const isMountedRef = useRef(true)
 
@@ -126,6 +132,9 @@ export function AddTaskForm({
   const [notes, setNotes] = useState(initialValues?.notes ?? '')
   const [isNotesExpanded, setIsNotesExpanded] = useState(!!initialValues?.notes)
 
+  // Move to other day toggle (only used when editing)
+  const [moveToOtherDay, setMoveToOtherDay] = useState(false)
+
   // Reminder state
   const [isReminderEnabled, setIsReminderEnabled] = useState(!!initialValues?.reminderAt)
   const [reminderDate, setReminderDate] = useState<Date>(() => {
@@ -152,13 +161,16 @@ export function AddTaskForm({
       setIsNotesExpanded(!!initialValues.notes)
       notesChevronRotation.value = initialValues.notes ? 1 : 0
 
+      // Reset move checkbox when switching to a different task
+      setMoveToOtherDay(false)
+
       // Sync reminder state
       setIsReminderEnabled(!!initialValues.reminderAt)
       if (initialValues.reminderAt) {
         setReminderDate(new Date(initialValues.reminderAt))
       }
     }
-  }, [initialValues, notesChevronRotation])
+  }, [initialValues, notesChevronRotation, selectedTarget])
 
   // Auto-focus title input when requested (e.g., when editing a task)
   useEffect(() => {
@@ -214,7 +226,8 @@ export function AddTaskForm({
     setNotes('')
     setIsNotesExpanded(false)
     notesChevronRotation.value = 0
-    // Reset reminder
+    // Reset move checkbox and reminder
+    setMoveToOtherDay(false)
     setIsReminderEnabled(false)
     const baseDate = selectedTarget === 'tomorrow' ? addDays(new Date(), 1) : new Date()
     setReminderDate(setMinutes(setHours(baseDate, 9), 0))
@@ -317,6 +330,9 @@ export function AddTaskForm({
         priority: selectedPriority,
         notes: notes.trim() || null,
         reminderAt,
+        ...(isEditing && moveToOtherDay && {
+          plannedFor: selectedTarget === 'today' ? 'tomorrow' as PlanningTarget : 'today' as PlanningTarget,
+        }),
       })
 
       // Show success state
@@ -363,13 +379,13 @@ export function AddTaskForm({
       {/* Header */}
       <View className="flex-row items-center justify-between mb-4">
         <Text className="text-xl font-sans-bold text-content-primary">
-          {isEditing ? 'Edit Task' : 'New Task'}
+          {isEditing ? copy.planning.editTask : copy.planning.newTask}
         </Text>
         <TouchableOpacity
           onPress={onClose}
           disabled={isFormDisabled}
           className="w-8 h-8 items-center justify-center"
-          accessibilityLabel="Close form"
+          accessibilityLabel={copy.planning.closeForm}
         >
           <X size={24} color={theme.colors.text.tertiary} />
         </TouchableOpacity>
@@ -381,7 +397,7 @@ export function AddTaskForm({
           ref={titleInputRef}
           value={title}
           onChangeText={handleTitleChange}
-          placeholder="What do you want to accomplish?"
+          placeholder={copy.planning.titlePlaceholder}
           placeholderTextColor={theme.colors.text.muted}
           editable={!isFormDisabled}
           onFocus={() => setIsTitleFocused(true)}
@@ -430,7 +446,7 @@ export function AddTaskForm({
           <View className="flex-row items-center" style={{ gap: 8 }}>
             <FileText size={18} color={theme.colors.text.tertiary} />
             <Text className="text-sm font-sans-medium text-content-secondary">
-              Add Notes (Optional)
+              {copy.planning.addNotes}
             </Text>
           </View>
           <Animated.View style={notesChevronStyle}>
@@ -442,7 +458,7 @@ export function AddTaskForm({
           <TextInput
             value={notes}
             onChangeText={setNotes}
-            placeholder="Add shopping list, details, or any notes..."
+            placeholder={copy.planning.notesPlaceholder}
             placeholderTextColor={theme.colors.text.muted}
             multiline
             numberOfLines={4}
@@ -471,6 +487,16 @@ export function AddTaskForm({
         selectedTarget={selectedTarget}
       />
 
+      {/* Move to other day — only shown when editing */}
+      {isEditing && (
+        <MoveToDayToggle
+          moving={moveToOtherDay}
+          onToggle={() => setMoveToOtherDay((prev) => !prev)}
+          currentDay={selectedTarget}
+          disabled={isFormDisabled}
+        />
+      )}
+
       {/* Action Buttons - Tutorial target for complete_form step */}
       <View
         ref={completeFormRef}
@@ -487,7 +513,7 @@ export function AddTaskForm({
               style={{ backgroundColor: theme.colors.interactive.hover }}
               accessibilityRole="button"
             >
-              <Text className="font-sans-semibold text-content-primary">Cancel</Text>
+              <Text className="font-sans-semibold text-content-primary">{copy.common.cancel}</Text>
             </TouchableOpacity>
 
             {/* Add/Update Task Button */}
@@ -507,7 +533,7 @@ export function AddTaskForm({
                 style={styles.addButtonGradient}
               >
                 <Text className="font-sans-semibold text-white">
-                  {isEditing ? 'Update Task' : 'Add Task'}
+                  {isEditing ? copy.planning.updateTask : copy.planning.addTask}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -534,7 +560,7 @@ export function AddTaskForm({
           >
             <Check size={20} color="#22c55e" />
             <Text className="font-sans-semibold ml-2" style={{ color: '#22c55e' }}>
-              {isEditing ? 'Task updated!' : 'Task added!'}
+              {isEditing ? copy.planning.taskUpdated : copy.planning.taskAdded}
             </Text>
           </View>
         )}

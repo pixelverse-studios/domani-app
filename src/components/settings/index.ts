@@ -20,7 +20,7 @@ export { ProfileSection } from './ProfileSection'
 export { SubscriptionSection } from './SubscriptionSection'
 export { CategoriesSection } from './CategoriesSection'
 export { NotificationsSection } from './NotificationsSection'
-export { PreferencesSection, TIMEZONES } from './PreferencesSection'
+export { PreferencesSection } from './PreferencesSection'
 export { SupportSection } from './SupportSection'
 export { DangerZoneSection } from './DangerZoneSection'
 
@@ -32,6 +32,3 @@ export {
   DeleteAccountModal,
   SmartCategoriesModal,
 } from './SettingsModals'
-
-// Dev tools (visible in dev and TestFlight builds)
-export { DevToolsSection } from './DevToolsSection'

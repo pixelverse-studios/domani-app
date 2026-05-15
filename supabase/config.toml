@@ -6,3 +6,9 @@
 # but JWT verification can fail during edge cases like account deletion
 [functions.send-account-email]
 verify_jwt = false
+
+# RevenueCat sends a shared-secret Authorization header, not a Supabase JWT.
+# The function performs its own Bearer token check against
+# REVENUECAT_WEBHOOK_SECRET.
+[functions.revenuecat-webhook]
+verify_jwt = false

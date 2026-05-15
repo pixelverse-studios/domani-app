@@ -1,11 +1,12 @@
 import React from 'react'
 import { View, TouchableOpacity } from 'react-native'
 import { Bell, Sun, CloudMoon, Moon } from 'lucide-react-native'
-import { format } from 'date-fns'
 
 import { Text, Badge } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useProfile } from '~/hooks/useProfile'
+import { useTranslation } from '~/hooks/useTranslation'
+import { formatLocalizedMonthDay, formatLocalizedWeekday } from '~/i18n/date'
 import { useAppConfig } from '~/stores/appConfigStore'
 import { PHASE_DISPLAY } from '~/types'
 
@@ -14,25 +15,13 @@ type GreetingInfo = {
   icon: 'sun' | 'cloudMoon' | 'moon'
 }
 
-function getGreeting(): GreetingInfo {
-  const hour = new Date().getHours()
-  if (hour < 12) return { text: 'Good morning', icon: 'sun' }
-  if (hour < 17) return { text: 'Good afternoon', icon: 'cloudMoon' }
-  return { text: 'Good evening', icon: 'moon' }
-}
-
-function getOrdinalSuffix(day: number): string {
-  if (day > 3 && day < 21) return 'th'
-  switch (day % 10) {
-    case 1:
-      return 'st'
-    case 2:
-      return 'nd'
-    case 3:
-      return 'rd'
-    default:
-      return 'th'
-  }
+function getGreeting(
+  hour: number,
+  t: (key: 'greetings.morning' | 'greetings.afternoon' | 'greetings.evening') => string,
+): GreetingInfo {
+  if (hour < 12) return { text: t('greetings.morning'), icon: 'sun' }
+  if (hour < 17) return { text: t('greetings.afternoon'), icon: 'cloudMoon' }
+  return { text: t('greetings.evening'), icon: 'moon' }
 }
 
 interface TodayHeaderProps {
@@ -44,16 +33,15 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
   const brandColor = theme.colors.brand.primary
   const { profile } = useProfile()
   const { phase, showBadge } = useAppConfig()
+  const { locale, t } = useTranslation()
 
   // Get badge display info for current phase (with fallback for safety)
   const phaseDisplay = PHASE_DISPLAY[phase] ?? { label: '', variant: 'default' as const }
 
   const today = new Date()
-  const dayOfWeek = format(today, 'EEEE')
-  const month = format(today, 'MMMM')
-  const day = today.getDate()
-  const formattedDate = `${month} ${day}${getOrdinalSuffix(day)}`
-  const greeting = getGreeting()
+  const dayOfWeek = formatLocalizedWeekday(today, locale, 'long')
+  const formattedDate = formatLocalizedMonthDay(today, locale)
+  const greeting = getGreeting(today.getHours(), t)
 
   // Get first name from profile
   const firstName = profile?.full_name?.split(' ')[0]
@@ -100,14 +88,14 @@ export function TodayHeader({ onNotificationPress }: TodayHeaderProps) {
         </Text>
         {/* Today label - brand color */}
         <Text className="font-sans-medium mt-2" style={{ fontSize: 18, color: brandColor }}>
-          Today
+          {t('common.today')}
         </Text>
       </View>
       <TouchableOpacity
         onPress={onNotificationPress}
         className="w-10 h-10 rounded-full items-center justify-center mt-2"
         style={{ backgroundColor: theme.colors.card }}
-        accessibilityLabel="Notifications"
+        accessibilityLabel={t('common.notifications')}
       >
         <Bell size={20} color={theme.colors.text.tertiary} />
       </TouchableOpacity>

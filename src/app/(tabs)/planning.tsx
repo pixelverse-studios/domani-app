@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { ScrollView, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { addDays, format } from 'date-fns'
 
 import {
   PlanningHeader,
@@ -14,7 +13,6 @@ import {
   TasksRecap,
   RolloverModal,
 } from '~/components/planning'
-import { usePlanForDate } from '~/hooks/usePlans'
 import { useCreateTask, useTasks, useDeleteTask, useUpdateTask } from '~/hooks/useTasks'
 import { useSystemCategories } from '~/hooks/useCategories'
 import { useNotificationStore } from '~/stores/notificationStore'
@@ -23,9 +21,14 @@ import { useTutorialAdvancement } from '~/components/tutorial'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
+import { useCurrentDate } from '~/hooks/useCurrentDate'
 import { useEveningRolloverTasks } from '~/hooks/useEveningRolloverTasks'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
+import { getLocalizedCategoryName } from '~/constants/systemCategories'
+import { supabase } from '~/lib/supabase'
 import type { TaskWithCategory } from '~/types'
 
 // Tutorial timing constants
@@ -56,11 +59,14 @@ interface TaskFormData {
   priority: Priority
   notes?: string | null
   reminderAt?: string | null
+  plannedFor?: PlanningTarget // Set by form when editing (day override)
 }
 
 export default function PlanningScreen() {
   useScreenTracking('planning')
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const router = useRouter()
   const scrollViewRef = useRef<ScrollView>(null)
   const isMountedRef = useRef(true)
@@ -104,17 +110,12 @@ export default function PlanningScreen() {
     }
   }, [defaultPlanningFor, openForm, editTaskId, router])
 
-  // Get dates for today and tomorrow
-  const todayDate = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
-  const tomorrowDate = useMemo(() => format(addDays(new Date(), 1), 'yyyy-MM-dd'), [])
+  // Get dates for today and tomorrow — refreshes on foreground and at midnight
+  const { today: todayDate, tomorrow: tomorrowDate } = useCurrentDate()
 
-  // Get or create plans for both today and tomorrow (needed for moving tasks between days)
-  const { data: todayPlan } = usePlanForDate(todayDate)
-  const { data: tomorrowPlan } = usePlanForDate(tomorrowDate)
-
-  // The plan for the currently selected target
-  const plan = selectedTarget === 'today' ? todayPlan : tomorrowPlan
-  const { data: tasks = [] } = useTasks(plan?.id)
+  // Query tasks directly by date
+  const selectedDate = selectedTarget === 'today' ? todayDate : tomorrowDate
+  const { data: tasks = [] } = useTasks(selectedDate)
   const { data: systemCategories = [] } = useSystemCategories()
   const createTask = useCreateTask()
   const updateTask = useUpdateTask()
@@ -146,7 +147,7 @@ export default function PlanningScreen() {
       const task = tasks.find((t) => t.id === editTaskId)
       if (task) {
         // Ensure header matches the task's day so the task list context is correct
-        const taskDay: PlanningTarget = task.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
+        const taskDay: PlanningTarget = task.scheduled_date === todayDate ? 'today' : 'tomorrow'
         setSelectedTarget(taskDay)
 
         setEditingTask(task)
@@ -156,7 +157,7 @@ export default function PlanningScreen() {
         router.setParams({ editTaskId: undefined, defaultPlanningFor: undefined })
       }
     }
-  }, [editTaskId, tasks, todayPlan?.id, router])
+  }, [editTaskId, tasks, todayDate, router])
 
   // Handle openForm param - auto-open form when navigating from Today's "Add New Task"
   // When trigger==='planning_reminder', gate form behind evening rollover check first
@@ -186,15 +187,11 @@ export default function PlanningScreen() {
   }, [openForm, editTaskId, defaultPlanningFor, trigger, router])
 
   // Once evening rollover data is ready, decide whether to show modal or open form directly
-  // Also wait for tomorrowPlan to be available before showing modal (prevents null guard issues)
   useEffect(() => {
     if (!planningReminderTriggered || eveningLoading) return
 
     if (eveningShouldShow) {
-      if (tomorrowPlan) {
-        setShowEveningRollover(true)
-      }
-      // If tomorrowPlan isn't ready yet, wait — effect re-runs when tomorrowPlan resolves
+      setShowEveningRollover(true)
     } else {
       // No eligible tasks or already prompted — skip rollover, open form directly
       // Reset source so the app-open flow isn't blocked for the rest of the session
@@ -202,21 +199,7 @@ export default function PlanningScreen() {
       setEveningRolloverSource(null)
       setIsFormVisible(true)
     }
-
-    return () => {
-      // If we claimed the session but tomorrowPlan never resolved (e.g. network error),
-      // release the claim on unmount so the app-open flow isn't permanently blocked
-      if (planningReminderTriggered && !tomorrowPlan) {
-        setEveningRolloverSource(null)
-      }
-    }
-  }, [
-    planningReminderTriggered,
-    eveningLoading,
-    eveningShouldShow,
-    tomorrowPlan,
-    setEveningRolloverSource,
-  ])
+  }, [planningReminderTriggered, eveningLoading, eveningShouldShow, setEveningRolloverSource])
 
   // Evening rollover handlers
   const handleEveningCarryForward = useCallback(
@@ -225,18 +208,10 @@ export default function PlanningScreen() {
       makeMitToday: boolean
       keepReminderTimes: boolean
     }) => {
-      if (!tomorrowPlan) {
-        Alert.alert(
-          'Not ready yet',
-          "Tomorrow's plan is still loading. Please try again in a moment.",
-        )
-        return
-      }
-
       try {
         await carryForwardTasks({
           selectedTaskIds: params.selectedTaskIds,
-          targetPlanId: tomorrowPlan.id,
+          targetDate: tomorrowDate,
           shouldMakeMIT: params.makeMitToday,
           keepReminderTimes: params.keepReminderTimes,
         })
@@ -261,13 +236,13 @@ export default function PlanningScreen() {
         console.error('[EveningRollover] Failed to carry forward tasks:', error)
         // Keep modal open so user can retry or start fresh
         Alert.alert(
-          'Something went wrong',
-          "We couldn't carry your tasks forward. Please try again.",
+          copy.planning.carryForwardErrorTitle,
+          copy.planning.carryForwardErrorMessage,
         )
       }
     },
     [
-      tomorrowPlan,
+      tomorrowDate,
       carryForwardTasks,
       markEveningPrompted,
       track,
@@ -332,8 +307,8 @@ export default function PlanningScreen() {
     (taskId: string) => {
       const task = tasks.find((t) => t.id === taskId)
       if (task) {
-        // Sync header to task's day so submission targets the correct plan
-        const taskDay: PlanningTarget = task.plan_id === todayPlan?.id ? 'today' : 'tomorrow'
+        // Sync header to task's day so submission targets the correct date
+        const taskDay: PlanningTarget = task.scheduled_date === todayDate ? 'today' : 'tomorrow'
         setSelectedTarget(taskDay)
 
         setEditingTask(task)
@@ -345,7 +320,7 @@ export default function PlanningScreen() {
         }, 100)
       }
     },
-    [tasks, todayPlan?.id],
+    [tasks, todayDate],
   )
 
   // Get system category UUID from form category ID
@@ -367,8 +342,10 @@ export default function PlanningScreen() {
     try {
       if (editingTask) {
         // Determine if task is moving to a different day
-        const originalPlanId = editingTask.plan_id
-        const targetPlanId = selectedTarget === 'today' ? todayPlan?.id : tomorrowPlan?.id
+        // Use the form's plannedFor (day selector in edit mode) rather than the header pill
+        const editTarget = task.plannedFor ?? selectedTarget
+        const targetDate = editTarget === 'today' ? todayDate : tomorrowDate
+        const originalDate = editingTask.scheduled_date ?? todayDate
 
         // Build base updates
         const updates: Parameters<typeof updateTask.mutateAsync>[0]['updates'] = {
@@ -380,27 +357,23 @@ export default function PlanningScreen() {
           reminder_at: task.reminderAt ?? null,
         }
 
-        // If day changed, add plan_id to updates
-        if (targetPlanId && targetPlanId !== originalPlanId) {
-          updates.plan_id = targetPlanId
+        // If day changed, add scheduled_date to updates
+        if (targetDate !== originalDate) {
+          updates.scheduled_date = targetDate
         }
 
         // Update existing task
         await updateTask.mutateAsync({
           taskId: editingTask.id,
           updates,
-          originalPlanId,
+          originalDate,
         })
       } else {
-        // Create new task - use the plan for the header's selected day
-        const targetPlanId = selectedTarget === 'today' ? todayPlan?.id : tomorrowPlan?.id
-        if (!targetPlanId) {
-          console.error('No plan available for target day')
-          return
-        }
+        // Create new task for the header's selected day
+        const targetDate = selectedTarget === 'today' ? todayDate : tomorrowDate
 
         const newTask = await createTask.mutateAsync({
-          planId: targetPlanId,
+          scheduledDate: targetDate,
           title: task.title,
           priority: task.priority,
           systemCategoryId: systemCategoryId,
@@ -434,8 +407,8 @@ export default function PlanningScreen() {
       handleCloseForm()
     } catch (error) {
       Alert.alert(
-        editingTask ? 'Failed to update task' : 'Failed to create task',
-        'Please try again.',
+        editingTask ? copy.planning.updateTaskErrorTitle : copy.planning.createTaskErrorTitle,
+        copy.planning.genericErrorMessage,
       )
     }
   }
@@ -460,7 +433,7 @@ export default function PlanningScreen() {
     if (editingTask.system_category) {
       // Map system category name back to form ID
       categoryId = DB_TO_FORM_CATEGORY[editingTask.system_category.name]
-      categoryLabel = editingTask.system_category.name
+      categoryLabel = getLocalizedCategoryName(editingTask.system_category.name, locale)
     } else if (editingTask.user_category) {
       // User category uses the actual ID
       categoryId = editingTask.user_category.id
@@ -475,13 +448,13 @@ export default function PlanningScreen() {
       notes: editingTask.notes,
       reminderAt: editingTask.reminder_at,
     }
-  }, [editingTask])
+  }, [editingTask, locale])
 
   const handleDeleteTask = async (taskId: string) => {
     try {
       await deleteTask.mutateAsync(taskId)
     } catch (error) {
-      Alert.alert('Failed to delete task', 'Please try again.')
+      Alert.alert(copy.today.deleteTaskErrorTitle, copy.today.deleteTaskErrorMessage)
     }
   }
 
@@ -501,11 +474,7 @@ export default function PlanningScreen() {
         <PlanningHeader
           selectedTarget={selectedTarget}
           onTargetChange={handleTargetChange}
-          dateSuffix={
-            tasks.length > 0
-              ? <TasksRecap tasks={tasks} />
-              : undefined
-          }
+          dateSuffix={tasks.length > 0 ? <TasksRecap tasks={tasks} /> : undefined}
         />
 
         {isFormVisible ? (
@@ -545,9 +514,9 @@ export default function PlanningScreen() {
         visible={showEveningRollover}
         mitTask={eveningMitTask}
         otherTasks={eveningOtherTasks}
-        title="Today's Unfinished Tasks"
-        subtitle="Carry them into tomorrow's plan"
-        mitToggleLabel="Make this tomorrow's top priority"
+        title={copy.planning.rolloverTodayTitle}
+        subtitle={copy.planning.rolloverTodaySubtitle}
+        mitToggleLabel={copy.planning.rolloverMitTomorrow}
         onCarryForward={handleEveningCarryForward}
         onStartFresh={handleEveningStartFresh}
       />

@@ -1,6 +1,7 @@
 import React from 'react'
 import { StyleSheet, Text as RNText, View, TouchableOpacity, Linking, Alert } from 'react-native'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
 
 const LEGAL_URLS = {
   termsOfService: 'https://www.domani-app.com/terms',
@@ -9,11 +10,13 @@ const LEGAL_URLS = {
 
 export const LegalFooter = () => {
   const theme = useAppTheme()
+  const { catalog, t } = useTranslation()
 
   const themeColors = {
     text: theme.colors.text.tertiary,
     link: theme.colors.text.secondary,
   }
+  const footerParts = catalog.legal.footer
 
   const openURL = async (url: string) => {
     try {
@@ -21,27 +24,52 @@ export const LegalFooter = () => {
       if (supported) {
         await Linking.openURL(url)
       } else {
-        Alert.alert('Unable to open link', 'Please try again later.')
+        Alert.alert(t('legal.unableToOpenLinkTitle'), t('legal.unableToOpenLinkMessage'))
       }
     } catch (error) {
       console.error('Error opening URL:', error)
-      Alert.alert('Unable to open link', 'Please try again later.')
+      Alert.alert(t('legal.unableToOpenLinkTitle'), t('legal.unableToOpenLinkMessage'))
     }
   }
 
   return (
     <View style={styles.container}>
-      <RNText style={[styles.text, { color: themeColors.text }]}>
-        By continuing, you agree to our
-      </RNText>
       <View style={styles.linksRow}>
-        <TouchableOpacity onPress={() => openURL(LEGAL_URLS.termsOfService)} activeOpacity={0.7}>
-          <RNText style={[styles.link, { color: themeColors.link }]}>Terms of Service</RNText>
-        </TouchableOpacity>
-        <RNText style={[styles.text, { color: themeColors.text }]}> and </RNText>
-        <TouchableOpacity onPress={() => openURL(LEGAL_URLS.privacyPolicy)} activeOpacity={0.7}>
-          <RNText style={[styles.link, { color: themeColors.link }]}>Privacy Policy</RNText>
-        </TouchableOpacity>
+        {footerParts.map((part, index) => {
+          if (part === '{terms}') {
+            return (
+              <TouchableOpacity
+                key={`legal-footer-${index}`}
+                onPress={() => openURL(LEGAL_URLS.termsOfService)}
+                activeOpacity={0.7}
+              >
+                <RNText style={[styles.link, { color: themeColors.link }]}>
+                  {t('legal.termsOfService')}
+                </RNText>
+              </TouchableOpacity>
+            )
+          }
+
+          if (part === '{privacy}') {
+            return (
+              <TouchableOpacity
+                key={`legal-footer-${index}`}
+                onPress={() => openURL(LEGAL_URLS.privacyPolicy)}
+                activeOpacity={0.7}
+              >
+                <RNText style={[styles.link, { color: themeColors.link }]}>
+                  {t('legal.privacyPolicy')}
+                </RNText>
+              </TouchableOpacity>
+            )
+          }
+
+          return (
+            <RNText key={`legal-footer-${index}`} style={[styles.text, { color: themeColors.text }]}>
+              {part}
+            </RNText>
+          )
+        })}
       </View>
     </View>
   )
@@ -58,6 +86,7 @@ const styles = StyleSheet.create({
   },
   linksRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'center',
   },

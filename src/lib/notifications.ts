@@ -4,6 +4,7 @@ import Constants from 'expo-constants'
 
 import { getTheme } from '~/theme/themes'
 import { supabase } from './supabase'
+import { captureException, addBreadcrumb } from './sentry'
 
 // Check if notifications are supported (not in Expo Go on Android SDK 53+)
 const isExpoGo = Constants.appOwnership === 'expo'
@@ -160,26 +161,37 @@ export const NotificationService = {
   async schedulePlanningReminder(hour: number, minute: number): Promise<string> {
     if (!Notifications) return ''
 
-    const identifier = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Plan Tomorrow',
-        body: 'A few minutes now sets you up for success tomorrow.',
-        sound: true,
-        priority: Notifications.AndroidNotificationPriority.HIGH,
-        data: {
-          url: '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true&trigger=planning_reminder',
-          type: 'planning_reminder',
+    try {
+      const identifier = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Plan Tomorrow',
+          body: 'A few minutes now sets you up for success tomorrow.',
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+          data: {
+            url: '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true&trigger=planning_reminder',
+            type: 'planning_reminder',
+          },
         },
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour,
+          minute,
+          channelId: Platform.OS === 'android' ? PLANNING_CHANNEL_ID : undefined,
+        },
+      })
+
+      addBreadcrumb('Planning reminder scheduled', 'notifications', { hour, minute, identifier })
+      return identifier
+    } catch (error) {
+      console.error('[Notifications] Failed to schedule planning reminder:', error)
+      captureException(error instanceof Error ? error : new Error(String(error)), {
+        method: 'schedulePlanningReminder',
         hour,
         minute,
-        channelId: Platform.OS === 'android' ? PLANNING_CHANNEL_ID : undefined,
-      },
-    })
-
-    return identifier
+      })
+      return ''
+    }
   },
 
   /**
@@ -240,6 +252,10 @@ export const NotificationService = {
     if (finalRemaining.length > 0) {
       console.error(
         `[Notifications] CRITICAL: ${finalRemaining.length} notifications could not be cancelled after ${MAX_RETRIES} attempts`,
+      )
+      captureException(
+        new Error(`Failed to cancel ${finalRemaining.length} notifications after ${MAX_RETRIES} attempts`),
+        { method: 'cancelAllReminders', remainingCount: finalRemaining.length },
       )
       return false
     }
@@ -309,6 +325,9 @@ export const NotificationService = {
       return token.data
     } catch (error) {
       console.error('[Notifications] Failed to get push token:', error)
+      captureException(error instanceof Error ? error : new Error(String(error)), {
+        method: 'getExpoPushToken',
+      })
       return null
     }
   },
@@ -342,7 +361,7 @@ export const NotificationService = {
       const identifier = await Notifications.scheduleNotificationAsync({
         content: {
           title: task.title,
-          body: task.notes || ' ',
+          body: task.notes || '',
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
           data: {
@@ -359,9 +378,20 @@ export const NotificationService = {
       })
 
       console.log(`[Notifications] Scheduled reminder for task ${task.id} at ${reminderDate}`)
+      addBreadcrumb('Task reminder scheduled', 'notifications', {
+        taskId: task.id,
+        reminderAt: task.reminder_at,
+        identifier,
+      })
       return identifier
     } catch (error) {
       console.error(`[Notifications] Failed to schedule task reminder:`, error)
+      captureException(error instanceof Error ? error : new Error(String(error)), {
+        method: 'scheduleTaskReminder',
+        taskId: task.id,
+        reminderAt: task.reminder_at,
+        isMit: task.is_mit,
+      })
       return null
     }
   },
@@ -378,6 +408,10 @@ export const NotificationService = {
       console.log(`[Notifications] Cancelled task reminder: ${notificationId}`)
     } catch (error) {
       console.error(`[Notifications] Failed to cancel task reminder:`, error)
+      captureException(error instanceof Error ? error : new Error(String(error)), {
+        method: 'cancelTaskReminder',
+        notificationId,
+      })
     }
   },
 
@@ -413,6 +447,11 @@ export const NotificationService = {
     }
 
     console.log(`[Notifications] Rescheduled ${results.size} task reminders`)
+    addBreadcrumb('Task reminders rescheduled', 'notifications', {
+      total: tasks.length,
+      scheduled: results.size,
+      failed: tasks.length - results.size,
+    })
     return results
   },
 }

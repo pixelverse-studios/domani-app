@@ -4,7 +4,7 @@ import '../../global.css'
 import { initSentry } from '~/lib/sentry'
 initSentry()
 
-import React, { useMemo } from 'react'
+import React from 'react'
 import { Stack, useRouter } from 'expo-router'
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { StatusBar } from 'expo-status-bar'
@@ -18,9 +18,10 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter'
 import { View, ActivityIndicator, Alert } from 'react-native'
-import { format } from 'date-fns'
+import { useCurrentDate } from '~/hooks/useCurrentDate'
 
 import { supabase } from '~/lib/supabase'
+import { LocalizationProvider } from '~/providers/LocalizationProvider'
 import { ThemeProvider } from '~/providers/ThemeProvider'
 import { AuthProvider } from '~/providers/AuthProvider'
 import { AnalyticsProvider, useAnalytics } from '~/providers/AnalyticsProvider'
@@ -29,25 +30,27 @@ import { useAnalyticsIdentify } from '~/hooks/useAnalyticsIdentify'
 import { useSentryIdentify } from '~/hooks/useSentryIdentify'
 import { useAuthAnalytics } from '~/hooks/useAuthAnalytics'
 import { useAuth } from '~/hooks/useAuth'
+import { useTranslation } from '~/hooks/useTranslation'
 import { useAppConfigStore } from '~/stores/appConfigStore'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
 import { useCelebrationStore } from '~/stores/celebrationStore'
+import { useNotificationStore } from '~/stores/notificationStore'
 import { useEveningRolloverOnAppOpen } from '~/hooks/useEveningRolloverOnAppOpen'
-import { useTomorrowPlan, usePlanForDate } from '~/hooks/usePlans'
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
 import { RolloverModal, CelebrationModal } from '~/components/planning'
 import { ErrorBoundary } from '~/components/ErrorBoundary'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 
 const queryClient = new QueryClient()
 
 function RootLayoutContent() {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
 
   // Clear React Query cache on sign out to prevent stale data leaking into new accounts.
-  // Without this, cached plan IDs from the previous user cause task creation to fail
-  // on the first attempt after switching accounts (RLS rejects the stale plan_id).
   // Note: queryClient is stable for the lifetime of the provider — [] is intentional.
   React.useEffect(() => {
     const {
@@ -100,16 +103,11 @@ function RootLayoutContent() {
     otherTasks: eveningAppOpenOtherTasks,
     markEveningPrompted: markEveningAppOpenPrompted,
     isBeforeReminderTime: eveningIsBeforeReminderTime,
+    shouldPromptPlanning: eveningShouldPromptPlanning,
   } = useEveningRolloverOnAppOpen()
 
-  const { data: tomorrowPlan } = useTomorrowPlan({
-    enabled: eveningAppOpenShouldShow && !eveningIsBeforeReminderTime,
-  })
-  const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
-  const { data: todayPlan } = usePlanForDate(today, {
-    enabled: eveningAppOpenShouldShow && eveningIsBeforeReminderTime,
-  })
-  const rolloverTargetPlan = eveningIsBeforeReminderTime ? todayPlan : tomorrowPlan
+  const { today, tomorrow } = useCurrentDate()
+  const rolloverTargetDate = eveningIsBeforeReminderTime ? today : tomorrow
 
   const { mutateAsync: carryForwardTasks } = useCarryForwardTasks()
 
@@ -124,14 +122,11 @@ function RootLayoutContent() {
   const showCelebration = celebrationVisible && !tutorialActive && !loading
 
   // Evening rollover (app-open path)
-  // Note: !!rolloverTargetPlan gates display until the plan upsert completes after eveningAppOpenShouldShow
-  // flips true. There is no loading indicator for this window — the modal simply hasn't appeared yet.
   const showEveningAppOpenRollover =
     eveningAppOpenShouldShow &&
     !tutorialActive &&
     !eveningAppOpenLoading &&
     !loading &&
-    !!rolloverTargetPlan &&
     !showCelebration
 
   // Debug: log rollover/celebration state on every change (DEV only)
@@ -145,6 +140,7 @@ function RootLayoutContent() {
         eveningAppOpenShouldShow,
         eveningAppOpenLoading,
         eveningIsBeforeReminderTime,
+        eveningShouldPromptPlanning,
       })
     }
   }, [
@@ -155,7 +151,43 @@ function RootLayoutContent() {
     eveningAppOpenShouldShow,
     eveningAppOpenLoading,
     eveningIsBeforeReminderTime,
+    eveningShouldPromptPlanning,
   ])
+
+  // Evening "Plan Tomorrow" redirect — when time checks pass but there are no tasks to roll over,
+  // silently navigate to the planning screen with the appropriate day selected and form open.
+  // The ref prevents duplicate router.push calls if the effect re-fires before navigation completes.
+  const planningRedirectFiredRef = React.useRef(false)
+
+  // Dev-only: reset the redirect guard when dev tools trigger a recheck
+  const devRecheckCounter = useNotificationStore((s) => s.devRolloverRecheckCounter)
+  React.useEffect(() => {
+    if (devRecheckCounter > 0) planningRedirectFiredRef.current = false
+  }, [devRecheckCounter])
+
+  React.useEffect(() => {
+    if (
+      eveningShouldPromptPlanning &&
+      !tutorialActive &&
+      !loading &&
+      !showCelebration &&
+      !planningRedirectFiredRef.current
+    ) {
+      planningRedirectFiredRef.current = true
+      if (__DEV__)
+        console.log('[_layout] Evening prompt planning — redirecting to planning/tomorrow')
+      ;(async () => {
+        try {
+          await markEveningAppOpenPrompted()
+          const planningFor = eveningIsBeforeReminderTime ? 'today' : 'tomorrow'
+          router.push(`/(tabs)/planning?defaultPlanningFor=${planningFor}&openForm=true`)
+        } catch (error) {
+          if (__DEV__) console.error('[_layout] Planning redirect failed:', error)
+          // planningRedirectFiredRef already set — won't retry, which is correct
+        }
+      })()
+    }
+  }, [eveningShouldPromptPlanning, tutorialActive, loading, showCelebration, eveningIsBeforeReminderTime, markEveningAppOpenPrompted, router])
 
   // Track when celebration modal is shown
   React.useEffect(() => {
@@ -174,20 +206,10 @@ function RootLayoutContent() {
       makeMitToday: boolean
       keepReminderTimes: boolean
     }) => {
-      if (!rolloverTargetPlan) {
-        console.error('[EveningRollover] No target plan available')
-        const planLabel = eveningIsBeforeReminderTime ? "Today's" : "Tomorrow's"
-        Alert.alert(
-          'Not ready yet',
-          `${planLabel} plan is still loading. Please try again in a moment.`,
-        )
-        return
-      }
-
       try {
         await carryForwardTasks({
           selectedTaskIds: params.selectedTaskIds,
-          targetPlanId: rolloverTargetPlan.id,
+          targetDate: rolloverTargetDate,
           shouldMakeMIT: params.makeMitToday,
           keepReminderTimes: params.keepReminderTimes,
         })
@@ -216,7 +238,7 @@ function RootLayoutContent() {
       }
     },
     [
-      rolloverTargetPlan,
+      rolloverTargetDate,
       carryForwardTasks,
       markEveningAppOpenPrompted,
       track,
@@ -274,6 +296,7 @@ function RootLayoutContent() {
         <Stack.Screen name="login" />
         <Stack.Screen name="notification-setup" />
         <Stack.Screen name="contact-support" />
+        <Stack.Screen name="purchase-help" />
         <Stack.Screen name="auth/callback" options={{ presentation: 'modal' }} />
       </Stack>
 
@@ -296,9 +319,9 @@ function RootLayoutContent() {
         visible={showEveningAppOpenRollover}
         mitTask={eveningAppOpenMitTask}
         otherTasks={eveningAppOpenOtherTasks}
-        title={eveningIsBeforeReminderTime ? "Yesterday's Unfinished Tasks" : "Today's Unfinished Tasks"}
-        subtitle={eveningIsBeforeReminderTime ? "Pick up where you left off" : "Carry them into tomorrow's plan"}
-        mitToggleLabel={eveningIsBeforeReminderTime ? "Make this today's top priority" : "Make this tomorrow's top priority"}
+        title={eveningIsBeforeReminderTime ? copy.planning.rolloverYesterdayTitle : copy.planning.rolloverTodayTitle}
+        subtitle={eveningIsBeforeReminderTime ? copy.planning.rolloverYesterdaySubtitle : copy.planning.rolloverTodaySubtitle}
+        mitToggleLabel={eveningIsBeforeReminderTime ? copy.planning.rolloverMitToday : copy.planning.rolloverMitTomorrow}
         onCarryForward={handleEveningAppOpenCarryForward}
         onStartFresh={handleEveningAppOpenStartFresh}
       />
@@ -326,15 +349,17 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ErrorBoundary>
-          <AnalyticsProvider>
-            <AuthProvider>
-              <ThemeProvider>
-                <QueryClientProvider client={queryClient}>
-                  <RootLayoutContent />
-                </QueryClientProvider>
-              </ThemeProvider>
-            </AuthProvider>
-          </AnalyticsProvider>
+          <LocalizationProvider>
+            <AnalyticsProvider>
+              <AuthProvider>
+                <ThemeProvider>
+                  <QueryClientProvider client={queryClient}>
+                    <RootLayoutContent />
+                  </QueryClientProvider>
+                </ThemeProvider>
+              </AuthProvider>
+            </AnalyticsProvider>
+          </LocalizationProvider>
         </ErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>

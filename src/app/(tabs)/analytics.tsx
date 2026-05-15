@@ -15,10 +15,14 @@ import {
 import { useAnalyticsSummary, useDailyCompletions } from '~/hooks/useAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 
 export default function AnalyticsScreen() {
   useScreenTracking('progress')
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const brandColor = theme.colors.brand.primary
   const insets = useSafeAreaInsets()
   const queryClient = useQueryClient()
@@ -46,9 +50,9 @@ export default function AnalyticsScreen() {
     return (
       <View className="flex-1" style={{ backgroundColor: theme.colors.background }}>
         <View className="px-5 pb-2" style={{ paddingTop: insets.top + 16 }}>
-          <Text variant="title">Progress</Text>
+          <Text variant="title">{copy.analytics.title}</Text>
           <Text variant="caption" className="mt-1">
-            Track your productivity trends
+            {copy.analytics.subtitle}
           </Text>
         </View>
         <AnalyticsSkeleton />
@@ -64,10 +68,10 @@ export default function AnalyticsScreen() {
         style={{ paddingTop: insets.top, backgroundColor: theme.colors.background }}
       >
         <Text variant="title" className="mb-2">
-          Something went wrong
+          {copy.analytics.errorTitle}
         </Text>
         <Text variant="caption" className="text-center">
-          Unable to load analytics. Pull down to retry.
+          {copy.analytics.errorBody}
         </Text>
       </View>
     )
@@ -88,9 +92,9 @@ export default function AnalyticsScreen() {
         }
       >
         <View className="px-5 pt-4 pb-2">
-          <Text variant="title">Progress</Text>
+          <Text variant="title">{copy.analytics.title}</Text>
           <Text variant="caption" className="mt-1">
-            Track your productivity trends
+            {copy.analytics.subtitle}
           </Text>
         </View>
         <View className="flex-1 justify-center">
@@ -111,9 +115,9 @@ export default function AnalyticsScreen() {
     >
       {/* Header */}
       <View className="px-5 pt-4 pb-4">
-        <Text variant="title">Progress</Text>
+        <Text variant="title">{copy.analytics.title}</Text>
         <Text variant="caption" className="mt-1">
-          Track your productivity trends
+          {copy.analytics.subtitle}
         </Text>
       </View>
 

@@ -1,51 +1,125 @@
 import React from 'react'
 import { View, TouchableOpacity, ActivityIndicator } from 'react-native'
-import { Crown, Sparkles, RotateCcw } from 'lucide-react-native'
-
+import { Crown, Sparkles, RotateCcw, ChevronRight } from 'lucide-react-native'
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
+import { useTranslation } from '~/hooks/useTranslation'
+import { formatLocalizedDate } from '~/i18n/date'
 import { SectionHeader } from './SectionHeader'
 import { SubscriptionSkeleton } from './SettingsSkeletons'
 import type { SubscriptionStatus } from '~/hooks/useSubscription'
 
-// Subscription status display config
-const STATUS_CONFIG: Record<SubscriptionStatus, { label: string; color: string; bgColor: string }> =
-  {
-    none: { label: 'No Active Plan', color: '#94a3b8', bgColor: 'bg-slate-500/20' },
-    trialing: { label: 'Trial', color: '#22c55e', bgColor: 'bg-green-500/20' },
-    lifetime: { label: 'Lifetime', color: '#f59e0b', bgColor: 'bg-amber-500/20' },
-  }
-
 interface SubscriptionSectionProps {
   isLoading: boolean
   status: SubscriptionStatus
-  canStartTrial: boolean
   isStartingTrial: boolean
   isRestoring: boolean
   trialDaysRemaining: number | null
+  trialExpirationDate: Date | null
+  graceDaysRemaining: number | null
+  graceExpirationDate: Date | null
   onStartTrial: () => void
   onRestore: () => void
+  onUpgrade: () => void
+  onOpenPurchaseHelp: () => void
 }
 
 /**
- * Subscription section for production mode (not shown during beta)
+ * Subscription section shown on the Settings screen. Branches explicitly on
+ * the discriminated `SubscriptionStatus` — there is no `canStartTrial` boolean,
+ * since eligibility is now encoded directly in the status (`pre_trial` means
+ * eligible to start, `expired` means not).
  */
 export function SubscriptionSection({
   isLoading,
   status,
-  canStartTrial,
   isStartingTrial,
   isRestoring,
   trialDaysRemaining,
+  trialExpirationDate,
+  graceDaysRemaining,
+  graceExpirationDate,
   onStartTrial,
   onRestore,
+  onUpgrade,
+  onOpenPurchaseHelp,
 }: SubscriptionSectionProps) {
   const theme = useAppTheme()
-  const statusConfig = STATUS_CONFIG[status]
+  const { locale, t } = useTranslation()
+
+  // Subscription status display config. Lives inside the component so it can
+  // reference theme colors. `Record<SubscriptionStatus, …>` enforces an entry
+  // for every status in the union at compile time.
+  //
+  // The trial state uses `theme.colors.accent.trial` (brand primary sage at
+  // 70% opacity) for the label/icon color, with a lighter sage-derived bg for
+  // the badge pill.
+  const statusConfig: Record<
+    SubscriptionStatus,
+    { label: string; color: string; bgStyle: { backgroundColor: string } }
+  > = {
+    beta: {
+      label: t('subscription.settings.statusBeta'),
+      color: '#f59e0b',
+      bgStyle: { backgroundColor: 'rgba(245, 158, 11, 0.2)' },
+    },
+    grace_period: {
+      label: t('subscription.settings.statusGracePeriod'),
+      color: theme.colors.accent.trial,
+      bgStyle: { backgroundColor: `${theme.colors.brand.primary}26` },
+    },
+    pre_trial: {
+      label: t('subscription.settings.statusPreTrial'),
+      color: '#94a3b8',
+      bgStyle: { backgroundColor: 'rgba(148, 163, 184, 0.2)' },
+    },
+    expired: {
+      label: t('subscription.settings.statusExpired'),
+      color: '#94a3b8',
+      bgStyle: { backgroundColor: 'rgba(148, 163, 184, 0.2)' },
+    },
+    refunded: {
+      label: t('subscription.settings.statusRefunded'),
+      color: '#94a3b8',
+      bgStyle: { backgroundColor: 'rgba(148, 163, 184, 0.2)' },
+    },
+    trialing: {
+      label: t('subscription.settings.statusTrialing'),
+      color: theme.colors.accent.trial,
+      // Brand primary sage at ~15% opacity for the badge pill bg — pairs
+      // with the 70% accent.trial foreground for contrast.
+      bgStyle: { backgroundColor: `${theme.colors.brand.primary}26` },
+    },
+    lifetime: {
+      label: t('subscription.settings.statusLifetime'),
+      color: '#f59e0b',
+      bgStyle: { backgroundColor: 'rgba(245, 158, 11, 0.2)' },
+    },
+  }
+  const currentStatusConfig = statusConfig[status]
+
+  // Type-level exhaustiveness nudge: the JSX branches below
+  // ({status === 'beta' && …}, etc.) are NOT individually type-checked by
+  // TypeScript — a new SubscriptionStatus could be added without rendering
+  // anything for it and tsc would stay silent. This Record forces the
+  // author to at least touch this file when adding a status, which should
+  // prompt them to update the branches as well.
+  //
+  // Keep this in sync with every case in the JSX below.
+  const _exhaustiveStatusCheck: Record<SubscriptionStatus, true> = {
+    beta: true,
+    grace_period: true,
+    lifetime: true,
+    trialing: true,
+    pre_trial: true,
+    expired: true,
+    refunded: true,
+  }
+  void _exhaustiveStatusCheck
 
   return (
     <>
-      <SectionHeader title="Your Plan" />
+      <SectionHeader title={t('subscription.settings.sectionTitle')} />
       {isLoading ? (
         <SubscriptionSkeleton />
       ) : (
@@ -53,103 +127,253 @@ export function SubscriptionSection({
           <View className="rounded-xl p-4 mb-2" style={{ backgroundColor: theme.colors.card }}>
             <View className="flex-row items-center justify-between mb-3">
               <View className="flex-row items-center">
-                <Crown size={20} color={statusConfig.color} />
+                <Crown size={20} color={currentStatusConfig.color} />
                 <Text className="text-base font-medium text-content-primary ml-2">
-                  Current Plan
+                  {t('subscription.settings.currentPlan')}
                 </Text>
               </View>
-              <View className={`px-3 py-1 rounded-full ${statusConfig.bgColor}`}>
-                <Text style={{ color: statusConfig.color }} className="text-sm font-semibold">
-                  {statusConfig.label}
+              <View className="px-3 py-1 rounded-full" style={currentStatusConfig.bgStyle}>
+                <Text
+                  style={{ color: currentStatusConfig.color }}
+                  className="text-sm font-semibold"
+                >
+                  {currentStatusConfig.label}
                 </Text>
               </View>
             </View>
 
-            {/* No active tier - show trial option */}
-            {status === 'none' && (
-              <>
-                <Text className="text-sm text-content-secondary mb-3">
-                  {canStartTrial
-                    ? 'Start a free trial to get full access'
-                    : 'Your trial has ended — upgrade to keep using Domani'}
-                </Text>
-                {canStartTrial ? (
-                  <TouchableOpacity
-                    onPress={onStartTrial}
-                    disabled={isStartingTrial}
-                    activeOpacity={0.8}
-                    className="bg-green-500 py-3 rounded-xl items-center flex-row justify-center mb-2"
-                  >
-                    {isStartingTrial ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <>
-                        <Sparkles size={18} color="#fff" />
-                        <Text className="text-white font-semibold ml-2">
-                          Start 14-Day Free Trial
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    className="py-3 rounded-xl items-center"
-                    style={{ backgroundColor: theme.colors.brand.primary }}
-                  >
-                    <Text className="text-white font-semibold">Upgrade to Pro</Text>
-                  </TouchableOpacity>
-                )}
-              </>
+            {/* Beta — full access, no CTAs */}
+            {status === 'beta' && (
+              <Text className="text-sm text-content-secondary">
+                {t('subscription.settings.betaBody')}
+              </Text>
             )}
 
-            {/* Trialing - show days remaining */}
-            {status === 'trialing' && (
+            {status === 'grace_period' && (
               <>
                 <View className="flex-row items-center mb-3">
-                  <Sparkles size={16} color="#22c55e" />
-                  <Text className="text-sm text-green-500 font-medium ml-2">
-                    {trialDaysRemaining} days remaining in trial
+                  <Sparkles size={16} color={theme.colors.accent.trial} />
+                  <Text
+                    className="text-sm font-medium ml-2"
+                    style={{ color: theme.colors.accent.trial }}
+                  >
+                    {graceDaysRemaining === 1
+                      ? t('subscription.settings.gracePeriodOneDay')
+                      : t('subscription.settings.gracePeriodManyDays', {
+                          count: graceDaysRemaining ?? 0,
+                        })}
                   </Text>
                 </View>
                 <Text className="text-sm text-content-secondary mb-3">
-                  Unlimited tasks - All features unlocked
+                  {graceExpirationDate
+                    ? t('subscription.settings.gracePeriodBodyWithDate', {
+                        date: formatLocalizedDate(graceExpirationDate, 'MMMM d', locale),
+                      })
+                    : t('subscription.settings.gracePeriodBodyNoDate')}
                 </Text>
                 <TouchableOpacity
+                  onPress={onUpgrade}
+                  disabled={isRestoring}
                   activeOpacity={0.8}
                   className="py-3 rounded-xl items-center"
-                  style={{ backgroundColor: theme.colors.brand.primary }}
+                  style={{
+                    backgroundColor: theme.colors.brand.primary,
+                    opacity: isRestoring ? 0.5 : 1,
+                  }}
                 >
-                  <Text className="text-white font-semibold">Get Lifetime Access</Text>
+                  <Text className="text-white font-semibold">
+                    {t('subscription.settings.getLifetimeAccess')}
+                  </Text>
                 </TouchableOpacity>
               </>
             )}
 
-            {/* Lifetime */}
+            {/* Pre-trial — user has never started a trial, offer Start Trial CTA */}
+            {status === 'pre_trial' && (
+              <>
+                <Text className="text-sm text-content-secondary mb-3">
+                  {t('subscription.settings.preTrialBody')}
+                </Text>
+                <TouchableOpacity
+                  onPress={onStartTrial}
+                  disabled={isStartingTrial}
+                  activeOpacity={0.8}
+                  className="py-3 rounded-xl items-center flex-row justify-center mb-2"
+                  style={{
+                    backgroundColor: theme.colors.accent.trial,
+                    opacity: isStartingTrial ? 0.5 : 1,
+                  }}
+                >
+                  {isStartingTrial ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Sparkles size={18} color="#fff" />
+                      <Text className="text-white font-semibold ml-2">
+                        {t('subscription.settings.startTrial')}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+
+            {/* Expired — trial was used and ended, offer Upgrade CTA */}
+            {status === 'expired' && (
+              <>
+                <Text className="text-sm text-content-secondary mb-3">
+                  {t('subscription.settings.expiredBody')}
+                </Text>
+                <TouchableOpacity
+                  onPress={onUpgrade}
+                  disabled={isRestoring}
+                  activeOpacity={0.8}
+                  className="py-3 rounded-xl items-center"
+                  style={{
+                    backgroundColor: theme.colors.brand.primary,
+                    opacity: isRestoring ? 0.5 : 1,
+                  }}
+                >
+                  <Text className="text-white font-semibold">
+                    {t('subscription.settings.getLifetimeAccess')}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {/* Refunded — purchase was refunded, offer re-purchase CTA */}
+            {status === 'refunded' && (
+              <>
+                <Text className="text-sm text-content-secondary mb-3">
+                  {t('subscription.settings.refundedBody')}
+                </Text>
+                <TouchableOpacity
+                  onPress={onUpgrade}
+                  disabled={isRestoring}
+                  activeOpacity={0.8}
+                  className="py-3 rounded-xl items-center"
+                  style={{
+                    backgroundColor: theme.colors.brand.primary,
+                    opacity: isRestoring ? 0.5 : 1,
+                  }}
+                >
+                  <Text className="text-white font-semibold">
+                    {t('subscription.settings.getLifetimeAccess')}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {/* Trialing — show days remaining + Upgrade CTA */}
+            {status === 'trialing' && (
+              <>
+                <View className="flex-row items-center mb-3">
+                  <Sparkles size={16} color={theme.colors.accent.trial} />
+                  <Text
+                    className="text-sm font-medium ml-2"
+                    style={{ color: theme.colors.accent.trial }}
+                  >
+                    {t('subscription.settings.trialingDaysRemaining', {
+                      count: trialDaysRemaining ?? 0,
+                    })}
+                  </Text>
+                </View>
+                <Text className="text-sm text-content-secondary mb-3">
+                  {trialExpirationDate
+                    ? t('subscription.settings.trialingBodyWithDate', {
+                        date: formatLocalizedDate(trialExpirationDate, 'MMMM d', locale),
+                      })
+                    : t('subscription.settings.trialingBodyNoDate')}
+                </Text>
+                <TouchableOpacity
+                  onPress={onUpgrade}
+                  disabled={isRestoring}
+                  activeOpacity={0.8}
+                  className="py-3 rounded-xl items-center"
+                  style={{
+                    backgroundColor: theme.colors.brand.primary,
+                    opacity: isRestoring ? 0.5 : 1,
+                  }}
+                >
+                  <Text className="text-white font-semibold">
+                    {t('subscription.settings.getLifetimeAccess')}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {/* Lifetime — purchased, show purchase help as the only action */}
             {status === 'lifetime' && (
-              <Text className="text-sm text-content-secondary">
-                Unlimited tasks - All features unlocked forever
-              </Text>
+              <>
+                <Text className="text-sm text-content-secondary">
+                  {t('subscription.settings.lifetimeBody')}
+                </Text>
+                <TouchableOpacity
+                  onPress={onOpenPurchaseHelp}
+                  disabled={isRestoring}
+                  activeOpacity={0.85}
+                  className="mt-4 pt-4 flex-row items-center justify-between"
+                  style={{
+                    borderTopWidth: 1,
+                    borderTopColor: 'rgba(245, 158, 11, 0.12)',
+                    opacity: isRestoring ? 0.5 : 1,
+                  }}
+                >
+                  <View className="flex-1 pr-4">
+                    <Text
+                      className="text-sm font-semibold mb-1"
+                      style={{ color: currentStatusConfig.color }}
+                    >
+                      {t('subscription.purchaseHelp.entryCta')}
+                    </Text>
+                    <Text className="text-xs leading-5 text-content-secondary">
+                      {t('subscription.settings.lifetimePurchaseHelpBody')}
+                    </Text>
+                  </View>
+                  <View
+                    className="h-10 w-10 rounded-full items-center justify-center"
+                    style={{ backgroundColor: 'rgba(245, 158, 11, 0.12)' }}
+                  >
+                    <ChevronRight size={18} color={currentStatusConfig.color} />
+                  </View>
+                </TouchableOpacity>
+              </>
             )}
           </View>
 
-          {/* Restore purchases - only show for non-lifetime users */}
-          {(status === 'none' || status === 'trialing') && (
-            <TouchableOpacity
-              onPress={onRestore}
-              disabled={isRestoring}
-              activeOpacity={0.7}
-              className="flex-row items-center justify-center py-2"
-            >
-              {isRestoring ? (
-                <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
-              ) : (
-                <>
-                  <RotateCcw size={14} color={theme.colors.text.tertiary} />
-                  <Text className="text-sm text-content-secondary ml-1.5">Restore Purchases</Text>
-                </>
-              )}
-            </TouchableOpacity>
+          {/* Restore remains useful for users who lost applied access after a prior
+              purchase. Keep it off the active lifetime view, which already has a
+              dedicated purchase-help action in the card. */}
+          {status === 'refunded' && (
+            <>
+              <TouchableOpacity
+                onPress={onRestore}
+                disabled={isRestoring}
+                activeOpacity={0.7}
+                className="flex-row items-center justify-center py-2"
+              >
+                {isRestoring ? (
+                  <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
+                ) : (
+                  <>
+                    <RotateCcw size={14} color={theme.colors.text.tertiary} />
+                    <Text className="text-sm text-content-secondary ml-1.5">
+                      {t('subscription.settings.restorePurchases')}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={onOpenPurchaseHelp}
+                disabled={isRestoring}
+                activeOpacity={0.7}
+                className="flex-row items-center justify-center py-2"
+              >
+                <Text className="text-sm font-sans-medium" style={{ color: theme.colors.brand.primary }}>
+                  {t('subscription.purchaseHelp.entryCta')}
+                </Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
       )}

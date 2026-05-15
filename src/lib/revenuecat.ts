@@ -1,9 +1,16 @@
-import Purchases, { LOG_LEVEL, PurchasesOffering, PurchasesPackage } from 'react-native-purchases'
+import Purchases, {
+  LOG_LEVEL,
+  PurchasesOffering,
+  PurchasesPackage,
+  REFUND_REQUEST_STATUS,
+} from 'react-native-purchases'
 import { Platform } from 'react-native'
 
 // RevenueCat API keys - these should be in environment variables for production
 const REVENUECAT_API_KEY_IOS = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || ''
 const REVENUECAT_API_KEY_ANDROID = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY || ''
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || ''
+const REVENUECAT_ENTITLEMENT_ID = process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID || ''
 
 // Product identifiers (configure these in RevenueCat dashboard)
 // Lifetime-only model - no subscriptions
@@ -11,8 +18,32 @@ export const PRODUCT_IDS = {
   LIFETIME: 'domani_lifetime',
 } as const
 
+function resolveEntitlementId() {
+  if (REVENUECAT_ENTITLEMENT_ID) return REVENUECAT_ENTITLEMENT_ID
+
+  if (SUPABASE_URL.includes('ftgltnzejaxasdvfkqut.supabase.co')) {
+    return 'Domani Staging Lifetime'
+  }
+
+  if (
+    SUPABASE_URL.includes('domani.supabase.co') ||
+    SUPABASE_URL.includes('exxnnlhxcjujxnnwwrxv.supabase.co')
+  ) {
+    return 'Domani Lifetime'
+  }
+
+  console.warn(
+    '[RevenueCat] Could not infer entitlement ID from EXPO_PUBLIC_SUPABASE_URL; defaulting to staging entitlement',
+    {
+      supabaseUrl: SUPABASE_URL || null,
+    },
+  )
+
+  return 'Domani Staging Lifetime'
+}
+
 // Entitlement identifier (configure in RevenueCat dashboard)
-export const ENTITLEMENT_ID = 'premium'
+export const ENTITLEMENT_ID = resolveEntitlementId()
 
 // Beta sunset date - after this, new users get general pricing
 export const BETA_END_DATE = new Date('2026-03-01T00:00:00Z')
@@ -24,12 +55,67 @@ export const OFFERINGS = {
   GENERAL: 'general', // $34.99 lifetime
 } as const
 
+function getActiveEntitlementSummary(customerInfo: {
+  entitlements?: {
+    active?: Record<
+      string,
+      {
+        productIdentifier?: string
+        periodType?: string
+        expirationDate?: string | null
+      }
+    >
+  }
+  originalAppUserId?: string | null
+}) {
+  const activeEntitlements = Object.entries(customerInfo.entitlements?.active ?? {}).map(
+    ([entitlementId, entitlement]) => ({
+      entitlementId,
+      productIdentifier: entitlement.productIdentifier ?? null,
+      periodType: entitlement.periodType ?? null,
+      expirationDate: entitlement.expirationDate ?? null,
+    }),
+  )
+
+  return {
+    originalAppUserId: customerInfo.originalAppUserId ?? null,
+    activeEntitlements,
+  }
+}
+
+function getOfferingSummary(offering: PurchasesOffering | null | undefined) {
+  if (!offering) return null
+
+  return {
+    identifier: offering.identifier,
+    serverDescription: offering.serverDescription ?? null,
+    availablePackages:
+      offering.availablePackages?.map((pkg) => ({
+        packageIdentifier: pkg.identifier,
+        packageType: pkg.packageType,
+        productIdentifier: pkg.product.identifier,
+        productPrice: pkg.product.priceString ?? null,
+      })) ?? [],
+  }
+}
+
+function normalizeSubscriberAttributeValue(value: string | null | undefined) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
+
 /**
  * Initialize RevenueCat SDK
  * Call this once on app startup after user authentication
  */
 export async function initializeRevenueCat(userId?: string) {
   const apiKey = Platform.OS === 'ios' ? REVENUECAT_API_KEY_IOS : REVENUECAT_API_KEY_ANDROID
+
+  console.log('[RevenueCat] Initializing SDK', {
+    platform: Platform.OS,
+    userId: userId ?? null,
+    apiKeyConfigured: !!apiKey,
+  })
 
   if (!apiKey) {
     console.warn('[RevenueCat] No API key configured for', Platform.OS)
@@ -46,7 +132,10 @@ export async function initializeRevenueCat(userId?: string) {
     appUserID: userId, // Use Supabase user ID for cross-platform sync
   })
 
-  console.log('[RevenueCat] Initialized for user:', userId || 'anonymous')
+  console.log('[RevenueCat] Initialized SDK', {
+    platform: Platform.OS,
+    userId: userId ?? 'anonymous',
+  })
 }
 
 /**
@@ -55,12 +144,75 @@ export async function initializeRevenueCat(userId?: string) {
 export async function loginRevenueCat(userId: string) {
   try {
     const { customerInfo } = await Purchases.logIn(userId)
-    console.log('[RevenueCat] User logged in:', userId)
+    console.log('[RevenueCat] User logged in', {
+      userId,
+      ...getActiveEntitlementSummary(customerInfo),
+    })
     return customerInfo
   } catch (error) {
     console.error('[RevenueCat] Login error:', error)
     throw error
   }
+}
+
+interface RevenueCatSubscriberAttributesInput {
+  email?: string | null
+  displayName?: string | null
+  pushToken?: string | null
+  signupCohort?: string | null
+  signupMethod?: string | null
+}
+
+/**
+ * Keep RevenueCat subscriber attributes useful for support and dashboard inspection.
+ * Supabase remains the source of truth; this only mirrors a small, non-sensitive subset.
+ */
+export async function syncRevenueCatSubscriberAttributes(
+  input: RevenueCatSubscriberAttributesInput,
+) {
+  const email = normalizeSubscriberAttributeValue(input.email)
+  const displayName = normalizeSubscriberAttributeValue(input.displayName)
+  const pushToken = normalizeSubscriberAttributeValue(input.pushToken)
+  const signupCohort = normalizeSubscriberAttributeValue(input.signupCohort)
+  const signupMethod = normalizeSubscriberAttributeValue(input.signupMethod)
+
+  const customAttributes: Record<string, string | null> = {
+    signup_cohort: signupCohort,
+    signup_method: signupMethod,
+    app_platform: Platform.OS,
+  }
+
+  const results = await Promise.allSettled([
+    Purchases.setEmail(email),
+    Purchases.setDisplayName(displayName),
+    Purchases.setPushToken(pushToken),
+    Purchases.setAttributes(customAttributes),
+    Purchases.collectDeviceIdentifiers(),
+  ])
+
+  const rejectedResults = results.filter(
+    (result): result is PromiseRejectedResult => result.status === 'rejected',
+  )
+
+  if (rejectedResults.length > 0) {
+    const syncError = new Error('Failed to sync one or more RevenueCat subscriber attributes')
+
+    console.warn('[RevenueCat] Failed to sync some subscriber attributes', {
+      rejectedCount: rejectedResults.length,
+      errors: rejectedResults.map((result) => String(result.reason)),
+    })
+
+    throw syncError
+  }
+
+  console.log('[RevenueCat] Synced subscriber attributes', {
+    hasEmail: !!email,
+    hasDisplayName: !!displayName,
+    hasPushToken: !!pushToken,
+    signupCohort,
+    signupMethod,
+    platform: Platform.OS,
+  })
 }
 
 /**
@@ -72,6 +224,15 @@ export async function logoutRevenueCat() {
     await Purchases.logOut()
     console.log('[RevenueCat] User logged out')
   } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+
+    // RevenueCat can already be in its anonymous state during sign-out races.
+    // In that case there is nothing left to do, so don't surface noisy logs.
+    if (errorMessage.includes('current user is anonymous')) {
+      console.log('[RevenueCat] Logout skipped - current user already anonymous')
+      return
+    }
+
     // Ignore rate limit errors (code 16, status 429) - these happen when
     // another request is in flight, which is common during rapid auth changes
     if (
@@ -94,14 +255,25 @@ export async function logoutRevenueCat() {
 export async function getOfferings(offeringIdentifier?: string): Promise<PurchasesOffering | null> {
   try {
     const offerings = await Purchases.getOfferings()
+    const availableOfferingIds = Object.keys(offerings.all ?? {})
 
     // If a specific offering is requested, return that one
     if (offeringIdentifier && offerings.all[offeringIdentifier]) {
-      console.log('[RevenueCat] Returning cohort-specific offering:', offeringIdentifier)
+      const selectedOffering = offerings.all[offeringIdentifier]
+      console.log('[RevenueCat] Returning cohort-specific offering', {
+        requestedOfferingIdentifier: offeringIdentifier,
+        availableOfferingIds,
+        selectedOffering: getOfferingSummary(selectedOffering),
+      })
       return offerings.all[offeringIdentifier]
     }
 
     // Fall back to the default/current offering
+    console.log('[RevenueCat] Returning current offering', {
+      requestedOfferingIdentifier: offeringIdentifier ?? null,
+      availableOfferingIds,
+      currentOffering: getOfferingSummary(offerings.current),
+    })
     return offerings.current
   } catch (error) {
     console.error('[RevenueCat] Error fetching offerings:', error)
@@ -142,6 +314,12 @@ export async function checkPremiumAccess(): Promise<{
     const customerInfo = await Purchases.getCustomerInfo()
     const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID]
 
+    console.log('[RevenueCat] Checked premium access', {
+      entitlementId: ENTITLEMENT_ID,
+      hasEntitlement: !!entitlement,
+      ...getActiveEntitlementSummary(customerInfo),
+    })
+
     if (entitlement) {
       const isTrialing = entitlement.periodType === 'TRIAL'
       return {
@@ -172,7 +350,20 @@ export async function checkPremiumAccess(): Promise<{
  */
 export async function purchasePackage(packageToPurchase: PurchasesPackage) {
   try {
+    console.log('[RevenueCat] Starting purchase', {
+      packageIdentifier: packageToPurchase.identifier,
+      packageType: packageToPurchase.packageType,
+      productIdentifier: packageToPurchase.product.identifier,
+      priceString: packageToPurchase.product.priceString ?? null,
+      offeringIdentifier: packageToPurchase.presentedOfferingContext?.offeringIdentifier ?? null,
+    })
+
     const { customerInfo } = await Purchases.purchasePackage(packageToPurchase)
+    console.log('[RevenueCat] Purchase completed', {
+      packageIdentifier: packageToPurchase.identifier,
+      productIdentifier: packageToPurchase.product.identifier,
+      ...getActiveEntitlementSummary(customerInfo),
+    })
     return customerInfo
   } catch (error: unknown) {
     if (
@@ -195,10 +386,24 @@ export async function purchasePackage(packageToPurchase: PurchasesPackage) {
 export async function restorePurchases() {
   try {
     const customerInfo = await Purchases.restorePurchases()
-    console.log('[RevenueCat] Purchases restored')
+    console.log('[RevenueCat] Purchases restored', getActiveEntitlementSummary(customerInfo))
     return customerInfo
   } catch (error) {
     console.error('[RevenueCat] Restore error:', error)
+    throw error
+  }
+}
+
+/**
+ * Begin an iOS refund request for the user's active entitlement.
+ */
+export async function beginRefundRequestForActiveEntitlement(): Promise<REFUND_REQUEST_STATUS> {
+  try {
+    const status = await Purchases.beginRefundRequestForActiveEntitlement()
+    console.log('[RevenueCat] Refund request started', { status })
+    return status
+  } catch (error) {
+    console.error('[RevenueCat] Refund request error:', error)
     throw error
   }
 }

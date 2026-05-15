@@ -8,84 +8,24 @@ Domani is a React Native mobile productivity app that revolutionizes task planni
 
 ## Documentation Requirements
 
-**IMPORTANT: ALL documentation and audit files MUST be created in the `docs/` directory**
+**IMPORTANT: ALL documentation files MUST be created in the `docs/` directory**
 
 ### Directory Structure:
 
 ```
 docs/
-├── audits/
-│   └── mobile/         # Mobile app audit files
 ├── features/           # Feature documentation
 ├── technical/          # Technical documentation
 └── planning/           # Planning and strategy documents
 ```
 
-## Audit Trail Requirements
+## Change Documentation
 
-**IMPORTANT: Create an audit file after EVERY prompt**
+Use git commits and pull requests as the default implementation audit trail.
 
-After completing any task or answering any prompt, create an audit file with the following:
-
-### File Naming Convention:
-
-```
-docs/audits/mobile/YYYY-MM-DD-HH-MM-SS-[brief-description].md
-```
-
-Example: `docs/audits/mobile/2025-01-15-14-30-45-planning-screen.md`
-
-### Audit File Template:
-
-```markdown
-# Audit Log - Mobile App - [Date Time]
-
-## Prompt Summary
-
-[Summarize what the user asked for]
-
-## Actions Taken
-
-1. [List each action performed]
-2. [Include files created/modified]
-3. [Note any decisions made]
-
-## Files Changed
-
-- `src/screens/Planning/PlanningScreen.tsx` - [Brief description of changes]
-- `src/hooks/useTasks.ts` - [Brief description of changes]
-
-## Components/Features Affected
-
-- [Component/Feature name]
-- [Related dependencies]
-
-## Testing Considerations
-
-- [What should be tested]
-- [Potential edge cases]
-- [Device testing needs (iOS/Android)]
-
-## Performance Impact
-
-- [Bundle size changes]
-- [Memory considerations]
-- [Animation performance]
-
-## Next Steps
-
-- [Suggested follow-up tasks]
-- [Related features to consider]
-
-## Notes
-
-[Any additional context, warnings, or important information]
-
-## Timestamp
-
-Created: YYYY-MM-DD HH:MM:SS
-Feature Area: [auth/planning/execution/billing/etc]
-```
+- Do not create routine audit-log files for code changes.
+- Write durable markdown docs in `docs/` only when the repository needs long-lived product, technical, or planning documentation that is separate from commit/PR history.
+- If documentation is created, place it in the appropriate `docs/features`, `docs/technical`, or `docs/planning` directory.
 
 ## Pull Request Workflow
 
@@ -253,7 +193,6 @@ domani-app/
 │   ├── functions/                    # Edge Functions
 │   └── migrations/                   # Database migrations
 ├── docs/                             # All documentation
-│   ├── audits/mobile/                # Mobile-specific audits
 │   ├── features/                     # Feature documentation
 │   ├── technical/                    # Technical docs
 │   └── planning/                     # Planning docs
@@ -1052,6 +991,55 @@ npm run typecheck
 npm run lint
 ```
 
+## Build Preparation
+
+When the user mentions "preparing for a build", "ready for build", or similar, always ask first whether it is:
+
+- an internal / QA build (staging), or
+- a production build (Play Store / TestFlight)
+
+The expected workflow is:
+
+1. determine the target environment
+2. remind the user to put the single local `.env` file into the correct state for that build type
+3. let the user complete both Android and Xcode/iOS builds
+4. remind the user to restore `.env` back to the normal local development state they want after both builds finish
+
+Do not silently edit, rename, swap, or restore env files on the user's behalf during build prep. This repo currently uses a single `.env` file, and the user manages its staging/production state manually by editing values in place. When helping with build prep, explicitly remind the user to flip `.env` into the correct state and verify the required values, but do not perform the env switching yourself unless the user explicitly asks.
+
+### Internal / QA Build (Staging)
+
+1. Remind the user that `.env` should currently contain staging / internal-build values before they build.
+2. Remind the user to verify `.env` contains the staging values they want to ship, including:
+   - `EXPO_PUBLIC_SUPABASE_URL`
+   - `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+   - `EXPO_PUBLIC_REVENUECAT_IOS_KEY`
+   - `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`
+   - `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID=Domani Staging Lifetime`
+   - any staging-only server/admin values they rely on locally
+3. If relevant, remind the user that staging webhook/server secrets must also match in the remote systems they use, such as Supabase project secrets and RevenueCat webhook settings.
+4. Push pending staging migrations if needed: `npm run db:staging:push`.
+5. Increment version numbers if this build should produce a new installable artifact.
+6. Build Android and iOS/Xcode from the current local staging configuration.
+
+### Production Build
+
+1. Remind the user that `.env` must be flipped from staging/internal values to production values before building.
+2. Remind the user to manually place `.env` into the correct production state before building.
+3. Remind the user to verify the active production env includes:
+   - `EXPO_PUBLIC_SUPABASE_URL`
+   - `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+   - `EXPO_PUBLIC_REVENUECAT_IOS_KEY`
+   - `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY`
+   - `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID=Domani Lifetime`
+   - any required production-only server/admin values they use locally
+4. Push pending production migrations only after staging verification: `npm run db:push`.
+5. Increment version numbers:
+   - Android: update `versionCode` and `versionName` in `android/app/build.gradle`
+   - iOS: update the app version in the appropriate local build path
+6. Build Android and iOS/Xcode.
+7. After both builds are complete, remind the user to restore `.env` back to the normal development state they want to keep working in.
+
 ### Building & Deployment
 
 ```bash
@@ -1079,7 +1067,7 @@ eas submit --platform android
 6. **Error Handling**: Graceful degradation, clear error states
 7. **Accessibility**: Screen reader support, proper contrast, touch targets
 8. **Testing**: Unit tests for logic, component tests for UI
-9. **Documentation**: Audit every change in `/docs/audits/mobile/`
+9. **Documentation**: Use commits/PRs for implementation history; create durable docs in `/docs/` only when needed
 10. **Code Quality**: No duplication, clear naming, small functions
 
 ## Key Metrics to Monitor
@@ -1099,6 +1087,6 @@ eas submit --platform android
 - "Type everything, fail at compile time"
 - "Optimize for performance from day one"
 - "Test the critical paths"
-- "Document with audit trails"
+- "Use commit history and PRs as the default change trail"
 - "All docs in /docs directory"
 - "Mobile-first UX, always"

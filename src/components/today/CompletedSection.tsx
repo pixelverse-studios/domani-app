@@ -3,10 +3,49 @@ import { View, TouchableOpacity } from 'react-native'
 import { CheckCircle, ChevronUp, ChevronDown } from 'lucide-react-native'
 
 import { TaskCard } from '~/components/planning/TaskCard'
+import { CARD_GAP } from '~/components/planning/task-layouts'
 import { Text, ConfirmationModal } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { sortTasksByPriority } from '~/utils/sortTasks'
+import { useLayoutStore } from '~/stores/layoutStore'
+import { useTranslation } from '~/hooks/useTranslation'
+import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import type { TaskWithCategory } from '~/types'
+
+function CompletedTasksList({
+  tasks,
+  onToggle,
+  onEdit,
+  onDeletePress,
+}: {
+  tasks: TaskWithCategory[]
+  onToggle: (taskId: string, completed: boolean) => void
+  onEdit: (taskId: string) => void
+  onDeletePress: (task: TaskWithCategory) => void
+}) {
+  const isGrid = useLayoutStore((s) => s.taskLayout) === 'grid'
+
+  return (
+    <View className="mt-3">
+      <View style={isGrid ? { flexDirection: 'row', flexWrap: 'wrap', gap: CARD_GAP, marginHorizontal: 20 } : undefined}>
+        {tasks.map((task) => (
+          <View key={task.id} style={isGrid ? undefined : { marginHorizontal: 20 }}>
+            <TaskCard
+              task={task}
+              showCheckbox
+              onToggleComplete={onToggle}
+              onEdit={onEdit}
+              onDelete={(taskId) => {
+                const foundTask = tasks.find((t) => t.id === taskId)
+                if (foundTask) onDeletePress(foundTask)
+              }}
+            />
+          </View>
+        ))}
+      </View>
+    </View>
+  )
+}
 
 interface CompletedSectionProps {
   tasks: TaskWithCategory[]
@@ -22,6 +61,8 @@ export function CompletedSection({
   onDeleteTask,
 }: CompletedSectionProps) {
   const theme = useAppTheme()
+  const { locale } = useTranslation()
+  const copy = getMainScreenCopy(locale)
   const brandColor = theme.colors.brand.primary
 
   const [isExpanded, setIsExpanded] = useState(false)
@@ -76,19 +117,19 @@ export function CompletedSection({
         onPress={() => setIsExpanded(!isExpanded)}
         className="flex-row items-center justify-between rounded-xl mx-5 px-4 py-3"
         style={{ backgroundColor: theme.colors.card }}
-        accessibilityLabel={isExpanded ? 'Collapse completed tasks' : 'Expand completed tasks'}
+        accessibilityLabel={isExpanded ? copy.today.completed : copy.today.completed}
       >
         <View className="flex-row items-center gap-2">
           <CheckCircle size={20} color={brandColor} />
           <Text className="text-base text-content-primary font-medium">
-            Completed ({completedTasks.length})
+            {copy.today.completed} ({completedTasks.length})
           </Text>
           <View
             className="px-2 py-0.5 rounded-full ml-2"
             style={{ backgroundColor: `${brandColor}1A` }}
           >
             <Text className="text-xs" style={{ color: brandColor }}>
-              Great job!
+              {copy.today.allDoneMessage}
             </Text>
           </View>
         </View>
@@ -101,31 +142,22 @@ export function CompletedSection({
 
       {/* Expanded content */}
       {isExpanded && (
-        <View className="mt-3">
-          {completedTasks.map((task) => (
-            <View key={task.id} style={{ marginHorizontal: 20 }}>
-              <TaskCard
-                task={task}
-                showCheckbox
-                onToggleComplete={onToggle}
-                onEdit={handleEdit}
-                onDelete={(taskId) => {
-                  const foundTask = completedTasks.find((t) => t.id === taskId)
-                  if (foundTask) handleDeletePress(foundTask)
-                }}
-              />
-            </View>
-          ))}
-        </View>
+        <CompletedTasksList
+          tasks={completedTasks}
+          onToggle={onToggle}
+          onEdit={handleEdit}
+          onDeletePress={handleDeletePress}
+        />
       )}
 
       {/* Delete Confirmation Modal */}
       <ConfirmationModal
         visible={!!taskToDelete}
-        title="Delete Task?"
+        title={copy.common.deleteTaskTitle}
         itemName={taskToDelete?.title ?? ''}
-        description="Are you sure you want to delete:"
-        confirmLabel="Delete Task"
+        description={copy.common.deleteTaskDescription}
+        confirmLabel={copy.common.deleteTaskConfirm}
+        cancelLabel={copy.common.cancel}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
         isLoading={isDeleting}

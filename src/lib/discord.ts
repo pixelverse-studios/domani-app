@@ -15,20 +15,29 @@ interface SupportRequestPayload {
   deviceMetadata?: DeviceMetadata
 }
 
-interface BetaFeedbackPayload {
-  type: 'beta_feedback'
+interface FeedbackPayload {
+  type: 'feedback'
   email: string
   category: string
   message: string
   deviceMetadata?: DeviceMetadata
 }
 
-type WebhookPayload = SupportRequestPayload | BetaFeedbackPayload
+interface NewSignupPayload {
+  type: 'new_signup'
+  email: string
+  name?: string | null
+  signupMethod?: string
+  timezone?: string
+}
+
+type WebhookPayload = SupportRequestPayload | FeedbackPayload | NewSignupPayload
 
 // Discord embed colors (decimal format)
 const COLORS = {
   support_request: 15548997, // Red (#ED4245)
-  beta_feedback: 10181046, // Purple (#9B59B6)
+  feedback: 10181046, // Purple (#9B59B6)
+  new_signup: 5763719, // Green (#57F287)
 } as const
 
 // Category labels for display
@@ -54,29 +63,43 @@ const TYPE_CONFIG = {
     categoryLabels: SUPPORT_CATEGORY_LABELS,
     contentField: 'Description',
   },
-  beta_feedback: {
+  feedback: {
     emoji: '💬',
-    title: 'New Beta Feedback',
+    title: 'New User Feedback',
     categoryLabels: FEEDBACK_CATEGORY_LABELS,
     contentField: 'Message',
   },
 } as const
 
-/**
- * Send a notification to Discord webhook
- * Fails silently to not disrupt user experience
- */
-export async function sendDiscordNotification(payload: WebhookPayload): Promise<void> {
-  if (!DISCORD_WEBHOOK_URL) {
-    console.warn('Discord webhook URL not configured')
-    return
+function buildSignupEmbed(payload: NewSignupPayload) {
+  const fields = [
+    { name: '📧 Email', value: payload.email, inline: false },
+  ]
+
+  if (payload.name) {
+    fields.push({ name: '👤 Name', value: payload.name, inline: true })
+  }
+  if (payload.signupMethod) {
+    fields.push({ name: '🔑 Method', value: payload.signupMethod, inline: true })
+  }
+  if (payload.timezone) {
+    fields.push({ name: '🌍 Timezone', value: payload.timezone, inline: true })
   }
 
+  return {
+    title: '🎉 New User Signup',
+    color: COLORS.new_signup,
+    fields,
+    timestamp: new Date().toISOString(),
+    footer: { text: 'Domani Signups' },
+  }
+}
+
+function buildFeedbackEmbed(payload: SupportRequestPayload | FeedbackPayload) {
   const config = TYPE_CONFIG[payload.type]
   const categoryLabel = config.categoryLabels[payload.category] || payload.category
   const content = payload.type === 'support_request' ? payload.description : payload.message
 
-  // Build device info strings if available
   const deviceInfo = payload.deviceMetadata
   const deviceString = deviceInfo
     ? `${deviceInfo.device_brand || 'Unknown'} ${deviceInfo.device_model || 'Device'}`
@@ -89,16 +112,8 @@ export async function sendDiscordNotification(payload: WebhookPayload): Promise<
     : null
 
   const fields = [
-    {
-      name: '📧 Email',
-      value: payload.email,
-      inline: false,
-    },
-    {
-      name: '📁 Category',
-      value: categoryLabel,
-      inline: false,
-    },
+    { name: '📧 Email', value: payload.email, inline: false },
+    { name: '📁 Category', value: categoryLabel, inline: false },
     {
       name: `📝 ${config.contentField}`,
       value: content.length > 1024 ? content.substring(0, 1021) + '...' : content,
@@ -106,41 +121,42 @@ export async function sendDiscordNotification(payload: WebhookPayload): Promise<
     },
   ]
 
-  // Add device metadata fields if available
   if (deviceString && platformString) {
-    fields.push({
-      name: '📱 Device',
-      value: `${deviceString}\n${platformString}`,
-      inline: true,
-    })
+    fields.push({ name: '📱 Device', value: `${deviceString}\n${platformString}`, inline: true })
   }
   if (appString) {
-    fields.push({
-      name: '📦 App',
-      value: appString,
-      inline: true,
-    })
+    fields.push({ name: '📦 App', value: appString, inline: true })
   }
 
-  const embed = {
+  return {
     title: `${config.emoji} ${config.title}`,
     color: COLORS[payload.type],
     fields,
     timestamp: new Date().toISOString(),
     footer: {
-      text: payload.type === 'support_request' ? 'Domani Support' : 'Domani Beta Feedback',
+      text: payload.type === 'support_request' ? 'Domani Support' : 'Domani Feedback',
     },
   }
+}
+
+/**
+ * Send a notification to Discord webhook
+ * Fails silently to not disrupt user experience
+ */
+export async function sendDiscordNotification(payload: WebhookPayload): Promise<void> {
+  if (!DISCORD_WEBHOOK_URL) {
+    console.warn('Discord webhook URL not configured')
+    return
+  }
+
+  const embed =
+    payload.type === 'new_signup' ? buildSignupEmbed(payload) : buildFeedbackEmbed(payload)
 
   try {
     const response = await fetch(DISCORD_WEBHOOK_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        embeds: [embed],
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ embeds: [embed] }),
     })
 
     if (!response.ok) {
