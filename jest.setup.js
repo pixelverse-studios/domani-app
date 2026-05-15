@@ -1,6 +1,41 @@
 require('react-native-gesture-handler/jestSetup')
 
-jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))
+jest.mock('react-native-reanimated', () => {
+  const React = require('react')
+  const { View } = require('react-native')
+
+  const passthrough = (value) => value
+  const chainableAnimation = {
+    delay: () => chainableAnimation,
+    duration: () => chainableAnimation,
+    springify: () => chainableAnimation,
+  }
+
+  return {
+    __esModule: true,
+    default: {
+      View,
+      createAnimatedComponent: (Component) => Component,
+    },
+    Easing: {
+      ease: jest.fn(),
+      out: jest.fn(passthrough),
+    },
+    FadeIn: chainableAnimation,
+    FadeOut: chainableAnimation,
+    interpolate: jest.fn((value) => value),
+    interpolateColor: jest.fn((_value, _input, output) => output[0]),
+    runOnJS: jest.fn((fn) => fn),
+    useAnimatedStyle: jest.fn((callback) => callback()),
+    useDerivedValue: jest.fn((callback) => ({ value: callback() })),
+    useSharedValue: jest.fn((value) => ({ value })),
+    withDelay: jest.fn((_delay, value) => value),
+    withRepeat: jest.fn((value) => value),
+    withSequence: jest.fn((...values) => values[values.length - 1]),
+    withSpring: jest.fn(passthrough),
+    withTiming: jest.fn(passthrough),
+  }
+})
 
 global.__reanimatedWorkletInit = jest.fn()
 
@@ -210,6 +245,36 @@ jest.doMock('react-native-svg', () => {
     Rect: Element,
     Stop: Element,
     Text: Element,
+  }
+})
+
+jest.doMock('lucide-react-native', () => {
+  const React = require('react')
+  const { View } = require('react-native')
+
+  const Icon = ({ children, ...props }) => React.createElement(View, props, children)
+
+  return new Proxy(
+    {
+      __esModule: true,
+      default: Icon,
+    },
+    {
+      get: (target, prop) => {
+        if (prop in target) return target[prop]
+        return Icon
+      },
+    },
+  )
+})
+
+jest.doMock('@react-native-masked-view/masked-view', () => {
+  const React = require('react')
+  const { View } = require('react-native')
+
+  return {
+    __esModule: true,
+    default: ({ children, ...props }) => React.createElement(View, props, children),
   }
 })
 

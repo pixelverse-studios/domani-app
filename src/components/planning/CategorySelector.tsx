@@ -501,6 +501,7 @@ export function CategorySelector({
               disabled={disabled}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={{ marginLeft: 8 }}
+              accessibilityLabel="Clear selected category"
             >
               <X size={18} color={iconColor} />
             </TouchableOpacity>
