@@ -1,0 +1,7 @@
+appId: com.baitedz.domaniapp
+---
+- launchApp:
+    clearState: true
+- assertVisible: 'Domani'
+- assertVisible: 'Start Planning'
+- assertVisible: 'Sign In'
