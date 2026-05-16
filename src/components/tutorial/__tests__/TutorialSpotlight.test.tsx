@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { act, fireEvent, renderWithProviders, screen } from '~/test/test-utils'
+import { act, fireEvent, renderWithProviders, screen, waitFor } from '~/test/test-utils'
 import {
   type TutorialStep,
   type TutorialTargetMeasurement,
@@ -67,7 +67,6 @@ function setSpotlightStep(step: TutorialStep) {
 
 describe('TutorialSpotlight', () => {
   beforeEach(() => {
-    jest.useFakeTimers()
     jest.clearAllMocks()
     useTutorialStore.setState({
       isActive: false,
@@ -79,59 +78,51 @@ describe('TutorialSpotlight', () => {
     })
   })
 
-  afterEach(() => {
-    jest.runOnlyPendingTimers()
-    jest.useRealTimers()
-  })
-
-  it('advances overlay controls to the next passive step', () => {
+  it('advances overlay controls to the next passive step', async () => {
     setSpotlightStep('top_priority')
 
     renderWithProviders(<TutorialSpotlight />)
 
     fireEvent.press(screen.getByText('Got it'))
-    act(() => {
-      jest.advanceTimersByTime(150)
-    })
 
-    expect(useTutorialStore.getState().currentStep).toBe('complete_form')
+    await waitFor(() => {
+      expect(useTutorialStore.getState().currentStep).toBe('complete_form')
+    })
   })
 
-  it('skips and completes the tutorial from the overlay', () => {
+  it('skips and completes the tutorial from the overlay', async () => {
     setSpotlightStep('priority_selector')
 
     renderWithProviders(<TutorialSpotlight />)
 
     fireEvent.press(screen.getByText('Skip tour'))
-    act(() => {
-      jest.advanceTimersByTime(150)
-    })
 
-    expect(useTutorialStore.getState()).toMatchObject({
-      isActive: false,
-      currentStep: null,
-      hasCompletedTutorial: true,
+    await waitFor(() => {
+      expect(useTutorialStore.getState()).toMatchObject({
+        isActive: false,
+        currentStep: null,
+        hasCompletedTutorial: true,
+      })
     })
   })
 
-  it('marks the tutorial complete from the final done step', () => {
+  it('marks the tutorial complete from the final done step', async () => {
     setSpotlightStep('settings_reminders')
 
     renderWithProviders(<TutorialSpotlight />)
 
     fireEvent.press(screen.getByText('Got it'))
-    act(() => {
-      jest.advanceTimersByTime(150)
-    })
 
-    expect(useTutorialStore.getState()).toMatchObject({
-      isActive: false,
-      currentStep: null,
-      hasCompletedTutorial: true,
+    await waitFor(() => {
+      expect(useTutorialStore.getState()).toMatchObject({
+        isActive: false,
+        currentStep: null,
+        hasCompletedTutorial: true,
+      })
     })
   })
 
-  it('falls forward when an optional target is missing', () => {
+  it('falls forward when an optional target is missing', async () => {
     act(() => {
       useTutorialStore.setState({
         isActive: true,
@@ -145,10 +136,8 @@ describe('TutorialSpotlight', () => {
 
     renderWithProviders(<TutorialSpotlight />)
 
-    act(() => {
-      jest.advanceTimersByTime(600)
+    await waitFor(() => {
+      expect(useTutorialStore.getState().currentStep).toBe('priority_selector')
     })
-
-    expect(useTutorialStore.getState().currentStep).toBe('priority_selector')
   })
 })
