@@ -9,10 +9,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Typecheck, Jest, and lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Check out repository
@@ -32,6 +37,7 @@ jobs:
 
       - name: Run Jest
         run: npm run test:ci
+        timeout-minutes: 5
 
       - name: Lint
         run: npm run lint
