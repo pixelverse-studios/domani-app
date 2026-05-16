@@ -23,11 +23,13 @@ Run the authenticated Android smoke flow:
 npm run e2e:maestro:android
 ```
 
-Run all Maestro flows:
+Run the default pre-build Maestro smoke check:
 
 ```bash
 npm run e2e:maestro
 ```
+
+The default command runs the authenticated Android smoke flow. Run the welcome check separately because it clears app state and would remove the authenticated session needed by the main smoke flow.
 
 ## Flow Coverage
 

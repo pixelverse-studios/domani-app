@@ -38,9 +38,9 @@ appId: com.baitedz.domaniapp
       - tapOn: 'Work'
 - runFlow:
     when:
-      visible: 'Medium priority'
+      visible: 'Med priority'
     commands:
-      - tapOn: 'Medium priority'
+      - tapOn: 'Med priority'
 - scrollUntilVisible:
     element:
       text: 'Add Task'
