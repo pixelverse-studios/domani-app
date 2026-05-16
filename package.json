@@ -15,7 +15,7 @@
     "ios:device": "npx expo run:ios --device",
     "web": "expo start --web",
     "test": "jest",
-    "test:ci": "jest --runInBand --ci",
+    "test:ci": "jest --runInBand --ci --forceExit",
     "e2e:maestro": "maestro test .maestro/flows/02-authenticated-android-smoke.yaml",
     "e2e:maestro:welcome": "maestro test .maestro/flows/01-launch-welcome.yaml",
     "e2e:maestro:android": "maestro test .maestro/flows/02-authenticated-android-smoke.yaml",
