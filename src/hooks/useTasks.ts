@@ -36,6 +36,7 @@ export function useTasks(date: string | undefined) {
       return data as TaskWithCategory[]
     },
     enabled: !!date,
+    placeholderData: [],
     staleTime: TASKS_STALE_TIME,
   })
 }

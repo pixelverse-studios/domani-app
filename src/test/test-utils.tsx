@@ -27,6 +27,7 @@ export function createTestQueryClient() {
       },
       mutations: {
         retry: false,
+        gcTime: Infinity,
       },
     },
   })
