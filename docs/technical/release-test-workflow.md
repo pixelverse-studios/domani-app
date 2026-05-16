@@ -77,3 +77,18 @@ No EAS Workflow test automation is currently configured for these checks. If an 
 - required secrets or environment names
 - where to find run results
 - which failures block PR merge or release builds
+
+## GitHub Actions PR Validation
+
+The repository has a lightweight GitHub Actions workflow at `.github/workflows/pr-validation.yml`.
+It runs on pull requests targeting `dev/**` and `epic/**`, installs dependencies with `npm ci`,
+and runs:
+
+```bash
+npm run typecheck
+npm run test:ci
+npm run lint
+```
+
+This workflow is only a PR validation gate. It does not run EAS builds, store submissions, Gradle
+release builds, or Xcode archives. Manual build preparation and store release work remain separate.
