@@ -1,4 +1,8 @@
-export type NotificationType = 'support_request' | 'feedback' | 'new_signup'
+export type NotificationType =
+  | 'support_request'
+  | 'feedback'
+  | 'new_signup'
+  | 'purchase_refund_intent'
 
 export interface DeviceMetadata {
   platform: 'ios' | 'android'
@@ -35,7 +39,24 @@ export interface NewSignupPayload {
   timezone?: string
 }
 
-export type TeamNotificationPayload = SupportRequestPayload | FeedbackPayload | NewSignupPayload
+export interface PurchaseRefundIntentPayload {
+  type: 'purchase_refund_intent'
+  email: string
+  userId: string
+  intent: 'pending_refund_request' | 'duplicate_refund_request'
+  platform: 'ios' | 'android'
+  source?: string | null
+  subscriptionStatus?: string | null
+  refundStatus?: string | null
+  clientHint?: string | null
+  refundStateUpdatedAt?: string | null
+}
+
+export type TeamNotificationPayload =
+  | SupportRequestPayload
+  | FeedbackPayload
+  | NewSignupPayload
+  | PurchaseRefundIntentPayload
 
 export type SlackTextObject = {
   type: 'mrkdwn' | 'plain_text'
@@ -102,10 +123,16 @@ const TYPE_CONFIG = {
   },
 } as const
 
+const REFUND_INTENT_LABELS: Record<PurchaseRefundIntentPayload['intent'], string> = {
+  pending_refund_request: 'Refund Request Pending',
+  duplicate_refund_request: 'Repeated Refund Help Intent',
+}
+
 export function getWebhookSecretName(type: NotificationType) {
   switch (type) {
     case 'support_request':
     case 'feedback':
+    case 'purchase_refund_intent':
       return 'SLACK_SUPPORT_WEBHOOK_URL'
     case 'new_signup':
       return 'SLACK_ACCOUNTS_WEBHOOK_URL'
@@ -120,7 +147,10 @@ export function validatePayload(
     return 'Missing authenticated user'
   }
 
-  if (!payload.type || !['support_request', 'feedback', 'new_signup'].includes(payload.type)) {
+  if (
+    !payload.type ||
+    !['support_request', 'feedback', 'new_signup', 'purchase_refund_intent'].includes(payload.type)
+  ) {
     return 'Invalid notification type'
   }
 
@@ -141,6 +171,23 @@ export function validatePayload(
   if (payload.type === 'feedback') {
     if (!payload.category || !payload.message) {
       return 'Missing feedback fields'
+    }
+  }
+
+  if (payload.type === 'purchase_refund_intent') {
+    if (!payload.userId || payload.userId !== authenticatedUser.sub) {
+      return 'Refund intent user does not match authenticated user'
+    }
+
+    if (
+      !payload.intent ||
+      !['pending_refund_request', 'duplicate_refund_request'].includes(payload.intent)
+    ) {
+      return 'Missing refund intent'
+    }
+
+    if (!payload.platform || !['ios', 'android'].includes(payload.platform)) {
+      return 'Missing refund intent platform'
     }
   }
 
@@ -255,11 +302,62 @@ function buildFeedbackMessage(
   }
 }
 
+function buildRefundIntentMessage(
+  payload: PurchaseRefundIntentPayload,
+  context: MessageContext,
+): SlackMessage {
+  const intentLabel = REFUND_INTENT_LABELS[payload.intent]
+  const source = payload.source || 'unknown'
+  const platformLabel = payload.platform === 'ios' ? 'iOS' : 'Android'
+
+  const fields = [
+    buildField('Email', payload.email),
+    buildField('User ID', payload.userId),
+    buildField('Intent', intentLabel),
+    buildField('Platform', platformLabel),
+    buildField('Source', source),
+  ]
+
+  if (payload.subscriptionStatus) {
+    fields.push(buildField('Subscription', payload.subscriptionStatus))
+  }
+  if (payload.refundStatus) {
+    fields.push(buildField('Refund Status', payload.refundStatus))
+  }
+  if (payload.clientHint) {
+    fields.push(buildField('Client Hint', payload.clientHint))
+  }
+  if (payload.refundStateUpdatedAt) {
+    fields.push(buildField('Refund State Updated', payload.refundStateUpdatedAt))
+  }
+
+  return {
+    text: `${intentLabel}: ${payload.email}`,
+    blocks: [
+      {
+        type: 'header',
+        text: { type: 'plain_text', text: 'Purchase Refund Intent', emoji: true },
+      },
+      {
+        type: 'section',
+        fields,
+      },
+      buildContext('Domani Support', context),
+    ],
+  }
+}
+
 export function buildSlackMessage(
   payload: TeamNotificationPayload,
   context: MessageContext,
 ): SlackMessage {
-  return payload.type === 'new_signup'
-    ? buildSignupMessage(payload, context)
-    : buildFeedbackMessage(payload, context)
+  if (payload.type === 'new_signup') {
+    return buildSignupMessage(payload, context)
+  }
+
+  if (payload.type === 'purchase_refund_intent') {
+    return buildRefundIntentMessage(payload, context)
+  }
+
+  return buildFeedbackMessage(payload, context)
 }
