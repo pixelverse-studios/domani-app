@@ -12,3 +12,7 @@ verify_jwt = false
 # REVENUECAT_WEBHOOK_SECRET.
 [functions.revenuecat-webhook]
 verify_jwt = false
+
+# App-originated team notifications require a valid Supabase user session.
+[functions.team-notification]
+verify_jwt = true

@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 
 import { supabase } from '~/lib/supabase'
-import { sendDiscordNotification } from '~/lib/discord'
+import { sendTeamNotification } from '~/lib/teamNotifications'
 import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
@@ -53,8 +53,8 @@ export function useCreateFeedback() {
       // Track feedback submission
       track('feedback_submitted', { category: input.category })
 
-      // Send Discord notification (fire and forget)
-      sendDiscordNotification({
+      // Send team notification (fire and forget)
+      sendTeamNotification({
         type: 'feedback',
         email: profile.email,
         category: input.category,
