@@ -115,8 +115,7 @@ export function AddTaskForm({
     useTutorialTarget('title_input')
   const { targetRef: completeFormRef, measureTarget: measureCompleteForm } =
     useTutorialTarget('complete_form')
-  const { advanceFromTitleInput, advanceFromPrioritySelector, advanceFromCompleteForm } =
-    useTutorialAdvancement()
+  const { advanceFromTitleInput, advanceFromPrioritySelector } = useTutorialAdvancement()
   const { isActive: isTutorialActive, currentStep: tutorialStep } = useTutorialStore()
 
   const [title, setTitle] = useState(initialValues?.title ?? '')

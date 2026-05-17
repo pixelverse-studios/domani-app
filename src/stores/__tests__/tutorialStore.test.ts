@@ -1,33 +1,14 @@
 import { waitFor } from '~/test/test-utils'
 import {
+  TUTORIAL_STEPS,
   type TutorialStep,
   type TutorialTargetMeasurement,
   useTutorialStore,
 } from '~/stores/tutorialStore'
 import { supabase } from '~/lib/supabase'
 
-const tutorialSteps: TutorialStep[] = [
-  'welcome',
-  'plan_today_button',
-  'today_add_task_button',
-  'title_input',
-  'category_selector',
-  'create_category',
-  'more_categories_button',
-  'priority_selector',
-  'top_priority',
-  'day_toggle',
-  'complete_form',
-  'task_created',
-  'today_screen',
-  'cleanup',
-  'completion',
-  'settings_categories',
-  'settings_reminders',
-]
-
 function emptyMeasurements(): Record<TutorialStep, TutorialTargetMeasurement | null> {
-  return Object.fromEntries(tutorialSteps.map((step) => [step, null])) as Record<
+  return Object.fromEntries(TUTORIAL_STEPS.map((step) => [step, null])) as Record<
     TutorialStep,
     TutorialTargetMeasurement | null
   >
@@ -43,8 +24,6 @@ function resetTutorialStore(overrides: Partial<ReturnType<typeof useTutorialStor
     pausedAt: null,
     pausedStep: null,
     abandonCount: 0,
-    tutorialCategoryId: null,
-    tutorialTaskId: null,
     analyticsStartTime: null,
     analyticsViewedSteps: new Set<TutorialStep>(),
     targetMeasurements: emptyMeasurements(),
@@ -158,15 +137,13 @@ describe('tutorialStore', () => {
     })
   })
 
-  it('resets persisted completion and volatile tutorial data for replay', async () => {
+  it('resets persisted completion and volatile tutorial progress for replay', async () => {
     const query = createProfilesQuery()
     mockFrom.mockReturnValue(query)
     resetTutorialStore({
       isActive: false,
       currentStep: null,
       hasCompletedTutorial: true,
-      tutorialCategoryId: 'category-1',
-      tutorialTaskId: 'task-1',
       pausedAt: Date.now(),
       pausedStep: 'priority_selector',
       abandonCount: 2,
@@ -181,8 +158,6 @@ describe('tutorialStore', () => {
       currentStep: 'welcome',
       hasCompletedTutorial: false,
       isOverlayHidden: false,
-      tutorialCategoryId: null,
-      tutorialTaskId: null,
       pausedAt: null,
       pausedStep: null,
       abandonCount: 0,
@@ -196,23 +171,35 @@ describe('tutorialStore', () => {
     })
   })
 
-  it('advances steps without requiring tutorial task or category IDs', () => {
+  it('advances to the next ordered step without requiring created tutorial data', () => {
     resetTutorialStore({
       isActive: true,
       currentStep: 'category_selector',
       isLoading: false,
       isOverlayHidden: true,
-      tutorialCategoryId: null,
-      tutorialTaskId: null,
     })
 
-    useTutorialStore.getState().nextStep('priority_selector')
+    useTutorialStore.getState().nextStep()
 
     expect(useTutorialStore.getState()).toMatchObject({
-      currentStep: 'priority_selector',
+      currentStep: 'more_categories_button',
       isOverlayHidden: false,
-      tutorialCategoryId: null,
-      tutorialTaskId: null,
+    })
+  })
+
+  it('moves backward through ordered tutorial steps', () => {
+    resetTutorialStore({
+      isActive: true,
+      currentStep: 'priority_selector',
+      isLoading: false,
+      isOverlayHidden: true,
+    })
+
+    useTutorialStore.getState().previousStep()
+
+    expect(useTutorialStore.getState()).toMatchObject({
+      currentStep: 'more_categories_button',
+      isOverlayHidden: false,
     })
   })
 })

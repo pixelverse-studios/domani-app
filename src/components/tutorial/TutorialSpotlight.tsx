@@ -38,7 +38,6 @@ const SPOTLIGHT_STEPS: TutorialStep[] = [
   'top_priority',
   'day_toggle',
   'complete_form',
-  'task_created',
   'today_screen',
   // Settings tutorial steps
   'settings_categories',
@@ -90,14 +89,6 @@ export function TutorialSpotlight() {
       stepNumber: 3,
       requiresInteraction: true,
     },
-    create_category: {
-      title: t('tutorial.steps.createCategoryTitle'),
-      description: t('tutorial.steps.createCategoryDescription'),
-      position: 'above',
-      showSkip: true,
-      stepNumber: 3,
-      requiresInteraction: true,
-    },
     more_categories_button: {
       title: t('tutorial.steps.moreCategoriesButtonTitle'),
       description: t('tutorial.steps.moreCategoriesButtonDescription'),
@@ -138,12 +129,6 @@ export function TutorialSpotlight() {
       showSkip: true,
       stepNumber: 5,
     },
-    task_created: {
-      title: t('tutorial.steps.taskCreatedTitle'),
-      description: t('tutorial.steps.taskCreatedDescription'),
-      position: 'above',
-      showNext: true,
-    },
     today_screen: {
       title: t('tutorial.steps.todayScreenTitle'),
       description: t('tutorial.steps.todayScreenDescription'),
@@ -151,8 +136,6 @@ export function TutorialSpotlight() {
       showNext: true,
       stepNumber: 5,
     },
-    cleanup: { title: '', description: '', position: 'center' },
-    completion: { title: '', description: '', position: 'center' },
     settings_categories: {
       title: t('tutorial.steps.settingsCategoriesTitle'),
       description: t('tutorial.steps.settingsCategoriesDescription'),
@@ -260,7 +243,7 @@ export function TutorialSpotlight() {
 
     const nextStepMap: Partial<Record<TutorialStep, TutorialStep>> = {
       top_priority: 'complete_form',
-      task_created: 'today_screen',
+      complete_form: 'today_screen',
       today_screen: 'settings_categories',
       settings_categories: 'settings_reminders',
     }
@@ -270,8 +253,8 @@ export function TutorialSpotlight() {
     tooltipScale.value = withTiming(0.9, { duration: 150 })
 
     if (nextStepValue) {
-      // Navigate to Today tab when advancing from task_created
-      if (currentStep === 'task_created') {
+      // Navigate to Today tab after the planning form walkthrough.
+      if (currentStep === 'complete_form') {
         try {
           router.replace('/(tabs)/')
         } catch (error) {

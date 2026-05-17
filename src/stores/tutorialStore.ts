@@ -12,19 +12,31 @@ export type TutorialStep =
   | 'today_add_task_button'
   | 'title_input'
   | 'category_selector'
-  | 'create_category'
   | 'more_categories_button'
   | 'priority_selector'
   | 'top_priority'
   | 'day_toggle'
   | 'complete_form'
-  | 'task_created'
   | 'today_screen'
-  | 'cleanup'
-  | 'completion'
   // Settings tutorial steps (auto-start after main tutorial)
   | 'settings_categories'
   | 'settings_reminders'
+
+export const TUTORIAL_STEPS: readonly TutorialStep[] = [
+  'welcome',
+  'plan_today_button',
+  'today_add_task_button',
+  'title_input',
+  'category_selector',
+  'more_categories_button',
+  'priority_selector',
+  'top_priority',
+  'day_toggle',
+  'complete_form',
+  'today_screen',
+  'settings_categories',
+  'settings_reminders',
+]
 
 /**
  * Position and dimensions of a tutorial target element
@@ -61,10 +73,6 @@ interface TutorialStore {
   pausedStep: TutorialStep | null // Step they were on when paused
   abandonCount: number // How many times they've abandoned and restarted
 
-  // Tutorial data created during the flow
-  tutorialCategoryId: string | null
-  tutorialTaskId: string | null
-
   // Analytics tracking state (shared across components)
   analyticsStartTime: number | null
   analyticsViewedSteps: Set<TutorialStep>
@@ -75,7 +83,8 @@ interface TutorialStore {
   // Actions
   initializeTutorialState: (userId: string) => Promise<void>
   startTutorial: () => void
-  nextStep: (step: TutorialStep) => void
+  nextStep: (step?: TutorialStep) => void
+  previousStep: () => void
   skipTutorial: () => void
   completeTutorial: () => void
   resetTutorial: () => void
@@ -87,11 +96,6 @@ interface TutorialStore {
   // Overlay visibility actions
   hideOverlay: () => void
   showOverlay: () => void
-
-  // Tutorial data actions
-  setTutorialCategoryId: (id: string) => void
-  setTutorialTaskId: (id: string) => void
-  clearTutorialData: () => void
 
   // Target measurement actions
   setTargetMeasurement: (step: TutorialStep, measurement: TutorialTargetMeasurement | null) => void
@@ -145,8 +149,6 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
   pausedStep: null,
   abandonCount: 0,
 
-  tutorialCategoryId: null,
-  tutorialTaskId: null,
   analyticsStartTime: null,
   analyticsViewedSteps: new Set<TutorialStep>(),
   targetMeasurements: {
@@ -155,16 +157,12 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
     today_add_task_button: null,
     title_input: null,
     category_selector: null,
-    create_category: null,
     more_categories_button: null,
     priority_selector: null,
     top_priority: null,
     day_toggle: null,
     complete_form: null,
-    task_created: null,
     today_screen: null,
-    cleanup: null,
-    completion: null,
     settings_categories: null,
     settings_reminders: null,
   },
@@ -217,11 +215,49 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
       currentStep: 'welcome',
     }),
 
-  // Advance to a specific step
+  // Advance through the ordered passive walkthrough, or jump to a supplied step
+  // for existing navigation call sites while the tutorial UI is being migrated.
   nextStep: (step) =>
-    set({
-      currentStep: step,
-      isOverlayHidden: false,
+    set((state) => {
+      if (step) {
+        return {
+          currentStep: step,
+          isOverlayHidden: false,
+        }
+      }
+
+      if (!state.currentStep) {
+        return {
+          currentStep: 'welcome',
+          isOverlayHidden: false,
+        }
+      }
+
+      const currentIndex = TUTORIAL_STEPS.indexOf(state.currentStep)
+      const nextStepValue = TUTORIAL_STEPS[currentIndex + 1] ?? state.currentStep
+
+      return {
+        currentStep: nextStepValue,
+        isOverlayHidden: false,
+      }
+    }),
+
+  previousStep: () =>
+    set((state) => {
+      if (!state.currentStep) {
+        return {
+          currentStep: 'welcome',
+          isOverlayHidden: false,
+        }
+      }
+
+      const currentIndex = TUTORIAL_STEPS.indexOf(state.currentStep)
+      const previousStepValue = TUTORIAL_STEPS[Math.max(currentIndex - 1, 0)] ?? 'welcome'
+
+      return {
+        currentStep: previousStepValue,
+        isOverlayHidden: false,
+      }
     }),
 
   // Skip the tutorial entirely
@@ -258,8 +294,6 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
       currentStep: 'welcome',
       hasCompletedTutorial: false,
       isOverlayHidden: false,
-      tutorialCategoryId: null,
-      tutorialTaskId: null,
       pausedAt: null,
       pausedStep: null,
       abandonCount: 0,
@@ -334,19 +368,6 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
 
   // Show overlay again
   showOverlay: () => set({ isOverlayHidden: false }),
-
-  // Set the category ID created during tutorial
-  setTutorialCategoryId: (id: string) => set({ tutorialCategoryId: id }),
-
-  // Set the task ID created during tutorial
-  setTutorialTaskId: (id: string) => set({ tutorialTaskId: id }),
-
-  // Clear tutorial data (category/task IDs)
-  clearTutorialData: () =>
-    set({
-      tutorialCategoryId: null,
-      tutorialTaskId: null,
-    }),
 
   // Set measurement for a target element
   setTargetMeasurement: (step, measurement) =>
