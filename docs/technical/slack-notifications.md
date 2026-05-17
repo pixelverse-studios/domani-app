@@ -11,7 +11,7 @@ The current Slack channel mapping is:
 | `#domani-support` | `SLACK_SUPPORT_WEBHOOK_URL` | feedback, support requests |
 | `#domani-accounts` | `SLACK_ACCOUNTS_WEBHOOK_URL` | new signups |
 | `#domani-errors` | `SLACK_ERRORS_WEBHOOK_URL` | reserved for error alerts |
-| `#domani-revenue` | `SLACK_REVENUE_WEBHOOK_URL` | reserved for purchase/refund alerts |
+| `#domani-revenue` | `SLACK_REVENUE_WEBHOOK_URL` | purchase/refund lifecycle alerts |
 
 Do not add Slack webhook URLs to `.env` or any `EXPO_PUBLIC_*` variable. Slack webhook URLs must stay in Supabase secrets because public Expo environment variables are bundled into the app.
 
@@ -39,6 +39,20 @@ Current app-originated notification events:
 These notifications are fire-and-forget from the app. If the Edge Function or Slack is unavailable, the app logs a warning and continues the user-facing flow.
 
 The Edge Function expects an authenticated Supabase session and rejects notification payloads whose email does not match the authenticated user's email. This prevents app clients from spoofing another user's notification identity.
+
+## RevenueCat Events
+
+Revenue lifecycle alerts are emitted from the `revenuecat-webhook` Supabase Edge Function after the authoritative database state transition succeeds.
+
+Current revenue notification events:
+
+- lifetime purchase granted
+- refund/access revoked
+- refund reversed/access restored
+- RevenueCat event could not be matched to a Domani user
+- RevenueCat webhook processing failed
+
+Revenue alerts are best-effort. If Slack is unavailable or `SLACK_REVENUE_WEBHOOK_URL` is missing, the RevenueCat webhook logs the notification failure and preserves its existing webhook response behavior.
 
 ## Payload Format
 
