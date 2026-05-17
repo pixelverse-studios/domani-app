@@ -6,7 +6,7 @@ import * as AuthSession from 'expo-auth-session'
 import * as AppleAuthentication from 'expo-apple-authentication'
 
 import { supabase, sendAccountEmail } from '~/lib/supabase'
-import { sendDiscordNotification } from '~/lib/discord'
+import { sendTeamNotification } from '~/lib/teamNotifications'
 import { captureException, addBreadcrumb } from '~/lib/sentry'
 import { useTranslation } from '~/hooks/useTranslation'
 import { formatLocalizedDate } from '~/i18n/date'
@@ -114,6 +114,15 @@ const checkPendingDeletion = async (
                   email: userEmail,
                   name: profile.full_name || userName || undefined,
                 })
+
+                sendTeamNotification({
+                  type: 'account_lifecycle',
+                  email: userEmail,
+                  userId,
+                  event: 'reactivated',
+                  deletionScheduledFor: profile.deletion_scheduled_for ?? null,
+                  source: 'sign_in_reactivation_prompt',
+                })
               }
               resolve(false) // Continue with login
             },
@@ -216,7 +225,7 @@ const ensureProfileExists = async (
           ? new Date(recoveredProfile.created_at).getTime()
           : 0
         if (createdAt && Date.now() - createdAt < 60_000) {
-          sendDiscordNotification({
+          sendTeamNotification({
             type: 'new_signup',
             email,
             name: fullName,
@@ -247,7 +256,7 @@ const ensureProfileExists = async (
       const createdAt = new Date(profile.created_at).getTime()
       const isNewSignup = Date.now() - createdAt < 60_000
       if (isNewSignup) {
-        sendDiscordNotification({
+        sendTeamNotification({
           type: 'new_signup',
           email,
           name: fullName,

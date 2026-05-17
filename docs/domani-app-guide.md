@@ -549,7 +549,7 @@ Only shown during beta phases (`closed_beta` or `open_beta`).
 
 ### Storage
 
-Feedback submitted to Supabase database. Discord webhook may notify the team.
+Feedback submitted to Supabase database. Slack webhook may notify the team.
 
 ---
 
