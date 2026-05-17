@@ -1,5 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { sendRevenueSlackAlert } from './revenueSlack.ts'
 
 /**
  * RevenueCat webhook handler.
@@ -112,6 +113,18 @@ function getEventLogContext(event: RevenueCatWebhookEvent) {
     originalTransactionId:
       typeof event.original_transaction_id === 'string' ? event.original_transaction_id : null,
     transactionId: typeof event.transaction_id === 'string' ? event.transaction_id : null,
+    price:
+      typeof event.price === 'number'
+        ? event.price
+        : typeof event.price_in_purchased_currency === 'number'
+          ? event.price_in_purchased_currency
+          : null,
+    currency:
+      typeof event.currency === 'string'
+        ? event.currency
+        : typeof event.currency_code === 'string'
+          ? event.currency_code
+          : null,
   }
 }
 
@@ -346,6 +359,11 @@ async function grantLifetimeAccess(
       candidateUserIds: getCandidateUserIds(event),
     })
     await finalizeWebhookEvent(supabase, event, 'ignored_user_not_found')
+    await sendRevenueSlackAlert({
+      alertType: 'user_not_found',
+      eventContext: getEventLogContext(event),
+      processedAction: 'ignored_user_not_found',
+    })
     return jsonResponse({ received: true, ignored: 'user_not_found' })
   }
 
@@ -371,6 +389,13 @@ async function grantLifetimeAccess(
   await clearRefundState(supabase, userId, event)
 
   await finalizeWebhookEvent(supabase, event, processedAction)
+
+  await sendRevenueSlackAlert({
+    alertType: processedAction === 'restored_refund' ? 'refund_restored' : 'purchase_granted',
+    eventContext: getEventLogContext(event),
+    processedAction,
+    userId,
+  })
 
   console.log('[revenuecat-webhook] granted lifetime access', {
     ...getEventLogContext(event),
@@ -442,6 +467,11 @@ async function revokeLifetimeAccess(
       candidateUserIds: getCandidateUserIds(event),
     })
     await finalizeWebhookEvent(supabase, event, 'ignored_user_not_found')
+    await sendRevenueSlackAlert({
+      alertType: 'user_not_found',
+      eventContext: getEventLogContext(event),
+      processedAction: 'ignored_user_not_found',
+    })
     return jsonResponse({ received: true, ignored: 'user_not_found' })
   }
 
@@ -468,6 +498,13 @@ async function revokeLifetimeAccess(
   }
 
   await finalizeWebhookEvent(supabase, event, processedAction)
+
+  await sendRevenueSlackAlert({
+    alertType: 'refund_revoked',
+    eventContext: getEventLogContext(event),
+    processedAction,
+    userId,
+  })
 
   console.log('[revenuecat-webhook] revoked access', {
     ...getEventLogContext(event),
@@ -556,14 +593,16 @@ Deno.serve(async (req) => {
 
   console.log('[revenuecat-webhook] received event', getEventLogContext(event))
 
-  const claimedEvent = await claimWebhookEvent(supabase, event)
-  if (!claimedEvent) {
-    console.log('[revenuecat-webhook] duplicate event ignored', getEventLogContext(event))
-    return jsonResponse({ received: true, duplicate: true })
-  }
+  let claimedEvent = false
 
-  // --- Event routing -----------------------------------------------------
+  // --- Claim and event routing ------------------------------------------
   try {
+    claimedEvent = await claimWebhookEvent(supabase, event)
+    if (!claimedEvent) {
+      console.log('[revenuecat-webhook] duplicate event ignored', getEventLogContext(event))
+      return jsonResponse({ received: true, duplicate: true })
+    }
+
     switch (event.type) {
       case 'INITIAL_PURCHASE':
       case 'NON_RENEWING_PURCHASE': {
@@ -619,8 +658,15 @@ Deno.serve(async (req) => {
       }
     }
   } catch (err) {
-    await releaseWebhookClaim(supabase, event)
+    if (claimedEvent) {
+      await releaseWebhookClaim(supabase, event)
+    }
     console.error('[revenuecat-webhook] handler error:', err)
+    await sendRevenueSlackAlert({
+      alertType: 'processing_failed',
+      eventContext: getEventLogContext(event),
+      errorMessage: err instanceof Error ? err.message : String(err),
+    })
     return jsonResponse({ error: 'Internal server error' }, 500)
   }
 
