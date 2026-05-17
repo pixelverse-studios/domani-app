@@ -16,6 +16,7 @@ describe('team notification core', () => {
     expect(getWebhookSecretName('support_request')).toBe('SLACK_SUPPORT_WEBHOOK_URL')
     expect(getWebhookSecretName('purchase_refund_intent')).toBe('SLACK_SUPPORT_WEBHOOK_URL')
     expect(getWebhookSecretName('new_signup')).toBe('SLACK_ACCOUNTS_WEBHOOK_URL')
+    expect(getWebhookSecretName('account_lifecycle')).toBe('SLACK_ACCOUNTS_WEBHOOK_URL')
   })
 
   it('rejects unauthenticated notifications', () => {
@@ -90,6 +91,19 @@ describe('team notification core', () => {
     )
   })
 
+  it('rejects account lifecycle payloads for the wrong authenticated user', () => {
+    const payload: Partial<TeamNotificationPayload> = {
+      type: 'account_lifecycle',
+      email: 'user@example.com',
+      userId: 'other-user',
+      event: 'deletion_scheduled',
+    }
+
+    expect(validatePayload(payload, { email: 'user@example.com', sub: 'user-123' })).toBe(
+      'Account lifecycle user does not match authenticated user',
+    )
+  })
+
   it('builds escaped support Slack messages with environment context', () => {
     const message = buildSlackMessage(
       {
@@ -160,5 +174,28 @@ describe('team notification core', () => {
     expect(serializedBlocks).toContain('lifetime')
     expect(serializedBlocks).toContain('duplicate_request')
     expect(serializedBlocks).toContain('Domani Support | test | 2026-05-17')
+  })
+
+  it('builds account lifecycle Slack messages for the accounts channel format', () => {
+    const message = buildSlackMessage(
+      {
+        type: 'account_lifecycle',
+        email: 'user@example.com',
+        userId: 'user-123',
+        event: 'deletion_scheduled',
+        deletionScheduledFor: '2026-06-16T22:00:00.000Z',
+        source: 'settings',
+      },
+      context,
+    )
+
+    const serializedBlocks = JSON.stringify(message.blocks)
+
+    expect(message.text).toBe('Account Deletion Scheduled: user@example.com')
+    expect(serializedBlocks).toContain('Account Lifecycle')
+    expect(serializedBlocks).toContain('user-123')
+    expect(serializedBlocks).toContain('2026-06-16T22:00:00.000Z')
+    expect(serializedBlocks).toContain('settings')
+    expect(serializedBlocks).toContain('Domani Accounts | test | 2026-05-17')
   })
 })

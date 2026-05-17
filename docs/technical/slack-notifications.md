@@ -9,7 +9,7 @@ The current Slack channel mapping is:
 | Slack channel | Supabase secret | Current events |
 | --- | --- | --- |
 | `#domani-support` | `SLACK_SUPPORT_WEBHOOK_URL` | feedback, support requests, purchase/refund help intent |
-| `#domani-accounts` | `SLACK_ACCOUNTS_WEBHOOK_URL` | new signups |
+| `#domani-accounts` | `SLACK_ACCOUNTS_WEBHOOK_URL` | new signups, account deletion/reactivation lifecycle |
 | `#domani-errors` | `SLACK_ERRORS_WEBHOOK_URL` | reserved for error alerts |
 | `#domani-revenue` | `SLACK_REVENUE_WEBHOOK_URL` | purchase/refund lifecycle alerts |
 
@@ -36,12 +36,15 @@ Current app-originated notification events:
 - `feedback`
 - `support_request`
 - `purchase_refund_intent`
+- `account_lifecycle`
 
 These notifications are fire-and-forget from the app. If the Edge Function or Slack is unavailable, the app logs a warning and continues the user-facing flow.
 
 The Edge Function expects an authenticated Supabase session and rejects notification payloads whose email does not match the authenticated user's email. This prevents app clients from spoofing another user's notification identity.
 
 Purchase/refund intent alerts are emitted only after the app successfully persists a meaningful refund-help state change, such as a pending iOS refund request or a duplicate refund request hint. Routine visits to the purchase-help screen do not send Slack alerts.
+
+Account lifecycle alerts are emitted only after account deletion is successfully scheduled or a pending deletion is successfully cancelled/reactivated. Routine sign-in, sign-out, and profile loading do not send account lifecycle alerts.
 
 ## RevenueCat Events
 

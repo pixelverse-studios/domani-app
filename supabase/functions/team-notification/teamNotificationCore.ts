@@ -3,6 +3,7 @@ export type NotificationType =
   | 'feedback'
   | 'new_signup'
   | 'purchase_refund_intent'
+  | 'account_lifecycle'
 
 export interface DeviceMetadata {
   platform: 'ios' | 'android'
@@ -52,11 +53,21 @@ export interface PurchaseRefundIntentPayload {
   refundStateUpdatedAt?: string | null
 }
 
+export interface AccountLifecyclePayload {
+  type: 'account_lifecycle'
+  email: string
+  userId: string
+  event: 'deletion_scheduled' | 'reactivated'
+  deletionScheduledFor?: string | null
+  source?: string | null
+}
+
 export type TeamNotificationPayload =
   | SupportRequestPayload
   | FeedbackPayload
   | NewSignupPayload
   | PurchaseRefundIntentPayload
+  | AccountLifecyclePayload
 
 export type SlackTextObject = {
   type: 'mrkdwn' | 'plain_text'
@@ -128,6 +139,11 @@ const REFUND_INTENT_LABELS: Record<PurchaseRefundIntentPayload['intent'], string
   duplicate_refund_request: 'Repeated Refund Help Intent',
 }
 
+const ACCOUNT_LIFECYCLE_LABELS: Record<AccountLifecyclePayload['event'], string> = {
+  deletion_scheduled: 'Account Deletion Scheduled',
+  reactivated: 'Account Reactivated',
+}
+
 export function getWebhookSecretName(type: NotificationType) {
   switch (type) {
     case 'support_request':
@@ -135,6 +151,7 @@ export function getWebhookSecretName(type: NotificationType) {
     case 'purchase_refund_intent':
       return 'SLACK_SUPPORT_WEBHOOK_URL'
     case 'new_signup':
+    case 'account_lifecycle':
       return 'SLACK_ACCOUNTS_WEBHOOK_URL'
   }
 }
@@ -149,7 +166,13 @@ export function validatePayload(
 
   if (
     !payload.type ||
-    !['support_request', 'feedback', 'new_signup', 'purchase_refund_intent'].includes(payload.type)
+    ![
+      'support_request',
+      'feedback',
+      'new_signup',
+      'purchase_refund_intent',
+      'account_lifecycle',
+    ].includes(payload.type)
   ) {
     return 'Invalid notification type'
   }
@@ -188,6 +211,16 @@ export function validatePayload(
 
     if (!payload.platform || !['ios', 'android'].includes(payload.platform)) {
       return 'Missing refund intent platform'
+    }
+  }
+
+  if (payload.type === 'account_lifecycle') {
+    if (!payload.userId || payload.userId !== authenticatedUser.sub) {
+      return 'Account lifecycle user does not match authenticated user'
+    }
+
+    if (!payload.event || !['deletion_scheduled', 'reactivated'].includes(payload.event)) {
+      return 'Missing account lifecycle event'
     }
   }
 
@@ -347,6 +380,40 @@ function buildRefundIntentMessage(
   }
 }
 
+function buildAccountLifecycleMessage(
+  payload: AccountLifecyclePayload,
+  context: MessageContext,
+): SlackMessage {
+  const eventLabel = ACCOUNT_LIFECYCLE_LABELS[payload.event]
+  const fields = [
+    buildField('Email', payload.email),
+    buildField('User ID', payload.userId),
+    buildField('Event', eventLabel),
+  ]
+
+  if (payload.deletionScheduledFor) {
+    fields.push(buildField('Deletion Scheduled For', payload.deletionScheduledFor))
+  }
+  if (payload.source) {
+    fields.push(buildField('Source', payload.source))
+  }
+
+  return {
+    text: `${eventLabel}: ${payload.email}`,
+    blocks: [
+      {
+        type: 'header',
+        text: { type: 'plain_text', text: 'Account Lifecycle', emoji: true },
+      },
+      {
+        type: 'section',
+        fields,
+      },
+      buildContext('Domani Accounts', context),
+    ],
+  }
+}
+
 export function buildSlackMessage(
   payload: TeamNotificationPayload,
   context: MessageContext,
@@ -357,6 +424,10 @@ export function buildSlackMessage(
 
   if (payload.type === 'purchase_refund_intent') {
     return buildRefundIntentMessage(payload, context)
+  }
+
+  if (payload.type === 'account_lifecycle') {
+    return buildAccountLifecycleMessage(payload, context)
   }
 
   return buildFeedbackMessage(payload, context)
