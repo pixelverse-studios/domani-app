@@ -31,7 +31,24 @@ interface NewSignupPayload {
   timezone?: string
 }
 
-type TeamNotificationPayload = SupportRequestPayload | FeedbackPayload | NewSignupPayload
+interface PurchaseRefundIntentPayload {
+  type: 'purchase_refund_intent'
+  email: string
+  userId: string
+  intent: 'pending_refund_request' | 'duplicate_refund_request'
+  platform: 'ios' | 'android'
+  source?: string | null
+  subscriptionStatus?: string | null
+  refundStatus?: string | null
+  clientHint?: string | null
+  refundStateUpdatedAt?: string | null
+}
+
+type TeamNotificationPayload =
+  | SupportRequestPayload
+  | FeedbackPayload
+  | NewSignupPayload
+  | PurchaseRefundIntentPayload
 
 export async function sendTeamNotification(payload: TeamNotificationPayload): Promise<void> {
   try {

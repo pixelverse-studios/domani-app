@@ -1,19 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { useAuth } from '~/hooks/useAuth'
+import { useProfile } from '~/hooks/useProfile'
 import { supabase } from '~/lib/supabase'
+import { sendTeamNotification } from '~/lib/teamNotifications'
 import type { PurchaseRefundState } from '~/types'
 
 interface MarkRefundPendingInput {
   platform: 'ios'
   source?: string | null
   error?: string | null
+  subscriptionStatus?: string | null
 }
 
 interface RecordDuplicateRefundRequestHintInput {
   platform: 'ios'
   source?: string | null
   error?: string | null
+  subscriptionStatus?: string | null
 }
 
 export async function markCurrentUserRefundRequestPending({
@@ -51,7 +55,9 @@ export async function recordCurrentUserDuplicateRefundRequestHint({
 
 export function usePurchaseRefundState() {
   const { user } = useAuth()
+  const { profile } = useProfile()
   const queryClient = useQueryClient()
+  const notificationEmail = profile?.email ?? user?.email ?? null
 
   const query = useQuery({
     queryKey: ['purchaseRefundState', user?.id],
@@ -71,7 +77,12 @@ export function usePurchaseRefundState() {
   })
 
   const markPendingMutation = useMutation({
-    mutationFn: async ({ platform, source, error: pendingError }: MarkRefundPendingInput) => {
+    mutationFn: async ({
+      platform,
+      source,
+      error: pendingError,
+      subscriptionStatus,
+    }: MarkRefundPendingInput) => {
       await markCurrentUserRefundRequestPending({
         platform,
         source,
@@ -87,7 +98,24 @@ export function usePurchaseRefundState() {
         .maybeSingle()
 
       if (selectError) throw selectError
-      return data as PurchaseRefundState | null
+      const refundState = data as PurchaseRefundState | null
+
+      if (user?.id && notificationEmail) {
+        sendTeamNotification({
+          type: 'purchase_refund_intent',
+          email: notificationEmail,
+          userId: user.id,
+          intent: 'pending_refund_request',
+          platform,
+          source,
+          subscriptionStatus,
+          refundStatus: refundState?.status ?? null,
+          clientHint: refundState?.client_hint ?? null,
+          refundStateUpdatedAt: refundState?.updated_at ?? null,
+        })
+      }
+
+      return refundState
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['purchaseRefundState', user?.id], data)
@@ -99,6 +127,7 @@ export function usePurchaseRefundState() {
       platform,
       source,
       error: duplicateError,
+      subscriptionStatus,
     }: RecordDuplicateRefundRequestHintInput) => {
       await recordCurrentUserDuplicateRefundRequestHint({
         platform,
@@ -115,7 +144,24 @@ export function usePurchaseRefundState() {
         .maybeSingle()
 
       if (selectError) throw selectError
-      return data as PurchaseRefundState | null
+      const refundState = data as PurchaseRefundState | null
+
+      if (user?.id && notificationEmail) {
+        sendTeamNotification({
+          type: 'purchase_refund_intent',
+          email: notificationEmail,
+          userId: user.id,
+          intent: 'duplicate_refund_request',
+          platform,
+          source,
+          subscriptionStatus,
+          refundStatus: refundState?.status ?? null,
+          clientHint: refundState?.client_hint ?? null,
+          refundStateUpdatedAt: refundState?.updated_at ?? null,
+        })
+      }
+
+      return refundState
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['purchaseRefundState', user?.id], data)

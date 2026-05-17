@@ -14,6 +14,7 @@ describe('team notification core', () => {
   it('maps notification types to server-side Slack webhook secret names', () => {
     expect(getWebhookSecretName('feedback')).toBe('SLACK_SUPPORT_WEBHOOK_URL')
     expect(getWebhookSecretName('support_request')).toBe('SLACK_SUPPORT_WEBHOOK_URL')
+    expect(getWebhookSecretName('purchase_refund_intent')).toBe('SLACK_SUPPORT_WEBHOOK_URL')
     expect(getWebhookSecretName('new_signup')).toBe('SLACK_ACCOUNTS_WEBHOOK_URL')
   })
 
@@ -75,6 +76,20 @@ describe('team notification core', () => {
     ).toBe('Missing support request fields')
   })
 
+  it('rejects refund intent payloads for the wrong authenticated user', () => {
+    const payload: Partial<TeamNotificationPayload> = {
+      type: 'purchase_refund_intent',
+      email: 'user@example.com',
+      userId: 'other-user',
+      intent: 'pending_refund_request',
+      platform: 'ios',
+    }
+
+    expect(validatePayload(payload, { email: 'user@example.com', sub: 'user-123' })).toBe(
+      'Refund intent user does not match authenticated user',
+    )
+  })
+
   it('builds escaped support Slack messages with environment context', () => {
     const message = buildSlackMessage(
       {
@@ -117,5 +132,33 @@ describe('team notification core', () => {
     expect(message.text).toBe('New User Signup: user@example.com')
     expect(JSON.stringify(message.blocks)).toContain('Domani Accounts | test | 2026-05-17')
     expect(JSON.stringify(message.blocks)).toContain('America/New_York')
+  })
+
+  it('builds purchase refund intent Slack messages with state context', () => {
+    const message = buildSlackMessage(
+      {
+        type: 'purchase_refund_intent',
+        email: 'user@example.com',
+        userId: 'user-123',
+        intent: 'duplicate_refund_request',
+        platform: 'ios',
+        source: 'settings',
+        subscriptionStatus: 'lifetime',
+        refundStatus: null,
+        clientHint: 'duplicate_request',
+        refundStateUpdatedAt: '2026-05-17T01:00:00.000Z',
+      },
+      context,
+    )
+
+    const serializedBlocks = JSON.stringify(message.blocks)
+
+    expect(message.text).toBe('Repeated Refund Help Intent: user@example.com')
+    expect(serializedBlocks).toContain('Purchase Refund Intent')
+    expect(serializedBlocks).toContain('user-123')
+    expect(serializedBlocks).toContain('settings')
+    expect(serializedBlocks).toContain('lifetime')
+    expect(serializedBlocks).toContain('duplicate_request')
+    expect(serializedBlocks).toContain('Domani Support | test | 2026-05-17')
   })
 })

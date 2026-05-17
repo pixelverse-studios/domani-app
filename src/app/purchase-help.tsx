@@ -195,6 +195,7 @@ export default function PurchaseHelpScreen() {
           await purchaseRefundState.markPending({
             platform: 'ios',
             source: source ?? 'purchase_help',
+            subscriptionStatus: subscription.status,
           })
         } catch (persistError) {
           console.warn('[purchase-help] failed to persist refund pending state after success', {
@@ -222,6 +223,7 @@ export default function PurchaseHelpScreen() {
           await purchaseRefundState.recordDuplicateRequestHint({
             platform: 'ios',
             source: source ?? 'purchase_help',
+            subscriptionStatus: subscription.status,
             error: message,
           })
         } catch (persistError) {
