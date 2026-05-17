@@ -44,11 +44,21 @@ interface PurchaseRefundIntentPayload {
   refundStateUpdatedAt?: string | null
 }
 
+interface AccountLifecyclePayload {
+  type: 'account_lifecycle'
+  email: string
+  userId: string
+  event: 'deletion_scheduled' | 'reactivated'
+  deletionScheduledFor?: string | null
+  source?: string | null
+}
+
 type TeamNotificationPayload =
   | SupportRequestPayload
   | FeedbackPayload
   | NewSignupPayload
   | PurchaseRefundIntentPayload
+  | AccountLifecyclePayload
 
 export async function sendTeamNotification(payload: TeamNotificationPayload): Promise<void> {
   try {

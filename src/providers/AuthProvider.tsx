@@ -114,6 +114,15 @@ const checkPendingDeletion = async (
                   email: userEmail,
                   name: profile.full_name || userName || undefined,
                 })
+
+                sendTeamNotification({
+                  type: 'account_lifecycle',
+                  email: userEmail,
+                  userId,
+                  event: 'reactivated',
+                  deletionScheduledFor: profile.deletion_scheduled_for ?? null,
+                  source: 'sign_in_reactivation_prompt',
+                })
               }
               resolve(false) // Continue with login
             },
