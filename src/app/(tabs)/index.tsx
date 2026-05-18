@@ -64,7 +64,7 @@ export default function TodayScreen() {
 
   // Tutorial target for the card carousel (Focus Card + Progress Card)
   const { targetRef: carouselRef, measureTarget: measureCarousel } =
-    useTutorialTarget('today_screen')
+    useTutorialTarget('today_overview')
 
   // Name prompt modal state
   const [showNameModal, setShowNameModal] = useState(false)

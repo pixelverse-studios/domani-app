@@ -4,38 +4,32 @@ import { supabase } from '~/lib/supabase'
 
 /**
  * Tutorial steps in order of progression
- * Based on docs/plans/interactive-tutorial-proposal.md
+ * Core planning loop walkthrough. Steps target stable layout surfaces and never
+ * require the user to create data during the tutorial.
  */
 export type TutorialStep =
   | 'welcome'
-  | 'plan_today_button'
-  | 'today_add_task_button'
-  | 'title_input'
-  | 'category_selector'
-  | 'more_categories_button'
-  | 'priority_selector'
-  | 'top_priority'
-  | 'day_toggle'
-  | 'complete_form'
-  | 'today_screen'
-  // Settings tutorial steps (auto-start after main tutorial)
-  | 'settings_categories'
-  | 'settings_reminders'
+  | 'today_overview'
+  | 'today_primary_action'
+  | 'planning_form'
+  | 'task_title'
+  | 'task_category'
+  | 'task_priority'
+  | 'task_reminder'
+  | 'task_submit'
+  | 'complete'
 
 export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   'welcome',
-  'plan_today_button',
-  'today_add_task_button',
-  'title_input',
-  'category_selector',
-  'more_categories_button',
-  'priority_selector',
-  'top_priority',
-  'day_toggle',
-  'complete_form',
-  'today_screen',
-  'settings_categories',
-  'settings_reminders',
+  'today_overview',
+  'today_primary_action',
+  'planning_form',
+  'task_title',
+  'task_category',
+  'task_priority',
+  'task_reminder',
+  'task_submit',
+  'complete',
 ]
 
 /**
@@ -153,18 +147,15 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
   analyticsViewedSteps: new Set<TutorialStep>(),
   targetMeasurements: {
     welcome: null,
-    plan_today_button: null,
-    today_add_task_button: null,
-    title_input: null,
-    category_selector: null,
-    more_categories_button: null,
-    priority_selector: null,
-    top_priority: null,
-    day_toggle: null,
-    complete_form: null,
-    today_screen: null,
-    settings_categories: null,
-    settings_reminders: null,
+    today_overview: null,
+    today_primary_action: null,
+    planning_form: null,
+    task_title: null,
+    task_category: null,
+    task_priority: null,
+    task_reminder: null,
+    task_submit: null,
+    complete: null,
   },
 
   // Initialize tutorial state from database

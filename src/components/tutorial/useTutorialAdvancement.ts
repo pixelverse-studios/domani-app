@@ -10,14 +10,11 @@ export function useTutorialAdvancement() {
   const { isActive, currentStep, nextStep } = useTutorialStore()
 
   /**
-   * Advance the tutorial when the user taps "Plan Today" or "Add More Tasks" button on Today screen
+   * Advance the tutorial when the user taps the primary action on Today.
    */
   const advanceFromTodayButton = useCallback(() => {
-    if (
-      isActive &&
-      (currentStep === 'plan_today_button' || currentStep === 'today_add_task_button')
-    ) {
-      nextStep('title_input')
+    if (isActive && currentStep === 'today_primary_action') {
+      nextStep('planning_form')
     }
   }, [isActive, currentStep, nextStep])
 
@@ -26,28 +23,26 @@ export function useTutorialAdvancement() {
    * Called on blur (when user taps elsewhere) rather than on every keystroke.
    */
   const advanceFromTitleInput = useCallback(() => {
-    if (isActive && currentStep === 'title_input') {
-      nextStep('category_selector')
+    if (isActive && currentStep === 'task_title') {
+      nextStep('task_category')
     }
   }, [isActive, currentStep, nextStep])
 
   /**
-   * Advance the tutorial when the user selects any category (existing or newly created).
-   * Goes to more_categories_button to teach users about the category sheet.
+   * Advance the tutorial when the user selects any category.
    */
   const advanceFromCategorySelector = useCallback(() => {
-    if (isActive && currentStep === 'category_selector') {
-      nextStep('more_categories_button')
+    if (isActive && currentStep === 'task_category') {
+      nextStep('task_priority')
     }
   }, [isActive, currentStep, nextStep])
 
   /**
-   * Advance from category_selector step after user creates a new category.
-   * Goes to more_categories_button to teach users about the category sheet.
+   * Advance from task_category after user creates a new category.
    */
   const advanceFromCreateCategory = useCallback(() => {
-    if (isActive && currentStep === 'category_selector') {
-      nextStep('more_categories_button')
+    if (isActive && currentStep === 'task_category') {
+      nextStep('task_priority')
     }
   }, [isActive, currentStep, nextStep])
 
@@ -55,59 +50,49 @@ export function useTutorialAdvancement() {
    * Advance from more categories button when user opens the category sheet.
    */
   const advanceFromMoreCategoriesButton = useCallback(() => {
-    if (isActive && currentStep === 'more_categories_button') {
-      nextStep('priority_selector')
+    if (isActive && currentStep === 'task_category') {
+      nextStep('task_priority')
     }
   }, [isActive, currentStep, nextStep])
 
   /**
-   * Advance the tutorial when the user selects a priority
-   * If they select TOP, show the top_priority info step first
-   * Otherwise, go to complete_form to prompt user to finish
+   * Advance the tutorial when the user selects a priority.
    */
   const advanceFromPrioritySelector = useCallback(
-    (priority: string) => {
+    (_priority: string) => {
       if (!isActive) return
 
-      if (currentStep === 'priority_selector') {
-        if (priority === 'top') {
-          // Show extra info about MIT (Most Important Task)
-          nextStep('top_priority')
-        } else {
-          // Go to complete_form step to prompt user to finish the task
-          nextStep('complete_form')
-        }
+      if (currentStep === 'task_priority') {
+        nextStep('task_reminder')
       }
     },
     [isActive, currentStep, nextStep],
   )
 
   /**
-   * Advance from the top_priority info step (user taps "Next" in spotlight)
+   * Backward-compatible helper for older priority call sites.
    */
   const advanceFromTopPriority = useCallback(() => {
-    if (isActive && currentStep === 'top_priority') {
-      // Go to complete_form step to prompt user to finish the task
-      nextStep('complete_form')
+    if (isActive && currentStep === 'task_priority') {
+      nextStep('task_reminder')
     }
   }, [isActive, currentStep, nextStep])
 
   /**
-   * Advance from complete_form step to the Today screen walkthrough.
+   * Advance from task_submit step to completion.
    */
   const advanceFromCompleteForm = useCallback(() => {
-    if (isActive && currentStep === 'complete_form') {
-      nextStep('today_screen')
+    if (isActive && currentStep === 'task_submit') {
+      nextStep('complete')
     }
   }, [isActive, currentStep, nextStep])
 
   /**
-   * Advance from today_screen step to completion
-   * Called when user taps "Got it" on the Today screen focus card highlight
+   * Advance from complete step if an older call site invokes this helper.
    */
   const advanceFromTodayScreen = useCallback(() => {
-    if (isActive && currentStep === 'today_screen') {
-      nextStep('settings_categories')
+    if (isActive && currentStep === 'complete') {
+      nextStep()
     }
   }, [isActive, currentStep, nextStep])
 
@@ -116,8 +101,8 @@ export function useTutorialAdvancement() {
    * (This is optional - user may skip this)
    */
   const advanceFromDayToggle = useCallback(() => {
-    if (isActive && currentStep === 'day_toggle') {
-      nextStep('complete_form')
+    if (isActive && currentStep === 'task_reminder') {
+      nextStep('task_submit')
     }
   }, [isActive, currentStep, nextStep])
 

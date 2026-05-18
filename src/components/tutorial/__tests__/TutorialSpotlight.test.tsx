@@ -61,31 +61,31 @@ describe('TutorialSpotlight', () => {
   })
 
   it('advances overlay controls to the next passive step', async () => {
-    setSpotlightStep('top_priority')
+    setSpotlightStep('task_priority')
 
     renderWithProviders(<TutorialSpotlight />)
 
     fireEvent.press(screen.getByText('Next'))
 
     await waitFor(() => {
-      expect(useTutorialStore.getState().currentStep).toBe('day_toggle')
+      expect(useTutorialStore.getState().currentStep).toBe('task_reminder')
     })
   })
 
   it('moves back to the previous passive step', async () => {
-    setSpotlightStep('priority_selector')
+    setSpotlightStep('task_priority')
 
     renderWithProviders(<TutorialSpotlight />)
 
     fireEvent.press(screen.getByText('Back'))
 
     await waitFor(() => {
-      expect(useTutorialStore.getState().currentStep).toBe('more_categories_button')
+      expect(useTutorialStore.getState().currentStep).toBe('task_category')
     })
   })
 
   it('navigates when moving back across tutorial screens', async () => {
-    setSpotlightStep('settings_categories')
+    setSpotlightStep('planning_form')
 
     renderWithProviders(<TutorialSpotlight />)
 
@@ -93,12 +93,12 @@ describe('TutorialSpotlight', () => {
 
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith('/(tabs)/')
-      expect(useTutorialStore.getState().currentStep).toBe('today_screen')
+      expect(useTutorialStore.getState().currentStep).toBe('today_primary_action')
     })
   })
 
   it('navigates to Planning before advancing from the Today CTA step', async () => {
-    setSpotlightStep('today_add_task_button')
+    setSpotlightStep('today_primary_action')
 
     renderWithProviders(<TutorialSpotlight />)
 
@@ -108,12 +108,12 @@ describe('TutorialSpotlight', () => {
       expect(router.push).toHaveBeenCalledWith(
         '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true',
       )
-      expect(useTutorialStore.getState().currentStep).toBe('title_input')
+      expect(useTutorialStore.getState().currentStep).toBe('planning_form')
     })
   })
 
-  it('navigates back to Today when returning from the planning form title step', async () => {
-    setSpotlightStep('title_input')
+  it('navigates back to Today when returning from the planning form step', async () => {
+    setSpotlightStep('planning_form')
 
     renderWithProviders(<TutorialSpotlight />)
 
@@ -121,12 +121,12 @@ describe('TutorialSpotlight', () => {
 
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith('/(tabs)/')
-      expect(useTutorialStore.getState().currentStep).toBe('today_add_task_button')
+      expect(useTutorialStore.getState().currentStep).toBe('today_primary_action')
     })
   })
 
   it('skips and completes the tutorial from the overlay', async () => {
-    setSpotlightStep('priority_selector')
+    setSpotlightStep('task_priority')
 
     renderWithProviders(<TutorialSpotlight />)
 
@@ -142,7 +142,7 @@ describe('TutorialSpotlight', () => {
   })
 
   it('marks the tutorial complete from the final done step', async () => {
-    setSpotlightStep('settings_reminders')
+    setSpotlightStep('complete')
 
     renderWithProviders(<TutorialSpotlight />)
 
@@ -161,7 +161,7 @@ describe('TutorialSpotlight', () => {
     act(() => {
       useTutorialStore.setState({
         isActive: true,
-        currentStep: 'more_categories_button',
+        currentStep: 'complete',
         hasCompletedTutorial: false,
         isLoading: false,
         isOverlayHidden: false,
@@ -171,12 +171,16 @@ describe('TutorialSpotlight', () => {
 
     renderWithProviders(<TutorialSpotlight />)
 
-    expect(screen.getByText('See All Categories')).toBeTruthy()
+    expect(screen.getByText('You’re Ready')).toBeTruthy()
 
-    fireEvent.press(screen.getByText('Next'))
+    fireEvent.press(screen.getByText('Done'))
 
     await waitFor(() => {
-      expect(useTutorialStore.getState().currentStep).toBe('priority_selector')
+      expect(useTutorialStore.getState()).toMatchObject({
+        isActive: false,
+        currentStep: null,
+        hasCompletedTutorial: true,
+      })
     })
   })
 })

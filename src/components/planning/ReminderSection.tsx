@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useMemo } from 'react'
-import { View, TouchableOpacity, Platform, LayoutAnimation, UIManager, Modal } from 'react-native'
+import { View, TouchableOpacity, Platform, LayoutAnimation, UIManager } from 'react-native'
 import { Bell, Clock } from 'lucide-react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { addDays, setHours, setMinutes, isBefore } from 'date-fns'
 import Animated from 'react-native-reanimated'
 
 import { Text } from '~/components/ui'
+import { useTutorialTarget } from '~/components/tutorial'
 import { TimePickerModal } from '~/components/ui/TimePickerModal'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
@@ -40,6 +41,8 @@ export function ReminderSection({
   const brandColor = theme.colors.brand.primary
   const { profile } = useProfile()
   const is24Hour = useMemo(() => uses24HourClock(locale), [locale])
+  const { targetRef: reminderTargetRef, measureTarget: measureReminderTarget } =
+    useTutorialTarget('task_reminder')
 
   // Get user's shortcuts from profile or use defaults
   const timePresets: ReminderShortcut[] = useMemo(() => {
@@ -79,7 +82,7 @@ export function ReminderSection({
   }, [isReminderEnabled, getBaseDate, onReminderDateChange, onReminderEnabledChange, timePresets])
 
   return (
-    <View className="mt-4">
+    <View ref={reminderTargetRef} onLayout={measureReminderTarget} className="mt-4">
       {/* Toggle Header */}
       <TouchableOpacity
         onPress={handleToggle}
