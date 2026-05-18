@@ -1,4 +1,5 @@
 import React from 'react'
+import { router } from 'expo-router'
 
 import { act, fireEvent, renderWithProviders, screen, waitFor } from '~/test/test-utils'
 import {
@@ -64,10 +65,63 @@ describe('TutorialSpotlight', () => {
 
     renderWithProviders(<TutorialSpotlight />)
 
-    fireEvent.press(screen.getByText('Got it'))
+    fireEvent.press(screen.getByText('Next'))
 
     await waitFor(() => {
-      expect(useTutorialStore.getState().currentStep).toBe('complete_form')
+      expect(useTutorialStore.getState().currentStep).toBe('day_toggle')
+    })
+  })
+
+  it('moves back to the previous passive step', async () => {
+    setSpotlightStep('priority_selector')
+
+    renderWithProviders(<TutorialSpotlight />)
+
+    fireEvent.press(screen.getByText('Back'))
+
+    await waitFor(() => {
+      expect(useTutorialStore.getState().currentStep).toBe('more_categories_button')
+    })
+  })
+
+  it('navigates when moving back across tutorial screens', async () => {
+    setSpotlightStep('settings_categories')
+
+    renderWithProviders(<TutorialSpotlight />)
+
+    fireEvent.press(screen.getByText('Back'))
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/(tabs)/')
+      expect(useTutorialStore.getState().currentStep).toBe('today_screen')
+    })
+  })
+
+  it('navigates to Planning before advancing from the Today CTA step', async () => {
+    setSpotlightStep('today_add_task_button')
+
+    renderWithProviders(<TutorialSpotlight />)
+
+    fireEvent.press(screen.getByText('Next'))
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(
+        '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true',
+      )
+      expect(useTutorialStore.getState().currentStep).toBe('title_input')
+    })
+  })
+
+  it('navigates back to Today when returning from the planning form title step', async () => {
+    setSpotlightStep('title_input')
+
+    renderWithProviders(<TutorialSpotlight />)
+
+    fireEvent.press(screen.getByText('Back'))
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/(tabs)/')
+      expect(useTutorialStore.getState().currentStep).toBe('today_add_task_button')
     })
   })
 
@@ -92,7 +146,7 @@ describe('TutorialSpotlight', () => {
 
     renderWithProviders(<TutorialSpotlight />)
 
-    fireEvent.press(screen.getByText('Got it'))
+    fireEvent.press(screen.getByText('Done'))
 
     await waitFor(() => {
       expect(useTutorialStore.getState()).toMatchObject({
@@ -103,7 +157,7 @@ describe('TutorialSpotlight', () => {
     })
   })
 
-  it('falls forward when an optional target is missing', async () => {
+  it('shows fallback content and allows navigation when a target is missing', async () => {
     act(() => {
       useTutorialStore.setState({
         isActive: true,
@@ -116,6 +170,10 @@ describe('TutorialSpotlight', () => {
     })
 
     renderWithProviders(<TutorialSpotlight />)
+
+    expect(screen.getByText('See All Categories')).toBeTruthy()
+
+    fireEvent.press(screen.getByText('Next'))
 
     await waitFor(() => {
       expect(useTutorialStore.getState().currentStep).toBe('priority_selector')
