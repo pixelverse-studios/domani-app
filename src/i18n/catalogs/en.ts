@@ -25,6 +25,7 @@ export const en = {
       logOut: 'Log Out',
       keepAccount: 'Keep Account',
       submit: 'Submit',
+      back: 'Back',
       next: 'Next',
       gotIt: 'Got it',
       skipTour: 'Skip tour',

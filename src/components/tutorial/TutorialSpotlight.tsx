@@ -15,17 +15,18 @@ import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useTranslation } from '~/hooks/useTranslation'
-import { useTutorialStore, TutorialStep, TutorialTargetMeasurement } from '~/stores/tutorialStore'
+import {
+  TUTORIAL_STEPS,
+  useTutorialStore,
+  TutorialStep,
+  TutorialTargetMeasurement,
+} from '~/stores/tutorialStore'
 
 type TutorialStepConfig = {
   title: string
   description: string
   position: 'above' | 'below' | 'center'
-  showNext?: boolean
-  showSkip?: boolean
   stepNumber?: number
-  requiresInteraction?: boolean
-  nextStepOnNext?: TutorialStep
 }
 
 const SPOTLIGHT_STEPS: TutorialStep[] = [
@@ -45,6 +46,9 @@ const SPOTLIGHT_STEPS: TutorialStep[] = [
 ]
 
 const TOTAL_STEPS = 5
+const TOOLTIP_MARGIN = 20
+const TOOLTIP_OFFSET = 20
+const TOOLTIP_ESTIMATED_HEIGHT = 220
 
 /**
  * Premium spotlight overlay for tutorial guidance.
@@ -61,93 +65,71 @@ export function TutorialSpotlight() {
       title: t('tutorial.steps.planTodayButtonTitle'),
       description: t('tutorial.steps.planTodayButtonDescription'),
       position: 'above',
-      showSkip: true,
       stepNumber: 1,
-      requiresInteraction: true,
     },
     today_add_task_button: {
       title: t('tutorial.steps.todayAddTaskButtonTitle'),
       description: t('tutorial.steps.todayAddTaskButtonDescription'),
       position: 'above',
-      showSkip: true,
       stepNumber: 1,
-      requiresInteraction: true,
     },
     title_input: {
       title: t('tutorial.steps.titleInputTitle'),
       description: t('tutorial.steps.titleInputDescription'),
       position: 'below',
-      showSkip: true,
       stepNumber: 2,
-      requiresInteraction: true,
     },
     category_selector: {
       title: t('tutorial.steps.categorySelectorTitle'),
       description: t('tutorial.steps.categorySelectorDescription'),
       position: 'above',
-      showSkip: true,
       stepNumber: 3,
-      requiresInteraction: true,
     },
     more_categories_button: {
       title: t('tutorial.steps.moreCategoriesButtonTitle'),
       description: t('tutorial.steps.moreCategoriesButtonDescription'),
       position: 'above',
-      showSkip: true,
       stepNumber: 3,
-      requiresInteraction: true,
     },
     priority_selector: {
       title: t('tutorial.steps.prioritySelectorTitle'),
       description: t('tutorial.steps.prioritySelectorDescription'),
       position: 'above',
-      showSkip: true,
       stepNumber: 4,
-      requiresInteraction: true,
     },
     top_priority: {
       title: t('tutorial.steps.topPriorityTitle'),
       description: t('tutorial.steps.topPriorityDescription'),
       position: 'above',
-      showNext: true,
-      showSkip: true,
       stepNumber: 4,
     },
     day_toggle: {
       title: t('tutorial.steps.dayToggleTitle'),
       description: t('tutorial.steps.dayToggleDescription'),
       position: 'below',
-      showSkip: true,
       stepNumber: 5,
-      requiresInteraction: true,
     },
     complete_form: {
       title: t('tutorial.steps.completeFormTitle'),
       description: t('tutorial.steps.completeFormDescription'),
       position: 'above',
-      showNext: true,
-      showSkip: true,
       stepNumber: 5,
     },
     today_screen: {
       title: t('tutorial.steps.todayScreenTitle'),
       description: t('tutorial.steps.todayScreenDescription'),
       position: 'below',
-      showNext: true,
       stepNumber: 5,
     },
     settings_categories: {
       title: t('tutorial.steps.settingsCategoriesTitle'),
       description: t('tutorial.steps.settingsCategoriesDescription'),
       position: 'below',
-      showNext: true,
-      showSkip: true,
     },
     settings_reminders: {
       title: t('tutorial.steps.settingsRemindersTitle'),
       description: t('tutorial.steps.settingsRemindersDescription'),
       position: 'above',
-      showNext: true,
     },
   }
 
@@ -156,11 +138,11 @@ export function TutorialSpotlight() {
     currentStep,
     targetMeasurements,
     nextStep,
+    previousStep,
     skipTutorial,
     completeTutorial,
     isLoading,
     isOverlayHidden,
-    hideOverlay,
   } = useTutorialStore()
   const { trackStepViewed, trackTutorialSkipped, trackTutorialCompleted } = useTutorialAnalytics()
 
@@ -172,8 +154,10 @@ export function TutorialSpotlight() {
   const stepConfig = currentStep ? stepConfigMap[currentStep] : null
   const measurement = currentStep ? targetMeasurements[currentStep] : null
   const isSpotlightStep = currentStep && SPOTLIGHT_STEPS.includes(currentStep)
-  const isVisible =
-    !isLoading && isActive && isSpotlightStep && measurement !== null && !isOverlayHidden
+  const isVisible = !isLoading && isActive && isSpotlightStep && !isOverlayHidden
+  const currentStepIndex = currentStep ? TUTORIAL_STEPS.indexOf(currentStep) : -1
+  const isFinalStep = currentStep === 'settings_reminders'
+  const canGoBack = currentStepIndex > 0
 
   // Trigger haptic feedback and track step view when spotlight appears
   useEffect(() => {
@@ -187,39 +171,6 @@ export function TutorialSpotlight() {
       }
     }
   }, [isVisible, currentStep, trackStepViewed])
-
-  // Auto-skip steps that have no visible target (e.g., "+N more" button when ≤4 categories)
-  useEffect(() => {
-    if (!isLoading && isActive && isSpotlightStep && measurement === null && !isOverlayHidden) {
-      // Give enough time for elements to render and measure (must be longer than
-      // the 400ms delay in advanceFromCreateCategory to avoid race conditions)
-      const timer = setTimeout(() => {
-        // Check again in case measurement arrived
-        const currentMeasurement = targetMeasurements[currentStep!]
-        if (currentMeasurement === null) {
-          // Skip to the fallback step based on current step
-          const skipMap: Partial<Record<TutorialStep, TutorialStep>> = {
-            plan_today_button: 'today_add_task_button',
-            more_categories_button: 'priority_selector',
-          }
-          const fallbackStep = skipMap[currentStep!]
-          if (fallbackStep) {
-            nextStep(fallbackStep)
-          }
-        }
-      }, 600)
-      return () => clearTimeout(timer)
-    }
-  }, [
-    isLoading,
-    isActive,
-    isSpotlightStep,
-    measurement,
-    isOverlayHidden,
-    currentStep,
-    targetMeasurements,
-    nextStep,
-  ])
 
   // Animate in when visible
   useEffect(() => {
@@ -238,60 +189,76 @@ export function TutorialSpotlight() {
     }
   }, [isVisible, currentStep, overlayOpacity, tooltipScale, tooltipTranslateY])
 
-  const handleGotIt = () => {
+  const handleBack = () => {
     if (!currentStep) return
 
-    const nextStepMap: Partial<Record<TutorialStep, TutorialStep>> = {
-      top_priority: 'complete_form',
-      complete_form: 'today_screen',
-      today_screen: 'settings_categories',
-      settings_categories: 'settings_reminders',
-    }
-
-    const nextStepValue = nextStepMap[currentStep]
     overlayOpacity.value = withTiming(0, { duration: 150 })
     tooltipScale.value = withTiming(0.9, { duration: 150 })
 
-    if (nextStepValue) {
-      // Navigate to Today tab after the planning form walkthrough.
-      if (currentStep === 'complete_form') {
-        try {
-          router.replace('/(tabs)/')
-        } catch (error) {
-          console.error('Failed to navigate to Today tab:', error)
-        }
+    if (currentStep === 'title_input') {
+      try {
+        router.replace('/(tabs)/')
+      } catch (error) {
+        console.error('Failed to navigate to Today tab:', error)
       }
-
-      // Navigate to Settings when advancing from today_screen to settings tutorial
-      if (currentStep === 'today_screen') {
-        try {
-          router.push('/(tabs)/settings')
-        } catch (error) {
-          console.error('Failed to navigate to Settings:', error)
-        }
-      }
-
-      setTimeout(() => nextStep(nextStepValue), 150)
-    } else if (currentStep === 'settings_reminders') {
-      // End of Settings tutorial - track completion and complete
-      trackTutorialCompleted()
-      setTimeout(() => completeTutorial(), 150)
-    } else {
-      // No specific next step - just hide the overlay so user can interact
-      setTimeout(() => hideOverlay(), 150)
     }
+
+    if (currentStep === 'settings_categories') {
+      try {
+        router.replace('/(tabs)/')
+      } catch (error) {
+        console.error('Failed to navigate to Today tab:', error)
+      }
+    }
+
+    if (currentStep === 'today_screen') {
+      try {
+        router.push('/(tabs)/planning?openForm=true')
+      } catch (error) {
+        console.error('Failed to navigate to Planning tab:', error)
+      }
+    }
+
+    setTimeout(() => previousStep(), 150)
   }
 
-  const handleNextInteraction = () => {
+  const handleNext = () => {
+    if (!currentStep) return
+
     overlayOpacity.value = withTiming(0, { duration: 150 })
     tooltipScale.value = withTiming(0.9, { duration: 150 })
 
-    // If this step has a specific next step, advance to it instead of just hiding
-    if (stepConfig?.nextStepOnNext) {
-      setTimeout(() => nextStep(stepConfig.nextStepOnNext!), 150)
-    } else {
-      setTimeout(() => hideOverlay(), 150)
+    if (currentStep === 'settings_reminders') {
+      trackTutorialCompleted()
+      setTimeout(() => completeTutorial(), 150)
+      return
     }
+
+    if (currentStep === 'today_add_task_button') {
+      try {
+        router.push('/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true')
+      } catch (error) {
+        console.error('Failed to navigate to Planning tab:', error)
+      }
+    }
+
+    if (currentStep === 'complete_form') {
+      try {
+        router.replace('/(tabs)/')
+      } catch (error) {
+        console.error('Failed to navigate to Today tab:', error)
+      }
+    }
+
+    if (currentStep === 'today_screen') {
+      try {
+        router.push('/(tabs)/settings')
+      } catch (error) {
+        console.error('Failed to navigate to Settings:', error)
+      }
+    }
+
+    setTimeout(() => nextStep(), 150)
   }
 
   const handleSkip = () => {
@@ -314,14 +281,14 @@ export function TutorialSpotlight() {
     opacity: interpolate(tooltipScale.value, [0.9, 1], [0, 1]),
   }))
 
-  if (!isVisible || !stepConfig || !measurement) return null
+  if (!isVisible || !stepConfig) return null
 
   // Tighter padding around the highlighted element
   const PADDING = 6
-  const holeX = measurement.x - PADDING
-  const holeY = measurement.y - PADDING
-  const holeWidth = measurement.width + PADDING * 2
-  const holeHeight = measurement.height + PADDING * 2
+  const holeX = measurement ? measurement.x - PADDING : 0
+  const holeY = measurement ? measurement.y - PADDING : 0
+  const holeWidth = measurement ? measurement.width + PADDING * 2 : 0
+  const holeHeight = measurement ? measurement.height + PADDING * 2 : 0
 
   const tooltipStyle = calculateTooltipPosition(
     stepConfig.position,
@@ -335,49 +302,57 @@ export function TutorialSpotlight() {
       style={[styles.fullScreenOverlay, overlayAnimatedStyle]}
       pointerEvents="box-none"
     >
-      {/* Dark overlay with spotlight cutout - doesn't block touches */}
-      <Svg
-        width={screenWidth}
-        height={screenHeight}
-        style={StyleSheet.absoluteFill}
-        pointerEvents="none"
-      >
-        <Defs>
-          <Mask id="spotlight-mask">
-            <Rect width={screenWidth} height={screenHeight} fill="white" />
-            <Rect
-              x={holeX}
-              y={holeY}
-              width={holeWidth}
-              height={holeHeight}
-              rx={14}
-              ry={14}
-              fill="black"
-            />
-          </Mask>
-        </Defs>
-        <Rect
+      {measurement ? (
+        <Svg
           width={screenWidth}
           height={screenHeight}
-          fill="rgba(0, 0, 0, 0.6)"
-          mask="url(#spotlight-mask)"
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        >
+          <Defs>
+            <Mask id="spotlight-mask">
+              <Rect width={screenWidth} height={screenHeight} fill="white" />
+              <Rect
+                x={holeX}
+                y={holeY}
+                width={holeWidth}
+                height={holeHeight}
+                rx={14}
+                ry={14}
+                fill="black"
+              />
+            </Mask>
+          </Defs>
+          <Rect
+            width={screenWidth}
+            height={screenHeight}
+            fill="rgba(0, 0, 0, 0.6)"
+            mask="url(#spotlight-mask)"
+          />
+        </Svg>
+      ) : (
+        <View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0, 0, 0, 0.6)' }]}
         />
-      </Svg>
+      )}
 
       {/* Soft glow around target - doesn't block touches */}
-      <View
-        pointerEvents="none"
-        style={[
-          styles.spotlightGlow,
-          {
-            left: holeX - 4,
-            top: holeY - 4,
-            width: holeWidth + 8,
-            height: holeHeight + 8,
-            shadowColor: brandColor,
-          },
-        ]}
-      />
+      {measurement && (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.spotlightGlow,
+            {
+              left: holeX - 4,
+              top: holeY - 4,
+              width: holeWidth + 8,
+              height: holeHeight + 8,
+              shadowColor: brandColor,
+            },
+          ]}
+        />
+      )}
 
       {/* Tooltip */}
       <Animated.View
@@ -429,35 +404,38 @@ export function TutorialSpotlight() {
         </Text>
 
         <View style={styles.buttonRow}>
-          {stepConfig.showSkip && (
-            <TouchableOpacity onPress={handleSkip} style={styles.skipButton} activeOpacity={0.6}>
-              <Text className="text-content-tertiary text-sm">{t('common.actions.skipTour')}</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity onPress={handleSkip} style={styles.skipButton} activeOpacity={0.6}>
+            <Text className="text-content-tertiary text-sm">{t('common.actions.skipTour')}</Text>
+          </TouchableOpacity>
 
-          {stepConfig.requiresInteraction && (
+          <View style={styles.navigationButtons}>
             <TouchableOpacity
-              onPress={handleNextInteraction}
-              style={[styles.interactionNextButton, { borderColor: brandColor }]}
+              onPress={handleBack}
+              disabled={!canGoBack}
+              style={[
+                styles.backButton,
+                {
+                  borderColor: theme.colors.border.primary,
+                  opacity: canGoBack ? 1 : 0.45,
+                },
+              ]}
               activeOpacity={0.8}
             >
-              <Text className="font-sans-semibold text-sm" style={{ color: brandColor }}>
-                {t('common.actions.next')}
+              <Text className="font-sans-semibold text-sm" style={{ color: theme.colors.text.secondary }}>
+                {t('common.actions.back')}
               </Text>
             </TouchableOpacity>
-          )}
 
-          {stepConfig.showNext && (
             <TouchableOpacity
-              onPress={handleGotIt}
+              onPress={handleNext}
               style={[styles.nextButton, { backgroundColor: brandColor }]}
               activeOpacity={0.8}
             >
               <Text className="text-white font-sans-semibold text-sm">
-                {t('common.actions.gotIt')}
+                {isFinalStep ? t('common.actions.done') : t('common.actions.next')}
               </Text>
             </TouchableOpacity>
-          )}
+          </View>
         </View>
       </Animated.View>
     </Animated.View>
@@ -466,33 +444,47 @@ export function TutorialSpotlight() {
 
 function calculateTooltipPosition(
   position: 'above' | 'below' | 'center',
-  measurement: TutorialTargetMeasurement,
+  measurement: TutorialTargetMeasurement | null,
   screenWidth: number,
   screenHeight: number,
 ): { top?: number; bottom?: number; left: number; right: number } {
-  const MARGIN = 20
-  const TOOLTIP_OFFSET = 20
+  const left = TOOLTIP_MARGIN
+  const right = TOOLTIP_MARGIN
+
+  const clampTop = (top: number) =>
+    Math.max(
+      TOOLTIP_MARGIN,
+      Math.min(top, screenHeight - TOOLTIP_ESTIMATED_HEIGHT - TOOLTIP_MARGIN),
+    )
+
+  if (!measurement) {
+    return {
+      top: clampTop(screenHeight / 2 - TOOLTIP_ESTIMATED_HEIGHT / 2),
+      left,
+      right,
+    }
+  }
 
   if (position === 'above') {
     return {
-      bottom: screenHeight - measurement.y + TOOLTIP_OFFSET,
-      left: MARGIN,
-      right: MARGIN,
+      top: clampTop(measurement.y - TOOLTIP_OFFSET - TOOLTIP_ESTIMATED_HEIGHT),
+      left,
+      right,
     }
   }
 
   if (position === 'below') {
     return {
-      top: measurement.y + measurement.height + TOOLTIP_OFFSET,
-      left: MARGIN,
-      right: MARGIN,
+      top: clampTop(measurement.y + measurement.height + TOOLTIP_OFFSET),
+      left,
+      right,
     }
   }
 
   return {
-    top: screenHeight / 2 - 100,
-    left: MARGIN,
-    right: MARGIN,
+    top: clampTop(screenHeight / 2 - TOOLTIP_ESTIMATED_HEIGHT / 2),
+    left,
+    right,
   }
 }
 
@@ -532,7 +524,7 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 20,
     gap: 12,
@@ -546,11 +538,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 12,
   },
-  interactionNextButton: {
+  backButton: {
     backgroundColor: 'transparent',
     borderWidth: 1.5,
     paddingVertical: 11,
     paddingHorizontal: 22,
     borderRadius: 12,
+  },
+  navigationButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
 })
