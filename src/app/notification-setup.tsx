@@ -75,7 +75,7 @@ export default function NotificationSetupScreen() {
 
         if (granted) {
           track('notifications_enabled')
-          await NotificationService.cancelAllReminders()
+          await NotificationService.cancelPlanningReminders()
           const planningId = await NotificationService.schedulePlanningReminder(
             planTime.getHours(),
             planTime.getMinutes(),

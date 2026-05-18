@@ -223,10 +223,7 @@ export default function PlanningScreen() {
       } catch (error) {
         console.error('[EveningRollover] Failed to carry forward tasks:', error)
         // Keep modal open so user can retry or start fresh
-        Alert.alert(
-          copy.planning.carryForwardErrorTitle,
-          copy.planning.carryForwardErrorMessage,
-        )
+        Alert.alert(copy.planning.carryForwardErrorTitle, copy.planning.carryForwardErrorMessage)
       }
     },
     [
@@ -326,6 +323,7 @@ export default function PlanningScreen() {
     // Check if it's a system category (form uses lowercase IDs like 'work', 'wellness')
     const isSystemCategory = Object.keys(FORM_TO_DB_CATEGORY).includes(task.category)
     const systemCategoryId = isSystemCategory ? getSystemCategoryId(task.category) : undefined
+    let reminderScheduleFailed = false
 
     try {
       if (editingTask) {
@@ -351,16 +349,17 @@ export default function PlanningScreen() {
         }
 
         // Update existing task
-        await updateTask.mutateAsync({
+        const result = await updateTask.mutateAsync({
           taskId: editingTask.id,
           updates,
           originalDate,
         })
+        reminderScheduleFailed = !!task.reminderAt && !result.data.reminder_at
       } else {
         // Create new task for the header's selected day
         const targetDate = selectedTarget === 'today' ? todayDate : tomorrowDate
 
-        await createTask.mutateAsync({
+        const createdTask = await createTask.mutateAsync({
           scheduledDate: targetDate,
           title: task.title,
           priority: task.priority,
@@ -370,9 +369,16 @@ export default function PlanningScreen() {
           reminderAt: task.reminderAt,
         })
 
+        reminderScheduleFailed = !!task.reminderAt && !createdTask.reminder_at
       }
       // Close form after successful submission
       handleCloseForm()
+      if (reminderScheduleFailed) {
+        Alert.alert(
+          'Task saved without reminder',
+          'The reminder was not scheduled. Make sure notifications are enabled and the reminder time is in the future, then edit the task to add it again.',
+        )
+      }
     } catch (error) {
       Alert.alert(
         editingTask ? copy.planning.updateTaskErrorTitle : copy.planning.createTaskErrorTitle,

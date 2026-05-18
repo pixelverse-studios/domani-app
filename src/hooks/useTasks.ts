@@ -214,7 +214,7 @@ export function useCreateTask() {
           priority,
           estimated_duration_minutes: estimatedDurationMinutes,
           notes,
-          reminder_at: reminderAt,
+          reminder_at: null,
           scheduled_date: scheduledDate,
         })
         .select(
@@ -231,19 +231,33 @@ export function useCreateTask() {
       }
 
       // Schedule reminder notification if set
-      if (data.reminder_at) {
+      if (reminderAt) {
         const notificationId = await NotificationService.scheduleTaskReminder({
           id: data.id,
           title: data.title,
           is_mit: data.is_mit,
-          reminder_at: data.reminder_at,
+          reminder_at: reminderAt,
           notes: data.notes,
         })
 
-        // Update task with notification ID for later cancellation
+        // Only persist reminder_at once the local notification is scheduled.
         if (notificationId) {
-          await supabase.from('tasks').update({ notification_id: notificationId }).eq('id', data.id)
-          data.notification_id = notificationId
+          const { error: reminderUpdateError } = await supabase
+            .from('tasks')
+            .update({ reminder_at: reminderAt, notification_id: notificationId })
+            .eq('id', data.id)
+
+          if (reminderUpdateError) {
+            await NotificationService.cancelTaskReminder(notificationId)
+            data.reminder_at = null
+            data.notification_id = null
+          } else {
+            data.reminder_at = reminderAt
+            data.notification_id = notificationId
+          }
+        } else {
+          data.reminder_at = null
+          data.notification_id = null
         }
       }
 
@@ -342,14 +356,29 @@ export function useUpdateTask() {
 
           // Update task with new notification ID
           if (notificationId) {
-            await supabase
+            const { error: notificationUpdateError } = await supabase
               .from('tasks')
               .update({ notification_id: notificationId })
               .eq('id', taskId)
-            data.notification_id = notificationId
+
+            if (notificationUpdateError) {
+              await NotificationService.cancelTaskReminder(notificationId)
+              await supabase
+                .from('tasks')
+                .update({ reminder_at: null, notification_id: null })
+                .eq('id', taskId)
+              data.reminder_at = null
+              data.notification_id = null
+            } else {
+              data.notification_id = notificationId
+            }
           } else {
-            // Clear notification_id if scheduling failed or reminder is in the past
-            await supabase.from('tasks').update({ notification_id: null }).eq('id', taskId)
+            // Clear reminder fields if scheduling failed or reminder is in the past.
+            await supabase
+              .from('tasks')
+              .update({ reminder_at: null, notification_id: null })
+              .eq('id', taskId)
+            data.reminder_at = null
             data.notification_id = null
           }
         } else {
