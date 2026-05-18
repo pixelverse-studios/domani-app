@@ -28,36 +28,36 @@ describe('useTutorialAdvancement', () => {
   it('moves through the passive planning steps in order', () => {
     const { result } = renderHookWithProviders(() => useTutorialAdvancement())
 
-    setTutorialStep('title_input')
+    setTutorialStep('task_title')
     act(() => result.current.advanceFromTitleInput())
-    expect(useTutorialStore.getState().currentStep).toBe('category_selector')
+    expect(useTutorialStore.getState().currentStep).toBe('task_category')
 
     act(() => result.current.advanceFromCategorySelector())
-    expect(useTutorialStore.getState().currentStep).toBe('more_categories_button')
+    expect(useTutorialStore.getState().currentStep).toBe('task_priority')
 
     act(() => result.current.advanceFromMoreCategoriesButton())
-    expect(useTutorialStore.getState().currentStep).toBe('priority_selector')
+    expect(useTutorialStore.getState().currentStep).toBe('task_priority')
   })
 
-  it('treats top priority as an informational stop before task completion', () => {
+  it('moves from priority to reminder before task submission', () => {
     const { result } = renderHookWithProviders(() => useTutorialAdvancement())
 
-    setTutorialStep('priority_selector')
+    setTutorialStep('task_priority')
     act(() => result.current.advanceFromPrioritySelector('top'))
-    expect(useTutorialStore.getState().currentStep).toBe('top_priority')
+    expect(useTutorialStore.getState().currentStep).toBe('task_reminder')
 
-    act(() => result.current.advanceFromTopPriority())
-    expect(useTutorialStore.getState().currentStep).toBe('complete_form')
+    act(() => result.current.advanceFromDayToggle())
+    expect(useTutorialStore.getState().currentStep).toBe('task_submit')
   })
 
   it('can advance after category setup without storing created IDs', () => {
     const { result } = renderHookWithProviders(() => useTutorialAdvancement())
 
-    setTutorialStep('category_selector')
+    setTutorialStep('task_category')
     act(() => result.current.advanceFromCreateCategory())
 
     expect(useTutorialStore.getState()).toMatchObject({
-      currentStep: 'more_categories_button',
+      currentStep: 'task_priority',
     })
   })
 })

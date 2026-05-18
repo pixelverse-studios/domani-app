@@ -6,7 +6,6 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
-  Modal,
 } from 'react-native'
 import Animated, {
   useAnimatedStyle,
@@ -25,7 +24,6 @@ import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
 import { formatLocalizedTime, uses24HourClock } from '~/i18n/date'
 import { getTheme } from '~/theme/themes'
-import { useTutorialTarget } from '~/components/tutorial'
 import { useProfile, useUpdateProfile } from '~/hooks/useProfile'
 
 // Enable LayoutAnimation on Android
@@ -95,7 +93,6 @@ export function ReminderShortcutsSection() {
   const is24Hour = React.useMemo(() => uses24HourClock(locale), [locale])
   const { profile } = useProfile()
   const updateProfile = useUpdateProfile()
-  const { targetRef, measureTarget } = useTutorialTarget('settings_reminders')
 
   const [isExpanded, setIsExpanded] = useState(false)
   const [editingShortcut, setEditingShortcut] = useState<{
@@ -181,11 +178,7 @@ export function ReminderShortcutsSection() {
   }
 
   return (
-    <View
-      ref={targetRef}
-      onLayout={measureTarget}
-      style={[styles.container, { backgroundColor: theme.colors.card }]}
-    >
+    <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
       {/* Header Section - Always Visible */}
       <TouchableOpacity
         onPress={handleToggleExpand}

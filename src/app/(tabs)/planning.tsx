@@ -375,12 +375,12 @@ export default function PlanningScreen() {
         })
 
         // Passive tutorial progression does not depend on the created task.
-        if (isTutorialActive && currentStep === 'complete_form') {
+        if (isTutorialActive && currentStep === 'task_submit') {
           try {
             router.replace('/(tabs)/')
             advanceFromCompleteForm()
           } catch (error) {
-            console.error('Failed to advance tutorial from complete_form:', error)
+            console.error('Failed to advance tutorial from task_submit:', error)
           }
         }
       }
@@ -473,7 +473,7 @@ export default function PlanningScreen() {
               scrollViewRef.current?.scrollTo({ y: 120, animated: true })
             }}
             onScrollToBottom={() => {
-              // Scroll to show Add Task button during complete_form tutorial step
+              // Scroll to show Add Task button during task_submit tutorial step
               // Use fixed position instead of scrollToEnd to leave room for tooltip above
               scrollViewRef.current?.scrollTo({ y: 340, animated: true })
             }}

@@ -30,22 +30,18 @@ type TutorialStepConfig = {
 }
 
 const SPOTLIGHT_STEPS: TutorialStep[] = [
-  'plan_today_button',
-  'today_add_task_button',
-  'title_input',
-  'category_selector',
-  'more_categories_button',
-  'priority_selector',
-  'top_priority',
-  'day_toggle',
-  'complete_form',
-  'today_screen',
-  // Settings tutorial steps
-  'settings_categories',
-  'settings_reminders',
+  'today_overview',
+  'today_primary_action',
+  'planning_form',
+  'task_title',
+  'task_category',
+  'task_priority',
+  'task_reminder',
+  'task_submit',
+  'complete',
 ]
 
-const TOTAL_STEPS = 5
+const TOTAL_STEPS = 9
 const TOOLTIP_MARGIN = 20
 const TOOLTIP_OFFSET = 20
 const TOOLTIP_ESTIMATED_HEIGHT = 220
@@ -61,75 +57,59 @@ export function TutorialSpotlight() {
   const brandColor = theme.colors.brand.primary
   const stepConfigMap: Record<TutorialStep, TutorialStepConfig> = {
     welcome: { title: '', description: '', position: 'center' },
-    plan_today_button: {
-      title: t('tutorial.steps.planTodayButtonTitle'),
-      description: t('tutorial.steps.planTodayButtonDescription'),
-      position: 'above',
-      stepNumber: 1,
-    },
-    today_add_task_button: {
-      title: t('tutorial.steps.todayAddTaskButtonTitle'),
-      description: t('tutorial.steps.todayAddTaskButtonDescription'),
-      position: 'above',
-      stepNumber: 1,
-    },
-    title_input: {
-      title: t('tutorial.steps.titleInputTitle'),
-      description: t('tutorial.steps.titleInputDescription'),
+    today_overview: {
+      title: t('tutorial.steps.todayOverviewTitle'),
+      description: t('tutorial.steps.todayOverviewDescription'),
       position: 'below',
+      stepNumber: 1,
+    },
+    today_primary_action: {
+      title: t('tutorial.steps.todayPrimaryActionTitle'),
+      description: t('tutorial.steps.todayPrimaryActionDescription'),
+      position: 'above',
       stepNumber: 2,
     },
-    category_selector: {
-      title: t('tutorial.steps.categorySelectorTitle'),
-      description: t('tutorial.steps.categorySelectorDescription'),
-      position: 'above',
+    planning_form: {
+      title: t('tutorial.steps.planningFormTitle'),
+      description: t('tutorial.steps.planningFormDescription'),
+      position: 'below',
       stepNumber: 3,
     },
-    more_categories_button: {
-      title: t('tutorial.steps.moreCategoriesButtonTitle'),
-      description: t('tutorial.steps.moreCategoriesButtonDescription'),
-      position: 'above',
-      stepNumber: 3,
-    },
-    priority_selector: {
-      title: t('tutorial.steps.prioritySelectorTitle'),
-      description: t('tutorial.steps.prioritySelectorDescription'),
-      position: 'above',
+    task_title: {
+      title: t('tutorial.steps.taskTitleTitle'),
+      description: t('tutorial.steps.taskTitleDescription'),
+      position: 'below',
       stepNumber: 4,
     },
-    top_priority: {
-      title: t('tutorial.steps.topPriorityTitle'),
-      description: t('tutorial.steps.topPriorityDescription'),
-      position: 'above',
-      stepNumber: 4,
-    },
-    day_toggle: {
-      title: t('tutorial.steps.dayToggleTitle'),
-      description: t('tutorial.steps.dayToggleDescription'),
-      position: 'below',
-      stepNumber: 5,
-    },
-    complete_form: {
-      title: t('tutorial.steps.completeFormTitle'),
-      description: t('tutorial.steps.completeFormDescription'),
+    task_category: {
+      title: t('tutorial.steps.taskCategoryTitle'),
+      description: t('tutorial.steps.taskCategoryDescription'),
       position: 'above',
       stepNumber: 5,
     },
-    today_screen: {
-      title: t('tutorial.steps.todayScreenTitle'),
-      description: t('tutorial.steps.todayScreenDescription'),
-      position: 'below',
-      stepNumber: 5,
-    },
-    settings_categories: {
-      title: t('tutorial.steps.settingsCategoriesTitle'),
-      description: t('tutorial.steps.settingsCategoriesDescription'),
-      position: 'below',
-    },
-    settings_reminders: {
-      title: t('tutorial.steps.settingsRemindersTitle'),
-      description: t('tutorial.steps.settingsRemindersDescription'),
+    task_priority: {
+      title: t('tutorial.steps.taskPriorityTitle'),
+      description: t('tutorial.steps.taskPriorityDescription'),
       position: 'above',
+      stepNumber: 6,
+    },
+    task_reminder: {
+      title: t('tutorial.steps.taskReminderTitle'),
+      description: t('tutorial.steps.taskReminderDescription'),
+      position: 'below',
+      stepNumber: 7,
+    },
+    task_submit: {
+      title: t('tutorial.steps.taskSubmitTitle'),
+      description: t('tutorial.steps.taskSubmitDescription'),
+      position: 'above',
+      stepNumber: 8,
+    },
+    complete: {
+      title: t('tutorial.steps.completeTitle'),
+      description: t('tutorial.steps.completeDescription'),
+      position: 'center',
+      stepNumber: 9,
     },
   }
 
@@ -156,7 +136,7 @@ export function TutorialSpotlight() {
   const isSpotlightStep = currentStep && SPOTLIGHT_STEPS.includes(currentStep)
   const isVisible = !isLoading && isActive && isSpotlightStep && !isOverlayHidden
   const currentStepIndex = currentStep ? TUTORIAL_STEPS.indexOf(currentStep) : -1
-  const isFinalStep = currentStep === 'settings_reminders'
+  const isFinalStep = currentStep === 'complete'
   const canGoBack = currentStepIndex > 0
 
   // Trigger haptic feedback and track step view when spotlight appears
@@ -195,7 +175,7 @@ export function TutorialSpotlight() {
     overlayOpacity.value = withTiming(0, { duration: 150 })
     tooltipScale.value = withTiming(0.9, { duration: 150 })
 
-    if (currentStep === 'title_input') {
+    if (currentStep === 'planning_form') {
       try {
         router.replace('/(tabs)/')
       } catch (error) {
@@ -203,17 +183,9 @@ export function TutorialSpotlight() {
       }
     }
 
-    if (currentStep === 'settings_categories') {
+    if (currentStep === 'complete') {
       try {
-        router.replace('/(tabs)/')
-      } catch (error) {
-        console.error('Failed to navigate to Today tab:', error)
-      }
-    }
-
-    if (currentStep === 'today_screen') {
-      try {
-        router.push('/(tabs)/planning?openForm=true')
+        router.push('/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true')
       } catch (error) {
         console.error('Failed to navigate to Planning tab:', error)
       }
@@ -228,13 +200,13 @@ export function TutorialSpotlight() {
     overlayOpacity.value = withTiming(0, { duration: 150 })
     tooltipScale.value = withTiming(0.9, { duration: 150 })
 
-    if (currentStep === 'settings_reminders') {
+    if (currentStep === 'complete') {
       trackTutorialCompleted()
       setTimeout(() => completeTutorial(), 150)
       return
     }
 
-    if (currentStep === 'today_add_task_button') {
+    if (currentStep === 'today_primary_action') {
       try {
         router.push('/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true')
       } catch (error) {
@@ -242,19 +214,11 @@ export function TutorialSpotlight() {
       }
     }
 
-    if (currentStep === 'complete_form') {
+    if (currentStep === 'task_submit') {
       try {
         router.replace('/(tabs)/')
       } catch (error) {
         console.error('Failed to navigate to Today tab:', error)
-      }
-    }
-
-    if (currentStep === 'today_screen') {
-      try {
-        router.push('/(tabs)/settings')
-      } catch (error) {
-        console.error('Failed to navigate to Settings:', error)
       }
     }
 

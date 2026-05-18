@@ -131,7 +131,7 @@ describe('PlanningScreen tutorial submit flow', () => {
     } as unknown as ReturnType<typeof useDeleteTask>)
     mockUseTutorialAdvancement.mockReturnValue({
       isActive: true,
-      currentStep: 'complete_form',
+      currentStep: 'task_submit',
       shouldHighlight: jest.fn(),
       advanceFromTodayButton: jest.fn(),
       advanceFromTitleInput: jest.fn(),

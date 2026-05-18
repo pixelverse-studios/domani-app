@@ -10,7 +10,6 @@ import Animated, {
 
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
-import { useTutorialTarget } from '~/components/tutorial'
 
 export type PlanningTarget = 'today' | 'tomorrow'
 
@@ -76,7 +75,6 @@ function PillDayToggle({
   const theme = useAppTheme()
   const { t } = useTranslation()
   const brandColor = theme.colors.brand.primary
-  const { targetRef, measureTarget } = useTutorialTarget('day_toggle')
   const indicatorPosition = useSharedValue(selectedTarget === 'today' ? 0 : TODAY_WIDTH)
   const indicatorWidth = useSharedValue(selectedTarget === 'today' ? TODAY_WIDTH : TOMORROW_WIDTH)
   const scaleY = useSharedValue(1)
@@ -104,8 +102,6 @@ function PillDayToggle({
 
   return (
     <View
-      ref={targetRef}
-      onLayout={measureTarget}
       className="flex-row rounded-full"
       style={{
         padding: TOGGLE_PADDING,

@@ -88,9 +88,7 @@ export function CategorySelector({
   disabled = false,
 }: CategorySelectorProps) {
   const { targetRef: categorySelectorRef, measureTarget: measureCategorySelector } =
-    useTutorialTarget('category_selector')
-  const { targetRef: moreCategoriesRef, measureTarget: measureMoreCategories } =
-    useTutorialTarget('more_categories_button')
+    useTutorialTarget('task_category')
   const theme = useAppTheme()
   const { locale } = useTranslation()
   const copy = getMainScreenCopy(locale)
@@ -516,7 +514,7 @@ export function CategorySelector({
 
         {/* "+N more" button - opens bottom sheet */}
         {additionalCount > 0 && (
-          <View ref={moreCategoriesRef} onLayout={measureMoreCategories}>
+          <View>
             <TouchableOpacity
               onPress={openSheet}
               disabled={disabled}

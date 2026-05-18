@@ -98,7 +98,7 @@ describe('tutorialStore', () => {
   it('marks the tutorial complete when skipped', async () => {
     const query = createProfilesQuery()
     mockFrom.mockReturnValue(query)
-    resetTutorialStore({ isActive: true, currentStep: 'priority_selector', isLoading: false })
+    resetTutorialStore({ isActive: true, currentStep: 'task_priority', isLoading: false })
 
     useTutorialStore.getState().skipTutorial()
 
@@ -119,7 +119,7 @@ describe('tutorialStore', () => {
   it('marks the tutorial complete when finished', async () => {
     const query = createProfilesQuery()
     mockFrom.mockReturnValue(query)
-    resetTutorialStore({ isActive: true, currentStep: 'settings_reminders', isLoading: false })
+    resetTutorialStore({ isActive: true, currentStep: 'complete', isLoading: false })
 
     useTutorialStore.getState().completeTutorial()
 
@@ -145,10 +145,10 @@ describe('tutorialStore', () => {
       currentStep: null,
       hasCompletedTutorial: true,
       pausedAt: Date.now(),
-      pausedStep: 'priority_selector',
+      pausedStep: 'task_priority',
       abandonCount: 2,
       analyticsStartTime: Date.now(),
-      analyticsViewedSteps: new Set<TutorialStep>(['welcome', 'priority_selector']),
+      analyticsViewedSteps: new Set<TutorialStep>(['welcome', 'task_priority']),
     })
 
     useTutorialStore.getState().resetTutorial()
@@ -174,7 +174,7 @@ describe('tutorialStore', () => {
   it('advances to the next ordered step without requiring created tutorial data', () => {
     resetTutorialStore({
       isActive: true,
-      currentStep: 'category_selector',
+      currentStep: 'task_category',
       isLoading: false,
       isOverlayHidden: true,
     })
@@ -182,7 +182,7 @@ describe('tutorialStore', () => {
     useTutorialStore.getState().nextStep()
 
     expect(useTutorialStore.getState()).toMatchObject({
-      currentStep: 'more_categories_button',
+      currentStep: 'task_priority',
       isOverlayHidden: false,
     })
   })
@@ -190,7 +190,7 @@ describe('tutorialStore', () => {
   it('moves backward through ordered tutorial steps', () => {
     resetTutorialStore({
       isActive: true,
-      currentStep: 'priority_selector',
+      currentStep: 'task_priority',
       isLoading: false,
       isOverlayHidden: true,
     })
@@ -198,7 +198,7 @@ describe('tutorialStore', () => {
     useTutorialStore.getState().previousStep()
 
     expect(useTutorialStore.getState()).toMatchObject({
-      currentStep: 'more_categories_button',
+      currentStep: 'task_category',
       isOverlayHidden: false,
     })
   })

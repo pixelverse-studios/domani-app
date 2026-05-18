@@ -15,7 +15,7 @@ interface AddTaskButtonProps {
 
 export function AddTaskButton({ onPress, disabled, label = 'Add Task' }: AddTaskButtonProps) {
   const theme = useAppTheme()
-  const { targetRef, measureTarget } = useTutorialTarget('today_add_task_button')
+  const { targetRef, measureTarget } = useTutorialTarget('today_primary_action')
   const { advanceFromTodayButton } = useTutorialAdvancement()
 
   const handlePress = () => {

@@ -76,7 +76,7 @@ interface AddTaskFormProps {
   autoFocusTitle?: boolean
   /** Callback to scroll parent when transitioning to category step */
   onScrollToCategory?: () => void
-  /** Callback to scroll parent when transitioning to complete_form step */
+  /** Callback to scroll parent when transitioning to task_submit step */
   onScrollToBottom?: () => void
 }
 
@@ -111,10 +111,12 @@ export function AddTaskForm({
       }
     }
   }, [])
+  const { targetRef: formTargetRef, measureTarget: measureFormTarget } =
+    useTutorialTarget('planning_form')
   const { targetRef: titleTargetRef, measureTarget: measureTitleTarget } =
-    useTutorialTarget('title_input')
+    useTutorialTarget('task_title')
   const { targetRef: completeFormRef, measureTarget: measureCompleteForm } =
-    useTutorialTarget('complete_form')
+    useTutorialTarget('task_submit')
   const { advanceFromTitleInput, advanceFromPrioritySelector } = useTutorialAdvancement()
   const { isActive: isTutorialActive, currentStep: tutorialStep } = useTutorialStore()
 
@@ -182,10 +184,9 @@ export function AddTaskForm({
     }
   }, [autoFocusTitle])
 
-  // Scroll to show Add Task button when tutorial enters complete_form step
-  // This handles the case when coming from top_priority step (via "Got it" button)
+  // Scroll to show Add Task button when tutorial enters task_submit step.
   useEffect(() => {
-    if (isTutorialActive && tutorialStep === 'complete_form') {
+    if (isTutorialActive && tutorialStep === 'task_submit') {
       onScrollToBottom?.()
       // Re-measure after scroll completes
       const timer = setTimeout(() => {
@@ -291,25 +292,21 @@ export function AddTaskForm({
     setSelectedPriority(priority)
     // Advance tutorial when priority is selected
     advanceFromPrioritySelector(priority)
-    // Only scroll to bottom if going directly to complete_form (non-top priorities)
-    // Top priority shows top_priority step first, scroll happens later
-    if (priority !== 'top') {
-      onScrollToBottom?.()
-      // Clear any existing timer before setting a new one
-      if (priorityScrollTimer.current) {
-        clearTimeout(priorityScrollTimer.current)
-      }
-      // Re-measure the complete_form target after scroll animation completes
-      priorityScrollTimer.current = setTimeout(() => {
-        if (isMountedRef.current) {
-          try {
-            measureCompleteForm()
-          } catch (error) {
-            console.error('Failed to measure complete form:', error)
-          }
-        }
-      }, TUTORIAL_SCROLL_DELAY)
+    onScrollToBottom?.()
+    // Clear any existing timer before setting a new one
+    if (priorityScrollTimer.current) {
+      clearTimeout(priorityScrollTimer.current)
     }
+    // Re-measure the submit target after scroll animation completes
+    priorityScrollTimer.current = setTimeout(() => {
+      if (isMountedRef.current) {
+        try {
+          measureCompleteForm()
+        } catch (error) {
+          console.error('Failed to measure task submit:', error)
+        }
+      }
+    }, TUTORIAL_SCROLL_DELAY)
   }
 
   const handleSubmit = async () => {
@@ -353,6 +350,8 @@ export function AddTaskForm({
 
   return (
     <View
+      ref={formTargetRef}
+      onLayout={measureFormTarget}
       className="mx-5 mt-6 p-5 rounded-2xl"
       style={{
         backgroundColor: theme.colors.card,
@@ -496,7 +495,7 @@ export function AddTaskForm({
         />
       )}
 
-      {/* Action Buttons - Tutorial target for complete_form step */}
+      {/* Action Buttons - Tutorial target for task_submit step */}
       <View
         ref={completeFormRef}
         onLayout={measureCompleteForm}

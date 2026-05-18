@@ -341,41 +341,32 @@ export const en = {
   tutorial: {
     progress: '{{current}} of {{total}}',
     steps: {
-      planTodayButtonTitle: 'Plan Your Day',
-      planTodayButtonDescription: 'Tap here to add your first task for today.',
-      todayAddTaskButtonTitle: 'Add More Tasks',
-      todayAddTaskButtonDescription:
-        'This is your Today view with existing tasks. Tap here to add another task.',
-      titleInputTitle: 'Name Your Task',
-      titleInputDescription: 'Keep it short and actionable.',
-      categorySelectorTitle: 'Create a Custom Category',
-      categorySelectorDescription: 'Tap "+ New" to create your first custom category.',
-      createCategoryTitle: 'Create Your Own',
-      createCategoryDescription: 'Tap "+ New" to add a custom category.',
-      moreCategoriesButtonTitle: 'See All Categories',
-      moreCategoriesButtonDescription: 'Tap here to view and manage all your categories.',
-      prioritySelectorTitle: 'Set Your Priority',
-      prioritySelectorDescription: 'How important is this task?',
-      topPriorityTitle: 'Your #1 Priority',
-      topPriorityDescription:
-        'This becomes your Most Important Task — the one thing you must complete today.',
-      dayToggleTitle: 'Plan Ahead',
-      dayToggleDescription: 'Schedule for today or prep tomorrow tonight.',
-      completeFormTitle: 'Finish Up',
-      completeFormDescription:
-        'Notes and reminders are optional. Tap "Add Task" to create your first task!',
-      taskCreatedTitle: 'Task Created!',
-      taskCreatedDescription:
-        "Here's your task! Notice the category and priority. Let's see it on your Today screen.",
-      todayScreenTitle: 'Your Focus View',
-      todayScreenDescription:
-        "Your most important task and daily progress live here. Next, let's explore a few helpful Settings.",
-      settingsCategoriesTitle: 'Smart Categories',
-      settingsCategoriesDescription:
-        'Welcome to Settings! Smart Categories learns your habits and auto-sorts your favorites. You can disable it to pick manually.',
-      settingsRemindersTitle: 'Reminder Shortcuts',
-      settingsRemindersDescription:
-        'Set up quick reminder presets for common times like morning, afternoon, or evening.',
+      todayOverviewTitle: 'Today Is Your Launchpad',
+      todayOverviewDescription:
+        'This is where your planned tasks appear when it is time to execute.',
+      todayPrimaryActionTitle: 'Start Tomorrow’s Plan',
+      todayPrimaryActionDescription:
+        'Use this action to open the planning flow. You do not need to create anything during the tour.',
+      planningFormTitle: 'One Focused Planning Form',
+      planningFormDescription:
+        'A task only needs a title, category, priority, and optional reminder to be useful tomorrow.',
+      taskTitleTitle: 'Name the Next Action',
+      taskTitleDescription: 'Keep the title short, clear, and easy to start.',
+      taskCategoryTitle: 'Give It Context',
+      taskCategoryDescription:
+        'Categories keep work, personal, home, and wellness tasks easy to scan.',
+      taskPriorityTitle: 'Choose the Weight',
+      taskPriorityDescription:
+        'Priority tells tomorrow-you what deserves attention first.',
+      taskReminderTitle: 'Add a Nudge',
+      taskReminderDescription:
+        'Reminders are optional, but useful when a task depends on a specific time.',
+      taskSubmitTitle: 'Save the Plan',
+      taskSubmitDescription:
+        'The submit button creates the task. The tour can continue without pressing it.',
+      completeTitle: 'You’re Ready',
+      completeDescription:
+        'When you create a task for tomorrow, it appears in Today when that day arrives.',
     },
   },
   analytics: {

@@ -16,7 +16,7 @@ export function EmptyState() {
   const { locale } = useTranslation()
   const copy = getMainScreenCopy(locale)
   const brandColor = theme.colors.brand.primary
-  const { targetRef, measureTarget } = useTutorialTarget('plan_today_button')
+  const { targetRef, measureTarget } = useTutorialTarget('today_primary_action')
   const { advanceFromTodayButton } = useTutorialAdvancement()
 
   const handlePlanToday = () => {
