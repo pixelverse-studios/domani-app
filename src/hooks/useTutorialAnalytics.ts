@@ -9,15 +9,14 @@ import { TutorialStep, useTutorialStore } from '~/stores/tutorialStore'
  */
 const STEP_NUMBERS: Record<TutorialStep, number> = {
   welcome: 1,
-  today_overview: 2,
-  today_primary_action: 3,
-  planning_form: 4,
-  task_title: 5,
-  task_category: 6,
-  task_priority: 7,
-  task_reminder: 8,
-  task_submit: 9,
-  complete: 10,
+  today_primary_action: 2,
+  planning_form: 3,
+  task_title: 4,
+  task_category: 5,
+  task_priority: 6,
+  task_reminder: 7,
+  task_submit: 8,
+  complete: 9,
 }
 
 /**

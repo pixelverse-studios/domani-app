@@ -9,7 +9,6 @@ import { supabase } from '~/lib/supabase'
  */
 export type TutorialStep =
   | 'welcome'
-  | 'today_overview'
   | 'today_primary_action'
   | 'planning_form'
   | 'task_title'
@@ -21,7 +20,6 @@ export type TutorialStep =
 
 export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   'welcome',
-  'today_overview',
   'today_primary_action',
   'planning_form',
   'task_title',
@@ -40,6 +38,13 @@ export interface TutorialTargetMeasurement {
   y: number
   width: number
   height: number
+}
+
+function createEmptyTargetMeasurements(): Record<TutorialStep, TutorialTargetMeasurement | null> {
+  return Object.fromEntries(TUTORIAL_STEPS.map((step) => [step, null])) as Record<
+    TutorialStep,
+    TutorialTargetMeasurement | null
+  >
 }
 
 /**
@@ -145,18 +150,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
 
   analyticsStartTime: null,
   analyticsViewedSteps: new Set<TutorialStep>(),
-  targetMeasurements: {
-    welcome: null,
-    today_overview: null,
-    today_primary_action: null,
-    planning_form: null,
-    task_title: null,
-    task_category: null,
-    task_priority: null,
-    task_reminder: null,
-    task_submit: null,
-    complete: null,
-  },
+  targetMeasurements: createEmptyTargetMeasurements(),
 
   // Initialize tutorial state from database
   initializeTutorialState: async (userId: string) => {
@@ -189,6 +183,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
         set({
           isActive: true,
           currentStep: 'welcome',
+          targetMeasurements: createEmptyTargetMeasurements(),
         })
       }
     } catch (error) {
@@ -204,6 +199,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
     set({
       isActive: true,
       currentStep: 'welcome',
+      targetMeasurements: createEmptyTargetMeasurements(),
     }),
 
   // Advance through the ordered passive walkthrough, or jump to a supplied step
@@ -214,6 +210,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
         return {
           currentStep: step,
           isOverlayHidden: false,
+          targetMeasurements: createEmptyTargetMeasurements(),
         }
       }
 
@@ -221,6 +218,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
         return {
           currentStep: 'welcome',
           isOverlayHidden: false,
+          targetMeasurements: createEmptyTargetMeasurements(),
         }
       }
 
@@ -230,6 +228,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
       return {
         currentStep: nextStepValue,
         isOverlayHidden: false,
+        targetMeasurements: createEmptyTargetMeasurements(),
       }
     }),
 
@@ -239,6 +238,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
         return {
           currentStep: 'welcome',
           isOverlayHidden: false,
+          targetMeasurements: createEmptyTargetMeasurements(),
         }
       }
 
@@ -248,6 +248,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
       return {
         currentStep: previousStepValue,
         isOverlayHidden: false,
+        targetMeasurements: createEmptyTargetMeasurements(),
       }
     }),
 
@@ -260,6 +261,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
       isActive: false,
       currentStep: null,
       hasCompletedTutorial: true,
+      targetMeasurements: createEmptyTargetMeasurements(),
     })
   },
 
@@ -272,6 +274,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
       isActive: false,
       currentStep: null,
       hasCompletedTutorial: true,
+      targetMeasurements: createEmptyTargetMeasurements(),
     })
   },
 
@@ -290,6 +293,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
       abandonCount: 0,
       analyticsStartTime: null,
       analyticsViewedSteps: new Set<TutorialStep>(),
+      targetMeasurements: createEmptyTargetMeasurements(),
     })
   },
 
@@ -331,6 +335,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
         pausedAt: null,
         pausedStep: null,
         isOverlayHidden: false,
+        targetMeasurements: createEmptyTargetMeasurements(),
       })
     } else {
       // Too long - restart fresh, increment abandon count
@@ -345,6 +350,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
         abandonCount: newAbandonCount,
         analyticsStartTime: null,
         analyticsViewedSteps: new Set(),
+        targetMeasurements: createEmptyTargetMeasurements(),
       })
 
       // Log if they're frequently abandoning (could show different UI)

@@ -149,6 +149,10 @@ describe('tutorialStore', () => {
       abandonCount: 2,
       analyticsStartTime: Date.now(),
       analyticsViewedSteps: new Set<TutorialStep>(['welcome', 'task_priority']),
+      targetMeasurements: {
+        ...emptyMeasurements(),
+        planning_form: { x: 10, y: 20, width: 200, height: 100 },
+      },
     })
 
     useTutorialStore.getState().resetTutorial()
@@ -164,6 +168,7 @@ describe('tutorialStore', () => {
       analyticsStartTime: null,
     })
     expect(useTutorialStore.getState().analyticsViewedSteps.size).toBe(0)
+    expect(useTutorialStore.getState().targetMeasurements.planning_form).toBeNull()
 
     await waitFor(() => {
       expect(query.update).toHaveBeenCalledWith({ tutorial_completed_at: null })
@@ -177,6 +182,10 @@ describe('tutorialStore', () => {
       currentStep: 'task_category',
       isLoading: false,
       isOverlayHidden: true,
+      targetMeasurements: {
+        ...emptyMeasurements(),
+        task_priority: { x: 10, y: 20, width: 200, height: 100 },
+      },
     })
 
     useTutorialStore.getState().nextStep()
@@ -185,6 +194,7 @@ describe('tutorialStore', () => {
       currentStep: 'task_priority',
       isOverlayHidden: false,
     })
+    expect(useTutorialStore.getState().targetMeasurements.task_priority).toBeNull()
   })
 
   it('moves backward through ordered tutorial steps', () => {

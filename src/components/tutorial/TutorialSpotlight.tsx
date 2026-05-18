@@ -30,7 +30,6 @@ type TutorialStepConfig = {
 }
 
 const SPOTLIGHT_STEPS: TutorialStep[] = [
-  'today_overview',
   'today_primary_action',
   'planning_form',
   'task_title',
@@ -41,7 +40,7 @@ const SPOTLIGHT_STEPS: TutorialStep[] = [
   'complete',
 ]
 
-const TOTAL_STEPS = 9
+const TOTAL_STEPS = 8
 const TOOLTIP_MARGIN = 20
 const TOOLTIP_OFFSET = 20
 const TOOLTIP_ESTIMATED_HEIGHT = 220
@@ -57,59 +56,53 @@ export function TutorialSpotlight() {
   const brandColor = theme.colors.brand.primary
   const stepConfigMap: Record<TutorialStep, TutorialStepConfig> = {
     welcome: { title: '', description: '', position: 'center' },
-    today_overview: {
-      title: t('tutorial.steps.todayOverviewTitle'),
-      description: t('tutorial.steps.todayOverviewDescription'),
-      position: 'below',
-      stepNumber: 1,
-    },
     today_primary_action: {
       title: t('tutorial.steps.todayPrimaryActionTitle'),
       description: t('tutorial.steps.todayPrimaryActionDescription'),
       position: 'above',
-      stepNumber: 2,
+      stepNumber: 1,
     },
     planning_form: {
       title: t('tutorial.steps.planningFormTitle'),
       description: t('tutorial.steps.planningFormDescription'),
       position: 'below',
-      stepNumber: 3,
+      stepNumber: 2,
     },
     task_title: {
       title: t('tutorial.steps.taskTitleTitle'),
       description: t('tutorial.steps.taskTitleDescription'),
       position: 'below',
-      stepNumber: 4,
+      stepNumber: 3,
     },
     task_category: {
       title: t('tutorial.steps.taskCategoryTitle'),
       description: t('tutorial.steps.taskCategoryDescription'),
       position: 'above',
-      stepNumber: 5,
+      stepNumber: 4,
     },
     task_priority: {
       title: t('tutorial.steps.taskPriorityTitle'),
       description: t('tutorial.steps.taskPriorityDescription'),
       position: 'above',
-      stepNumber: 6,
+      stepNumber: 5,
     },
     task_reminder: {
       title: t('tutorial.steps.taskReminderTitle'),
       description: t('tutorial.steps.taskReminderDescription'),
       position: 'below',
-      stepNumber: 7,
+      stepNumber: 6,
     },
     task_submit: {
       title: t('tutorial.steps.taskSubmitTitle'),
       description: t('tutorial.steps.taskSubmitDescription'),
       position: 'above',
-      stepNumber: 8,
+      stepNumber: 7,
     },
     complete: {
       title: t('tutorial.steps.completeTitle'),
       description: t('tutorial.steps.completeDescription'),
       position: 'center',
-      stepNumber: 9,
+      stepNumber: 8,
     },
   }
 
@@ -134,7 +127,9 @@ export function TutorialSpotlight() {
   const stepConfig = currentStep ? stepConfigMap[currentStep] : null
   const measurement = currentStep ? targetMeasurements[currentStep] : null
   const isSpotlightStep = currentStep && SPOTLIGHT_STEPS.includes(currentStep)
-  const isVisible = !isLoading && isActive && isSpotlightStep && !isOverlayHidden
+  const hasRequiredMeasurement = !!stepConfig && (stepConfig.position === 'center' || !!measurement)
+  const isVisible =
+    !isLoading && isActive && isSpotlightStep && !isOverlayHidden && hasRequiredMeasurement
   const currentStepIndex = currentStep ? TUTORIAL_STEPS.indexOf(currentStep) : -1
   const isFinalStep = currentStep === 'complete'
   const canGoBack = currentStepIndex > 0
@@ -185,7 +180,7 @@ export function TutorialSpotlight() {
 
     if (currentStep === 'complete') {
       try {
-        router.push('/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true')
+        router.push('/(tabs)/planning?defaultPlanningFor=today&openForm=true')
       } catch (error) {
         console.error('Failed to navigate to Planning tab:', error)
       }
@@ -208,7 +203,7 @@ export function TutorialSpotlight() {
 
     if (currentStep === 'today_primary_action') {
       try {
-        router.push('/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true')
+        router.push('/(tabs)/planning?defaultPlanningFor=today&openForm=true')
       } catch (error) {
         console.error('Failed to navigate to Planning tab:', error)
       }

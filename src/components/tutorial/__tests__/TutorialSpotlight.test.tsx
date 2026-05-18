@@ -102,11 +102,13 @@ describe('TutorialSpotlight', () => {
 
     renderWithProviders(<TutorialSpotlight />)
 
+    expect(screen.getByText('Plan Today')).toBeTruthy()
+
     fireEvent.press(screen.getByText('Next'))
 
     await waitFor(() => {
       expect(router.push).toHaveBeenCalledWith(
-        '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true',
+        '/(tabs)/planning?defaultPlanningFor=today&openForm=true',
       )
       expect(useTutorialStore.getState().currentStep).toBe('planning_form')
     })
@@ -181,6 +183,33 @@ describe('TutorialSpotlight', () => {
         currentStep: null,
         hasCompletedTutorial: true,
       })
+    })
+  })
+
+  it('waits for measured target coordinates before showing anchored steps', async () => {
+    act(() => {
+      useTutorialStore.setState({
+        isActive: true,
+        currentStep: 'planning_form',
+        hasCompletedTutorial: false,
+        isLoading: false,
+        isOverlayHidden: false,
+        targetMeasurements: emptyMeasurements(),
+      })
+    })
+
+    renderWithProviders(<TutorialSpotlight />)
+
+    expect(screen.queryByText('One Focused Planning Form')).toBeNull()
+
+    act(() => {
+      useTutorialStore
+        .getState()
+        .setTargetMeasurement('planning_form', { x: 24, y: 120, width: 180, height: 48 })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('One Focused Planning Form')).toBeTruthy()
     })
   })
 })

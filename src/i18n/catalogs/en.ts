@@ -344,9 +344,9 @@ export const en = {
       todayOverviewTitle: 'Today Is Your Launchpad',
       todayOverviewDescription:
         'This is where your planned tasks appear when it is time to execute.',
-      todayPrimaryActionTitle: 'Start Tomorrow’s Plan',
+      todayPrimaryActionTitle: 'Plan Today',
       todayPrimaryActionDescription:
-        'Use this action to open the planning flow. You do not need to create anything during the tour.',
+        'Tap here to start planning today. This is where you can add the tasks you want to focus on.',
       planningFormTitle: 'One Focused Planning Form',
       planningFormDescription:
         'A task only needs a title, category, priority, and optional reminder to be useful tomorrow.',
@@ -354,7 +354,7 @@ export const en = {
       taskTitleDescription: 'Keep the title short, clear, and easy to start.',
       taskCategoryTitle: 'Give It Context',
       taskCategoryDescription:
-        'Categories keep work, personal, home, and wellness tasks easy to scan.',
+        'Categories help you spot the kind of day you are building. Use the defaults or create your own as your routine grows.',
       taskPriorityTitle: 'Choose the Weight',
       taskPriorityDescription:
         'Priority tells tomorrow-you what deserves attention first.',

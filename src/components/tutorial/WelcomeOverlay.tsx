@@ -67,7 +67,7 @@ export function WelcomeOverlay() {
       duration: 200,
       useNativeDriver: true,
     }).start(() => {
-      nextStep('today_overview')
+      nextStep('today_primary_action')
     })
   }
 
