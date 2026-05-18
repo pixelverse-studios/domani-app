@@ -1,7 +1,9 @@
 import React from 'react'
+import { router } from 'expo-router'
 
 import { act, fireEvent, renderWithProviders, screen, waitFor } from '~/test/test-utils'
 import {
+  TUTORIAL_STEPS,
   type TutorialStep,
   type TutorialTargetMeasurement,
   useTutorialStore,
@@ -16,28 +18,8 @@ jest.mock('~/hooks/useTutorialAnalytics', () => ({
   })),
 }))
 
-const tutorialSteps: TutorialStep[] = [
-  'welcome',
-  'plan_today_button',
-  'today_add_task_button',
-  'title_input',
-  'category_selector',
-  'create_category',
-  'more_categories_button',
-  'priority_selector',
-  'top_priority',
-  'day_toggle',
-  'complete_form',
-  'task_created',
-  'today_screen',
-  'cleanup',
-  'completion',
-  'settings_categories',
-  'settings_reminders',
-]
-
 function emptyMeasurements(): Record<TutorialStep, TutorialTargetMeasurement | null> {
-  return Object.fromEntries(tutorialSteps.map((step) => [step, null])) as Record<
+  return Object.fromEntries(TUTORIAL_STEPS.map((step) => [step, null])) as Record<
     TutorialStep,
     TutorialTargetMeasurement | null
   >
@@ -79,19 +61,74 @@ describe('TutorialSpotlight', () => {
   })
 
   it('advances overlay controls to the next passive step', async () => {
-    setSpotlightStep('top_priority')
+    setSpotlightStep('task_priority')
 
     renderWithProviders(<TutorialSpotlight />)
 
-    fireEvent.press(screen.getByText('Got it'))
+    fireEvent.press(screen.getByText('Next'))
 
     await waitFor(() => {
-      expect(useTutorialStore.getState().currentStep).toBe('complete_form')
+      expect(useTutorialStore.getState().currentStep).toBe('task_reminder')
+    })
+  })
+
+  it('moves back to the previous passive step', async () => {
+    setSpotlightStep('task_priority')
+
+    renderWithProviders(<TutorialSpotlight />)
+
+    fireEvent.press(screen.getByText('Back'))
+
+    await waitFor(() => {
+      expect(useTutorialStore.getState().currentStep).toBe('task_category')
+    })
+  })
+
+  it('navigates when moving back across tutorial screens', async () => {
+    setSpotlightStep('planning_form')
+
+    renderWithProviders(<TutorialSpotlight />)
+
+    fireEvent.press(screen.getByText('Back'))
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/(tabs)/')
+      expect(useTutorialStore.getState().currentStep).toBe('today_primary_action')
+    })
+  })
+
+  it('navigates to Planning before advancing from the Today CTA step', async () => {
+    setSpotlightStep('today_primary_action')
+
+    renderWithProviders(<TutorialSpotlight />)
+
+    expect(screen.getByText('Plan Today')).toBeTruthy()
+
+    fireEvent.press(screen.getByText('Next'))
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(
+        '/(tabs)/planning?defaultPlanningFor=today&openForm=true',
+      )
+      expect(useTutorialStore.getState().currentStep).toBe('planning_form')
+    })
+  })
+
+  it('navigates back to Today when returning from the planning form step', async () => {
+    setSpotlightStep('planning_form')
+
+    renderWithProviders(<TutorialSpotlight />)
+
+    fireEvent.press(screen.getByText('Back'))
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/(tabs)/')
+      expect(useTutorialStore.getState().currentStep).toBe('today_primary_action')
     })
   })
 
   it('skips and completes the tutorial from the overlay', async () => {
-    setSpotlightStep('priority_selector')
+    setSpotlightStep('task_priority')
 
     renderWithProviders(<TutorialSpotlight />)
 
@@ -107,11 +144,11 @@ describe('TutorialSpotlight', () => {
   })
 
   it('marks the tutorial complete from the final done step', async () => {
-    setSpotlightStep('settings_reminders')
+    setSpotlightStep('complete')
 
     renderWithProviders(<TutorialSpotlight />)
 
-    fireEvent.press(screen.getByText('Got it'))
+    fireEvent.press(screen.getByText('Done'))
 
     await waitFor(() => {
       expect(useTutorialStore.getState()).toMatchObject({
@@ -122,11 +159,11 @@ describe('TutorialSpotlight', () => {
     })
   })
 
-  it('falls forward when an optional target is missing', async () => {
+  it('shows fallback content and allows navigation when a target is missing', async () => {
     act(() => {
       useTutorialStore.setState({
         isActive: true,
-        currentStep: 'more_categories_button',
+        currentStep: 'complete',
         hasCompletedTutorial: false,
         isLoading: false,
         isOverlayHidden: false,
@@ -136,8 +173,43 @@ describe('TutorialSpotlight', () => {
 
     renderWithProviders(<TutorialSpotlight />)
 
+    expect(screen.getByText('You’re Ready')).toBeTruthy()
+
+    fireEvent.press(screen.getByText('Done'))
+
     await waitFor(() => {
-      expect(useTutorialStore.getState().currentStep).toBe('priority_selector')
+      expect(useTutorialStore.getState()).toMatchObject({
+        isActive: false,
+        currentStep: null,
+        hasCompletedTutorial: true,
+      })
+    })
+  })
+
+  it('waits for measured target coordinates before showing anchored steps', async () => {
+    act(() => {
+      useTutorialStore.setState({
+        isActive: true,
+        currentStep: 'planning_form',
+        hasCompletedTutorial: false,
+        isLoading: false,
+        isOverlayHidden: false,
+        targetMeasurements: emptyMeasurements(),
+      })
+    })
+
+    renderWithProviders(<TutorialSpotlight />)
+
+    expect(screen.queryByText('One Focused Planning Form')).toBeNull()
+
+    act(() => {
+      useTutorialStore
+        .getState()
+        .setTargetMeasurement('planning_form', { x: 24, y: 120, width: 180, height: 48 })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('One Focused Planning Form')).toBeTruthy()
     })
   })
 })

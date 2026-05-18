@@ -6,7 +6,6 @@ import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
 import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
-import { useTutorialTarget } from '~/components/tutorial'
 import { SectionHeader } from './SectionHeader'
 import { FavoriteCategoriesAccordion } from './FavoriteCategoriesAccordion'
 import { CategoriesSkeleton } from './SettingsSkeletons'
@@ -29,7 +28,6 @@ export function CategoriesSection({
   const { locale } = useTranslation()
   const copy = getMainScreenCopy(locale)
   const brandColor = theme.colors.brand.primary
-  const { targetRef, measureTarget } = useTutorialTarget('settings_categories')
 
   const showSmartCategoriesInfo = () => {
     Alert.alert(
@@ -40,7 +38,7 @@ export function CategoriesSection({
   }
 
   return (
-    <View ref={targetRef} onLayout={measureTarget}>
+    <View>
       <SectionHeader title={copy.settings.categoriesSection} />
       {isLoading ? (
         <CategoriesSkeleton />

@@ -16,9 +16,7 @@ import { Tag, Search, Plus, Star, Check, X } from 'lucide-react-native'
 
 import { Text, ConfirmationModal } from '~/components/ui'
 import { getCategoryIcon } from '~/utils/categoryIcons'
-import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
-import { useTutorialStore } from '~/stores/tutorialStore'
-import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
+import { useTutorialTarget } from '~/components/tutorial'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
 import { useProfile } from '~/hooks/useProfile'
@@ -88,9 +86,7 @@ export function CategorySelector({
   disabled = false,
 }: CategorySelectorProps) {
   const { targetRef: categorySelectorRef, measureTarget: measureCategorySelector } =
-    useTutorialTarget('category_selector')
-  const { targetRef: moreCategoriesRef, measureTarget: measureMoreCategories } =
-    useTutorialTarget('more_categories_button')
+    useTutorialTarget('task_category')
   const theme = useAppTheme()
   const { locale } = useTranslation()
   const copy = getMainScreenCopy(locale)
@@ -99,14 +95,6 @@ export function CategorySelector({
   const favoriteCategories = useFavoriteCategories(profile?.auto_sort_categories ?? false)
   const createCategory = useCreateUserCategory()
   const deleteCategory = useDeleteUserCategory()
-  const {
-    isActive: isTutorialActive,
-    advanceFromCategorySelector,
-    advanceFromCreateCategory,
-    advanceFromMoreCategoriesButton,
-  } = useTutorialAdvancement()
-  const hideOverlay = useTutorialStore((state) => state.hideOverlay)
-  const { trackTutorialCategoryCreated } = useTutorialAnalytics()
 
   // Bottom sheet state
   const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -192,8 +180,6 @@ export function CategorySelector({
 
   const openSheet = () => {
     if (disabled) return
-    // Hide spotlight while sheet is open
-    hideOverlay()
     setIsSheetOpen(true)
   }
 
@@ -201,14 +187,10 @@ export function CategorySelector({
     Keyboard.dismiss()
     setCategorySearch('')
     setIsSheetOpen(false)
-    // Advance tutorial when sheet closes (so priority tooltip shows after sheet is gone)
-    advanceFromMoreCategoriesButton()
   }
 
   const openCreateModal = () => {
     if (disabled) return
-    // Hide spotlight when modal opens so it doesn't show behind the modal
-    hideOverlay()
     setIsCreateModalOpen(true)
     setTimeout(() => {
       createInputRef.current?.focus()
@@ -227,17 +209,8 @@ export function CategorySelector({
 
     try {
       const newCategory = await createCategory.mutateAsync({ name: trimmedName })
-      // Track category creation during tutorial
-      if (isTutorialActive) {
-        trackTutorialCategoryCreated()
-      }
       onSelectCategory(newCategory.id, newCategory.name)
       closeCreateModal()
-      // Delay tutorial advancement until after modal closes and React Query updates
-      // This ensures the "+N more" button is visible before we try to highlight it
-      setTimeout(() => {
-        advanceFromCreateCategory()
-      }, 400)
     } catch (error) {
       console.error('Failed to create category:', error)
       if (isReservedNameError(error)) {
@@ -252,20 +225,10 @@ export function CategorySelector({
 
   const handleSelectCategory = (category: CategoryOption) => {
     onSelectCategory(category.id, category.label)
-    // Only advance tutorial if user has more than 4 categories (they've created custom ones)
-    // If they only have defaults, they must create a category first
-    if (allCategories.length > 4) {
-      advanceFromCategorySelector()
-    }
   }
 
   const handleSelectCategoryAndClose = (category: CategoryOption) => {
     onSelectCategory(category.id, category.label)
-    // Only advance tutorial if user has more than 4 categories (they've created custom ones)
-    // If they only have defaults, they must create a category first
-    if (allCategories.length > 4) {
-      advanceFromCategorySelector()
-    }
     closeSheet()
   }
 
@@ -274,11 +237,6 @@ export function CategorySelector({
     if (newCategoryName) {
       try {
         const newCategory = await createCategory.mutateAsync({ name: newCategoryName })
-        // Track category creation during tutorial
-        if (isTutorialActive) {
-          trackTutorialCategoryCreated()
-        }
-        advanceFromCreateCategory()
         onSelectCategory(newCategory.id, newCategory.name)
         closeSheet()
       } catch (error) {
@@ -516,7 +474,7 @@ export function CategorySelector({
 
         {/* "+N more" button - opens bottom sheet */}
         {additionalCount > 0 && (
-          <View ref={moreCategoriesRef} onLayout={measureMoreCategories}>
+          <View>
             <TouchableOpacity
               onPress={openSheet}
               disabled={disabled}

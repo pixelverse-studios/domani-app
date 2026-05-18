@@ -9,22 +9,14 @@ import { TutorialStep, useTutorialStore } from '~/stores/tutorialStore'
  */
 const STEP_NUMBERS: Record<TutorialStep, number> = {
   welcome: 1,
-  plan_today_button: 2,
-  today_add_task_button: 2, // Alternative entry point
-  title_input: 3,
-  category_selector: 4,
-  create_category: 4,
-  more_categories_button: 4,
-  priority_selector: 5,
-  top_priority: 5,
-  day_toggle: 6,
-  complete_form: 6,
-  task_created: 7,
-  today_screen: 8,
-  cleanup: 9,
-  completion: 9,
-  settings_categories: 10,
-  settings_reminders: 11,
+  today_primary_action: 2,
+  planning_form: 3,
+  task_title: 4,
+  task_category: 5,
+  task_priority: 6,
+  task_reminder: 7,
+  task_submit: 8,
+  complete: 9,
 }
 
 /**
@@ -101,20 +93,6 @@ export function useTutorialAnalytics() {
   }, [analyticsStartTime, resetAnalyticsState, track])
 
   /**
-   * Track tutorial task creation
-   */
-  const trackTutorialTaskCreated = useCallback(() => {
-    track('tutorial_task_created')
-  }, [track])
-
-  /**
-   * Track tutorial category creation
-   */
-  const trackTutorialCategoryCreated = useCallback(() => {
-    track('tutorial_category_created')
-  }, [track])
-
-  /**
    * Reset tracking state (called when replaying tutorial)
    */
   const resetTracking = useCallback(() => {
@@ -126,8 +104,6 @@ export function useTutorialAnalytics() {
     trackStepViewed,
     trackTutorialSkipped,
     trackTutorialCompleted,
-    trackTutorialTaskCreated,
-    trackTutorialCategoryCreated,
     resetTracking,
   }
 }

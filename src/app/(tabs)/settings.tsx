@@ -77,29 +77,9 @@ function SettingsContent() {
   } = useNotifications()
   const accountDeletion = useAccountDeletion()
   const { phase } = useAppConfig()
-  const { resetTutorial, isActive: isTutorialActive, currentStep } = useTutorialStore()
+  const { resetTutorial } = useTutorialStore()
   const { trackTutorialStarted, resetTracking } = useTutorialAnalytics()
   const tutorialScroll = useTutorialScroll()
-
-  // Scroll to appropriate position for Settings tutorial steps
-  useEffect(() => {
-    if (isTutorialActive && tutorialScroll) {
-      if (currentStep === 'settings_categories') {
-        // Scroll to top - Categories section is near the top
-        const timer = setTimeout(() => {
-          tutorialScroll.scrollToY(0, false) // Instant scroll to top
-        }, 200)
-        return () => clearTimeout(timer)
-      } else if (currentStep === 'settings_reminders') {
-        // Scroll down so Reminders section is visible with room for tooltip above
-        // Using a smaller value to keep the full section in view
-        const timer = setTimeout(() => {
-          tutorialScroll.scrollToY(180, true) // Animated scroll
-        }, 100)
-        return () => clearTimeout(timer)
-      }
-    }
-  }, [isTutorialActive, currentStep, tutorialScroll])
 
   useEffect(() => {
     if (openPaywall === '1') {

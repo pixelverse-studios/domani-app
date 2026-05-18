@@ -1,33 +1,14 @@
 import { waitFor } from '~/test/test-utils'
 import {
+  TUTORIAL_STEPS,
   type TutorialStep,
   type TutorialTargetMeasurement,
   useTutorialStore,
 } from '~/stores/tutorialStore'
 import { supabase } from '~/lib/supabase'
 
-const tutorialSteps: TutorialStep[] = [
-  'welcome',
-  'plan_today_button',
-  'today_add_task_button',
-  'title_input',
-  'category_selector',
-  'create_category',
-  'more_categories_button',
-  'priority_selector',
-  'top_priority',
-  'day_toggle',
-  'complete_form',
-  'task_created',
-  'today_screen',
-  'cleanup',
-  'completion',
-  'settings_categories',
-  'settings_reminders',
-]
-
 function emptyMeasurements(): Record<TutorialStep, TutorialTargetMeasurement | null> {
-  return Object.fromEntries(tutorialSteps.map((step) => [step, null])) as Record<
+  return Object.fromEntries(TUTORIAL_STEPS.map((step) => [step, null])) as Record<
     TutorialStep,
     TutorialTargetMeasurement | null
   >
@@ -43,8 +24,6 @@ function resetTutorialStore(overrides: Partial<ReturnType<typeof useTutorialStor
     pausedAt: null,
     pausedStep: null,
     abandonCount: 0,
-    tutorialCategoryId: null,
-    tutorialTaskId: null,
     analyticsStartTime: null,
     analyticsViewedSteps: new Set<TutorialStep>(),
     targetMeasurements: emptyMeasurements(),
@@ -119,7 +98,7 @@ describe('tutorialStore', () => {
   it('marks the tutorial complete when skipped', async () => {
     const query = createProfilesQuery()
     mockFrom.mockReturnValue(query)
-    resetTutorialStore({ isActive: true, currentStep: 'priority_selector', isLoading: false })
+    resetTutorialStore({ isActive: true, currentStep: 'task_priority', isLoading: false })
 
     useTutorialStore.getState().skipTutorial()
 
@@ -140,7 +119,7 @@ describe('tutorialStore', () => {
   it('marks the tutorial complete when finished', async () => {
     const query = createProfilesQuery()
     mockFrom.mockReturnValue(query)
-    resetTutorialStore({ isActive: true, currentStep: 'settings_reminders', isLoading: false })
+    resetTutorialStore({ isActive: true, currentStep: 'complete', isLoading: false })
 
     useTutorialStore.getState().completeTutorial()
 
@@ -158,20 +137,22 @@ describe('tutorialStore', () => {
     })
   })
 
-  it('resets persisted completion and volatile tutorial data for replay', async () => {
+  it('resets persisted completion and volatile tutorial progress for replay', async () => {
     const query = createProfilesQuery()
     mockFrom.mockReturnValue(query)
     resetTutorialStore({
       isActive: false,
       currentStep: null,
       hasCompletedTutorial: true,
-      tutorialCategoryId: 'category-1',
-      tutorialTaskId: 'task-1',
       pausedAt: Date.now(),
-      pausedStep: 'priority_selector',
+      pausedStep: 'task_priority',
       abandonCount: 2,
       analyticsStartTime: Date.now(),
-      analyticsViewedSteps: new Set<TutorialStep>(['welcome', 'priority_selector']),
+      analyticsViewedSteps: new Set<TutorialStep>(['welcome', 'task_priority']),
+      targetMeasurements: {
+        ...emptyMeasurements(),
+        planning_form: { x: 10, y: 20, width: 200, height: 100 },
+      },
     })
 
     useTutorialStore.getState().resetTutorial()
@@ -181,14 +162,13 @@ describe('tutorialStore', () => {
       currentStep: 'welcome',
       hasCompletedTutorial: false,
       isOverlayHidden: false,
-      tutorialCategoryId: null,
-      tutorialTaskId: null,
       pausedAt: null,
       pausedStep: null,
       abandonCount: 0,
       analyticsStartTime: null,
     })
     expect(useTutorialStore.getState().analyticsViewedSteps.size).toBe(0)
+    expect(useTutorialStore.getState().targetMeasurements.planning_form).toBeNull()
 
     await waitFor(() => {
       expect(query.update).toHaveBeenCalledWith({ tutorial_completed_at: null })
@@ -196,23 +176,40 @@ describe('tutorialStore', () => {
     })
   })
 
-  it('advances steps without requiring tutorial task or category IDs', () => {
+  it('advances to the next ordered step without requiring created tutorial data', () => {
     resetTutorialStore({
       isActive: true,
-      currentStep: 'category_selector',
+      currentStep: 'task_category',
       isLoading: false,
       isOverlayHidden: true,
-      tutorialCategoryId: null,
-      tutorialTaskId: null,
+      targetMeasurements: {
+        ...emptyMeasurements(),
+        task_priority: { x: 10, y: 20, width: 200, height: 100 },
+      },
     })
 
-    useTutorialStore.getState().nextStep('priority_selector')
+    useTutorialStore.getState().nextStep()
 
     expect(useTutorialStore.getState()).toMatchObject({
-      currentStep: 'priority_selector',
+      currentStep: 'task_priority',
       isOverlayHidden: false,
-      tutorialCategoryId: null,
-      tutorialTaskId: null,
+    })
+    expect(useTutorialStore.getState().targetMeasurements.task_priority).toBeNull()
+  })
+
+  it('moves backward through ordered tutorial steps', () => {
+    resetTutorialStore({
+      isActive: true,
+      currentStep: 'task_priority',
+      isLoading: false,
+      isOverlayHidden: true,
+    })
+
+    useTutorialStore.getState().previousStep()
+
+    expect(useTutorialStore.getState()).toMatchObject({
+      currentStep: 'task_category',
+      isOverlayHidden: false,
     })
   })
 })

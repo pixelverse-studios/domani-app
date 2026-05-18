@@ -4,27 +4,31 @@ import { supabase } from '~/lib/supabase'
 
 /**
  * Tutorial steps in order of progression
- * Based on docs/plans/interactive-tutorial-proposal.md
+ * Core planning loop walkthrough. Steps target stable layout surfaces and never
+ * require the user to create data during the tutorial.
  */
 export type TutorialStep =
   | 'welcome'
-  | 'plan_today_button'
-  | 'today_add_task_button'
-  | 'title_input'
-  | 'category_selector'
-  | 'create_category'
-  | 'more_categories_button'
-  | 'priority_selector'
-  | 'top_priority'
-  | 'day_toggle'
-  | 'complete_form'
-  | 'task_created'
-  | 'today_screen'
-  | 'cleanup'
-  | 'completion'
-  // Settings tutorial steps (auto-start after main tutorial)
-  | 'settings_categories'
-  | 'settings_reminders'
+  | 'today_primary_action'
+  | 'planning_form'
+  | 'task_title'
+  | 'task_category'
+  | 'task_priority'
+  | 'task_reminder'
+  | 'task_submit'
+  | 'complete'
+
+export const TUTORIAL_STEPS: readonly TutorialStep[] = [
+  'welcome',
+  'today_primary_action',
+  'planning_form',
+  'task_title',
+  'task_category',
+  'task_priority',
+  'task_reminder',
+  'task_submit',
+  'complete',
+]
 
 /**
  * Position and dimensions of a tutorial target element
@@ -34,6 +38,13 @@ export interface TutorialTargetMeasurement {
   y: number
   width: number
   height: number
+}
+
+function createEmptyTargetMeasurements(): Record<TutorialStep, TutorialTargetMeasurement | null> {
+  return Object.fromEntries(TUTORIAL_STEPS.map((step) => [step, null])) as Record<
+    TutorialStep,
+    TutorialTargetMeasurement | null
+  >
 }
 
 /**
@@ -61,10 +72,6 @@ interface TutorialStore {
   pausedStep: TutorialStep | null // Step they were on when paused
   abandonCount: number // How many times they've abandoned and restarted
 
-  // Tutorial data created during the flow
-  tutorialCategoryId: string | null
-  tutorialTaskId: string | null
-
   // Analytics tracking state (shared across components)
   analyticsStartTime: number | null
   analyticsViewedSteps: Set<TutorialStep>
@@ -75,7 +82,8 @@ interface TutorialStore {
   // Actions
   initializeTutorialState: (userId: string) => Promise<void>
   startTutorial: () => void
-  nextStep: (step: TutorialStep) => void
+  nextStep: (step?: TutorialStep) => void
+  previousStep: () => void
   skipTutorial: () => void
   completeTutorial: () => void
   resetTutorial: () => void
@@ -87,11 +95,6 @@ interface TutorialStore {
   // Overlay visibility actions
   hideOverlay: () => void
   showOverlay: () => void
-
-  // Tutorial data actions
-  setTutorialCategoryId: (id: string) => void
-  setTutorialTaskId: (id: string) => void
-  clearTutorialData: () => void
 
   // Target measurement actions
   setTargetMeasurement: (step: TutorialStep, measurement: TutorialTargetMeasurement | null) => void
@@ -145,29 +148,9 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
   pausedStep: null,
   abandonCount: 0,
 
-  tutorialCategoryId: null,
-  tutorialTaskId: null,
   analyticsStartTime: null,
   analyticsViewedSteps: new Set<TutorialStep>(),
-  targetMeasurements: {
-    welcome: null,
-    plan_today_button: null,
-    today_add_task_button: null,
-    title_input: null,
-    category_selector: null,
-    create_category: null,
-    more_categories_button: null,
-    priority_selector: null,
-    top_priority: null,
-    day_toggle: null,
-    complete_form: null,
-    task_created: null,
-    today_screen: null,
-    cleanup: null,
-    completion: null,
-    settings_categories: null,
-    settings_reminders: null,
-  },
+  targetMeasurements: createEmptyTargetMeasurements(),
 
   // Initialize tutorial state from database
   initializeTutorialState: async (userId: string) => {
@@ -200,6 +183,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
         set({
           isActive: true,
           currentStep: 'welcome',
+          targetMeasurements: createEmptyTargetMeasurements(),
         })
       }
     } catch (error) {
@@ -215,13 +199,57 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
     set({
       isActive: true,
       currentStep: 'welcome',
+      targetMeasurements: createEmptyTargetMeasurements(),
     }),
 
-  // Advance to a specific step
+  // Advance through the ordered passive walkthrough, or jump to a supplied step
+  // for existing navigation call sites while the tutorial UI is being migrated.
   nextStep: (step) =>
-    set({
-      currentStep: step,
-      isOverlayHidden: false,
+    set((state) => {
+      if (step) {
+        return {
+          currentStep: step,
+          isOverlayHidden: false,
+          targetMeasurements: createEmptyTargetMeasurements(),
+        }
+      }
+
+      if (!state.currentStep) {
+        return {
+          currentStep: 'welcome',
+          isOverlayHidden: false,
+          targetMeasurements: createEmptyTargetMeasurements(),
+        }
+      }
+
+      const currentIndex = TUTORIAL_STEPS.indexOf(state.currentStep)
+      const nextStepValue = TUTORIAL_STEPS[currentIndex + 1] ?? state.currentStep
+
+      return {
+        currentStep: nextStepValue,
+        isOverlayHidden: false,
+        targetMeasurements: createEmptyTargetMeasurements(),
+      }
+    }),
+
+  previousStep: () =>
+    set((state) => {
+      if (!state.currentStep) {
+        return {
+          currentStep: 'welcome',
+          isOverlayHidden: false,
+          targetMeasurements: createEmptyTargetMeasurements(),
+        }
+      }
+
+      const currentIndex = TUTORIAL_STEPS.indexOf(state.currentStep)
+      const previousStepValue = TUTORIAL_STEPS[Math.max(currentIndex - 1, 0)] ?? 'welcome'
+
+      return {
+        currentStep: previousStepValue,
+        isOverlayHidden: false,
+        targetMeasurements: createEmptyTargetMeasurements(),
+      }
     }),
 
   // Skip the tutorial entirely
@@ -233,6 +261,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
       isActive: false,
       currentStep: null,
       hasCompletedTutorial: true,
+      targetMeasurements: createEmptyTargetMeasurements(),
     })
   },
 
@@ -245,6 +274,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
       isActive: false,
       currentStep: null,
       hasCompletedTutorial: true,
+      targetMeasurements: createEmptyTargetMeasurements(),
     })
   },
 
@@ -258,13 +288,12 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
       currentStep: 'welcome',
       hasCompletedTutorial: false,
       isOverlayHidden: false,
-      tutorialCategoryId: null,
-      tutorialTaskId: null,
       pausedAt: null,
       pausedStep: null,
       abandonCount: 0,
       analyticsStartTime: null,
       analyticsViewedSteps: new Set<TutorialStep>(),
+      targetMeasurements: createEmptyTargetMeasurements(),
     })
   },
 
@@ -306,6 +335,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
         pausedAt: null,
         pausedStep: null,
         isOverlayHidden: false,
+        targetMeasurements: createEmptyTargetMeasurements(),
       })
     } else {
       // Too long - restart fresh, increment abandon count
@@ -320,6 +350,7 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
         abandonCount: newAbandonCount,
         analyticsStartTime: null,
         analyticsViewedSteps: new Set(),
+        targetMeasurements: createEmptyTargetMeasurements(),
       })
 
       // Log if they're frequently abandoning (could show different UI)
@@ -334,19 +365,6 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
 
   // Show overlay again
   showOverlay: () => set({ isOverlayHidden: false }),
-
-  // Set the category ID created during tutorial
-  setTutorialCategoryId: (id: string) => set({ tutorialCategoryId: id }),
-
-  // Set the task ID created during tutorial
-  setTutorialTaskId: (id: string) => set({ tutorialTaskId: id }),
-
-  // Clear tutorial data (category/task IDs)
-  clearTutorialData: () =>
-    set({
-      tutorialCategoryId: null,
-      tutorialTaskId: null,
-    }),
 
   // Set measurement for a target element
   setTargetMeasurement: (step, measurement) =>

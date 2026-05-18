@@ -2,8 +2,6 @@ import React, { useState, useCallback, useMemo } from 'react'
 import { View } from 'react-native'
 
 import { Text, ConfirmationModal } from '~/components/ui'
-import { useTutorialTarget } from '~/components/tutorial'
-import { useTutorialStore } from '~/stores/tutorialStore'
 import { TaskCard } from './TaskCard'
 import { CARD_GAP } from './task-layouts'
 import { sortTasksByPriority } from '~/utils/sortTasks'
@@ -23,11 +21,6 @@ export function TaskList({ tasks, onEditTask, onDeleteTask }: TaskListProps) {
   const copy = getMainScreenCopy(locale)
   const [taskToDelete, setTaskToDelete] = useState<TaskWithCategory | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-
-  // Tutorial state for highlighting the created task
-  const { targetRef: taskCreatedRef, measureTarget: measureTaskCreated } =
-    useTutorialTarget('task_created')
-  const { tutorialTaskId, currentStep, isActive } = useTutorialStore()
 
   // Sort tasks by priority (high → medium → low), then alphabetically
   const sortedTasks = useMemo(() => sortTasksByPriority(tasks), [tasks])
@@ -62,9 +55,6 @@ export function TaskList({ tasks, onEditTask, onDeleteTask }: TaskListProps) {
     setTaskToDelete(null)
   }
 
-  // Check if we should highlight a task for tutorial
-  const isTutorialTaskStep = isActive && currentStep === 'task_created' && tutorialTaskId
-
   const isGrid = useLayoutStore((s) => s.taskLayout) === 'grid'
 
   return (
@@ -74,19 +64,11 @@ export function TaskList({ tasks, onEditTask, onDeleteTask }: TaskListProps) {
 
       {/* Task Cards */}
       <View style={isGrid ? { flexDirection: 'row', flexWrap: 'wrap', gap: CARD_GAP } : undefined}>
-        {sortedTasks.map((task) => {
-          const isTutorialTask = isTutorialTaskStep && task.id === tutorialTaskId
-
-          return (
-            <View
-              key={task.id}
-              ref={isTutorialTask ? taskCreatedRef : undefined}
-              onLayout={isTutorialTask ? measureTaskCreated : undefined}
-            >
-              <TaskCard task={task} onEdit={onEditTask} onDelete={handleDeletePress} />
-            </View>
-          )
-        })}
+        {sortedTasks.map((task) => (
+          <View key={task.id}>
+            <TaskCard task={task} onEdit={onEditTask} onDelete={handleDeletePress} />
+          </View>
+        ))}
       </View>
 
       {/* Delete Confirmation Modal */}
