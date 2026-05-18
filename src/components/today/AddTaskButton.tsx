@@ -4,7 +4,7 @@ import { Plus } from 'lucide-react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 
 import { Text } from '~/components/ui'
-import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
+import { useTutorialTarget } from '~/components/tutorial'
 import { useAppTheme } from '~/hooks/useAppTheme'
 
 interface AddTaskButtonProps {
@@ -16,17 +16,11 @@ interface AddTaskButtonProps {
 export function AddTaskButton({ onPress, disabled, label = 'Add Task' }: AddTaskButtonProps) {
   const theme = useAppTheme()
   const { targetRef, measureTarget } = useTutorialTarget('today_primary_action')
-  const { advanceFromTodayButton } = useTutorialAdvancement()
-
-  const handlePress = () => {
-    advanceFromTodayButton()
-    onPress()
-  }
 
   return (
     <View ref={targetRef} onLayout={measureTarget} className="px-5 pb-4">
       <TouchableOpacity
-        onPress={handlePress}
+        onPress={onPress}
         disabled={disabled}
         accessibilityLabel={label}
         accessibilityRole="button"

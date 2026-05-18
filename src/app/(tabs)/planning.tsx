@@ -16,7 +16,7 @@ import {
 import { useCreateTask, useTasks, useDeleteTask, useUpdateTask } from '~/hooks/useTasks'
 import { useSystemCategories } from '~/hooks/useCategories'
 import { useNotificationStore } from '~/stores/notificationStore'
-import { useTutorialAdvancement } from '~/components/tutorial'
+import { useTutorialStore } from '~/stores/tutorialStore'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
@@ -114,11 +114,7 @@ export default function PlanningScreen() {
   const createTask = useCreateTask()
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
-  const {
-    isActive: isTutorialActive,
-    currentStep,
-    advanceFromCompleteForm,
-  } = useTutorialAdvancement()
+  const { isActive: isTutorialActive, currentStep } = useTutorialStore()
 
   // Analytics
   const { track } = useAnalytics()
@@ -374,15 +370,6 @@ export default function PlanningScreen() {
           reminderAt: task.reminderAt,
         })
 
-        // Passive tutorial progression does not depend on the created task.
-        if (isTutorialActive && currentStep === 'task_submit') {
-          try {
-            router.replace('/(tabs)/')
-            advanceFromCompleteForm()
-          } catch (error) {
-            console.error('Failed to advance tutorial from task_submit:', error)
-          }
-        }
       }
       // Close form after successful submission
       handleCloseForm()
@@ -468,10 +455,6 @@ export default function PlanningScreen() {
             editingTaskId={editingTask?.id}
             selectedTarget={selectedTarget}
             autoFocusTitle={shouldAutoFocusTitle}
-            onScrollToCategory={() => {
-              // Scroll down to position category section better during tutorial
-              scrollViewRef.current?.scrollTo({ y: 120, animated: true })
-            }}
             onScrollToBottom={() => {
               // Scroll to show Add Task button during task_submit tutorial step
               // Use fixed position instead of scrollToEnd to leave room for tooltip above

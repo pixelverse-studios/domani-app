@@ -2,13 +2,11 @@ import React from 'react'
 
 import { fireEvent, renderWithProviders, screen, waitFor } from '~/test/test-utils'
 import PlanningScreen from '../planning'
-import { useTutorialAdvancement } from '~/components/tutorial'
 import { useCreateTask, useDeleteTask, useTasks, useUpdateTask } from '~/hooks/useTasks'
 
 const mockReplace = jest.fn()
 const mockSetParams = jest.fn()
 const mockCreateTask = jest.fn()
-const mockAdvanceFromCompleteForm = jest.fn()
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: jest.fn(() => ({})),
@@ -76,10 +74,6 @@ jest.mock('~/stores/notificationStore', () => ({
   useNotificationStore: jest.fn(() => jest.fn()),
 }))
 
-jest.mock('~/components/tutorial', () => ({
-  useTutorialAdvancement: jest.fn(),
-}))
-
 jest.mock('~/hooks/useScreenTracking', () => ({
   useScreenTracking: jest.fn(),
 }))
@@ -111,9 +105,6 @@ const mockUseTasks = useTasks as jest.MockedFunction<typeof useTasks>
 const mockUseCreateTask = useCreateTask as jest.MockedFunction<typeof useCreateTask>
 const mockUseUpdateTask = useUpdateTask as jest.MockedFunction<typeof useUpdateTask>
 const mockUseDeleteTask = useDeleteTask as jest.MockedFunction<typeof useDeleteTask>
-const mockUseTutorialAdvancement = useTutorialAdvancement as jest.MockedFunction<
-  typeof useTutorialAdvancement
->
 
 describe('PlanningScreen tutorial submit flow', () => {
   beforeEach(() => {
@@ -129,24 +120,9 @@ describe('PlanningScreen tutorial submit flow', () => {
     mockUseDeleteTask.mockReturnValue({
       mutateAsync: jest.fn(),
     } as unknown as ReturnType<typeof useDeleteTask>)
-    mockUseTutorialAdvancement.mockReturnValue({
-      isActive: true,
-      currentStep: 'task_submit',
-      shouldHighlight: jest.fn(),
-      advanceFromTodayButton: jest.fn(),
-      advanceFromTitleInput: jest.fn(),
-      advanceFromCategorySelector: jest.fn(),
-      advanceFromCreateCategory: jest.fn(),
-      advanceFromMoreCategoriesButton: jest.fn(),
-      advanceFromPrioritySelector: jest.fn(),
-      advanceFromTopPriority: jest.fn(),
-      advanceFromCompleteForm: mockAdvanceFromCompleteForm,
-      advanceFromTodayScreen: jest.fn(),
-      advanceFromDayToggle: jest.fn(),
-    })
   })
 
-  it('navigates to Today before advancing the tutorial after real form submission', async () => {
+  it('creates a task without tutorial-driven navigation after form submission', async () => {
     renderWithProviders(<PlanningScreen />)
 
     fireEvent.press(screen.getByText('Open Form'))
@@ -162,7 +138,6 @@ describe('PlanningScreen tutorial submit flow', () => {
       )
     })
 
-    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/')
-    expect(mockAdvanceFromCompleteForm).toHaveBeenCalledTimes(1)
+    expect(mockReplace).not.toHaveBeenCalled()
   })
 })

@@ -94,20 +94,6 @@ export function useTutorialAnalytics() {
   }, [analyticsStartTime, resetAnalyticsState, track])
 
   /**
-   * Track tutorial task creation
-   */
-  const trackTutorialTaskCreated = useCallback(() => {
-    track('tutorial_task_created')
-  }, [track])
-
-  /**
-   * Track tutorial category creation
-   */
-  const trackTutorialCategoryCreated = useCallback(() => {
-    track('tutorial_category_created')
-  }, [track])
-
-  /**
    * Reset tracking state (called when replaying tutorial)
    */
   const resetTracking = useCallback(() => {
@@ -119,8 +105,6 @@ export function useTutorialAnalytics() {
     trackStepViewed,
     trackTutorialSkipped,
     trackTutorialCompleted,
-    trackTutorialTaskCreated,
-    trackTutorialCategoryCreated,
     resetTracking,
   }
 }

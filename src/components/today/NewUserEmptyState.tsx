@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
-import { useTutorialTarget, useTutorialAdvancement } from '~/components/tutorial'
+import { useTutorialTarget } from '~/components/tutorial'
 import { useTranslation } from '~/hooks/useTranslation'
 import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 
@@ -17,10 +17,8 @@ export function EmptyState() {
   const copy = getMainScreenCopy(locale)
   const brandColor = theme.colors.brand.primary
   const { targetRef, measureTarget } = useTutorialTarget('today_primary_action')
-  const { advanceFromTodayButton } = useTutorialAdvancement()
 
   const handlePlanToday = () => {
-    advanceFromTodayButton()
     router.push('/(tabs)/planning?defaultPlanningFor=today&openForm=true')
   }
 
