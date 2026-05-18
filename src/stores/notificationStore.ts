@@ -59,7 +59,7 @@ export const useNotificationStore = create<NotificationStore>()(
       // On rehydrate, reset session-only fields to their defaults via setState
       // (safer than direct mutation — uses the public store API)
       // The useNotificationObserver hook will handle actual validation
-      // by calling cancelAllReminders() before scheduling
+      // by replacing stale planning reminders before scheduling
       onRehydrateStorage: () => () => {
         useNotificationStore.setState({
           hasValidatedIds: false,

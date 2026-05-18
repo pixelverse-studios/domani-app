@@ -32,6 +32,12 @@ if (isNotificationsSupported) {
 
 const PLANNING_CHANNEL_ID = 'planning-reminders'
 const TASK_CHANNEL_ID = 'task-reminders'
+type NotificationType = 'planning_reminder' | 'task_reminder'
+
+const getNotificationType = (notification: unknown): NotificationType | null => {
+  const data = (notification as { content?: { data?: { type?: unknown } } })?.content?.data
+  return data?.type === 'planning_reminder' || data?.type === 'task_reminder' ? data.type : null
+}
 
 export const NotificationService = {
   /**
@@ -49,6 +55,11 @@ export const NotificationService = {
     if (!Notifications) return
 
     if (Platform.OS === 'android') {
+      addBreadcrumb('Initializing Android notification channels', 'notifications', {
+        planningChannelId: PLANNING_CHANNEL_ID,
+        taskChannelId: TASK_CHANNEL_ID,
+      })
+
       await Notifications.setNotificationChannelAsync(PLANNING_CHANNEL_ID, {
         name: 'Planning Reminders',
         description: 'Daily reminders to plan tomorrow',
@@ -63,6 +74,11 @@ export const NotificationService = {
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: getTheme().colors.brand.primary,
+      })
+
+      addBreadcrumb('Android notification channels initialized', 'notifications', {
+        planningChannelId: PLANNING_CHANNEL_ID,
+        taskChannelId: TASK_CHANNEL_ID,
       })
     }
   },
@@ -162,6 +178,7 @@ export const NotificationService = {
     if (!Notifications) return ''
 
     try {
+      await this.initialize()
       const identifier = await Notifications.scheduleNotificationAsync({
         content: {
           title: 'Plan Tomorrow',
@@ -200,6 +217,44 @@ export const NotificationService = {
   async cancelNotification(identifier: string): Promise<void> {
     if (!Notifications) return
     await Notifications.cancelScheduledNotificationAsync(identifier)
+  },
+
+  /**
+   * Cancel scheduled notifications by Domani notification type.
+   * This avoids planning reminder maintenance deleting task reminders.
+   */
+  async cancelRemindersByType(type: NotificationType): Promise<boolean> {
+    if (!Notifications) return true
+
+    const matchingNotifications = await this.getScheduledNotificationsByType(type)
+
+    for (const notification of matchingNotifications) {
+      const identifier = (notification as { identifier: string }).identifier
+      try {
+        await Notifications.cancelScheduledNotificationAsync(identifier)
+      } catch (error) {
+        console.error(`[Notifications] Failed to cancel ${type} notification:`, error)
+        captureException(error instanceof Error ? error : new Error(String(error)), {
+          method: 'cancelRemindersByType',
+          type,
+          notificationId: identifier,
+        })
+      }
+    }
+
+    const remainingCount = (await this.getScheduledNotificationsByType(type)).length
+
+    addBreadcrumb('Notifications cancelled by type', 'notifications', {
+      type,
+      attempted: matchingNotifications.length,
+      remaining: remainingCount,
+    })
+
+    return remainingCount === 0
+  },
+
+  async cancelPlanningReminders(): Promise<boolean> {
+    return this.cancelRemindersByType('planning_reminder')
   },
 
   /**
@@ -254,7 +309,9 @@ export const NotificationService = {
         `[Notifications] CRITICAL: ${finalRemaining.length} notifications could not be cancelled after ${MAX_RETRIES} attempts`,
       )
       captureException(
-        new Error(`Failed to cancel ${finalRemaining.length} notifications after ${MAX_RETRIES} attempts`),
+        new Error(
+          `Failed to cancel ${finalRemaining.length} notifications after ${MAX_RETRIES} attempts`,
+        ),
         { method: 'cancelAllReminders', remainingCount: finalRemaining.length },
       )
       return false
@@ -269,6 +326,14 @@ export const NotificationService = {
   async getScheduledNotifications(): Promise<unknown[]> {
     if (!Notifications) return []
     return await Notifications.getAllScheduledNotificationsAsync()
+  },
+
+  async getScheduledNotificationsByType(type: NotificationType): Promise<unknown[]> {
+    if (!Notifications) return []
+    const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync()
+    return scheduledNotifications.filter(
+      (notification: unknown) => getNotificationType(notification) === type,
+    )
   },
 
   /**
@@ -347,6 +412,8 @@ export const NotificationService = {
     if (!Notifications) return null
 
     try {
+      await this.initialize()
+
       // Use parseISO to correctly handle Postgres timestamp format
       // Postgres returns "2026-01-23 14:06:23.592+00" which iOS JavaScriptCore
       // may misinterpret as local time. parseISO handles this correctly.
@@ -355,8 +422,48 @@ export const NotificationService = {
       // Don't schedule if reminder is in the past
       if (reminderDate <= new Date()) {
         console.log(`[Notifications] Skipping past reminder for task ${task.id}`)
+        addBreadcrumb('Task reminder skipped because reminder is in the past', 'notifications', {
+          taskId: task.id,
+          reminderAt: task.reminder_at,
+        })
         return null
       }
+
+      const permissionStatus = await this.getPermissionStatus()
+      addBreadcrumb('Task reminder permission checked', 'notifications', {
+        taskId: task.id,
+        permissionStatus,
+      })
+
+      let canSchedule = permissionStatus === 'granted'
+      if (!canSchedule && permissionStatus === 'undetermined') {
+        canSchedule = await this.requestPermissions()
+        addBreadcrumb('Task reminder permission requested', 'notifications', {
+          taskId: task.id,
+          granted: canSchedule,
+        })
+      }
+
+      if (!canSchedule) {
+        console.warn(
+          `[Notifications] Cannot schedule task reminder without permission: ${permissionStatus}`,
+        )
+        addBreadcrumb(
+          'Task reminder not scheduled because permission is unavailable',
+          'notifications',
+          {
+            taskId: task.id,
+            permissionStatus,
+          },
+        )
+        return null
+      }
+
+      addBreadcrumb('Task reminder schedule attempted', 'notifications', {
+        taskId: task.id,
+        reminderAt: task.reminder_at,
+        channelId: Platform.OS === 'android' ? TASK_CHANNEL_ID : undefined,
+      })
 
       const identifier = await Notifications.scheduleNotificationAsync({
         content: {

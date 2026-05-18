@@ -239,9 +239,8 @@ export function AddTaskForm({
     setSubmitState('submitting')
 
     try {
-      // Save the reminder time if enabled, regardless of whether it's in the past.
-      // Past reminders won't fire a notification, but the time is preserved for
-      // display, task rollover, and history purposes.
+      // Save the selected reminder request. The task mutation only persists it
+      // once the local notification is actually scheduled.
       const reminderAt = isReminderEnabled ? reminderDate.toISOString() : null
 
       await onSubmit({
@@ -250,9 +249,13 @@ export function AddTaskForm({
         priority: selectedPriority,
         notes: notes.trim() || null,
         reminderAt,
-        ...(isEditing && moveToOtherDay && {
-          plannedFor: selectedTarget === 'today' ? 'tomorrow' as PlanningTarget : 'today' as PlanningTarget,
-        }),
+        ...(isEditing &&
+          moveToOtherDay && {
+            plannedFor:
+              selectedTarget === 'today'
+                ? ('tomorrow' as PlanningTarget)
+                : ('today' as PlanningTarget),
+          }),
       })
 
       // Show success state

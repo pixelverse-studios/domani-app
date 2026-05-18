@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query'
 
 import { act, renderHookWithProviders, waitFor, buildTaskWithCategory } from '~/test/test-utils'
 import { supabase } from '~/lib/supabase'
+import { NotificationService } from '~/lib/notifications'
 import { useCreateTask, useDeleteTask, useTasks, useUpdateTask } from '../useTasks'
 
 const mockIncrementUsageMutate = jest.fn()
@@ -51,6 +52,8 @@ function createQueryMock(result: { data: unknown; error: unknown } = { data: nul
 
 const mockFrom = supabase.from as unknown as jest.Mock
 const mockGetUser = supabase.auth.getUser as unknown as jest.Mock
+const mockScheduleTaskReminder = NotificationService.scheduleTaskReminder as jest.Mock
+const mockCancelTaskReminder = NotificationService.cancelTaskReminder as jest.Mock
 const queryClients: QueryClient[] = []
 const unmountHooks: Array<() => void> = []
 
@@ -141,7 +144,7 @@ describe('task hooks', () => {
       priority: 'top',
       estimated_duration_minutes: undefined,
       notes: 'Use short bullets',
-      reminder_at: undefined,
+      reminder_at: null,
       scheduled_date: '2026-05-16',
     })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', '2026-05-16'] })
@@ -172,6 +175,74 @@ describe('task hooks', () => {
     })
 
     expect(invalidateSpy).not.toHaveBeenCalled()
+  })
+
+  it('persists reminder fields after task reminder scheduling succeeds', async () => {
+    const reminderAt = '2026-05-16T14:30:00.000Z'
+    const createdTask = buildTaskWithCategory({
+      id: 'task-created',
+      scheduled_date: '2026-05-16',
+      title: 'Draft launch notes',
+      reminder_at: null,
+      notification_id: null,
+    })
+    const insertQuery = createQueryMock({ data: createdTask, error: null })
+    const updateQuery = createQueryMock({ data: null, error: null })
+    mockFrom.mockReturnValueOnce(insertQuery).mockReturnValueOnce(updateQuery)
+    mockScheduleTaskReminder.mockResolvedValue('notification-1')
+
+    const { result } = trackQueryClient(renderHookWithProviders(() => useCreateTask()))
+
+    const task = await result.current.mutateAsync({
+      scheduledDate: '2026-05-16',
+      title: 'Draft launch notes',
+      reminderAt,
+    })
+
+    expect(insertQuery.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reminder_at: null,
+      }),
+    )
+    expect(mockScheduleTaskReminder).toHaveBeenCalledWith({
+      id: 'task-created',
+      title: 'Draft launch notes',
+      is_mit: false,
+      reminder_at: reminderAt,
+      notes: null,
+    })
+    expect(updateQuery.update).toHaveBeenCalledWith({
+      reminder_at: reminderAt,
+      notification_id: 'notification-1',
+    })
+    expect(task.reminder_at).toBe(reminderAt)
+    expect(task.notification_id).toBe('notification-1')
+  })
+
+  it('leaves reminder fields cleared when task reminder scheduling fails', async () => {
+    const createdTask = buildTaskWithCategory({
+      id: 'task-created',
+      scheduled_date: '2026-05-16',
+      title: 'Draft launch notes',
+      reminder_at: null,
+      notification_id: null,
+    })
+    const insertQuery = createQueryMock({ data: createdTask, error: null })
+    mockFrom.mockReturnValueOnce(insertQuery)
+    mockScheduleTaskReminder.mockResolvedValue(null)
+
+    const { result } = trackQueryClient(renderHookWithProviders(() => useCreateTask()))
+
+    const task = await result.current.mutateAsync({
+      scheduledDate: '2026-05-16',
+      title: 'Draft launch notes',
+      reminderAt: '2026-05-16T14:30:00.000Z',
+    })
+
+    expect(mockScheduleTaskReminder).toHaveBeenCalledTimes(1)
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+    expect(task.reminder_at).toBeNull()
+    expect(task.notification_id).toBeNull()
   })
 
   it('updates a moved task and invalidates both old and new dates', async () => {
@@ -215,6 +286,56 @@ describe('task hooks', () => {
     ])
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', '2026-05-17'] })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', '2026-05-16'] })
+  })
+
+  it('clears reminder fields when updated task reminder scheduling fails', async () => {
+    const reminderAt = '2026-05-16T14:30:00.000Z'
+    const updatedTask = buildTaskWithCategory({
+      id: 'task-update-reminder',
+      scheduled_date: '2026-05-16',
+      title: 'Draft launch notes',
+      reminder_at: reminderAt,
+      notification_id: null,
+    })
+    const existingQuery = createQueryMock({
+      data: {
+        notification_id: 'old-notification',
+        reminder_at: null,
+        title: 'Draft launch notes',
+        is_mit: false,
+      },
+      error: null,
+    })
+    const updateQuery = createQueryMock({ data: updatedTask, error: null })
+    const clearReminderQuery = createQueryMock({ data: null, error: null })
+    mockFrom
+      .mockReturnValueOnce(existingQuery)
+      .mockReturnValueOnce(updateQuery)
+      .mockReturnValueOnce(clearReminderQuery)
+    mockScheduleTaskReminder.mockResolvedValue(null)
+
+    const { result } = trackQueryClient(renderHookWithProviders(() => useUpdateTask()))
+
+    const response = await result.current.mutateAsync({
+      taskId: 'task-update-reminder',
+      originalDate: '2026-05-16',
+      updates: { reminder_at: reminderAt },
+    })
+
+    expect(mockCancelTaskReminder).toHaveBeenCalledWith('old-notification')
+    expect(mockScheduleTaskReminder).toHaveBeenCalledWith({
+      id: 'task-update-reminder',
+      title: 'Draft launch notes',
+      is_mit: false,
+      reminder_at: reminderAt,
+      notes: null,
+    })
+    expect(clearReminderQuery.update).toHaveBeenCalledWith({
+      reminder_at: null,
+      notification_id: null,
+    })
+    expect(response.data.reminder_at).toBeNull()
+    expect(response.data.notification_id).toBeNull()
   })
 
   it('deletes a task and broadly invalidates task queries', async () => {
