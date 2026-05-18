@@ -2,7 +2,7 @@ import React from 'react'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { fireEvent, renderWithProviders, screen, waitFor } from '~/test/test-utils'
+import { act, fireEvent, renderWithProviders, screen, waitFor } from '~/test/test-utils'
 import { TASK_LAYOUTS, type TaskLayout, useLayoutStore } from '~/stores/layoutStore'
 import {
   TUTORIAL_STEPS,
@@ -52,6 +52,18 @@ async function advanceTo(expectedStep: TutorialStep) {
   await waitFor(() => {
     expect(useTutorialStore.getState().currentStep).toBe(expectedStep)
   })
+
+  if (expectedStep !== 'complete') {
+    act(() => {
+      useTutorialStore
+        .getState()
+        .setTargetMeasurement(expectedStep, { x: 24, y: 120, width: 180, height: 48 })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Next')).toBeTruthy()
+    })
+  }
 }
 
 describe('tutorial layout compatibility', () => {
