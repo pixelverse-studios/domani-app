@@ -2,6 +2,7 @@ import React from 'react'
 
 import { act, fireEvent, renderWithProviders, screen, waitFor } from '~/test/test-utils'
 import {
+  TUTORIAL_STEPS,
   type TutorialStep,
   type TutorialTargetMeasurement,
   useTutorialStore,
@@ -16,28 +17,8 @@ jest.mock('~/hooks/useTutorialAnalytics', () => ({
   })),
 }))
 
-const tutorialSteps: TutorialStep[] = [
-  'welcome',
-  'plan_today_button',
-  'today_add_task_button',
-  'title_input',
-  'category_selector',
-  'create_category',
-  'more_categories_button',
-  'priority_selector',
-  'top_priority',
-  'day_toggle',
-  'complete_form',
-  'task_created',
-  'today_screen',
-  'cleanup',
-  'completion',
-  'settings_categories',
-  'settings_reminders',
-]
-
 function emptyMeasurements(): Record<TutorialStep, TutorialTargetMeasurement | null> {
-  return Object.fromEntries(tutorialSteps.map((step) => [step, null])) as Record<
+  return Object.fromEntries(TUTORIAL_STEPS.map((step) => [step, null])) as Record<
     TutorialStep,
     TutorialTargetMeasurement | null
   >

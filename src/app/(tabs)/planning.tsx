@@ -16,9 +16,7 @@ import {
 import { useCreateTask, useTasks, useDeleteTask, useUpdateTask } from '~/hooks/useTasks'
 import { useSystemCategories } from '~/hooks/useCategories'
 import { useNotificationStore } from '~/stores/notificationStore'
-import { useTutorialStore } from '~/stores/tutorialStore'
 import { useTutorialAdvancement } from '~/components/tutorial'
-import { useTutorialAnalytics } from '~/hooks/useTutorialAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
@@ -28,11 +26,7 @@ import { useCurrentDate } from '~/hooks/useCurrentDate'
 import { useEveningRolloverTasks } from '~/hooks/useEveningRolloverTasks'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { getLocalizedCategoryName } from '~/constants/systemCategories'
-import { supabase } from '~/lib/supabase'
 import type { TaskWithCategory } from '~/types'
-
-// Tutorial timing constants
-const TUTORIAL_TASK_RENDER_DELAY = 500 // Delay for task to appear in list before advancing
 
 type PlanningTarget = 'today' | 'tomorrow'
 type Priority = 'top' | 'high' | 'medium' | 'low'
@@ -120,13 +114,11 @@ export default function PlanningScreen() {
   const createTask = useCreateTask()
   const updateTask = useUpdateTask()
   const deleteTask = useDeleteTask()
-  const { setTutorialTaskId } = useTutorialStore()
   const {
     isActive: isTutorialActive,
     currentStep,
     advanceFromCompleteForm,
   } = useTutorialAdvancement()
-  const { trackTutorialTaskCreated } = useTutorialAnalytics()
 
   // Analytics
   const { track } = useAnalytics()
@@ -372,7 +364,7 @@ export default function PlanningScreen() {
         // Create new task for the header's selected day
         const targetDate = selectedTarget === 'today' ? todayDate : tomorrowDate
 
-        const newTask = await createTask.mutateAsync({
+        await createTask.mutateAsync({
           scheduledDate: targetDate,
           title: task.title,
           priority: task.priority,
@@ -382,24 +374,13 @@ export default function PlanningScreen() {
           reminderAt: task.reminderAt,
         })
 
-        // If tutorial is active at complete_form step, store task ID and advance
+        // Passive tutorial progression does not depend on the created task.
         if (isTutorialActive && currentStep === 'complete_form') {
-          if (!newTask?.id) {
-            console.warn('Tutorial: Task created but missing ID, cannot advance')
-          } else {
-            setTutorialTaskId(newTask.id)
-            // Track tutorial task creation for analytics
-            trackTutorialTaskCreated()
-            // Delay advancement to allow task to appear in list
-            setTimeout(() => {
-              if (isMountedRef.current) {
-                try {
-                  advanceFromCompleteForm()
-                } catch (error) {
-                  console.error('Failed to advance tutorial from complete_form:', error)
-                }
-              }
-            }, TUTORIAL_TASK_RENDER_DELAY)
+          try {
+            router.replace('/(tabs)/')
+            advanceFromCompleteForm()
+          } catch (error) {
+            console.error('Failed to advance tutorial from complete_form:', error)
           }
         }
       }

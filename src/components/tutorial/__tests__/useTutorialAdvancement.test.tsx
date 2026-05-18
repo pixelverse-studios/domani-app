@@ -10,8 +10,6 @@ function setTutorialStep(step: TutorialStep) {
       hasCompletedTutorial: false,
       isLoading: false,
       isOverlayHidden: false,
-      tutorialCategoryId: null,
-      tutorialTaskId: null,
     })
   })
 }
@@ -24,8 +22,6 @@ describe('useTutorialAdvancement', () => {
       hasCompletedTutorial: false,
       isLoading: false,
       isOverlayHidden: false,
-      tutorialCategoryId: null,
-      tutorialTaskId: null,
     })
   })
 
@@ -54,7 +50,7 @@ describe('useTutorialAdvancement', () => {
     expect(useTutorialStore.getState().currentStep).toBe('complete_form')
   })
 
-  it('can advance after creating a category without storing created IDs', () => {
+  it('can advance after category setup without storing created IDs', () => {
     const { result } = renderHookWithProviders(() => useTutorialAdvancement())
 
     setTutorialStep('category_selector')
@@ -62,8 +58,6 @@ describe('useTutorialAdvancement', () => {
 
     expect(useTutorialStore.getState()).toMatchObject({
       currentStep: 'more_categories_button',
-      tutorialCategoryId: null,
-      tutorialTaskId: null,
     })
   })
 })
