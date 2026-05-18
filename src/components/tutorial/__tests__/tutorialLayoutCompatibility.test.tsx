@@ -72,11 +72,10 @@ describe('tutorial layout compatibility', () => {
     'completes the passive walkthrough while %s layout is selected',
     async (taskLayout: TaskLayout) => {
       useLayoutStore.setState({ taskLayout })
-      resetTutorialAt('today_overview')
+      resetTutorialAt('today_primary_action')
 
       renderWithProviders(<TutorialSpotlight />)
 
-      await advanceTo('today_primary_action')
       await advanceTo('planning_form')
       await advanceTo('task_title')
       await advanceTo('task_category')
@@ -99,9 +98,7 @@ describe('tutorial layout compatibility', () => {
   )
 
   it('keeps Today tutorial targets available for empty and populated task states', () => {
-    expect(readSource('src/app/(tabs)/index.tsx')).toContain(
-      "useTutorialTarget('today_overview')",
-    )
+    expect(readSource('src/app/(tabs)/index.tsx')).not.toContain('useTutorialTarget')
     expect(readSource('src/components/today/NewUserEmptyState.tsx')).toContain(
       "useTutorialTarget('today_primary_action')",
     )

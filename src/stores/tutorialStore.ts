@@ -9,7 +9,6 @@ import { supabase } from '~/lib/supabase'
  */
 export type TutorialStep =
   | 'welcome'
-  | 'today_overview'
   | 'today_primary_action'
   | 'planning_form'
   | 'task_title'
@@ -21,7 +20,6 @@ export type TutorialStep =
 
 export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   'welcome',
-  'today_overview',
   'today_primary_action',
   'planning_form',
   'task_title',
@@ -147,7 +145,6 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
   analyticsViewedSteps: new Set<TutorialStep>(),
   targetMeasurements: {
     welcome: null,
-    today_overview: null,
     today_primary_action: null,
     planning_form: null,
     task_title: null,

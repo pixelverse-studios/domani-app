@@ -102,11 +102,13 @@ describe('TutorialSpotlight', () => {
 
     renderWithProviders(<TutorialSpotlight />)
 
+    expect(screen.getByText('Plan Today')).toBeTruthy()
+
     fireEvent.press(screen.getByText('Next'))
 
     await waitFor(() => {
       expect(router.push).toHaveBeenCalledWith(
-        '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true',
+        '/(tabs)/planning?defaultPlanningFor=today&openForm=true',
       )
       expect(useTutorialStore.getState().currentStep).toBe('planning_form')
     })
