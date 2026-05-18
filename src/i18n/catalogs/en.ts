@@ -354,7 +354,7 @@ export const en = {
       taskTitleDescription: 'Keep the title short, clear, and easy to start.',
       taskCategoryTitle: 'Give It Context',
       taskCategoryDescription:
-        'Categories keep work, personal, home, and wellness tasks easy to scan.',
+        'Categories help you spot the kind of day you are building. Use the defaults or create your own as your routine grows.',
       taskPriorityTitle: 'Choose the Weight',
       taskPriorityDescription:
         'Priority tells tomorrow-you what deserves attention first.',
