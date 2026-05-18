@@ -185,4 +185,31 @@ describe('TutorialSpotlight', () => {
       })
     })
   })
+
+  it('waits for measured target coordinates before showing anchored steps', async () => {
+    act(() => {
+      useTutorialStore.setState({
+        isActive: true,
+        currentStep: 'planning_form',
+        hasCompletedTutorial: false,
+        isLoading: false,
+        isOverlayHidden: false,
+        targetMeasurements: emptyMeasurements(),
+      })
+    })
+
+    renderWithProviders(<TutorialSpotlight />)
+
+    expect(screen.queryByText('One Focused Planning Form')).toBeNull()
+
+    act(() => {
+      useTutorialStore
+        .getState()
+        .setTargetMeasurement('planning_form', { x: 24, y: 120, width: 180, height: 48 })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('One Focused Planning Form')).toBeTruthy()
+    })
+  })
 })

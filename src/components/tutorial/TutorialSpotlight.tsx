@@ -127,7 +127,9 @@ export function TutorialSpotlight() {
   const stepConfig = currentStep ? stepConfigMap[currentStep] : null
   const measurement = currentStep ? targetMeasurements[currentStep] : null
   const isSpotlightStep = currentStep && SPOTLIGHT_STEPS.includes(currentStep)
-  const isVisible = !isLoading && isActive && isSpotlightStep && !isOverlayHidden
+  const hasRequiredMeasurement = !!stepConfig && (stepConfig.position === 'center' || !!measurement)
+  const isVisible =
+    !isLoading && isActive && isSpotlightStep && !isOverlayHidden && hasRequiredMeasurement
   const currentStepIndex = currentStep ? TUTORIAL_STEPS.indexOf(currentStep) : -1
   const isFinalStep = currentStep === 'complete'
   const canGoBack = currentStepIndex > 0
