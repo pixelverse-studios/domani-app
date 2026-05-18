@@ -15,22 +15,6 @@ jest.mock('~/components/tutorial', () => ({
     targetRef: { current: null },
     measureTarget: jest.fn(),
   })),
-  useTutorialAdvancement: jest.fn(() => ({
-    isActive: false,
-    advanceFromCategorySelector: jest.fn(),
-    advanceFromCreateCategory: jest.fn(),
-    advanceFromMoreCategoriesButton: jest.fn(),
-  })),
-}))
-
-jest.mock('~/stores/tutorialStore', () => ({
-  useTutorialStore: jest.fn(() => jest.fn()),
-}))
-
-jest.mock('~/hooks/useTutorialAnalytics', () => ({
-  useTutorialAnalytics: jest.fn(() => ({
-    trackTutorialCategoryCreated: jest.fn(),
-  })),
 }))
 
 jest.mock('~/hooks/useProfile', () => ({
