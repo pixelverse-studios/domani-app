@@ -627,6 +627,288 @@ export type Database = {
           },
         ]
       }
+      promo_campaigns: {
+        Row: {
+          android_fallback_url_template: string | null
+          android_is_available: boolean
+          android_product_id: string | null
+          android_promotion_id: string | null
+          android_redemption_strategy: string | null
+          campaign_type: Database['public']['Enums']['promo_campaign_type']
+          created_at: string
+          description: string | null
+          discount_kind: Database['public']['Enums']['promo_discount_kind']
+          discount_percent: number | null
+          display_label: string
+          display_name: string
+          ends_at: string | null
+          id: string
+          ios_fallback_url_template: string | null
+          ios_is_available: boolean
+          ios_offer_identifier: string | null
+          ios_product_id: string | null
+          ios_redemption_strategy: string | null
+          is_active: boolean
+          max_redemptions: number | null
+          max_redemptions_per_user: number
+          metadata: Json
+          payment_required: boolean
+          price_amount: number | null
+          price_currency: string | null
+          redemption_count: number
+          revenuecat_entitlement_id: string
+          revenuecat_offering_id: string | null
+          revenuecat_package_id: string | null
+          slug: string
+          starts_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          android_fallback_url_template?: string | null
+          android_is_available?: boolean
+          android_product_id?: string | null
+          android_promotion_id?: string | null
+          android_redemption_strategy?: string | null
+          campaign_type: Database['public']['Enums']['promo_campaign_type']
+          created_at?: string
+          description?: string | null
+          discount_kind: Database['public']['Enums']['promo_discount_kind']
+          discount_percent?: number | null
+          display_label: string
+          display_name: string
+          ends_at?: string | null
+          id?: string
+          ios_fallback_url_template?: string | null
+          ios_is_available?: boolean
+          ios_offer_identifier?: string | null
+          ios_product_id?: string | null
+          ios_redemption_strategy?: string | null
+          is_active?: boolean
+          max_redemptions?: number | null
+          max_redemptions_per_user?: number
+          metadata?: Json
+          payment_required?: boolean
+          price_amount?: number | null
+          price_currency?: string | null
+          redemption_count?: number
+          revenuecat_entitlement_id: string
+          revenuecat_offering_id?: string | null
+          revenuecat_package_id?: string | null
+          slug: string
+          starts_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          android_fallback_url_template?: string | null
+          android_is_available?: boolean
+          android_product_id?: string | null
+          android_promotion_id?: string | null
+          android_redemption_strategy?: string | null
+          campaign_type?: Database['public']['Enums']['promo_campaign_type']
+          created_at?: string
+          description?: string | null
+          discount_kind?: Database['public']['Enums']['promo_discount_kind']
+          discount_percent?: number | null
+          display_label?: string
+          display_name?: string
+          ends_at?: string | null
+          id?: string
+          ios_fallback_url_template?: string | null
+          ios_is_available?: boolean
+          ios_offer_identifier?: string | null
+          ios_product_id?: string | null
+          ios_redemption_strategy?: string | null
+          is_active?: boolean
+          max_redemptions?: number | null
+          max_redemptions_per_user?: number
+          metadata?: Json
+          payment_required?: boolean
+          price_amount?: number | null
+          price_currency?: string | null
+          redemption_count?: number
+          revenuecat_entitlement_id?: string
+          revenuecat_offering_id?: string | null
+          revenuecat_package_id?: string | null
+          slug?: string
+          starts_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      promo_codes: {
+        Row: {
+          assigned_user_id: string | null
+          batch_slug: string | null
+          campaign_id: string
+          code_hash: string
+          code_lookup_hint: string | null
+          created_at: string
+          ends_at: string | null
+          id: string
+          max_redemptions: number
+          max_redemptions_per_user: number
+          metadata: Json
+          redemption_count: number
+          starts_at: string | null
+          status: Database['public']['Enums']['promo_code_status']
+          updated_at: string
+        }
+        Insert: {
+          assigned_user_id?: string | null
+          batch_slug?: string | null
+          campaign_id: string
+          code_hash: string
+          code_lookup_hint?: string | null
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          max_redemptions?: number
+          max_redemptions_per_user?: number
+          metadata?: Json
+          redemption_count?: number
+          starts_at?: string | null
+          status?: Database['public']['Enums']['promo_code_status']
+          updated_at?: string
+        }
+        Update: {
+          assigned_user_id?: string | null
+          batch_slug?: string | null
+          campaign_id?: string
+          code_hash?: string
+          code_lookup_hint?: string | null
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          max_redemptions?: number
+          max_redemptions_per_user?: number
+          metadata?: Json
+          redemption_count?: number
+          starts_at?: string | null
+          status?: Database['public']['Enums']['promo_code_status']
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'promo_codes_assigned_user_id_fkey'
+            columns: ['assigned_user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'promo_codes_assigned_user_id_fkey'
+            columns: ['assigned_user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles_dashboard'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'promo_codes_campaign_id_fkey'
+            columns: ['campaign_id']
+            isOneToOne: false
+            referencedRelation: 'promo_campaigns'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      promo_redemption_attempts: {
+        Row: {
+          app_version: string | null
+          campaign_id: string | null
+          code_id: string | null
+          confirmed_at: string | null
+          created_at: string
+          error_code: string | null
+          error_message: string | null
+          fallback_url: string | null
+          id: string
+          normalized_code_hash: string | null
+          platform: string | null
+          response_payload: Json
+          revenuecat_app_user_id: string | null
+          revenuecat_offering_id: string | null
+          revenuecat_package_id: string | null
+          status: Database['public']['Enums']['promo_redemption_status']
+          store_product_id: string | null
+          store_transaction_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_version?: string | null
+          campaign_id?: string | null
+          code_id?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          fallback_url?: string | null
+          id?: string
+          normalized_code_hash?: string | null
+          platform?: string | null
+          response_payload?: Json
+          revenuecat_app_user_id?: string | null
+          revenuecat_offering_id?: string | null
+          revenuecat_package_id?: string | null
+          status: Database['public']['Enums']['promo_redemption_status']
+          store_product_id?: string | null
+          store_transaction_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app_version?: string | null
+          campaign_id?: string | null
+          code_id?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          error_code?: string | null
+          error_message?: string | null
+          fallback_url?: string | null
+          id?: string
+          normalized_code_hash?: string | null
+          platform?: string | null
+          response_payload?: Json
+          revenuecat_app_user_id?: string | null
+          revenuecat_offering_id?: string | null
+          revenuecat_package_id?: string | null
+          status?: Database['public']['Enums']['promo_redemption_status']
+          store_product_id?: string | null
+          store_transaction_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'promo_redemption_attempts_campaign_id_fkey'
+            columns: ['campaign_id']
+            isOneToOne: false
+            referencedRelation: 'promo_campaigns'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'promo_redemption_attempts_code_id_fkey'
+            columns: ['code_id']
+            isOneToOne: false
+            referencedRelation: 'promo_codes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'promo_redemption_attempts_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'promo_redemption_attempts_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles_dashboard'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       support_requests: {
         Row: {
           app_build: string | null
@@ -1057,6 +1339,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      hash_promo_code: { Args: { p_code: string }; Returns: string }
       increment_category_usage: {
         Args: {
           p_system_category_id?: string
@@ -1071,6 +1354,7 @@ export type Database = {
         Args: { p_error?: string | null; p_platform?: string; p_source?: string | null }
         Returns: Database['public']['Tables']['purchase_refund_states']['Row']
       }
+      normalize_promo_code: { Args: { p_code: string }; Returns: string }
       record_current_user_duplicate_refund_request_hint: {
         Args: { p_error?: string | null; p_platform?: string; p_source?: string | null }
         Returns: Database['public']['Tables']['purchase_refund_states']['Row']
@@ -1095,6 +1379,10 @@ export type Database = {
       sync_auth_user_to_profile: {
         Args: { p_user_id: string }
         Returns: boolean
+      }
+      validate_promo_code: {
+        Args: { p_app_version?: string | null; p_code: string; p_platform: string }
+        Returns: Json
       }
       update_campaign_metrics: {
         Args: { p_campaign_id: string }
@@ -1127,6 +1415,20 @@ export type Database = {
         | 'login_attempt'
         | 'login_error'
         | 'read'
+      promo_campaign_type: 'free_lifetime' | 'percent_discount_lifetime' | 'fixed_price_lifetime'
+      promo_code_status: 'active' | 'inactive' | 'exhausted' | 'revoked'
+      promo_discount_kind: 'free' | 'percent' | 'fixed_price'
+      promo_redemption_status:
+        | 'valid'
+        | 'invalid'
+        | 'inactive'
+        | 'expired'
+        | 'over_limit'
+        | 'already_redeemed'
+        | 'platform_unavailable'
+        | 'confirmed'
+        | 'abandoned'
+        | 'failed'
       refund_request_status: 'pending_review' | 'approved' | 'denied'
       signup_cohort: 'friends_family' | 'early_adopter' | 'general'
       task_priority: 'top' | 'high' | 'medium' | 'low'
