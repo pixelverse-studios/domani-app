@@ -7,6 +7,7 @@ jest.mock('~/lib/revenuecat', () => ({
   logoutRevenueCat: jest.fn(),
   purchasePackage: jest.fn(),
   restorePurchases: jest.fn(),
+  syncPurchasesAndRefreshCustomerInfo: jest.fn(),
   syncRevenueCatSubscriberAttributes: jest.fn(),
 }))
 

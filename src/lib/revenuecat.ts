@@ -395,6 +395,25 @@ export async function restorePurchases() {
 }
 
 /**
+ * Ask RevenueCat to sync any store-side purchases, then fetch fresh customer info.
+ * Useful after native/external purchase surfaces return without direct customerInfo.
+ */
+export async function syncPurchasesAndRefreshCustomerInfo() {
+  try {
+    await Purchases.syncPurchases()
+    const customerInfo = await Purchases.getCustomerInfo()
+    console.log(
+      '[RevenueCat] Synced purchases and refreshed customer info',
+      getActiveEntitlementSummary(customerInfo),
+    )
+    return customerInfo
+  } catch (error) {
+    console.error('[RevenueCat] Purchase sync error:', error)
+    throw error
+  }
+}
+
+/**
  * Begin an iOS refund request for the user's active entitlement.
  */
 export async function beginRefundRequestForActiveEntitlement(): Promise<REFUND_REQUEST_STATUS> {
