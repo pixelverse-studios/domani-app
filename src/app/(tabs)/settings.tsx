@@ -296,6 +296,7 @@ function SettingsContent() {
           isStartingTrial={subscription.isStartingTrial}
           isRestoring={subscription.isRestoring}
           isSyncingAccess={subscription.isSyncingAccess}
+          isRedeemingPromoCode={subscription.isRedeemingPromoCode}
           accessSyncPhase={subscription.accessSyncPhase}
           accessSyncAttempt={subscription.accessSyncAttempt}
           trialDaysRemaining={subscription.trialDaysRemaining}
@@ -313,6 +314,13 @@ function SettingsContent() {
           onSyncAccess={async () => {
             await subscription.syncAccess({ source: 'manual', forceStoreSync: true })
           }}
+          onRedeemPromoCode={
+            subscription.canRedeemPromoCode
+              ? async () => {
+                  await subscription.redeemPromoCode(undefined)
+                }
+              : undefined
+          }
           onUpgrade={() => setShowPaywallModal(true)}
           onOpenPurchaseHelp={() => router.push('/purchase-help?source=settings')}
         />
@@ -455,6 +463,7 @@ function SettingsContent() {
         isPurchasing={subscription.isPurchasing}
         isRestoring={subscription.isRestoring}
         isSyncingAccess={subscription.isSyncingAccess}
+        isRedeemingPromoCode={subscription.isRedeemingPromoCode}
         onPurchase={async (pkg) => {
           return await subscription.purchase(pkg)
         }}
@@ -465,6 +474,14 @@ function SettingsContent() {
           const result = await subscription.syncAccess({ source: 'manual', forceStoreSync: true })
           return result.status === 'confirmed' ? result.customerInfo : null
         }}
+        onRedeemPromoCode={
+          subscription.canRedeemPromoCode
+            ? async () => {
+                const result = await subscription.redeemPromoCode(undefined)
+                return result ?? null
+              }
+            : undefined
+        }
       />
 
       <LayoutPickerModal visible={showLayoutModal} onClose={() => setShowLayoutModal(false)} />

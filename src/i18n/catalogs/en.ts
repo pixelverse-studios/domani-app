@@ -442,6 +442,12 @@ export const en = {
       syncVerificationFailed:
         "We couldn't verify your purchase yet. Try restoring purchases or contact support.",
       retrySync: 'Retry Sync',
+      redeemCode: 'Redeem Code',
+      tryDifferentCode: 'Try Different Code',
+      promoRedemptionPending:
+        'Finish the code redemption in the store, then retry sync if access does not update.',
+      promoRedemptionFailed:
+        "We couldn't open code redemption. Try restoring purchases or contact support.",
       restoreNotFound: 'No previous purchases found for this account.',
       restoreError: 'Could not restore purchases. Please try again.',
       contactSupport: 'Contact Support',
@@ -622,6 +628,7 @@ export const en = {
         "We couldn't verify your purchase. It may not have completed, your network may be unavailable, or store sync may be taking longer than expected.",
       retrySync: 'Retry Sync',
       syncAccess: 'Sync Access',
+      tryDifferentCode: 'Try Different Code',
       contactSupport: 'Contact Support',
       promoContextCode: 'Code: {{code}}',
       promoContextCampaign: 'Campaign: {{campaign}}',

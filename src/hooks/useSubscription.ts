@@ -21,6 +21,7 @@ import {
   purchasePackage,
   restorePurchases,
   syncPurchasesAndRefreshCustomerInfo,
+  presentCodeRedemptionSheet,
   ENTITLEMENT_ID,
 } from '~/lib/revenuecat'
 
@@ -154,10 +155,52 @@ export function hasFullAccess(status: SubscriptionStatus): boolean {
   )
 }
 
+function hasActiveRecordedLifetime(
+  profile: Pick<Profile, 'tier' | 'purchased_at' | 'refunded_at'> | null | undefined,
+): boolean {
+  const hasRecordedLifetime = profile?.tier === 'lifetime' || !!profile?.purchased_at
+  return hasRecordedLifetime && !profile?.refunded_at
+}
+
+export function shouldUseRevenueCatCustomerInfoForAccess(input: {
+  profile: Pick<Profile, 'tier' | 'purchased_at' | 'refunded_at'> | null | undefined
+  accessSyncPhase: PurchaseAccessSyncPhase
+  accessSyncResult: Pick<PurchaseAccessSyncResult, 'status'> | null | undefined
+  hasPendingExternalPurchaseSync?: boolean
+}): boolean {
+  if (hasActiveRecordedLifetime(input.profile)) return true
+
+  const blockingPhases: PurchaseAccessSyncPhase[] = [
+    'code_validated',
+    'os_confirmation_attempted',
+    'syncing',
+    'verification_failed',
+  ]
+  const blockingStatuses: PurchaseAccessSyncStatus[] = [
+    'missing_entitlement',
+    'non_lifetime_entitlement',
+    'revenuecat_unavailable',
+    'supabase_sync_failed',
+  ]
+
+  if (blockingPhases.includes(input.accessSyncPhase)) return false
+  if (input.hasPendingExternalPurchaseSync) return false
+  if (input.accessSyncResult && blockingStatuses.includes(input.accessSyncResult.status)) {
+    return false
+  }
+
+  return true
+}
+
 const TRIAL_DURATION_DAYS = 14
 const FALLBACK_LEGACY_BETA_SIGNUP_CUTOFF = new Date('2026-04-01T00:00:00Z')
 const FALLBACK_BETA_END_DATE = new Date('2026-03-31T00:00:00Z')
 const FALLBACK_BETA_GRACE_PERIOD_DAYS = 14
+const PROMO_REDEMPTION_SYNC_DELAYS_MS = [1000, 3000, 7000]
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 /**
  * Lightweight read-only subscription status hook.
@@ -376,9 +419,14 @@ export function useSubscription() {
     retry: false, // Don't retry if RevenueCat is not configured
   })
 
-  // When RevenueCat is bypassed for beta mode, cached customer info must not
-  // continue affecting the subscription state machine.
-  const effectiveCustomerInfo = shouldBypassRevenueCat ? null : customerInfo
+  const shouldUseRevenueCatForAccess = shouldUseRevenueCatCustomerInfoForAccess({
+    profile,
+    accessSyncPhase,
+    accessSyncResult,
+    hasPendingExternalPurchaseSync: !!pendingExternalPurchaseSyncRef.current,
+  })
+  const effectiveCustomerInfo =
+    shouldBypassRevenueCat || !shouldUseRevenueCatForAccess ? null : customerInfo
 
   // Get the cohort-specific offering identifier
   const offeringIdentifier = getOfferingForCohort(profile?.signup_cohort)
@@ -405,6 +453,7 @@ export function useSubscription() {
   const canRequestIosRefund = Platform.OS === 'ios' && hasActiveRevenueCatEntitlement
   const canRequestAndroidRefund =
     Platform.OS === 'android' && activeRevenueCatEntitlement?.store === 'PLAY_STORE'
+  const canRedeemPromoCode = Platform.OS === 'ios'
 
   const markPromoCodeValidated = useCallback((context?: PurchaseAccessSyncAttemptContext) => {
     const nextContext = context ?? null
@@ -628,6 +677,69 @@ export function useSubscription() {
         forceStoreSync: request?.forceStoreSync ?? true,
         attemptContext: request?.attemptContext ?? accessSyncAttempt,
       }),
+  })
+
+  const redeemPromoCodeMutation = useMutation({
+    mutationFn: async (context?: PurchaseAccessSyncAttemptContext) => {
+      const attemptContext = context ?? null
+      markPromoCodeValidated(context)
+
+      let wasPresented = false
+      try {
+        wasPresented = await presentCodeRedemptionSheet()
+      } catch (error) {
+        const result: PurchaseAccessSyncResult = {
+          status: 'revenuecat_unavailable',
+          source: 'promo_redemption',
+          customerInfo: null,
+          hasEntitlement: false,
+          profileSynced: false,
+          recoverable: true,
+          attemptContext,
+          error,
+        }
+
+        pendingExternalPurchaseSyncRef.current = null
+        setAccessSyncAttempt(attemptContext)
+        setAccessSyncResult(result)
+        setAccessSyncPhase('verification_failed')
+        addBreadcrumb('Promo code redemption sheet could not be presented', 'monetization.sync', {
+          userId: user?.id ?? null,
+          platform: Platform.OS,
+          campaignId: attemptContext?.campaignId ?? null,
+          promoOutcome: attemptContext?.promoOutcome ?? null,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        return result
+      }
+
+      markExternalPurchaseAttempted({
+        source: 'promo_redemption',
+        forceStoreSync: true,
+        attemptContext,
+      })
+
+      if (!wasPresented) {
+        return syncExternalPurchaseAccess({
+          source: 'promo_redemption',
+          forceStoreSync: true,
+          attemptContext,
+        })
+      }
+
+      let latestResult: PurchaseAccessSyncResult | null = null
+      for (const delayMs of PROMO_REDEMPTION_SYNC_DELAYS_MS) {
+        await wait(delayMs)
+        latestResult = await syncExternalPurchaseAccess({
+          source: 'promo_redemption',
+          forceStoreSync: true,
+          attemptContext,
+        })
+        if (latestResult.status === 'confirmed') return latestResult
+      }
+
+      return latestResult
+    },
   })
 
   useEffect(() => {
@@ -926,6 +1038,8 @@ export function useSubscription() {
     isRestoring: restoreMutation.isPending,
     syncAccess: syncAccessMutation.mutateAsync,
     isSyncingAccess: syncAccessMutation.isPending,
+    redeemPromoCode: redeemPromoCodeMutation.mutateAsync,
+    isRedeemingPromoCode: redeemPromoCodeMutation.isPending,
     accessSyncPhase,
     accessSyncResult,
     accessSyncAttempt,
@@ -933,6 +1047,7 @@ export function useSubscription() {
     markExternalPurchaseAttempted,
     canRequestIosRefund,
     canRequestAndroidRefund,
+    canRedeemPromoCode,
     refetch: refetchCustomerInfo,
   }
 }
@@ -941,9 +1056,9 @@ export function useSubscription() {
  * Compute subscription state from profile, RevenueCat data, and beta phase.
  *
  * The resolution order is:
- *  1. `beta` phase short-circuits everything → status='beta'
- *  2. DB tier='lifetime' → status='lifetime'
- *  3. refunded_at IS NOT NULL → status='refunded' (purchase was refunded)
+ *  1. refunded_at IS NOT NULL → status='refunded' (purchase was refunded)
+ *  2. DB tier='lifetime' or purchased_at is set → status='lifetime'
+ *  3. `beta` phase short-circuits non-purchase users → status='beta'
  *  4. RevenueCat entitlement (trial or lifetime) → status='trialing' | 'lifetime'
  *  5. Legacy beta grace logic for users created before 2026-04-01 UTC:
  *     - before 2026-04-15 UTC → status='grace_period'
@@ -976,38 +1091,11 @@ function computeSubscriptionState(
       : FALLBACK_BETA_GRACE_PERIOD_DAYS
   const betaGraceEnd = addDays(betaEndDate, betaGracePeriodDays)
 
-  // Lifetime takes precedence over everything, including beta phase. Users
-  // who actually paid should see their true entitlement regardless of which
-  // build they're running — otherwise a lifetime purchaser in a beta build
-  // would see a misleading "Beta Tester" status and lose visibility into
-  // the permanent access they paid for.
-  if (profile?.tier === 'lifetime') {
-    return {
-      status: 'lifetime',
-      trialDaysRemaining: null,
-      trialExpirationDate: null,
-      graceDaysRemaining: null,
-      graceExpirationDate: null,
-    }
-  }
-
-  // Beta phase overrides everything else — beta testers always have full
-  // access regardless of tier/trial columns. Single source of truth for
-  // "during beta, no one (without a real purchase) is gated".
-  if (isBeta) {
-    return {
-      status: 'beta',
-      trialDaysRemaining: null,
-      trialExpirationDate: null,
-      graceDaysRemaining: null,
-      graceExpirationDate: null,
-    }
-  }
-
   const now = new Date()
 
-  // Refunded users stay locked even if they would otherwise have been
-  // eligible for beta grace access.
+  // Refund state is authoritative. A refunded user must not regain access from
+  // stale tier or cached RevenueCat state until a new purchase/restore clears
+  // refunded_at through the verified sync path.
   if (profile?.refunded_at) {
     return {
       status: 'refunded',
@@ -1018,11 +1106,22 @@ function computeSubscriptionState(
     }
   }
 
-  // A recorded lifetime purchase in Supabase is enough to restore the
-  // lifetime state when RevenueCat is temporarily unavailable or stale.
-  if (profile?.purchased_at) {
+  // Lifetime takes precedence over beta phase. Users who actually paid should
+  // see their true entitlement regardless of which build they're running.
+  if (hasActiveRecordedLifetime(profile)) {
     return {
       status: 'lifetime',
+      trialDaysRemaining: null,
+      trialExpirationDate: null,
+      graceDaysRemaining: null,
+      graceExpirationDate: null,
+    }
+  }
+
+  // Beta phase overrides everything else for users without an active purchase.
+  if (isBeta) {
+    return {
+      status: 'beta',
       trialDaysRemaining: null,
       trialExpirationDate: null,
       graceDaysRemaining: null,

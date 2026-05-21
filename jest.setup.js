@@ -159,6 +159,7 @@ jest.doMock('react-native-purchases', () => ({
     getOfferings: jest.fn(() => Promise.resolve({ current: null })),
     logIn: jest.fn(() => Promise.resolve({ customerInfo: { entitlements: { active: {} } } })),
     logOut: jest.fn(() => Promise.resolve()),
+    presentCodeRedemptionSheet: jest.fn(() => Promise.resolve()),
     purchasePackage: jest.fn(() =>
       Promise.resolve({ customerInfo: { entitlements: { active: {} } } }),
     ),

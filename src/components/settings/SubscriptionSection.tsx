@@ -19,6 +19,7 @@ interface SubscriptionSectionProps {
   isStartingTrial: boolean
   isRestoring: boolean
   isSyncingAccess: boolean
+  isRedeemingPromoCode: boolean
   accessSyncPhase: PurchaseAccessSyncPhase
   accessSyncAttempt: PurchaseAccessSyncAttemptContext | null
   trialDaysRemaining: number | null
@@ -28,6 +29,7 @@ interface SubscriptionSectionProps {
   onStartTrial: () => void
   onRestore: () => void
   onSyncAccess: () => void
+  onRedeemPromoCode?: () => void
   onUpgrade: () => void
   onOpenPurchaseHelp: () => void
 }
@@ -44,6 +46,7 @@ export function SubscriptionSection({
   isStartingTrial,
   isRestoring,
   isSyncingAccess,
+  isRedeemingPromoCode,
   accessSyncPhase,
   accessSyncAttempt,
   trialDaysRemaining,
@@ -53,6 +56,7 @@ export function SubscriptionSection({
   onStartTrial,
   onRestore,
   onSyncAccess,
+  onRedeemPromoCode,
   onUpgrade,
   onOpenPurchaseHelp,
 }: SubscriptionSectionProps) {
@@ -432,12 +436,12 @@ export function SubscriptionSection({
               <View className="flex-row flex-wrap mt-3" style={{ gap: 8 }}>
                 <TouchableOpacity
                   onPress={onSyncAccess}
-                  disabled={isSyncingAccess || isRestoring}
+                  disabled={isSyncingAccess || isRestoring || isRedeemingPromoCode}
                   activeOpacity={0.8}
                   className="px-3 py-2 rounded-lg"
                   style={{
                     backgroundColor: theme.colors.brand.primary,
-                    opacity: isSyncingAccess || isRestoring ? 0.5 : 1,
+                    opacity: isSyncingAccess || isRestoring || isRedeemingPromoCode ? 0.5 : 1,
                   }}
                 >
                   <Text className="text-xs font-semibold text-white">
@@ -446,30 +450,48 @@ export function SubscriptionSection({
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={onRestore}
-                  disabled={isSyncingAccess || isRestoring}
+                  disabled={isSyncingAccess || isRestoring || isRedeemingPromoCode}
                   activeOpacity={0.8}
                   className="px-3 py-2 rounded-lg"
                   style={{
                     backgroundColor: theme.colors.card,
                     borderWidth: 1,
                     borderColor: theme.colors.border.primary,
-                    opacity: isSyncingAccess || isRestoring ? 0.5 : 1,
+                    opacity: isSyncingAccess || isRestoring || isRedeemingPromoCode ? 0.5 : 1,
                   }}
                 >
                   <Text className="text-xs font-semibold text-content-primary">
                     {t('subscription.settings.restorePurchases')}
                   </Text>
                 </TouchableOpacity>
+                {onRedeemPromoCode && (
+                  <TouchableOpacity
+                    onPress={onRedeemPromoCode}
+                    disabled={isSyncingAccess || isRestoring || isRedeemingPromoCode}
+                    activeOpacity={0.8}
+                    className="px-3 py-2 rounded-lg"
+                    style={{
+                      backgroundColor: theme.colors.card,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border.primary,
+                      opacity: isSyncingAccess || isRestoring || isRedeemingPromoCode ? 0.5 : 1,
+                    }}
+                  >
+                    <Text className="text-xs font-semibold text-content-primary">
+                      {t('subscription.settings.tryDifferentCode')}
+                    </Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   onPress={onOpenPurchaseHelp}
-                  disabled={isSyncingAccess || isRestoring}
+                  disabled={isSyncingAccess || isRestoring || isRedeemingPromoCode}
                   activeOpacity={0.8}
                   className="px-3 py-2 rounded-lg"
                   style={{
                     backgroundColor: theme.colors.card,
                     borderWidth: 1,
                     borderColor: theme.colors.border.primary,
-                    opacity: isSyncingAccess || isRestoring ? 0.5 : 1,
+                    opacity: isSyncingAccess || isRestoring || isRedeemingPromoCode ? 0.5 : 1,
                   }}
                 >
                   <Text className="text-xs font-semibold text-content-primary">
@@ -483,11 +505,11 @@ export function SubscriptionSection({
           {showSyncAccessCta && !showSyncingAccess && !showVerificationFailed && (
             <TouchableOpacity
               onPress={onSyncAccess}
-              disabled={isSyncingAccess || isRestoring}
+              disabled={isSyncingAccess || isRestoring || isRedeemingPromoCode}
               activeOpacity={0.7}
               className="flex-row items-center justify-center py-2"
             >
-              {isSyncingAccess ? (
+              {isSyncingAccess || isRedeemingPromoCode ? (
                 <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
               ) : (
                 <>

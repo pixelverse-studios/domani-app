@@ -414,6 +414,28 @@ export async function syncPurchasesAndRefreshCustomerInfo() {
 }
 
 /**
+ * Present the native iOS offer-code redemption sheet.
+ * Returns false on unsupported platforms so callers can show a recoverable state.
+ */
+export async function presentCodeRedemptionSheet() {
+  if (Platform.OS !== 'ios') {
+    console.log('[RevenueCat] Code redemption sheet unavailable on this platform', {
+      platform: Platform.OS,
+    })
+    return false
+  }
+
+  try {
+    await Purchases.presentCodeRedemptionSheet()
+    console.log('[RevenueCat] Presented code redemption sheet')
+    return true
+  } catch (error) {
+    console.error('[RevenueCat] Code redemption sheet error:', error)
+    throw error
+  }
+}
+
+/**
  * Begin an iOS refund request for the user's active entitlement.
  */
 export async function beginRefundRequestForActiveEntitlement(): Promise<REFUND_REQUEST_STATUS> {

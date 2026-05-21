@@ -17,6 +17,7 @@ import { Text } from '~/components/ui/Text'
 import { GradientButton } from '~/components/ui/GradientButton'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
+import type { PurchaseAccessSyncResult } from '~/hooks/useSubscription'
 
 interface PaywallModalProps {
   visible: boolean
@@ -26,9 +27,15 @@ interface PaywallModalProps {
   isPurchasing: boolean
   isRestoring: boolean
   isSyncingAccess?: boolean
+  isRedeemingPromoCode?: boolean
   onPurchase: (pkg: PurchasesPackage) => Promise<unknown | null>
   onRestore: () => Promise<unknown | null>
   onSyncAccess?: () => Promise<unknown | null>
+  onRedeemPromoCode?: () => Promise<PurchaseAccessSyncResult | unknown | null>
+}
+
+function isPurchaseAccessSyncResult(value: unknown): value is PurchaseAccessSyncResult {
+  return !!value && typeof value === 'object' && 'status' in value && 'source' in value
 }
 
 export function PaywallModal({
@@ -39,9 +46,11 @@ export function PaywallModal({
   isPurchasing,
   isRestoring,
   isSyncingAccess = false,
+  isRedeemingPromoCode = false,
   onPurchase,
   onRestore,
   onSyncAccess,
+  onRedeemPromoCode,
 }: PaywallModalProps) {
   const theme = useAppTheme()
   const router = useRouter()
@@ -187,7 +196,30 @@ export function PaywallModal({
     }
   }
 
-  const isProcessing = isPurchasing || isRestoring || isSyncingAccess
+  const handleRedeemPromoCode = async () => {
+    if (!onRedeemPromoCode) return
+    setError(null)
+    try {
+      const result = await onRedeemPromoCode()
+      if (isPurchaseAccessSyncResult(result) && result.status === 'revenuecat_unavailable') {
+        setFailCount(2)
+        setError(t('subscription.paywall.promoRedemptionFailed'))
+      } else if (isPurchaseAccessSyncResult(result) && result.status !== 'confirmed') {
+        setFailCount(2)
+        setError(t('subscription.paywall.promoRedemptionPending'))
+      } else if (result) {
+        transitionToSuccess()
+      } else {
+        setFailCount(2)
+        setError(t('subscription.paywall.promoRedemptionPending'))
+      }
+    } catch {
+      setFailCount(2)
+      setError(t('subscription.paywall.promoRedemptionFailed'))
+    }
+  }
+
+  const isProcessing = isPurchasing || isRestoring || isSyncingAccess || isRedeemingPromoCode
 
   return (
     <Modal
@@ -477,6 +509,20 @@ export function PaywallModal({
                             </Text>
                           </TouchableOpacity>
                         )}
+                        {onRedeemPromoCode && (
+                          <TouchableOpacity
+                            onPress={handleRedeemPromoCode}
+                            disabled={isProcessing}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              className="font-sans-medium text-xs"
+                              style={{ color: theme.colors.brand.primary }}
+                            >
+                              {t('subscription.paywall.tryDifferentCode')}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
                         <TouchableOpacity
                           onPress={handleRestore}
                           disabled={isProcessing}
@@ -517,6 +563,25 @@ export function PaywallModal({
                 )}
 
                 {/* Restore purchases */}
+                {onRedeemPromoCode && (
+                  <TouchableOpacity
+                    onPress={handleRedeemPromoCode}
+                    disabled={isProcessing}
+                    activeOpacity={0.7}
+                    style={styles.restoreButton}
+                    accessibilityLabel={t('subscription.paywall.redeemCode')}
+                    accessibilityRole="button"
+                  >
+                    {isRedeemingPromoCode ? (
+                      <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
+                    ) : (
+                      <Text className="text-sm text-content-secondary">
+                        {t('subscription.paywall.redeemCode')}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+
                 <TouchableOpacity
                   onPress={handleRestore}
                   disabled={isProcessing}
