@@ -357,6 +357,7 @@ export default function RedeemCodeScreen() {
               style={{
                 width: 64,
                 height: 64,
+                marginTop: 4,
                 backgroundColor: `${theme.colors.brand.primary}1F`,
               }}
             >
