@@ -136,6 +136,10 @@ function SettingsContent() {
     router.push('/(tabs)/')
   }
 
+  const openRedeemCode = () => {
+    router.push('/redeem-code?source=settings')
+  }
+
   const handleSignOut = async () => {
     Alert.alert(copy.settings.logOutTitle, copy.settings.logOutBody, [
       { text: copy.common.cancel, style: 'cancel' },
@@ -314,13 +318,8 @@ function SettingsContent() {
           onSyncAccess={async () => {
             await subscription.syncAccess({ source: 'manual', forceStoreSync: true })
           }}
-          onRedeemPromoCode={
-            subscription.canRedeemPromoCode
-              ? async () => {
-                  await subscription.redeemPromoCode(undefined)
-                }
-              : undefined
-          }
+          onRedeemPromoCode={openRedeemCode}
+          onOpenRedeemCode={openRedeemCode}
           onUpgrade={() => setShowPaywallModal(true)}
           onOpenPurchaseHelp={() => router.push('/purchase-help?source=settings')}
         />
@@ -474,14 +473,7 @@ function SettingsContent() {
           const result = await subscription.syncAccess({ source: 'manual', forceStoreSync: true })
           return result.status === 'confirmed' ? result.customerInfo : null
         }}
-        onRedeemPromoCode={
-          subscription.canRedeemPromoCode
-            ? async () => {
-                const result = await subscription.redeemPromoCode(undefined)
-                return result ?? null
-              }
-            : undefined
-        }
+        onOpenRedeemCode={openRedeemCode}
       />
 
       <LayoutPickerModal visible={showLayoutModal} onClose={() => setShowLayoutModal(false)} />

@@ -22,6 +22,7 @@ import {
   restorePurchases,
   syncPurchasesAndRefreshCustomerInfo,
   presentCodeRedemptionSheet,
+  setRevenueCatPromoRedemptionAttributes,
   ENTITLEMENT_ID,
 } from '~/lib/revenuecat'
 
@@ -91,6 +92,8 @@ export type PurchaseAccessSyncStatus =
 export interface PurchaseAccessSyncAttemptContext {
   promoCode?: string | null
   campaignId?: string | null
+  codeId?: string | null
+  redemptionAttemptId?: string | null
   promoOutcome?: 'free' | 'discounted' | null
   priceString?: string | null
 }
@@ -99,6 +102,11 @@ export interface PurchaseAccessSyncRequest {
   source: PurchaseAccessSyncSource
   customerInfo?: CustomerInfo | null
   forceStoreSync?: boolean
+  attemptContext?: PurchaseAccessSyncAttemptContext | null
+}
+
+interface PurchaseRequest {
+  pkg: PurchasesPackage
   attemptContext?: PurchaseAccessSyncAttemptContext | null
 }
 
@@ -683,6 +691,7 @@ export function useSubscription() {
     mutationFn: async (context?: PurchaseAccessSyncAttemptContext) => {
       const attemptContext = context ?? null
       markPromoCodeValidated(context)
+      await setRevenueCatPromoRedemptionAttributes(attemptContext)
 
       let wasPresented = false
       try {
@@ -739,6 +748,19 @@ export function useSubscription() {
       }
 
       return latestResult
+    },
+    onSettled: (_result, _error, context) => {
+      const attemptContext = context ?? null
+      if (!attemptContext?.redemptionAttemptId) return
+
+      setRevenueCatPromoRedemptionAttributes(null).catch((error) => {
+        console.warn('[useSubscription] Failed to clear promo attributes after redemption', {
+          userId: user?.id ?? null,
+          campaignId: attemptContext.campaignId ?? null,
+          redemptionAttemptId: attemptContext.redemptionAttemptId,
+          error,
+        })
+      })
     },
   })
 
@@ -949,7 +971,32 @@ export function useSubscription() {
 
   // Purchase subscription
   const purchaseMutation = useMutation({
-    mutationFn: async (pkg: PurchasesPackage) => {
+    mutationFn: async (input: PurchasesPackage | PurchaseRequest) => {
+      const pkg = 'pkg' in input ? input.pkg : input
+      const attemptContext =
+        'pkg' in input
+          ? (input.attemptContext ?? null)
+          : {
+              promoCode: null,
+              campaignId: null,
+              promoOutcome: null,
+              priceString: pkg.product.priceString ?? null,
+            }
+
+      if (attemptContext?.redemptionAttemptId) {
+        await setRevenueCatPromoRedemptionAttributes(attemptContext)
+      } else {
+        try {
+          await setRevenueCatPromoRedemptionAttributes(null)
+        } catch (error) {
+          console.warn('[useSubscription] Failed to clear promo RevenueCat attributes', {
+            userId: user?.id ?? null,
+            error,
+          })
+          throw new Error('PROMO_ATTRIBUTE_CLEAR_FAILED')
+        }
+      }
+
       console.log('[useSubscription] Purchase mutation started', {
         userId: user?.id ?? null,
         offeringIdentifier,
@@ -965,12 +1012,7 @@ export function useSubscription() {
           source: 'purchase',
           customerInfo: info,
           forceStoreSync: false,
-          attemptContext: {
-            promoCode: null,
-            campaignId: null,
-            promoOutcome: null,
-            priceString: pkg.product.priceString ?? null,
-          },
+          attemptContext,
         })
         if (result.status !== 'confirmed') {
           throw new Error('PURCHASE_VERIFICATION_FAILED')
@@ -978,6 +1020,19 @@ export function useSubscription() {
         return result.customerInfo
       }
       return null
+    },
+    onSettled: (_info, _error, input) => {
+      const attemptContext = input && 'pkg' in input ? (input.attemptContext ?? null) : null
+      if (!attemptContext?.redemptionAttemptId) return
+
+      setRevenueCatPromoRedemptionAttributes(null).catch((error) => {
+        console.warn('[useSubscription] Failed to clear promo attributes after purchase', {
+          userId: user?.id ?? null,
+          campaignId: attemptContext.campaignId ?? null,
+          redemptionAttemptId: attemptContext.redemptionAttemptId,
+          error,
+        })
+      })
     },
     onSuccess: (info) => {
       console.log('[useSubscription] Purchase mutation completed', {

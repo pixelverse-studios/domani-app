@@ -30,6 +30,7 @@ interface SubscriptionSectionProps {
   onRestore: () => void
   onSyncAccess: () => void
   onRedeemPromoCode?: () => void
+  onOpenRedeemCode: () => void
   onUpgrade: () => void
   onOpenPurchaseHelp: () => void
 }
@@ -57,6 +58,7 @@ export function SubscriptionSection({
   onRestore,
   onSyncAccess,
   onRedeemPromoCode,
+  onOpenRedeemCode,
   onUpgrade,
   onOpenPurchaseHelp,
 }: SubscriptionSectionProps) {
@@ -113,9 +115,13 @@ export function SubscriptionSection({
     },
   }
   const currentStatusConfig = statusConfig[status]
-  const showSyncAccessCta = !['beta', 'lifetime'].includes(status)
   const showSyncingAccess = accessSyncPhase === 'syncing' || isSyncingAccess
   const showVerificationFailed = accessSyncPhase === 'verification_failed'
+  const showSyncAccessCta =
+    accessSyncPhase === 'code_validated' ||
+    accessSyncPhase === 'os_confirmation_attempted' ||
+    showSyncingAccess ||
+    showVerificationFailed
   const warningColor = theme.colors.accent.terracotta
   const attemptedContextLines = [
     accessSyncAttempt?.promoCode
@@ -378,6 +384,28 @@ export function SubscriptionSection({
               </>
             )}
           </View>
+
+          {status !== 'lifetime' && (
+            <TouchableOpacity
+              onPress={onOpenRedeemCode}
+              disabled={isSyncingAccess || isRestoring || isRedeemingPromoCode}
+              activeOpacity={0.8}
+              className="rounded-xl p-4 mb-2 flex-row items-center justify-between"
+              style={{
+                backgroundColor: theme.colors.card,
+                borderWidth: 1,
+                borderColor: theme.colors.border.primary,
+                opacity: isSyncingAccess || isRestoring || isRedeemingPromoCode ? 0.55 : 1,
+              }}
+              accessibilityLabel={t('subscription.settings.redeemCode')}
+              accessibilityRole="button"
+            >
+              <Text className="font-sans-semibold text-content-primary">
+                {t('subscription.settings.redeemCode')}
+              </Text>
+              <ChevronRight size={20} color={theme.colors.text.secondary} />
+            </TouchableOpacity>
+          )}
 
           {showSyncingAccess && (
             <View

@@ -163,6 +163,15 @@ interface RevenueCatSubscriberAttributesInput {
   signupMethod?: string | null
 }
 
+interface RevenueCatPromoRedemptionAttributesInput {
+  promoCode?: string | null
+  campaignId?: string | null
+  codeId?: string | null
+  redemptionAttemptId?: string | null
+  promoOutcome?: 'free' | 'discounted' | null
+  priceString?: string | null
+}
+
 /**
  * Keep RevenueCat subscriber attributes useful for support and dashboard inspection.
  * Supabase remains the source of truth; this only mirrors a small, non-sensitive subset.
@@ -212,6 +221,36 @@ export async function syncRevenueCatSubscriberAttributes(
     signupCohort,
     signupMethod,
     platform: Platform.OS,
+  })
+}
+
+export async function setRevenueCatPromoRedemptionAttributes(
+  input: RevenueCatPromoRedemptionAttributesInput | null,
+) {
+  const attributes: Record<string, string | null> = input
+    ? {
+        promo_code: normalizeSubscriberAttributeValue(input.promoCode),
+        promo_campaign_id: normalizeSubscriberAttributeValue(input.campaignId),
+        promo_code_id: normalizeSubscriberAttributeValue(input.codeId),
+        promo_redemption_attempt_id: normalizeSubscriberAttributeValue(input.redemptionAttemptId),
+        promo_outcome: normalizeSubscriberAttributeValue(input.promoOutcome),
+        promo_price: normalizeSubscriberAttributeValue(input.priceString),
+      }
+    : {
+        promo_code: null,
+        promo_campaign_id: null,
+        promo_code_id: null,
+        promo_redemption_attempt_id: null,
+        promo_outcome: null,
+        promo_price: null,
+      }
+
+  await Purchases.setAttributes(attributes)
+  console.log('[RevenueCat] Synced promo redemption attributes', {
+    hasPromoAttempt: !!input?.redemptionAttemptId,
+    campaignId: input?.campaignId ?? null,
+    codeId: input?.codeId ?? null,
+    promoOutcome: input?.promoOutcome ?? null,
   })
 }
 

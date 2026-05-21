@@ -169,14 +169,10 @@ export function LockedScreen() {
           const result = await subscription.syncAccess({ source: 'manual', forceStoreSync: true })
           return result.status === 'confirmed' ? result.customerInfo : null
         }}
-        onRedeemPromoCode={
-          subscription.canRedeemPromoCode
-            ? async () => {
-                const result = await subscription.redeemPromoCode(undefined)
-                return result ?? null
-              }
-            : undefined
-        }
+        onOpenRedeemCode={() => {
+          setShowPaywall(false)
+          router.push('/redeem-code?source=locked')
+        }}
       />
     </View>
   )

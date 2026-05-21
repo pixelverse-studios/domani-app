@@ -17,7 +17,6 @@ import { Text } from '~/components/ui/Text'
 import { GradientButton } from '~/components/ui/GradientButton'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
-import type { PurchaseAccessSyncResult } from '~/hooks/useSubscription'
 
 interface PaywallModalProps {
   visible: boolean
@@ -31,11 +30,7 @@ interface PaywallModalProps {
   onPurchase: (pkg: PurchasesPackage) => Promise<unknown | null>
   onRestore: () => Promise<unknown | null>
   onSyncAccess?: () => Promise<unknown | null>
-  onRedeemPromoCode?: () => Promise<PurchaseAccessSyncResult | unknown | null>
-}
-
-function isPurchaseAccessSyncResult(value: unknown): value is PurchaseAccessSyncResult {
-  return !!value && typeof value === 'object' && 'status' in value && 'source' in value
+  onOpenRedeemCode?: () => void
 }
 
 export function PaywallModal({
@@ -50,7 +45,7 @@ export function PaywallModal({
   onPurchase,
   onRestore,
   onSyncAccess,
-  onRedeemPromoCode,
+  onOpenRedeemCode,
 }: PaywallModalProps) {
   const theme = useAppTheme()
   const router = useRouter()
@@ -193,29 +188,6 @@ export function PaywallModal({
     } catch {
       setFailCount(2)
       setError(t('subscription.paywall.syncVerificationFailed'))
-    }
-  }
-
-  const handleRedeemPromoCode = async () => {
-    if (!onRedeemPromoCode) return
-    setError(null)
-    try {
-      const result = await onRedeemPromoCode()
-      if (isPurchaseAccessSyncResult(result) && result.status === 'revenuecat_unavailable') {
-        setFailCount(2)
-        setError(t('subscription.paywall.promoRedemptionFailed'))
-      } else if (isPurchaseAccessSyncResult(result) && result.status !== 'confirmed') {
-        setFailCount(2)
-        setError(t('subscription.paywall.promoRedemptionPending'))
-      } else if (result) {
-        transitionToSuccess()
-      } else {
-        setFailCount(2)
-        setError(t('subscription.paywall.promoRedemptionPending'))
-      }
-    } catch {
-      setFailCount(2)
-      setError(t('subscription.paywall.promoRedemptionFailed'))
     }
   }
 
@@ -509,9 +481,12 @@ export function PaywallModal({
                             </Text>
                           </TouchableOpacity>
                         )}
-                        {onRedeemPromoCode && (
+                        {onOpenRedeemCode && (
                           <TouchableOpacity
-                            onPress={handleRedeemPromoCode}
+                            onPress={() => {
+                              onClose()
+                              onOpenRedeemCode()
+                            }}
                             disabled={isProcessing}
                             activeOpacity={0.7}
                           >
@@ -563,20 +538,23 @@ export function PaywallModal({
                 )}
 
                 {/* Restore purchases */}
-                {onRedeemPromoCode && (
+                {onOpenRedeemCode && (
                   <TouchableOpacity
-                    onPress={handleRedeemPromoCode}
+                    onPress={() => {
+                      onClose()
+                      onOpenRedeemCode()
+                    }}
                     disabled={isProcessing}
                     activeOpacity={0.7}
                     style={styles.restoreButton}
-                    accessibilityLabel={t('subscription.paywall.redeemCode')}
+                    accessibilityLabel={t('subscription.paywall.haveCode')}
                     accessibilityRole="button"
                   >
                     {isRedeemingPromoCode ? (
                       <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
                     ) : (
                       <Text className="text-sm text-content-secondary">
-                        {t('subscription.paywall.redeemCode')}
+                        {t('subscription.paywall.haveCode')}
                       </Text>
                     )}
                   </TouchableOpacity>

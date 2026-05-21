@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS public.promo_campaigns (
   CONSTRAINT promo_campaigns_active_window_check CHECK (
     starts_at IS NULL OR ends_at IS NULL OR starts_at < ends_at
   ),
-  CONSTRAINT promo_campaigns_redemption_count_check CHECK (
+  CONSTRAINT promo_campaigns_redemption_count_max_check CHECK (
     max_redemptions IS NULL OR redemption_count <= max_redemptions
   ),
   CONSTRAINT promo_campaigns_ios_strategy_check CHECK (
@@ -179,7 +179,7 @@ CREATE TABLE IF NOT EXISTS public.promo_codes (
   CONSTRAINT promo_codes_active_window_check CHECK (
     starts_at IS NULL OR ends_at IS NULL OR starts_at < ends_at
   ),
-  CONSTRAINT promo_codes_redemption_count_check CHECK (
+  CONSTRAINT promo_codes_redemption_count_max_check CHECK (
     redemption_count <= max_redemptions
   )
 );

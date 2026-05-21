@@ -1316,6 +1316,18 @@ export type Database = {
         Args: never
         Returns: undefined
       }
+      confirm_promo_redemption_for_user: {
+        Args: {
+          p_campaign_id: string
+          p_code_id: string
+          p_redemption_attempt_id: string
+          p_user_id: string
+          p_revenuecat_app_user_id?: string | null
+          p_store_product_id?: string | null
+          p_store_transaction_id?: string | null
+        }
+        Returns: Json
+      }
       cleanup_expired_sessions: { Args: never; Returns: undefined }
       delete_expired_accounts: { Args: never; Returns: undefined }
       delete_user_by_email: { Args: { target_email: string }; Returns: string }

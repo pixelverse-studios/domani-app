@@ -8,6 +8,7 @@ jest.mock('~/lib/revenuecat', () => ({
   presentCodeRedemptionSheet: jest.fn(),
   purchasePackage: jest.fn(),
   restorePurchases: jest.fn(),
+  setRevenueCatPromoRedemptionAttributes: jest.fn(),
   syncPurchasesAndRefreshCustomerInfo: jest.fn(),
   syncRevenueCatSubscriberAttributes: jest.fn(),
 }))
@@ -31,6 +32,8 @@ import {
   initializeRevenueCat,
   loginRevenueCat,
   presentCodeRedemptionSheet,
+  purchasePackage,
+  setRevenueCatPromoRedemptionAttributes,
   syncPurchasesAndRefreshCustomerInfo,
   syncRevenueCatSubscriberAttributes,
 } from '~/lib/revenuecat'
@@ -50,6 +53,8 @@ const mockGetOfferings = getOfferings as jest.Mock
 const mockInitializeRevenueCat = initializeRevenueCat as jest.Mock
 const mockLoginRevenueCat = loginRevenueCat as jest.Mock
 const mockPresentCodeRedemptionSheet = presentCodeRedemptionSheet as jest.Mock
+const mockPurchasePackage = purchasePackage as jest.Mock
+const mockSetRevenueCatPromoRedemptionAttributes = setRevenueCatPromoRedemptionAttributes as jest.Mock
 const mockSyncPurchasesAndRefreshCustomerInfo = syncPurchasesAndRefreshCustomerInfo as jest.Mock
 const mockSyncRevenueCatSubscriberAttributes = syncRevenueCatSubscriberAttributes as jest.Mock
 const revenueCatBlockingPhases = [
@@ -90,6 +95,29 @@ function buildCustomerInfo(activeEntitlements: Record<string, unknown>) {
   }
 }
 
+function buildLifetimeCustomerInfo() {
+  return buildCustomerInfo({
+    'test-entitlement': {
+      periodType: 'NORMAL',
+      productIdentifier: 'domani_lifetime',
+      originalPurchaseDate: '2026-05-20T12:00:00.000Z',
+      latestPurchaseDate: '2026-05-20T12:00:00.000Z',
+      expirationDate: null,
+    },
+  })
+}
+
+function buildPurchasesPackage() {
+  return {
+    identifier: 'lifetime',
+    packageType: 'LIFETIME',
+    product: {
+      identifier: 'domani_lifetime',
+      priceString: '$9.99',
+    },
+  }
+}
+
 function setupSubscriptionHookMocks() {
   mockUseAuth.mockReturnValue({
     user: { id: 'user-1', email: 'test@example.com' },
@@ -116,6 +144,8 @@ function setupSubscriptionHookMocks() {
   mockInitializeRevenueCat.mockResolvedValue(undefined)
   mockLoginRevenueCat.mockResolvedValue(undefined)
   mockPresentCodeRedemptionSheet.mockResolvedValue(true)
+  mockPurchasePackage.mockResolvedValue(null)
+  mockSetRevenueCatPromoRedemptionAttributes.mockResolvedValue(undefined)
   mockSyncRevenueCatSubscriberAttributes.mockResolvedValue(undefined)
   mockSupabaseFrom.mockImplementation(() => createSupabaseQueryMock())
   mockSupabaseRpc.mockResolvedValue({ data: null, error: null })
@@ -253,17 +283,7 @@ describe('purchase access sync', () => {
   })
 
   it('confirms access when RevenueCat entitlement and Supabase sync both succeed', async () => {
-    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(
-      buildCustomerInfo({
-        'test-entitlement': {
-          periodType: 'NORMAL',
-          productIdentifier: 'domani_lifetime',
-          originalPurchaseDate: '2026-05-20T12:00:00.000Z',
-          latestPurchaseDate: '2026-05-20T12:00:00.000Z',
-          expirationDate: null,
-        },
-      }),
-    )
+    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())
 
     const { result, unmount } = renderHookWithProviders(() => useSubscription())
 
@@ -309,17 +329,7 @@ describe('purchase access sync', () => {
 
   it('syncs after native promo code redemption is presented', async () => {
     jest.useFakeTimers()
-    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(
-      buildCustomerInfo({
-        'test-entitlement': {
-          periodType: 'NORMAL',
-          productIdentifier: 'domani_lifetime',
-          originalPurchaseDate: '2026-05-20T12:00:00.000Z',
-          latestPurchaseDate: '2026-05-20T12:00:00.000Z',
-          expirationDate: null,
-        },
-      }),
-    )
+    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())
     const { result, unmount } = renderHookWithProviders(() => useSubscription())
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
@@ -328,6 +338,8 @@ describe('purchase access sync', () => {
     const redemptionPromise = result.current.redeemPromoCode({
       promoCode: 'SAVE100',
       campaignId: 'campaign-1',
+      codeId: 'code-1',
+      redemptionAttemptId: 'attempt-1',
       promoOutcome: 'free',
     })
 
@@ -336,6 +348,13 @@ describe('purchase access sync', () => {
     })
 
     expect(mockPresentCodeRedemptionSheet).toHaveBeenCalled()
+    expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenCalledWith({
+      promoCode: 'SAVE100',
+      campaignId: 'campaign-1',
+      codeId: 'code-1',
+      redemptionAttemptId: 'attempt-1',
+      promoOutcome: 'free',
+    })
     expect(result.current.accessSyncPhase).toBe('os_confirmation_attempted')
 
     await act(async () => {
@@ -348,10 +367,91 @@ describe('purchase access sync', () => {
     expect(result.current.accessSyncAttempt).toMatchObject({
       promoCode: 'SAVE100',
       campaignId: 'campaign-1',
+      codeId: 'code-1',
+      redemptionAttemptId: 'attempt-1',
       promoOutcome: 'free',
     })
 
     jest.useRealTimers()
+    unmount()
+  })
+
+  it('waits for stale promo attributes to clear before starting a normal purchase', async () => {
+    let resolveAttributeClear: (() => void) | undefined
+    mockSetRevenueCatPromoRedemptionAttributes.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveAttributeClear = resolve
+        }),
+    )
+    mockPurchasePackage.mockResolvedValue(buildLifetimeCustomerInfo())
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    const pkg = buildPurchasesPackage()
+    let purchasePromise: Promise<unknown>
+    await act(async () => {
+      purchasePromise = result.current.purchase(pkg as never)
+      await Promise.resolve()
+    })
+
+    expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenCalledWith(null)
+    expect(mockPurchasePackage).not.toHaveBeenCalled()
+
+    await act(async () => {
+      resolveAttributeClear?.()
+      await purchasePromise
+    })
+
+    expect(mockPurchasePackage).toHaveBeenCalledWith(pkg)
+
+    unmount()
+  })
+
+  it('does not start a normal purchase when stale promo attributes cannot be cleared', async () => {
+    mockSetRevenueCatPromoRedemptionAttributes.mockRejectedValueOnce(new Error('clear failed'))
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    await expect(result.current.purchase(buildPurchasesPackage() as never)).rejects.toThrow(
+      'PROMO_ATTRIBUTE_CLEAR_FAILED',
+    )
+
+    expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenCalledWith(null)
+    expect(mockPurchasePackage).not.toHaveBeenCalled()
+
+    unmount()
+  })
+
+  it('clears promo attributes after a promo package purchase settles', async () => {
+    mockPurchasePackage.mockResolvedValue(buildLifetimeCustomerInfo())
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    const attemptContext = {
+      promoCode: 'SAVE50',
+      campaignId: 'campaign-1',
+      codeId: 'code-1',
+      redemptionAttemptId: 'attempt-1',
+      promoOutcome: 'discounted' as const,
+      priceString: '$4.99',
+    }
+
+    await act(async () => {
+      await result.current.purchase({
+        pkg: buildPurchasesPackage() as never,
+        attemptContext,
+      })
+    })
+
+    expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenNthCalledWith(1, attemptContext)
+    expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenLastCalledWith(null)
+
     unmount()
   })
 
