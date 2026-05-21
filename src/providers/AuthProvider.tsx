@@ -6,8 +6,9 @@ import * as AuthSession from 'expo-auth-session'
 import * as AppleAuthentication from 'expo-apple-authentication'
 
 import { supabase, sendAccountEmail } from '~/lib/supabase'
-import { sendDiscordNotification } from '~/lib/discord'
+import { sendTeamNotification } from '~/lib/teamNotifications'
 import { captureException, addBreadcrumb } from '~/lib/sentry'
+import { parseOAuthTokensFromUrl, waitForAuthSession } from '~/lib/authSession'
 import { useTranslation } from '~/hooks/useTranslation'
 import { formatLocalizedDate } from '~/i18n/date'
 import type { AppLocale } from '~/i18n'
@@ -114,6 +115,15 @@ const checkPendingDeletion = async (
                   email: userEmail,
                   name: profile.full_name || userName || undefined,
                 })
+
+                sendTeamNotification({
+                  type: 'account_lifecycle',
+                  email: userEmail,
+                  userId,
+                  event: 'reactivated',
+                  deletionScheduledFor: profile.deletion_scheduled_for ?? null,
+                  source: 'sign_in_reactivation_prompt',
+                })
               }
               resolve(false) // Continue with login
             },
@@ -216,7 +226,7 @@ const ensureProfileExists = async (
           ? new Date(recoveredProfile.created_at).getTime()
           : 0
         if (createdAt && Date.now() - createdAt < 60_000) {
-          sendDiscordNotification({
+          sendTeamNotification({
             type: 'new_signup',
             email,
             name: fullName,
@@ -247,7 +257,7 @@ const ensureProfileExists = async (
       const createdAt = new Date(profile.created_at).getTime()
       const isNewSignup = Date.now() - createdAt < 60_000
       if (isNewSignup) {
-        sendDiscordNotification({
+        sendTeamNotification({
           type: 'new_signup',
           email,
           name: fullName,
@@ -427,43 +437,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (result.type === 'success') {
           // Note: Don't log result.url as it contains OAuth tokens
-
-          // Extract the URL from the redirect
-          const url = result.url
-
-          // Parse URL parameters from fragment (hash) or query string
-          // OAuth tokens come in the fragment: exp://...#access_token=...&refresh_token=...
-          let access_token: string | null = null
-          let refresh_token: string | null = null
-
-          // Try to parse from fragment first (most common for OAuth)
-          const hashIndex = url.indexOf('#')
-          if (hashIndex !== -1) {
-            const fragment = url.substring(hashIndex + 1)
-            const fragmentParams = new URLSearchParams(fragment)
-            access_token = fragmentParams.get('access_token')
-            refresh_token = fragmentParams.get('refresh_token')
-            console.log('[AuthProvider] Parsed tokens from fragment')
-          }
-
-          // Fallback to query params if not found in fragment
-          if (!access_token || !refresh_token) {
-            const params = new URL(url).searchParams
-            access_token = access_token || params.get('access_token')
-            refresh_token = refresh_token || params.get('refresh_token')
-            console.log('[AuthProvider] Parsed tokens from query params')
-          }
+          const tokens = parseOAuthTokensFromUrl(result.url)
 
           console.log('[AuthProvider] Tokens received:', {
-            hasAccessToken: !!access_token,
-            hasRefreshToken: !!refresh_token,
+            hasAccessToken: !!tokens?.access_token,
+            hasRefreshToken: !!tokens?.refresh_token,
           })
 
-          if (access_token && refresh_token) {
+          if (tokens) {
             // Set the session manually
             const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-              access_token,
-              refresh_token,
+              access_token: tokens.access_token,
+              refresh_token: tokens.refresh_token,
             })
 
             if (sessionError) {
@@ -473,13 +458,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
             console.log('[AuthProvider] Session set successfully!')
             addBreadcrumb('Google sign in completed', 'auth', { provider: 'google' })
+            const persistedSession =
+              sessionData.session ??
+              (await waitForAuthSession(() => supabase.auth.getSession(), {
+                attempts: 8,
+                intervalMs: 150,
+              }))
+
+            if (!persistedSession) {
+              throw new Error('Google sign in completed, but no session was persisted.')
+            }
             // Profile creation is handled by onAuthStateChange callback
           } else {
             console.error('[AuthProvider] No tokens in redirect URL')
+            throw new Error('Google sign in completed, but no session tokens were returned.')
           }
         } else {
           console.log('[AuthProvider] OAuth was cancelled or failed')
+          throw new Error('Google sign in was cancelled.')
         }
+      } else {
+        throw new Error('Google sign in could not start.')
       }
     } catch (error) {
       console.error('[AuthProvider] Google sign in error:', error)

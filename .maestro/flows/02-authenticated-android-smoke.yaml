@@ -1,0 +1,74 @@
+appId: com.baitedz.domaniapp
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: 'Today'
+    timeout: 10000
+
+- runFlow:
+    when:
+      visible: 'Skip Tutorial'
+    commands:
+      - tapOn: 'Skip Tutorial'
+- runFlow:
+    when:
+      visible: 'Skip tour'
+    commands:
+      - tapOn: 'Skip tour'
+- runFlow:
+    when:
+      visible: "I'll Explore on My Own"
+    commands:
+      - tapOn: "I'll Explore on My Own"
+
+- tapOn: 'Planning'
+- runFlow:
+    when:
+      visible: 'Add New Task'
+    commands:
+      - tapOn: 'Add New Task'
+- tapOn: 'What do you want to accomplish?'
+- inputText: 'Maestro smoke task'
+- hideKeyboard
+- runFlow:
+    when:
+      visible: 'Work'
+    commands:
+      - tapOn: 'Work'
+- runFlow:
+    when:
+      visible: 'Med priority'
+    commands:
+      - tapOn: 'Med priority'
+- scrollUntilVisible:
+    element:
+      text: 'Add Task'
+    direction: DOWN
+    timeout: 10000
+- tapOn: 'Add Task'
+- extendedWaitUntil:
+    visible: 'Task added!'
+    timeout: 5000
+
+- tapOn: 'Feedback'
+- tapOn: 'General'
+- tapOn: 'Share your thoughts with us...'
+- inputText: 'Maestro smoke feedback'
+- hideKeyboard
+- tapOn: 'Send Feedback'
+- extendedWaitUntil:
+    visible: 'Feedback Received!'
+    timeout: 10000
+
+- tapOn: 'Settings'
+- scrollUntilVisible:
+    element:
+      text: 'Replay Tutorial'
+    direction: DOWN
+    timeout: 10000
+- tapOn: 'Replay Tutorial'
+- extendedWaitUntil:
+    visible: 'Skip Tutorial'
+    timeout: 10000
+- tapOn: 'Skip Tutorial'

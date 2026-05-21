@@ -387,7 +387,22 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
           // Only update local object if update succeeded
           if (!updateError) {
             taskWithCategory.notification_id = notificationId
+          } else {
+            await NotificationService.cancelTaskReminder(notificationId)
+            await supabase
+              .from('tasks')
+              .update({ reminder_at: null, notification_id: null })
+              .eq('id', taskWithCategory.id)
+            taskWithCategory.reminder_at = null
+            taskWithCategory.notification_id = null
           }
+        } else {
+          await supabase
+            .from('tasks')
+            .update({ reminder_at: null, notification_id: null })
+            .eq('id', taskWithCategory.id)
+          taskWithCategory.reminder_at = null
+          taskWithCategory.notification_id = null
         }
       }
     }

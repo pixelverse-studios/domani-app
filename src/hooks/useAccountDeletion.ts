@@ -5,6 +5,7 @@ import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
 import { useTranslation } from '~/hooks/useTranslation'
 import { formatLocalizedDateWithOptions } from '~/i18n/date'
+import { sendTeamNotification } from '~/lib/teamNotifications'
 
 export function useAccountDeletion() {
   const { user, signOut } = useAuth()
@@ -52,9 +53,24 @@ export function useAccountDeletion() {
 
       if (error) throw error
 
+      const { data: updatedProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('deletion_scheduled_for')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (profileError) {
+        console.warn('[useAccountDeletion] failed to read scheduled deletion date:', profileError)
+      }
+
       // Calculate deletion date (30 days from now) for email
-      const scheduledDate = new Date()
-      scheduledDate.setDate(scheduledDate.getDate() + 30)
+      const scheduledDate = !profileError && updatedProfile?.deletion_scheduled_for
+        ? new Date(updatedProfile.deletion_scheduled_for)
+        : new Date()
+
+      if (profileError || !updatedProfile?.deletion_scheduled_for) {
+        scheduledDate.setDate(scheduledDate.getDate() + 30)
+      }
 
       // Send deletion confirmation email (must complete before signOut invalidates token)
       await sendAccountEmail({
@@ -62,6 +78,15 @@ export function useAccountDeletion() {
         email: user.email,
         name: profile?.full_name || undefined,
         deletionDate: formatDeletionDate(scheduledDate),
+      })
+
+      void sendTeamNotification({
+        type: 'account_lifecycle',
+        email: user.email,
+        userId: user.id,
+        event: 'deletion_scheduled',
+        deletionScheduledFor: scheduledDate.toISOString(),
+        source: 'settings',
       })
     },
     onSuccess: async () => {
@@ -86,6 +111,15 @@ export function useAccountDeletion() {
         type: 'account_reactivation',
         email: user.email,
         name: profile?.full_name || undefined,
+      })
+
+      void sendTeamNotification({
+        type: 'account_lifecycle',
+        email: user.email,
+        userId: user.id,
+        event: 'reactivated',
+        deletionScheduledFor: profile?.deletion_scheduled_for ?? null,
+        source: 'settings',
       })
     },
     onSuccess: () => {

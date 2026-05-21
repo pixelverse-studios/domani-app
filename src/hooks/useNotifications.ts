@@ -223,17 +223,19 @@ export function useNotificationObserver() {
           ),
         )
 
-        // Always cancel ALL existing reminders first to prevent any duplicates
-        // This clears orphaned notifications from previous app versions
-        console.log('[Notifications] Cancelling all existing reminders...')
-        const cancelSuccess = await NotificationService.cancelAllReminders()
+        // Cancel existing planning reminders only; task reminders are managed separately.
+        console.log('[Notifications] Cancelling existing planning reminders...')
+        const cancelSuccess = await NotificationService.cancelPlanningReminders()
 
         // Verify cancellation worked
-        const afterCancel = await NotificationService.getScheduledNotifications()
-        console.log(`[Notifications] After cancel: ${afterCancel.length} notifications remaining`)
+        const planningAfterCancel =
+          await NotificationService.getScheduledNotificationsByType('planning_reminder')
+        console.log(
+          `[Notifications] After cancel: ${planningAfterCancel.length} planning reminders remaining`,
+        )
 
-        if (!cancelSuccess || afterCancel.length > 0) {
-          console.warn('[Notifications] WARNING: Some notifications could not be cancelled!')
+        if (!cancelSuccess || planningAfterCancel.length > 0) {
+          console.warn('[Notifications] WARNING: Some planning reminders could not be cancelled!')
         }
 
         // Only schedule new notification if user has a reminder time configured and
@@ -258,14 +260,15 @@ export function useNotificationObserver() {
         store.setPlanningReminderId(newId)
 
         // Verify scheduling worked
-        const afterSchedule = await NotificationService.getScheduledNotifications()
+        const afterSchedule =
+          await NotificationService.getScheduledNotificationsByType('planning_reminder')
         console.log(
-          `[Notifications] After schedule: ${afterSchedule.length} notifications scheduled`,
+          `[Notifications] After schedule: ${afterSchedule.length} planning reminders scheduled`,
         )
 
         if (afterSchedule.length === 0) {
           console.error(
-            '[Notifications] CRITICAL: No notifications scheduled after schedulePlanningReminder!',
+            '[Notifications] CRITICAL: No planning reminders scheduled after schedulePlanningReminder!',
           )
         } else {
           // Log details of the scheduled notification
@@ -416,28 +419,31 @@ export function useNotifications() {
     console.log(`[Notifications] schedulePlanningReminder called for ${hour}:${minute}`)
 
     // Log existing notifications before cancel
-    const before = await NotificationService.getScheduledNotifications()
-    console.log(`[Notifications] Before cancel: ${before.length} notifications`)
+    const before = await NotificationService.getScheduledNotificationsByType('planning_reminder')
+    console.log(`[Notifications] Before cancel: ${before.length} planning reminders`)
 
-    // Cancel ALL reminders before scheduling new one to prevent duplicates
-    // This is more bulletproof than tracking individual IDs which can become stale
-    const cancelOk = await NotificationService.cancelAllReminders()
+    // Cancel planning reminders before scheduling new one to prevent duplicates.
+    const cancelOk = await NotificationService.cancelPlanningReminders()
     if (!cancelOk) {
-      console.warn('[Notifications] cancelAllReminders returned false — orphaned notifications may remain')
+      console.warn(
+        '[Notifications] cancelPlanningReminders returned false — orphaned planning reminders may remain',
+      )
     }
 
     // Verify cancel worked
-    const afterCancel = await NotificationService.getScheduledNotifications()
-    console.log(`[Notifications] After cancel: ${afterCancel.length} notifications`)
+    const afterCancel =
+      await NotificationService.getScheduledNotificationsByType('planning_reminder')
+    console.log(`[Notifications] After cancel: ${afterCancel.length} planning reminders`)
 
     try {
       const identifier = await NotificationService.schedulePlanningReminder(hour, minute)
       store.setPlanningReminderId(identifier)
 
       // Verify schedule worked
-      const afterSchedule = await NotificationService.getScheduledNotifications()
+      const afterSchedule =
+        await NotificationService.getScheduledNotificationsByType('planning_reminder')
       console.log(
-        `[Notifications] After schedule: ${afterSchedule.length} notifications, ID: ${identifier}`,
+        `[Notifications] After schedule: ${afterSchedule.length} planning reminders, ID: ${identifier}`,
       )
 
       return identifier
@@ -450,10 +456,13 @@ export function useNotifications() {
   }
 
   const cancelPlanningReminder = async () => {
-    // Cancel all to ensure no orphaned notifications
-    const success = await NotificationService.cancelAllReminders()
+    // Cancel planning reminders only; disabling the daily planning reminder should
+    // not remove per-task reminders.
+    const success = await NotificationService.cancelPlanningReminders()
     if (!success) {
-      console.warn('[Notifications] cancelAllReminders returned false — some notifications may remain')
+      console.warn(
+        '[Notifications] cancelPlanningReminders returned false — some planning reminders may remain',
+      )
     }
     store.setPlanningReminderId(null)
   }
