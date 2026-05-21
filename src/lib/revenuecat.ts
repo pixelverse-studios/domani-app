@@ -395,6 +395,47 @@ export async function restorePurchases() {
 }
 
 /**
+ * Ask RevenueCat to sync any store-side purchases, then fetch fresh customer info.
+ * Useful after native/external purchase surfaces return without direct customerInfo.
+ */
+export async function syncPurchasesAndRefreshCustomerInfo() {
+  try {
+    await Purchases.syncPurchases()
+    const customerInfo = await Purchases.getCustomerInfo()
+    console.log(
+      '[RevenueCat] Synced purchases and refreshed customer info',
+      getActiveEntitlementSummary(customerInfo),
+    )
+    return customerInfo
+  } catch (error) {
+    console.error('[RevenueCat] Purchase sync error:', error)
+    throw error
+  }
+}
+
+/**
+ * Present the native iOS offer-code redemption sheet.
+ * Returns false on unsupported platforms so callers can show a recoverable state.
+ */
+export async function presentCodeRedemptionSheet() {
+  if (Platform.OS !== 'ios') {
+    console.log('[RevenueCat] Code redemption sheet unavailable on this platform', {
+      platform: Platform.OS,
+    })
+    return false
+  }
+
+  try {
+    await Purchases.presentCodeRedemptionSheet()
+    console.log('[RevenueCat] Presented code redemption sheet')
+    return true
+  } catch (error) {
+    console.error('[RevenueCat] Code redemption sheet error:', error)
+    throw error
+  }
+}
+
+/**
  * Begin an iOS refund request for the user's active entitlement.
  */
 export async function beginRefundRequestForActiveEntitlement(): Promise<REFUND_REQUEST_STATUS> {

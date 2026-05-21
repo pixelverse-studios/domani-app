@@ -124,8 +124,7 @@ export const en = {
       planningReminderDescription: 'Choose when you want to be reminded.',
       toggleLabel: 'Remind me to plan',
       taskRemindersTitle: 'Task Reminders',
-      taskRemindersDescription:
-        'Set individual reminders on each task when creating or editing.',
+      taskRemindersDescription: 'Set individual reminders on each task when creating or editing.',
       continue: 'Continue to Domani',
     },
   },
@@ -356,8 +355,7 @@ export const en = {
       taskCategoryDescription:
         'Categories help you spot the kind of day you are building. Use the defaults or create your own as your routine grows.',
       taskPriorityTitle: 'Choose the Weight',
-      taskPriorityDescription:
-        'Priority tells tomorrow-you what deserves attention first.',
+      taskPriorityDescription: 'Priority tells tomorrow-you what deserves attention first.',
       taskReminderTitle: 'Add a Nudge',
       taskReminderDescription:
         'Reminders are optional, but useful when a task depends on a specific time.',
@@ -439,6 +437,17 @@ export const en = {
       purchaseCta: 'Get Lifetime Access',
       purchaseErrorRetry: 'Something went wrong with your purchase. Please try again.',
       purchaseErrorSupport: 'This keeps happening. Please contact support if the issue persists.',
+      purchaseVerificationFailed:
+        "We couldn't verify your purchase. Retry sync or restore purchases.",
+      syncVerificationFailed:
+        "We couldn't verify your purchase yet. Try restoring purchases or contact support.",
+      retrySync: 'Retry Sync',
+      redeemCode: 'Redeem Code',
+      tryDifferentCode: 'Try Different Code',
+      promoRedemptionPending:
+        'Finish the code redemption in the store, then retry sync if access does not update.',
+      promoRedemptionFailed:
+        "We couldn't open code redemption. Try restoring purchases or contact support.",
       restoreNotFound: 'No previous purchases found for this account.',
       restoreError: 'Could not restore purchases. Please try again.',
       contactSupport: 'Contact Support',
@@ -612,6 +621,20 @@ export const en = {
         'Get help with your Apple or Google purchase, including refund guidance.',
       getLifetimeAccess: 'Get Lifetime Access',
       restorePurchases: 'Restore Purchases',
+      syncingAccessTitle: 'Syncing your access...',
+      syncingAccessBody: 'This will only take a moment.',
+      verificationFailedTitle: 'Verification Failed',
+      verificationFailedBody:
+        "We couldn't verify your purchase. It may not have completed, your network may be unavailable, or store sync may be taking longer than expected.",
+      retrySync: 'Retry Sync',
+      syncAccess: 'Sync Access',
+      tryDifferentCode: 'Try Different Code',
+      contactSupport: 'Contact Support',
+      promoContextCode: 'Code: {{code}}',
+      promoContextCampaign: 'Campaign: {{campaign}}',
+      promoContextOutcomeFree: 'Outcome: Free access',
+      promoContextOutcomeDiscounted: 'Outcome: Discounted access',
+      promoContextPrice: 'Price: {{price}}',
     },
   },
 } as const

@@ -1,25 +1,35 @@
 import React from 'react'
 import { View, TouchableOpacity, ActivityIndicator } from 'react-native'
-import { Crown, Sparkles, RotateCcw, ChevronRight } from 'lucide-react-native'
+import { AlertCircle, Crown, Sparkles, RotateCcw, ChevronRight } from 'lucide-react-native'
 import { Text } from '~/components/ui'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
 import { formatLocalizedDate } from '~/i18n/date'
 import { SectionHeader } from './SectionHeader'
 import { SubscriptionSkeleton } from './SettingsSkeletons'
-import type { SubscriptionStatus } from '~/hooks/useSubscription'
+import type {
+  PurchaseAccessSyncAttemptContext,
+  PurchaseAccessSyncPhase,
+  SubscriptionStatus,
+} from '~/hooks/useSubscription'
 
 interface SubscriptionSectionProps {
   isLoading: boolean
   status: SubscriptionStatus
   isStartingTrial: boolean
   isRestoring: boolean
+  isSyncingAccess: boolean
+  isRedeemingPromoCode: boolean
+  accessSyncPhase: PurchaseAccessSyncPhase
+  accessSyncAttempt: PurchaseAccessSyncAttemptContext | null
   trialDaysRemaining: number | null
   trialExpirationDate: Date | null
   graceDaysRemaining: number | null
   graceExpirationDate: Date | null
   onStartTrial: () => void
   onRestore: () => void
+  onSyncAccess: () => void
+  onRedeemPromoCode?: () => void
   onUpgrade: () => void
   onOpenPurchaseHelp: () => void
 }
@@ -35,12 +45,18 @@ export function SubscriptionSection({
   status,
   isStartingTrial,
   isRestoring,
+  isSyncingAccess,
+  isRedeemingPromoCode,
+  accessSyncPhase,
+  accessSyncAttempt,
   trialDaysRemaining,
   trialExpirationDate,
   graceDaysRemaining,
   graceExpirationDate,
   onStartTrial,
   onRestore,
+  onSyncAccess,
+  onRedeemPromoCode,
   onUpgrade,
   onOpenPurchaseHelp,
 }: SubscriptionSectionProps) {
@@ -97,6 +113,28 @@ export function SubscriptionSection({
     },
   }
   const currentStatusConfig = statusConfig[status]
+  const showSyncAccessCta = !['beta', 'lifetime'].includes(status)
+  const showSyncingAccess = accessSyncPhase === 'syncing' || isSyncingAccess
+  const showVerificationFailed = accessSyncPhase === 'verification_failed'
+  const warningColor = theme.colors.accent.terracotta
+  const attemptedContextLines = [
+    accessSyncAttempt?.promoCode
+      ? t('subscription.settings.promoContextCode', { code: accessSyncAttempt.promoCode })
+      : null,
+    accessSyncAttempt?.campaignId
+      ? t('subscription.settings.promoContextCampaign', {
+          campaign: accessSyncAttempt.campaignId,
+        })
+      : null,
+    accessSyncAttempt?.promoOutcome
+      ? accessSyncAttempt.promoOutcome === 'free'
+        ? t('subscription.settings.promoContextOutcomeFree')
+        : t('subscription.settings.promoContextOutcomeDiscounted')
+      : null,
+    accessSyncAttempt?.priceString
+      ? t('subscription.settings.promoContextPrice', { price: accessSyncAttempt.priceString })
+      : null,
+  ].filter((line): line is string => !!line)
 
   // Type-level exhaustiveness nudge: the JSX branches below
   // ({status === 'beta' && …}, etc.) are NOT individually type-checked by
@@ -341,6 +379,149 @@ export function SubscriptionSection({
             )}
           </View>
 
+          {showSyncingAccess && (
+            <View
+              className="rounded-xl p-4 mb-2"
+              style={{
+                backgroundColor: `${theme.colors.brand.primary}12`,
+                borderWidth: 1,
+                borderColor: `${theme.colors.brand.primary}26`,
+              }}
+              accessibilityLiveRegion="polite"
+            >
+              <View className="flex-row items-center">
+                <ActivityIndicator size="small" color={theme.colors.brand.primary} />
+                <View className="ml-3 flex-1">
+                  <Text className="text-sm font-semibold text-content-primary">
+                    {t('subscription.settings.syncingAccessTitle')}
+                  </Text>
+                  <Text className="text-xs text-content-secondary mt-1">
+                    {t('subscription.settings.syncingAccessBody')}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {showVerificationFailed && (
+            <View
+              className="rounded-xl p-4 mb-2"
+              style={{
+                backgroundColor: `${warningColor}14`,
+                borderWidth: 1,
+                borderColor: `${warningColor}2E`,
+              }}
+              accessibilityRole="alert"
+            >
+              <View className="flex-row">
+                <AlertCircle size={18} color={warningColor} />
+                <View className="ml-3 flex-1">
+                  <Text className="text-sm font-semibold text-content-primary">
+                    {t('subscription.settings.verificationFailedTitle')}
+                  </Text>
+                  <Text className="text-xs leading-5 text-content-secondary mt-1">
+                    {t('subscription.settings.verificationFailedBody')}
+                  </Text>
+                  {attemptedContextLines.length > 0 && (
+                    <View className="mt-2">
+                      {attemptedContextLines.map((line) => (
+                        <Text key={line} className="text-xs text-content-tertiary">
+                          {line}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              </View>
+              <View className="flex-row flex-wrap mt-3" style={{ gap: 8 }}>
+                <TouchableOpacity
+                  onPress={onSyncAccess}
+                  disabled={isSyncingAccess || isRestoring || isRedeemingPromoCode}
+                  activeOpacity={0.8}
+                  className="px-3 py-2 rounded-lg"
+                  style={{
+                    backgroundColor: theme.colors.brand.primary,
+                    opacity: isSyncingAccess || isRestoring || isRedeemingPromoCode ? 0.5 : 1,
+                  }}
+                >
+                  <Text className="text-xs font-semibold text-white">
+                    {t('subscription.settings.retrySync')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={onRestore}
+                  disabled={isSyncingAccess || isRestoring || isRedeemingPromoCode}
+                  activeOpacity={0.8}
+                  className="px-3 py-2 rounded-lg"
+                  style={{
+                    backgroundColor: theme.colors.card,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border.primary,
+                    opacity: isSyncingAccess || isRestoring || isRedeemingPromoCode ? 0.5 : 1,
+                  }}
+                >
+                  <Text className="text-xs font-semibold text-content-primary">
+                    {t('subscription.settings.restorePurchases')}
+                  </Text>
+                </TouchableOpacity>
+                {onRedeemPromoCode && (
+                  <TouchableOpacity
+                    onPress={onRedeemPromoCode}
+                    disabled={isSyncingAccess || isRestoring || isRedeemingPromoCode}
+                    activeOpacity={0.8}
+                    className="px-3 py-2 rounded-lg"
+                    style={{
+                      backgroundColor: theme.colors.card,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border.primary,
+                      opacity: isSyncingAccess || isRestoring || isRedeemingPromoCode ? 0.5 : 1,
+                    }}
+                  >
+                    <Text className="text-xs font-semibold text-content-primary">
+                      {t('subscription.settings.tryDifferentCode')}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={onOpenPurchaseHelp}
+                  disabled={isSyncingAccess || isRestoring || isRedeemingPromoCode}
+                  activeOpacity={0.8}
+                  className="px-3 py-2 rounded-lg"
+                  style={{
+                    backgroundColor: theme.colors.card,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border.primary,
+                    opacity: isSyncingAccess || isRestoring || isRedeemingPromoCode ? 0.5 : 1,
+                  }}
+                >
+                  <Text className="text-xs font-semibold text-content-primary">
+                    {t('subscription.settings.contactSupport')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {showSyncAccessCta && !showSyncingAccess && !showVerificationFailed && (
+            <TouchableOpacity
+              onPress={onSyncAccess}
+              disabled={isSyncingAccess || isRestoring || isRedeemingPromoCode}
+              activeOpacity={0.7}
+              className="flex-row items-center justify-center py-2"
+            >
+              {isSyncingAccess || isRedeemingPromoCode ? (
+                <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
+              ) : (
+                <>
+                  <RotateCcw size={14} color={theme.colors.text.tertiary} />
+                  <Text className="text-sm text-content-secondary ml-1.5">
+                    {t('subscription.settings.syncAccess')}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+
           {/* Restore remains useful for users who lost applied access after a prior
               purchase. Keep it off the active lifetime view, which already has a
               dedicated purchase-help action in the card. */}
@@ -369,7 +550,10 @@ export function SubscriptionSection({
                 activeOpacity={0.7}
                 className="flex-row items-center justify-center py-2"
               >
-                <Text className="text-sm font-sans-medium" style={{ color: theme.colors.brand.primary }}>
+                <Text
+                  className="text-sm font-sans-medium"
+                  style={{ color: theme.colors.brand.primary }}
+                >
                   {t('subscription.purchaseHelp.entryCta')}
                 </Text>
               </TouchableOpacity>

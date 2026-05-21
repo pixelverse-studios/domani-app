@@ -161,8 +161,22 @@ export function LockedScreen() {
         offeringIdentifier={subscription.offeringIdentifier}
         isPurchasing={subscription.isPurchasing}
         isRestoring={subscription.isRestoring}
+        isSyncingAccess={subscription.isSyncingAccess}
+        isRedeemingPromoCode={subscription.isRedeemingPromoCode}
         onPurchase={subscription.purchase}
         onRestore={subscription.restore}
+        onSyncAccess={async () => {
+          const result = await subscription.syncAccess({ source: 'manual', forceStoreSync: true })
+          return result.status === 'confirmed' ? result.customerInfo : null
+        }}
+        onRedeemPromoCode={
+          subscription.canRedeemPromoCode
+            ? async () => {
+                const result = await subscription.redeemPromoCode(undefined)
+                return result ?? null
+              }
+            : undefined
+        }
       />
     </View>
   )

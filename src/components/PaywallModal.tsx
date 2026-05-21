@@ -17,6 +17,7 @@ import { Text } from '~/components/ui/Text'
 import { GradientButton } from '~/components/ui/GradientButton'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
+import type { PurchaseAccessSyncResult } from '~/hooks/useSubscription'
 
 interface PaywallModalProps {
   visible: boolean
@@ -25,8 +26,16 @@ interface PaywallModalProps {
   offeringIdentifier: string
   isPurchasing: boolean
   isRestoring: boolean
+  isSyncingAccess?: boolean
+  isRedeemingPromoCode?: boolean
   onPurchase: (pkg: PurchasesPackage) => Promise<unknown | null>
   onRestore: () => Promise<unknown | null>
+  onSyncAccess?: () => Promise<unknown | null>
+  onRedeemPromoCode?: () => Promise<PurchaseAccessSyncResult | unknown | null>
+}
+
+function isPurchaseAccessSyncResult(value: unknown): value is PurchaseAccessSyncResult {
+  return !!value && typeof value === 'object' && 'status' in value && 'source' in value
 }
 
 export function PaywallModal({
@@ -36,8 +45,12 @@ export function PaywallModal({
   offeringIdentifier,
   isPurchasing,
   isRestoring,
+  isSyncingAccess = false,
+  isRedeemingPromoCode = false,
   onPurchase,
   onRestore,
+  onSyncAccess,
+  onRedeemPromoCode,
 }: PaywallModalProps) {
   const theme = useAppTheme()
   const router = useRouter()
@@ -132,8 +145,16 @@ export function PaywallModal({
     setError(null)
     try {
       const result = await onPurchase(lifetimePackage)
-      if (result) transitionToSuccess()
-    } catch {
+      if (result) {
+        transitionToSuccess()
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message === 'PURCHASE_VERIFICATION_FAILED') {
+        setFailCount(2)
+        setError(t('subscription.paywall.purchaseVerificationFailed'))
+        return
+      }
+
       const count = failCount + 1
       setFailCount(count)
       setError(
@@ -158,7 +179,47 @@ export function PaywallModal({
     }
   }
 
-  const isProcessing = isPurchasing || isRestoring
+  const handleSyncAccess = async () => {
+    if (!onSyncAccess) return
+    setError(null)
+    try {
+      const result = await onSyncAccess()
+      if (result) {
+        transitionToSuccess()
+      } else {
+        setFailCount(2)
+        setError(t('subscription.paywall.syncVerificationFailed'))
+      }
+    } catch {
+      setFailCount(2)
+      setError(t('subscription.paywall.syncVerificationFailed'))
+    }
+  }
+
+  const handleRedeemPromoCode = async () => {
+    if (!onRedeemPromoCode) return
+    setError(null)
+    try {
+      const result = await onRedeemPromoCode()
+      if (isPurchaseAccessSyncResult(result) && result.status === 'revenuecat_unavailable') {
+        setFailCount(2)
+        setError(t('subscription.paywall.promoRedemptionFailed'))
+      } else if (isPurchaseAccessSyncResult(result) && result.status !== 'confirmed') {
+        setFailCount(2)
+        setError(t('subscription.paywall.promoRedemptionPending'))
+      } else if (result) {
+        transitionToSuccess()
+      } else {
+        setFailCount(2)
+        setError(t('subscription.paywall.promoRedemptionPending'))
+      }
+    } catch {
+      setFailCount(2)
+      setError(t('subscription.paywall.promoRedemptionFailed'))
+    }
+  }
+
+  const isProcessing = isPurchasing || isRestoring || isSyncingAccess || isRedeemingPromoCode
 
   return (
     <Modal
@@ -433,21 +494,63 @@ export function PaywallModal({
                       </Text>
                     </View>
                     {failCount >= 2 && (
-                      <TouchableOpacity
-                        onPress={() => {
-                          onClose()
-                          router.push('/purchase-help?source=paywall')
-                        }}
-                        activeOpacity={0.7}
-                        style={styles.contactSupport}
-                      >
-                        <Text
-                          className="font-sans-medium text-xs"
-                          style={{ color: theme.colors.brand.primary }}
+                      <View style={styles.recoveryActions}>
+                        {onSyncAccess && (
+                          <TouchableOpacity
+                            onPress={handleSyncAccess}
+                            disabled={isProcessing}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              className="font-sans-medium text-xs"
+                              style={{ color: theme.colors.brand.primary }}
+                            >
+                              {t('subscription.paywall.retrySync')}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                        {onRedeemPromoCode && (
+                          <TouchableOpacity
+                            onPress={handleRedeemPromoCode}
+                            disabled={isProcessing}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              className="font-sans-medium text-xs"
+                              style={{ color: theme.colors.brand.primary }}
+                            >
+                              {t('subscription.paywall.tryDifferentCode')}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                          onPress={handleRestore}
+                          disabled={isProcessing}
+                          activeOpacity={0.7}
                         >
-                          {t('subscription.paywall.contactSupport')}
-                        </Text>
-                      </TouchableOpacity>
+                          <Text
+                            className="font-sans-medium text-xs"
+                            style={{ color: theme.colors.brand.primary }}
+                          >
+                            {t('subscription.paywall.restorePurchases')}
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => {
+                            onClose()
+                            router.push('/purchase-help?source=paywall')
+                          }}
+                          disabled={isProcessing}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            className="font-sans-medium text-xs"
+                            style={{ color: theme.colors.brand.primary }}
+                          >
+                            {t('subscription.paywall.contactSupport')}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
                     )}
                   </View>
                 )}
@@ -460,6 +563,25 @@ export function PaywallModal({
                 )}
 
                 {/* Restore purchases */}
+                {onRedeemPromoCode && (
+                  <TouchableOpacity
+                    onPress={handleRedeemPromoCode}
+                    disabled={isProcessing}
+                    activeOpacity={0.7}
+                    style={styles.restoreButton}
+                    accessibilityLabel={t('subscription.paywall.redeemCode')}
+                    accessibilityRole="button"
+                  >
+                    {isRedeemingPromoCode ? (
+                      <ActivityIndicator size="small" color={theme.colors.text.tertiary} />
+                    ) : (
+                      <Text className="text-sm text-content-secondary">
+                        {t('subscription.paywall.redeemCode')}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+
                 <TouchableOpacity
                   onPress={handleRestore}
                   disabled={isProcessing}
@@ -562,7 +684,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  contactSupport: {
+  recoveryActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 12,
     marginTop: 8,
   },
   restoreButton: {

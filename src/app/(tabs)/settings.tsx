@@ -15,7 +15,6 @@ import {
   PreferencesSection,
   SupportSection,
   DangerZoneSection,
-
   NameModal,
   TimezoneModal,
   PlanningTimeModal,
@@ -275,7 +274,9 @@ function SettingsContent() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <Text className="text-2xl font-bold text-content-primary mt-4 mb-6">{copy.settings.title}</Text>
+        <Text className="text-2xl font-bold text-content-primary mt-4 mb-6">
+          {copy.settings.title}
+        </Text>
 
         {/* 1. Profile Section — always visible so signed-in users can see which account they're on */}
         <ProfileSection
@@ -294,18 +295,32 @@ function SettingsContent() {
           status={subscription.status}
           isStartingTrial={subscription.isStartingTrial}
           isRestoring={subscription.isRestoring}
+          isSyncingAccess={subscription.isSyncingAccess}
+          isRedeemingPromoCode={subscription.isRedeemingPromoCode}
+          accessSyncPhase={subscription.accessSyncPhase}
+          accessSyncAttempt={subscription.accessSyncAttempt}
           trialDaysRemaining={subscription.trialDaysRemaining}
           trialExpirationDate={subscription.trialExpirationDate}
           graceDaysRemaining={subscription.graceDaysRemaining}
           graceExpirationDate={subscription.graceExpirationDate}
           onStartTrial={() => subscription.startTrial()}
-              onRestore={async () => {
-                try {
-                  await subscription.restore()
-                } catch {
+          onRestore={async () => {
+            try {
+              await subscription.restore()
+            } catch {
               Alert.alert(copy.settings.restoreFailedTitle, copy.settings.restoreFailedBody)
+            }
+          }}
+          onSyncAccess={async () => {
+            await subscription.syncAccess({ source: 'manual', forceStoreSync: true })
+          }}
+          onRedeemPromoCode={
+            subscription.canRedeemPromoCode
+              ? async () => {
+                  await subscription.redeemPromoCode(undefined)
                 }
-              }}
+              : undefined
+          }
           onUpgrade={() => setShowPaywallModal(true)}
           onOpenPurchaseHelp={() => router.push('/purchase-help?source=settings')}
         />
@@ -447,18 +462,29 @@ function SettingsContent() {
         offeringIdentifier={subscription.offeringIdentifier}
         isPurchasing={subscription.isPurchasing}
         isRestoring={subscription.isRestoring}
+        isSyncingAccess={subscription.isSyncingAccess}
+        isRedeemingPromoCode={subscription.isRedeemingPromoCode}
         onPurchase={async (pkg) => {
           return await subscription.purchase(pkg)
         }}
         onRestore={async () => {
           return await subscription.restore()
         }}
+        onSyncAccess={async () => {
+          const result = await subscription.syncAccess({ source: 'manual', forceStoreSync: true })
+          return result.status === 'confirmed' ? result.customerInfo : null
+        }}
+        onRedeemPromoCode={
+          subscription.canRedeemPromoCode
+            ? async () => {
+                const result = await subscription.redeemPromoCode(undefined)
+                return result ?? null
+              }
+            : undefined
+        }
       />
 
-      <LayoutPickerModal
-        visible={showLayoutModal}
-        onClose={() => setShowLayoutModal(false)}
-      />
+      <LayoutPickerModal visible={showLayoutModal} onClose={() => setShowLayoutModal(false)} />
 
       {/* Farewell overlay after scheduling deletion */}
       <AccountConfirmationOverlay
