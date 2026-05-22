@@ -78,6 +78,7 @@ export default function RedeemCodeScreen() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [isApplyingOffer, setIsApplyingOffer] = useState(false)
   const [localTestConfirmed, setLocalTestConfirmed] = useState(false)
+  const [showStoreFallback, setShowStoreFallback] = useState(false)
 
   const normalizedCode = normalizePromoCodeInput(code)
   const validation = validatePromoCode.data
@@ -103,6 +104,13 @@ export default function RedeemCodeScreen() {
       ? priceString
       : t('subscription.redeemCode.freePrice')
     : null
+  const discountLabel =
+    validOffer?.display.discountPercent !== null &&
+    validOffer?.display.discountPercent !== undefined
+      ? t('subscription.redeemCode.discountPercentLabel', {
+          percent: validOffer.display.discountPercent,
+        })
+      : null
 
   const offerContext = useMemo(
     () =>
@@ -132,6 +140,7 @@ export default function RedeemCodeScreen() {
   const handleCodeChange = (value: string) => {
     setCode(normalizePromoCodeInput(value))
     setActionError(null)
+    setShowStoreFallback(false)
     setLocalTestConfirmed(false)
     validatePromoCode.reset()
   }
@@ -139,6 +148,7 @@ export default function RedeemCodeScreen() {
   const handleSubmit = async () => {
     if (!normalizedCode || validatePromoCode.isPending) return
     setActionError(null)
+    setShowStoreFallback(false)
     const response = await validatePromoCode.mutateAsync(normalizedCode)
     if (response.result.status === 'valid') {
       subscription.markPromoCodeValidated({
@@ -163,13 +173,64 @@ export default function RedeemCodeScreen() {
       forceStoreSync: true,
       attemptContext: offerContext,
     })
-    await setRevenueCatPromoRedemptionAttributes(offerContext)
-    await Linking.openURL(offer.routing.fallbackUrl)
+    try {
+      await setRevenueCatPromoRedemptionAttributes(offerContext)
+    } catch {
+      // The fallback is the recovery path; do not block it on support metadata.
+    }
+    try {
+      await Linking.openURL(offer.routing.fallbackUrl)
+      setActionError(t('subscription.redeemCode.storeFallbackOpened'))
+    } catch {
+      setActionError(t('subscription.redeemCode.storeFallbackFailed'))
+    }
+  }
+
+  const handleSyncAccess = async () => {
+    if (!offerContext || isApplyingOffer) return
+    setActionError(null)
+    setIsApplyingOffer(true)
+
+    try {
+      const result = await subscription.syncAccess({
+        source: 'promo_redemption',
+        forceStoreSync: true,
+        attemptContext: offerContext,
+      })
+      if (result.status !== 'confirmed') {
+        setActionError(t('subscription.redeemCode.syncPending'))
+      } else {
+        setShowStoreFallback(false)
+      }
+    } catch {
+      setActionError(t('subscription.redeemCode.applyFailed'))
+    } finally {
+      setIsApplyingOffer(false)
+    }
+  }
+
+  const handleRestore = async () => {
+    setActionError(null)
+    setIsApplyingOffer(true)
+
+    try {
+      const customerInfo = await subscription.restore()
+      if (!customerInfo) {
+        setActionError(t('subscription.redeemCode.restoreNotFound'))
+      } else {
+        setShowStoreFallback(false)
+      }
+    } catch {
+      setActionError(t('subscription.redeemCode.restoreFailed'))
+    } finally {
+      setIsApplyingOffer(false)
+    }
   }
 
   const handleApplyOffer = async () => {
     if (!validOffer || !offerContext || isApplyingOffer) return
     setActionError(null)
+    setShowStoreFallback(false)
     setIsApplyingOffer(true)
 
     try {
@@ -207,7 +268,12 @@ export default function RedeemCodeScreen() {
 
         const result = await subscription.redeemPromoCode(offerContext)
         if (!result || result.status !== 'confirmed') {
-          setActionError(t('subscription.redeemCode.syncPending'))
+          if (result?.status === 'revenuecat_unavailable' && validOffer.routing.fallbackUrl) {
+            setShowStoreFallback(true)
+            setActionError(t('subscription.redeemCode.nativeRedemptionUnavailable'))
+          } else {
+            setActionError(t('subscription.redeemCode.syncPending'))
+          }
         }
         return
       }
@@ -228,7 +294,12 @@ export default function RedeemCodeScreen() {
         setActionError(t('subscription.redeemCode.purchaseCancelled'))
       }
     } catch {
-      setActionError(t('subscription.redeemCode.applyFailed'))
+      if (!validOffer.display.paymentRequired && validOffer.routing.fallbackUrl) {
+        setShowStoreFallback(true)
+        setActionError(t('subscription.redeemCode.nativeRedemptionUnavailable'))
+      } else {
+        setActionError(t('subscription.redeemCode.applyFailed'))
+      }
     } finally {
       setIsApplyingOffer(false)
     }
@@ -277,17 +348,13 @@ export default function RedeemCodeScreen() {
                 editable={!validatePromoCode.isPending}
                 placeholder={t('subscription.redeemCode.placeholder')}
                 placeholderTextColor={theme.colors.text.tertiary}
-                className="flex-1 rounded-xl px-4 text-base font-sans-semibold"
+                className="flex-1 rounded-xl font-sans-semibold"
                 style={[
                   styles.input,
                   {
                     backgroundColor: '#FFFFFF',
                     borderColor: showInvalid ? '#FF5A5F' : theme.colors.border.secondary,
                     color: theme.colors.text.primary,
-                    lineHeight: 20,
-                    paddingTop: 0,
-                    paddingBottom: 0,
-                    textAlignVertical: 'center',
                   },
                 ]}
                 accessibilityLabel={t('subscription.redeemCode.fieldLabel')}
@@ -426,6 +493,19 @@ export default function RedeemCodeScreen() {
                       {promoPriceString}
                     </Text>
                   </View>
+                  {discountLabel && (
+                    <View className="flex-row items-center justify-between mt-2">
+                      <Text className="text-sm text-content-secondary">
+                        {t('subscription.redeemCode.discountLabel')}
+                      </Text>
+                      <Text
+                        className="text-sm font-sans-semibold"
+                        style={{ color: theme.colors.brand.primary }}
+                      >
+                        {discountLabel}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               )}
             </View>
@@ -437,6 +517,61 @@ export default function RedeemCodeScreen() {
               >
                 {actionError}
               </Text>
+            )}
+
+            {actionError && !isConfirmed && (
+              <View className="flex-row flex-wrap justify-center mt-4" style={{ gap: 10 }}>
+                <TouchableOpacity
+                  onPress={handleSyncAccess}
+                  disabled={isApplyingOffer || isSyncing}
+                  activeOpacity={0.8}
+                  className="px-4 py-2 rounded-full"
+                  style={{
+                    backgroundColor: theme.colors.card,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border.primary,
+                    opacity: isApplyingOffer || isSyncing ? 0.55 : 1,
+                  }}
+                >
+                  <Text className="text-sm font-sans-semibold text-content-primary">
+                    {t('subscription.redeemCode.syncAccess')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleRestore}
+                  disabled={isApplyingOffer || isSyncing}
+                  activeOpacity={0.8}
+                  className="px-4 py-2 rounded-full"
+                  style={{
+                    backgroundColor: theme.colors.card,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border.primary,
+                    opacity: isApplyingOffer || isSyncing ? 0.55 : 1,
+                  }}
+                >
+                  <Text className="text-sm font-sans-semibold text-content-primary">
+                    {t('subscription.redeemCode.restorePurchases')}
+                  </Text>
+                </TouchableOpacity>
+                {showStoreFallback && validOffer.routing.fallbackUrl && (
+                  <TouchableOpacity
+                    onPress={() => handleOpenFallback(validOffer)}
+                    disabled={isApplyingOffer || isSyncing}
+                    activeOpacity={0.8}
+                    className="px-4 py-2 rounded-full"
+                    style={{
+                      backgroundColor: theme.colors.card,
+                      borderWidth: 1,
+                      borderColor: theme.colors.border.primary,
+                      opacity: isApplyingOffer || isSyncing ? 0.55 : 1,
+                    }}
+                  >
+                    <Text className="text-sm font-sans-semibold text-content-primary">
+                      {t('subscription.redeemCode.openAppStore')}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
 
             {isSyncing && !isConfirmed && (
@@ -468,7 +603,11 @@ export default function RedeemCodeScreen() {
                     {isConfirmed
                       ? t('subscription.redeemCode.done')
                       : validOffer.display.paymentRequired
-                        ? t('subscription.redeemCode.redeemDiscountedAccess')
+                        ? priceString
+                          ? t('subscription.redeemCode.redeemDiscountedAccessWithPrice', {
+                              price: priceString,
+                            })
+                          : t('subscription.redeemCode.redeemDiscountedAccess')
                         : t('subscription.redeemCode.redeemFreeAccess')}
                   </Text>
                 </>
@@ -480,6 +619,7 @@ export default function RedeemCodeScreen() {
                 onPress={() => {
                   validatePromoCode.reset()
                   setActionError(null)
+                  setShowStoreFallback(false)
                   setLocalTestConfirmed(false)
                 }}
                 activeOpacity={0.7}
@@ -501,7 +641,13 @@ const styles = StyleSheet.create({
   input: {
     height: 54,
     borderWidth: 1,
+    fontSize: 16,
     letterSpacing: 0.5,
+    lineHeight: 20,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 1 : 0,
+    paddingBottom: 0,
+    textAlignVertical: 'center',
   },
   submitButton: {
     width: 50,
