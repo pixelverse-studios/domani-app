@@ -1392,6 +1392,17 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: boolean
       }
+      update_current_user_promo_redemption_attempt: {
+        Args: {
+          p_error_code?: string | null
+          p_error_message?: string | null
+          p_event: string
+          p_metadata?: Json
+          p_redemption_attempt_id: string
+          p_status?: Database['public']['Enums']['promo_redemption_status'] | null
+        }
+        Returns: Json
+      }
       validate_promo_code: {
         Args: { p_app_version?: string | null; p_code: string; p_platform: string }
         Returns: Json

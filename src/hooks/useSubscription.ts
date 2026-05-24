@@ -6,8 +6,13 @@ import { addDays, parseISO } from 'date-fns'
 
 import { supabase } from '~/lib/supabase'
 import { addBreadcrumb } from '~/lib/sentry'
+import {
+  buildPromoAttemptAnalyticsProps,
+  recordPromoRedemptionAttemptEvent,
+} from '~/lib/promoAnalytics'
 import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
+import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { useAppConfig } from '~/stores/appConfigStore'
 import { isBetaPhase } from '~/types/appConfig'
 import type { Profile } from '~/types'
@@ -92,8 +97,11 @@ export type PurchaseAccessSyncStatus =
 export interface PurchaseAccessSyncAttemptContext {
   promoCode?: string | null
   campaignId?: string | null
+  campaignSlug?: string | null
+  campaignType?: string | null
   codeId?: string | null
   redemptionAttemptId?: string | null
+  discountKind?: string | null
   promoOutcome?: 'free' | 'discounted' | null
   priceString?: string | null
 }
@@ -255,6 +263,7 @@ export function useSubscriptionStatus(): {
 
 export function useSubscription() {
   const { user } = useAuth()
+  const { track } = useAnalytics()
   const { profile, isLoading: profileLoading } = useProfile()
   const queryClient = useQueryClient()
   const [isInitialized, setIsInitialized] = useState(false)
@@ -494,6 +503,39 @@ export function useSubscription() {
     [user?.id],
   )
 
+  const recordPromoSyncFailure = useCallback(
+    async (
+      request: PurchaseAccessSyncRequest,
+      status: PurchaseAccessSyncStatus | SupabaseSubscriptionSyncStatus,
+      error?: unknown,
+    ) => {
+      const attemptContext = request.attemptContext ?? null
+      if (!attemptContext?.redemptionAttemptId) return
+
+      const errorCode = String(status)
+
+      track('promo_sync_failed', {
+        ...buildPromoAttemptAnalyticsProps(attemptContext),
+        source: request.source,
+        sync_status: errorCode,
+        error_code: error instanceof Error ? error.message : errorCode,
+      })
+
+      await recordPromoRedemptionAttemptEvent({
+        redemptionAttemptId: attemptContext.redemptionAttemptId,
+        event: 'sync_failed',
+        errorCode,
+        errorMessage: error instanceof Error ? error.message : null,
+        metadata: {
+          source: request.source,
+          platform: Platform.OS,
+          status: errorCode,
+        },
+      })
+    },
+    [track],
+  )
+
   const syncExternalPurchaseAccess = useCallback(
     async (request: PurchaseAccessSyncRequest): Promise<PurchaseAccessSyncResult> => {
       const attemptContext = request.attemptContext ?? null
@@ -560,6 +602,7 @@ export function useSubscription() {
           source: request.source,
           error: error instanceof Error ? error.message : String(error),
         })
+        await recordPromoSyncFailure(request, result.status, error)
         return result
       }
 
@@ -581,6 +624,7 @@ export function useSubscription() {
         })
         refetchCustomerInfo()
         queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
+        await recordPromoSyncFailure(request, result.status)
         return result
       }
 
@@ -606,6 +650,7 @@ export function useSubscription() {
         })
         refetchCustomerInfo()
         queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
+        await recordPromoSyncFailure(request, result.status, error)
         return result
       }
 
@@ -634,6 +679,9 @@ export function useSubscription() {
         })
         refetchCustomerInfo()
         queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
+        if (supabaseSyncStatus !== 'preserved_existing_lifetime') {
+          await recordPromoSyncFailure(request, supabaseSyncStatus)
+        }
         return result
       }
 
@@ -648,15 +696,44 @@ export function useSubscription() {
       }
       const successSignature = JSON.stringify({
         userId: user.id,
-        source: request.source,
         entitlementId: ENTITLEMENT_ID,
         productIdentifier: entitlement.productIdentifier ?? null,
         originalPurchaseDate: entitlement.originalPurchaseDate ?? null,
+        redemptionAttemptId: attemptContext?.redemptionAttemptId ?? null,
         campaignId: attemptContext?.campaignId ?? null,
       })
 
       if (previousConfirmedAccessSyncSignatureRef.current !== successSignature) {
         previousConfirmedAccessSyncSignatureRef.current = successSignature
+        if (attemptContext?.redemptionAttemptId) {
+          const promoProps = {
+            ...buildPromoAttemptAnalyticsProps(attemptContext),
+            source: request.source,
+            sync_status: 'confirmed',
+          }
+          track('promo_sync_succeeded', promoProps)
+          track('promo_redemption_completed', promoProps)
+          await recordPromoRedemptionAttemptEvent({
+            redemptionAttemptId: attemptContext.redemptionAttemptId,
+            event: 'sync_succeeded',
+            metadata: {
+              source: request.source,
+              platform: Platform.OS,
+              entitlementId: ENTITLEMENT_ID,
+              productIdentifier: entitlement.productIdentifier ?? null,
+            },
+          })
+          await recordPromoRedemptionAttemptEvent({
+            redemptionAttemptId: attemptContext.redemptionAttemptId,
+            event: 'redemption_completed',
+            metadata: {
+              source: request.source,
+              platform: Platform.OS,
+              entitlementId: ENTITLEMENT_ID,
+              productIdentifier: entitlement.productIdentifier ?? null,
+            },
+          })
+        }
         addBreadcrumb('Purchase access sync confirmed entitlement', 'monetization.sync', {
           userId: user.id,
           source: request.source,
@@ -674,7 +751,15 @@ export function useSubscription() {
       queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
       return result
     },
-    [isInitialized, queryClient, refetchCustomerInfo, shouldBypassRevenueCat, user?.id],
+    [
+      isInitialized,
+      queryClient,
+      recordPromoSyncFailure,
+      refetchCustomerInfo,
+      shouldBypassRevenueCat,
+      track,
+      user?.id,
+    ],
   )
 
   const syncAccessMutation = useMutation({
@@ -866,6 +951,23 @@ export function useSubscription() {
         if (isStartTrialPendingRef.current) return
         const pendingExternalSync = pendingExternalPurchaseSyncRef.current
         if (pendingExternalSync) {
+          track('promo_app_returned', {
+            ...buildPromoAttemptAnalyticsProps(pendingExternalSync.attemptContext),
+            source: pendingExternalSync.source,
+          })
+          recordPromoRedemptionAttemptEvent({
+            redemptionAttemptId: pendingExternalSync.attemptContext?.redemptionAttemptId,
+            event: 'app_returned',
+            metadata: {
+              source: pendingExternalSync.source,
+              platform: Platform.OS,
+            },
+          }).catch((error) => {
+            console.warn('[useSubscription] Failed to record promo app return', {
+              userId: user.id,
+              error,
+            })
+          })
           syncExternalPurchaseAccess({
             ...pendingExternalSync,
             source: 'foreground',
@@ -883,7 +985,7 @@ export function useSubscription() {
     })
 
     return () => subscription.remove()
-  }, [queryClient, syncExternalPurchaseAccess, user?.id])
+  }, [queryClient, syncExternalPurchaseAccess, track, user?.id])
 
   // Start free trial (local trial, not RevenueCat).
   //

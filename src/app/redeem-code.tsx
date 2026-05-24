@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -16,8 +16,14 @@ import { AlertCircle, ArrowLeft, ArrowRight, Check, Crown } from 'lucide-react-n
 import { PACKAGE_TYPE } from 'react-native-purchases'
 
 import { Text } from '~/components/ui'
+import { useAnalytics } from '~/providers/AnalyticsProvider'
+import { addBreadcrumb } from '~/lib/sentry'
 import { getOfferings, setRevenueCatPromoRedemptionAttributes } from '~/lib/revenuecat'
 import { findPromoPackage } from '~/lib/promoPackages'
+import {
+  buildPromoAnalyticsProps,
+  recordPromoRedemptionAttemptEvent,
+} from '~/lib/promoAnalytics'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import {
   normalizePromoCodeInput,
@@ -72,6 +78,7 @@ export default function RedeemCodeScreen() {
   const insets = useSafeAreaInsets()
   const theme = useAppTheme()
   const { t } = useTranslation()
+  const { track } = useAnalytics()
   const subscription = useSubscription()
   const validatePromoCode = useValidatePromoCode()
   const [code, setCode] = useState('')
@@ -118,8 +125,11 @@ export default function RedeemCodeScreen() {
         ? {
             promoCode: normalizedCode,
             campaignId: validOffer.campaignId,
+            campaignSlug: validOffer.campaignSlug,
+            campaignType: validOffer.campaignType,
             codeId: validOffer.codeId,
             redemptionAttemptId: validOffer.redemptionAttemptId,
+            discountKind: validOffer.discountKind,
             promoOutcome: validOffer.display.paymentRequired
               ? ('discounted' as const)
               : ('free' as const),
@@ -128,6 +138,21 @@ export default function RedeemCodeScreen() {
         : null,
     [normalizedCode, priceString, validOffer],
   )
+
+  useEffect(() => {
+    track('promo_entry_opened', {})
+  }, [track])
+
+  const trackValidOfferEvent = (
+    eventName: 'promo_applied' | 'promo_store_handoff_started',
+    offer: ValidPromoCodeResult,
+    source?: string,
+  ) => {
+    track(eventName, {
+      ...buildPromoAnalyticsProps(offer),
+      source,
+    })
+  }
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -149,15 +174,48 @@ export default function RedeemCodeScreen() {
     if (!normalizedCode || validatePromoCode.isPending) return
     setActionError(null)
     setShowStoreFallback(false)
-    const response = await validatePromoCode.mutateAsync(normalizedCode)
-    if (response.result.status === 'valid') {
-      subscription.markPromoCodeValidated({
-        promoCode: normalizedCode,
-        campaignId: response.result.campaignId,
-        codeId: response.result.codeId,
-        redemptionAttemptId: response.result.redemptionAttemptId,
-        promoOutcome: response.result.display.paymentRequired ? 'discounted' : 'free',
-        priceString: formatPromoPrice(response.result),
+
+    track('promo_validation_attempted', {
+      platform: Platform.OS,
+      code_length: normalizedCode.length,
+    })
+
+    try {
+      const response = await validatePromoCode.mutateAsync(normalizedCode)
+      if (response.result.status === 'valid') {
+        track('promo_validation_succeeded', buildPromoAnalyticsProps(response.result))
+        subscription.markPromoCodeValidated({
+          promoCode: normalizedCode,
+          campaignId: response.result.campaignId,
+          campaignSlug: response.result.campaignSlug,
+          campaignType: response.result.campaignType,
+          codeId: response.result.codeId,
+          redemptionAttemptId: response.result.redemptionAttemptId,
+          discountKind: response.result.discountKind,
+          promoOutcome: response.result.display.paymentRequired ? 'discounted' : 'free',
+          priceString: formatPromoPrice(response.result),
+        })
+      } else {
+        track('promo_validation_failed', {
+          ...buildPromoAnalyticsProps(response.result),
+          error_code: response.result.status,
+        })
+        addBreadcrumb('Promo code validation failed', 'promo.validation', {
+          status: response.result.status,
+          campaignId: response.result.campaignId,
+          redemptionAttemptId: response.result.redemptionAttemptId,
+          platform: Platform.OS,
+        })
+      }
+    } catch (error) {
+      track('promo_validation_failed', {
+        platform: Platform.OS,
+        validation_status: 'request_failed',
+        error_code: error instanceof Error ? error.message : String(error),
+      })
+      addBreadcrumb('Promo code validation request failed', 'promo.validation', {
+        platform: Platform.OS,
+        error: error instanceof Error ? error.message : String(error),
       })
     }
   }
@@ -173,6 +231,22 @@ export default function RedeemCodeScreen() {
       forceStoreSync: true,
       attemptContext: offerContext,
     })
+    trackValidOfferEvent('promo_store_handoff_started', offer, 'store_fallback')
+    void recordPromoRedemptionAttemptEvent({
+      redemptionAttemptId: offer.redemptionAttemptId,
+      event: 'store_handoff_started',
+      metadata: {
+        source: 'store_fallback',
+        platform: Platform.OS,
+        storeAction: offer.routing.storeAction,
+        productId: offer.routing.productId,
+      },
+    })
+    addBreadcrumb('Started promo store fallback handoff', 'promo.handoff', {
+      campaignId: offer.campaignId,
+      redemptionAttemptId: offer.redemptionAttemptId,
+      platform: Platform.OS,
+    })
     try {
       await setRevenueCatPromoRedemptionAttributes(offerContext)
     } catch {
@@ -182,6 +256,17 @@ export default function RedeemCodeScreen() {
       await Linking.openURL(offer.routing.fallbackUrl)
       setActionError(t('subscription.redeemCode.storeFallbackOpened'))
     } catch {
+      void recordPromoRedemptionAttemptEvent({
+        redemptionAttemptId: offer.redemptionAttemptId,
+        event: 'redemption_failed',
+        status: 'failed',
+        errorCode: 'store_fallback_open_failed',
+        errorMessage: 'subscription.redeemCode.storeFallbackFailed',
+        metadata: {
+          source: 'store_fallback',
+          platform: Platform.OS,
+        },
+      })
       setActionError(t('subscription.redeemCode.storeFallbackFailed'))
     }
   }
@@ -235,6 +320,20 @@ export default function RedeemCodeScreen() {
       return 'package_unavailable' as const
     }
 
+    trackValidOfferEvent('promo_store_handoff_started', offer, 'revenuecat_purchase_package')
+    void recordPromoRedemptionAttemptEvent({
+      redemptionAttemptId: offer.redemptionAttemptId,
+      event: 'store_handoff_started',
+      metadata: {
+        source: 'revenuecat_purchase_package',
+        platform: Platform.OS,
+        storeAction: offer.routing.storeAction,
+        productId: offer.routing.productId,
+        revenueCatOfferingId: offer.routing.revenueCatOfferingId,
+        revenueCatPackageId: offer.routing.revenueCatPackageId,
+      },
+    })
+
     const customerInfo = await subscription.purchase({
       pkg: promoPackage,
       attemptContext: offerContext,
@@ -250,6 +349,17 @@ export default function RedeemCodeScreen() {
     setIsApplyingOffer(true)
 
     try {
+      trackValidOfferEvent('promo_applied', validOffer)
+      void recordPromoRedemptionAttemptEvent({
+        redemptionAttemptId: validOffer.redemptionAttemptId,
+        event: 'promo_applied',
+        metadata: {
+          platform: Platform.OS,
+          storeAction: validOffer.routing.storeAction,
+          promoOutcome: validOffer.display.paymentRequired ? 'discounted' : 'free',
+        },
+      })
+
       if (normalizedCode === 'SYNCFAIL') {
         subscription.markExternalPurchaseAttempted({
           source: 'promo_redemption',
@@ -292,6 +402,17 @@ export default function RedeemCodeScreen() {
           return
         }
 
+        trackValidOfferEvent('promo_store_handoff_started', validOffer, 'native_redemption_sheet')
+        void recordPromoRedemptionAttemptEvent({
+          redemptionAttemptId: validOffer.redemptionAttemptId,
+          event: 'store_handoff_started',
+          metadata: {
+            source: 'native_redemption_sheet',
+            platform: Platform.OS,
+            storeAction: validOffer.routing.storeAction,
+            productId: validOffer.routing.productId,
+          },
+        })
         const result = await subscription.redeemPromoCode(offerContext)
         if (!result || result.status !== 'confirmed') {
           if (result?.status === 'revenuecat_unavailable' && validOffer.routing.fallbackUrl) {
@@ -318,6 +439,17 @@ export default function RedeemCodeScreen() {
         setActionError(t('subscription.redeemCode.purchaseCancelled'))
       }
     } catch {
+      void recordPromoRedemptionAttemptEvent({
+        redemptionAttemptId: validOffer.redemptionAttemptId,
+        event: 'redemption_failed',
+        status: 'failed',
+        errorCode: 'promo_apply_failed',
+        errorMessage: 'subscription.redeemCode.applyFailed',
+        metadata: {
+          platform: Platform.OS,
+          storeAction: validOffer.routing.storeAction,
+        },
+      })
       if (validOffer.routing.fallbackUrl) {
         setShowStoreFallback(true)
         setActionError(t('subscription.redeemCode.nativeRedemptionUnavailable'))

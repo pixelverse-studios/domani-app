@@ -26,6 +26,7 @@ jest.mock('~/hooks/useProfile', () => ({
 
 import { act, renderHookWithProviders, waitFor } from '~/test/test-utils'
 import { supabase } from '~/lib/supabase'
+import { useAnalytics } from '~/providers/AnalyticsProvider'
 import {
   getOfferingForCohort,
   getOfferings,
@@ -48,6 +49,8 @@ import {
 
 const mockSupabaseFrom = supabase.from as unknown as jest.Mock
 const mockSupabaseRpc = supabase.rpc as unknown as jest.Mock
+const mockUseAnalytics = useAnalytics as jest.Mock
+const mockTrack = jest.fn()
 const mockGetOfferingForCohort = getOfferingForCohort as jest.Mock
 const mockGetOfferings = getOfferings as jest.Mock
 const mockInitializeRevenueCat = initializeRevenueCat as jest.Mock
@@ -119,6 +122,12 @@ function buildPurchasesPackage() {
 }
 
 function setupSubscriptionHookMocks() {
+  mockUseAnalytics.mockReturnValue({
+    identify: jest.fn(),
+    reset: jest.fn(),
+    screen: jest.fn(),
+    track: mockTrack,
+  })
   mockUseAuth.mockReturnValue({
     user: { id: 'user-1', email: 'test@example.com' },
   })
@@ -338,9 +347,12 @@ describe('purchase access sync', () => {
     const redemptionPromise = result.current.redeemPromoCode({
       promoCode: 'SAVE100',
       campaignId: 'campaign-1',
+      campaignSlug: 'launch',
+      campaignType: 'percent_discount_lifetime',
       codeId: 'code-1',
       redemptionAttemptId: 'attempt-1',
-      promoOutcome: 'free',
+      discountKind: 'percent',
+      promoOutcome: 'discounted',
     })
 
     await act(async () => {
@@ -351,9 +363,12 @@ describe('purchase access sync', () => {
     expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenCalledWith({
       promoCode: 'SAVE100',
       campaignId: 'campaign-1',
+      campaignSlug: 'launch',
+      campaignType: 'percent_discount_lifetime',
       codeId: 'code-1',
       redemptionAttemptId: 'attempt-1',
-      promoOutcome: 'free',
+      discountKind: 'percent',
+      promoOutcome: 'discounted',
     })
     expect(result.current.accessSyncPhase).toBe('os_confirmation_attempted')
 
@@ -367,10 +382,61 @@ describe('purchase access sync', () => {
     expect(result.current.accessSyncAttempt).toMatchObject({
       promoCode: 'SAVE100',
       campaignId: 'campaign-1',
+      campaignSlug: 'launch',
+      campaignType: 'percent_discount_lifetime',
       codeId: 'code-1',
       redemptionAttemptId: 'attempt-1',
-      promoOutcome: 'free',
+      discountKind: 'percent',
+      promoOutcome: 'discounted',
     })
+    expect(mockTrack).toHaveBeenCalledWith(
+      'promo_sync_succeeded',
+      expect.objectContaining({
+        campaign_id: 'campaign-1',
+        campaign_slug: 'launch',
+        campaign_type: 'percent_discount_lifetime',
+        discount_kind: 'percent',
+        redemption_attempt_id: 'attempt-1',
+        sync_status: 'confirmed',
+      }),
+    )
+    expect(mockTrack).toHaveBeenCalledWith(
+      'promo_redemption_completed',
+      expect.objectContaining({
+        campaign_id: 'campaign-1',
+        campaign_slug: 'launch',
+        campaign_type: 'percent_discount_lifetime',
+        discount_kind: 'percent',
+        redemption_attempt_id: 'attempt-1',
+        sync_status: 'confirmed',
+      }),
+    )
+
+    const completedCount = mockTrack.mock.calls.filter(
+      ([eventName]) => eventName === 'promo_redemption_completed',
+    ).length
+
+    await act(async () => {
+      await result.current.syncAccess({
+        source: 'foreground',
+        forceStoreSync: true,
+        attemptContext: {
+          promoCode: 'SAVE100',
+          campaignId: 'campaign-1',
+          campaignSlug: 'launch',
+          campaignType: 'percent_discount_lifetime',
+          codeId: 'code-1',
+          redemptionAttemptId: 'attempt-1',
+          discountKind: 'percent',
+          promoOutcome: 'discounted',
+        },
+      })
+    })
+
+    expect(
+      mockTrack.mock.calls.filter(([eventName]) => eventName === 'promo_redemption_completed')
+        .length,
+    ).toBe(completedCount)
 
     jest.useRealTimers()
     unmount()
@@ -466,7 +532,7 @@ describe('purchase access sync', () => {
       await result.current.redeemPromoCode({
         promoCode: 'SAVE100',
         campaignId: 'campaign-1',
-        promoOutcome: 'free',
+        promoOutcome: 'discounted',
       })
     })
 
@@ -490,7 +556,7 @@ describe('purchase access sync', () => {
       redemptionResult = await result.current.redeemPromoCode({
         promoCode: 'SAVE100',
         campaignId: 'campaign-1',
-        promoOutcome: 'free',
+        promoOutcome: 'discounted',
       })
     })
 

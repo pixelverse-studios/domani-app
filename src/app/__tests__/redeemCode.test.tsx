@@ -5,6 +5,7 @@ import { fireEvent, renderWithProviders, screen, waitFor } from '~/test/test-uti
 import RedeemCodeScreen from '../redeem-code'
 import { supabase } from '~/lib/supabase'
 import { getOfferings, setRevenueCatPromoRedemptionAttributes } from '~/lib/revenuecat'
+import { useAnalytics } from '~/providers/AnalyticsProvider'
 
 const mockBack = jest.fn()
 const mockReplace = jest.fn()
@@ -57,6 +58,8 @@ const mockSupabaseRpc = supabase.rpc as unknown as jest.Mock
 const mockGetOfferings = getOfferings as jest.Mock
 const mockSetRevenueCatPromoRedemptionAttributes =
   setRevenueCatPromoRedemptionAttributes as jest.Mock
+const mockUseAnalytics = useAnalytics as jest.Mock
+const mockTrack = jest.fn()
 
 const originalPlatform = Platform.OS
 
@@ -184,6 +187,12 @@ async function validateAndFailNativeRedemption() {
 describe('RedeemCodeScreen iOS promo recovery', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockUseAnalytics.mockReturnValue({
+      identify: jest.fn(),
+      reset: jest.fn(),
+      screen: jest.fn(),
+      track: mockTrack,
+    })
     setPlatform('ios')
     mockValidFreeCode()
     mockRedeemPromoCode.mockResolvedValue({
@@ -239,6 +248,12 @@ describe('RedeemCodeScreen iOS promo recovery', () => {
 describe('RedeemCodeScreen Android promo routing', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockUseAnalytics.mockReturnValue({
+      identify: jest.fn(),
+      reset: jest.fn(),
+      screen: jest.fn(),
+      track: mockTrack,
+    })
     setPlatform('android')
     mockValidAndroidFreeCode()
     mockRedeemPromoCode.mockResolvedValue(null)
@@ -282,13 +297,39 @@ describe('RedeemCodeScreen Android promo routing', () => {
         attemptContext: {
           promoCode: 'SAVE100',
           campaignId: 'campaign-android-free',
+          campaignSlug: 'android-free',
+          campaignType: 'free_lifetime',
           codeId: 'code-android-free',
           redemptionAttemptId: 'attempt-android-free',
+          discountKind: 'free',
           promoOutcome: 'free',
           priceString: null,
         },
       })
     })
+    expect(mockTrack).toHaveBeenCalledWith(
+      'promo_validation_attempted',
+      expect.objectContaining({
+        code_length: 7,
+        platform: 'android',
+      }),
+    )
+    expect(mockTrack).toHaveBeenCalledWith(
+      'promo_validation_succeeded',
+      expect.objectContaining({
+        campaign_id: 'campaign-android-free',
+        promo_outcome: 'free',
+        redemption_attempt_id: 'attempt-android-free',
+      }),
+    )
+    expect(mockTrack).toHaveBeenCalledWith(
+      'promo_store_handoff_started',
+      expect.objectContaining({
+        campaign_id: 'campaign-android-free',
+        promo_outcome: 'free',
+        source: 'revenuecat_purchase_package',
+      }),
+    )
     expect(Linking.openURL).not.toHaveBeenCalled()
   })
 
