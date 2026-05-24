@@ -227,6 +227,22 @@ export default function RedeemCodeScreen() {
     }
   }
 
+  const purchasePromoPackage = async (offer: ValidPromoCodeResult) => {
+    const offering = await getOfferings(offer.routing.revenueCatOfferingId ?? undefined)
+    const promoPackage = findPromoPackage(offering?.availablePackages, offer)
+
+    if (!promoPackage) {
+      return 'package_unavailable' as const
+    }
+
+    const customerInfo = await subscription.purchase({
+      pkg: promoPackage,
+      attemptContext: offerContext,
+    })
+
+    return customerInfo ? ('confirmed' as const) : ('cancelled' as const)
+  }
+
   const handleApplyOffer = async () => {
     if (!validOffer || !offerContext || isApplyingOffer) return
     setActionError(null)
@@ -262,7 +278,17 @@ export default function RedeemCodeScreen() {
           validOffer.routing.storeAction === 'android_promo_code_flow' &&
           Platform.OS === 'android'
         ) {
-          await handleOpenFallback(validOffer)
+          const purchaseResult = await purchasePromoPackage(validOffer)
+          if (purchaseResult === 'package_unavailable') {
+            if (validOffer.routing.fallbackUrl) {
+              setShowStoreFallback(true)
+              setActionError(t('subscription.redeemCode.nativeRedemptionUnavailable'))
+            } else {
+              setActionError(t('subscription.redeemCode.errorPlatformUnavailable'))
+            }
+          } else if (purchaseResult === 'cancelled') {
+            setActionError(t('subscription.redeemCode.purchaseCancelled'))
+          }
           return
         }
 
@@ -278,23 +304,21 @@ export default function RedeemCodeScreen() {
         return
       }
 
-      const offering = await getOfferings(validOffer.routing.revenueCatOfferingId ?? undefined)
-      const promoPackage = findPromoPackage(offering?.availablePackages, validOffer)
-
-      if (!promoPackage) {
-        setActionError(t('subscription.redeemCode.errorPlatformUnavailable'))
+      const purchaseResult = await purchasePromoPackage(validOffer)
+      if (purchaseResult === 'package_unavailable') {
+        if (validOffer.routing.fallbackUrl) {
+          setShowStoreFallback(true)
+          setActionError(t('subscription.redeemCode.nativeRedemptionUnavailable'))
+        } else {
+          setActionError(t('subscription.redeemCode.errorPlatformUnavailable'))
+        }
         return
       }
-
-      const customerInfo = await subscription.purchase({
-        pkg: promoPackage,
-        attemptContext: offerContext,
-      })
-      if (!customerInfo) {
+      if (purchaseResult === 'cancelled') {
         setActionError(t('subscription.redeemCode.purchaseCancelled'))
       }
     } catch {
-      if (!validOffer.display.paymentRequired && validOffer.routing.fallbackUrl) {
+      if (validOffer.routing.fallbackUrl) {
         setShowStoreFallback(true)
         setActionError(t('subscription.redeemCode.nativeRedemptionUnavailable'))
       } else {

@@ -672,11 +672,11 @@ export const en = {
       syncPending: 'Finish store confirmation, then retry sync if access does not update.',
       syncFailureTest: 'Sync failure test triggered. Use retry sync or restore to test recovery.',
       nativeRedemptionUnavailable:
-        "We couldn't open Apple's in-app redemption sheet. Use the App Store fallback or try syncing if you already finished redemption.",
-      openAppStore: 'Open App Store',
+        "We couldn't open the in-app store confirmation. Use the store fallback or try syncing if you already finished redemption.",
+      openAppStore: 'Open Store',
       storeFallbackOpened:
-        'Finish redemption in the App Store, then return to Domani and sync access.',
-      storeFallbackFailed: 'We could not open the App Store fallback. Please try again.',
+        'Finish redemption in the store, then return to Domani and sync access.',
+      storeFallbackFailed: 'We could not open the store fallback. Please try again.',
       restoreNotFound: 'No previous purchases found for this account.',
       restoreFailed: 'Could not restore purchases. Please try again.',
       purchaseCancelled: 'Purchase was cancelled.',
