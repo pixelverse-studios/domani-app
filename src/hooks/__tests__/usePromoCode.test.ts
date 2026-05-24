@@ -1,11 +1,38 @@
 import {
+  act,
+  renderHookWithProviders,
+  waitFor,
+} from '~/test/test-utils'
+import { Platform } from 'react-native'
+
+import { supabase } from '~/lib/supabase'
+import {
   getLocalPromoCodeResult,
   normalizePromoCodeInput,
   parsePromoCodeResult,
+  useValidatePromoCode,
 } from '~/hooks/usePromoCode'
 import { findPromoPackage } from '~/lib/promoPackages'
 
+const mockSupabaseRpc = supabase.rpc as unknown as jest.Mock
+const originalPlatform = Platform.OS
+
+function setPlatform(os: typeof Platform.OS) {
+  Object.defineProperty(Platform, 'OS', {
+    configurable: true,
+    get: () => os,
+  })
+}
+
 describe('promo code helpers', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  afterEach(() => {
+    setPlatform(originalPlatform)
+  })
+
   it('normalizes user input to the store code format', () => {
     expect(normalizePromoCodeInput(' free demo! ')).toBe('FREEDEMO')
     expect(normalizePromoCodeInput('family-2026')).toBe('FAMILY-2026')
@@ -64,6 +91,74 @@ describe('promo code helpers', () => {
       campaignType: null,
       codeId: null,
     })
+  })
+
+  it.each([
+    ['invalid', 'promo.invalid'],
+    ['expired', 'promo.expired'],
+    ['inactive', 'promo.inactive'],
+    ['already_redeemed', 'promo.already_redeemed'],
+    ['over_limit', 'promo.over_limit'],
+    ['platform_unavailable', 'promo.platform_unavailable'],
+  ] as const)('parses %s validation responses', (status, messageKey) => {
+    expect(
+      parsePromoCodeResult({
+        status,
+        messageKey,
+        redemptionAttemptId: `attempt-${status}`,
+        campaignId: 'campaign-1',
+        campaignSlug: 'launch',
+        campaignType: 'free_lifetime',
+        codeId: 'code-1',
+      }),
+    ).toEqual({
+      status,
+      messageKey,
+      redemptionAttemptId: `attempt-${status}`,
+      campaignId: 'campaign-1',
+      campaignSlug: 'launch',
+      campaignType: 'free_lifetime',
+      codeId: 'code-1',
+    })
+  })
+
+  it('sends normalized validation payloads to Supabase', async () => {
+    setPlatform('android')
+    mockSupabaseRpc.mockResolvedValueOnce({
+      error: null,
+      data: {
+        status: 'invalid',
+        messageKey: 'promo.invalid',
+        redemptionAttemptId: 'attempt-1',
+      },
+    })
+
+    const { result } = renderHookWithProviders(() => useValidatePromoCode())
+
+    await act(async () => {
+      await result.current.mutateAsync(' save 50! ')
+    })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('validate_promo_code', {
+      p_code: 'SAVE50',
+      p_platform: 'android',
+      p_app_version: null,
+    })
+  })
+
+  it('does not call validation RPC for local dev codes', async () => {
+    const { result } = renderHookWithProviders(() => useValidatePromoCode())
+
+    await act(async () => {
+      await result.current.mutateAsync('localfree')
+    })
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
+      expect(result.current.data?.result.status).toBe('valid')
+    })
+    expect(mockSupabaseRpc).not.toHaveBeenCalled()
   })
 
   it('provides local dev codes without requiring the validation RPC', () => {

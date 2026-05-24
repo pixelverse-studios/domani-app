@@ -336,6 +336,58 @@ describe('purchase access sync', () => {
     unmount()
   })
 
+  it('records promo sync failure analytics and audit when entitlement is missing', async () => {
+    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildCustomerInfo({}))
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    await act(async () => {
+      await result.current.syncAccess({
+        source: 'promo_redemption',
+        forceStoreSync: true,
+        attemptContext: {
+          promoCode: 'SAVE50',
+          campaignId: 'campaign-1',
+          campaignSlug: 'launch',
+          campaignType: 'fixed_price_lifetime',
+          codeId: 'code-1',
+          redemptionAttemptId: 'attempt-1',
+          discountKind: 'fixed_price',
+          promoOutcome: 'discounted',
+          priceString: '$17.49',
+        },
+      })
+    })
+
+    expect(result.current.accessSyncResult).toMatchObject({
+      status: 'missing_entitlement',
+      hasEntitlement: false,
+      profileSynced: false,
+    })
+    expect(mockTrack).toHaveBeenCalledWith(
+      'promo_sync_failed',
+      expect.objectContaining({
+        campaign_id: 'campaign-1',
+        campaign_type: 'fixed_price_lifetime',
+        discount_kind: 'fixed_price',
+        error_code: 'missing_entitlement',
+        redemption_attempt_id: 'attempt-1',
+        sync_status: 'missing_entitlement',
+      }),
+    )
+    expect(mockSupabaseRpc).toHaveBeenCalledWith(
+      'update_current_user_promo_redemption_attempt',
+      expect.objectContaining({
+        p_error_code: 'missing_entitlement',
+        p_event: 'sync_failed',
+        p_redemption_attempt_id: 'attempt-1',
+      }),
+    )
+
+    unmount()
+  })
+
   it('syncs after native promo code redemption is presented', async () => {
     jest.useFakeTimers()
     mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())

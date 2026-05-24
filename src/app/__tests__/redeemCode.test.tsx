@@ -333,6 +333,83 @@ describe('RedeemCodeScreen Android promo routing', () => {
     expect(Linking.openURL).not.toHaveBeenCalled()
   })
 
+  it('does not grant access from valid free-code validation alone', async () => {
+    renderWithProviders(<RedeemCodeScreen />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('ENTER-CODE-HERE'), 'SAVE100')
+    fireEvent.press(screen.getByLabelText('Submit code'))
+
+    await screen.findByText('Code Accepted')
+
+    expect(mockMarkPromoCodeValidated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        campaignId: 'campaign-android-free',
+        promoCode: 'SAVE100',
+        promoOutcome: 'free',
+        redemptionAttemptId: 'attempt-android-free',
+      }),
+    )
+    expect(screen.queryByText('Lifetime Access Active')).toBeNull()
+    expect(mockPurchase).not.toHaveBeenCalled()
+    expect(mockRedeemPromoCode).not.toHaveBeenCalled()
+    expect(mockSyncAccess).not.toHaveBeenCalled()
+  })
+
+  it('renders discounted promo pricing and starts the mapped package by default', async () => {
+    mockValidAndroidDiscountCode()
+    const promoPackage = {
+      identifier: 'discount_50_lifetime',
+      packageType: 'LIFETIME',
+      product: { identifier: 'domani_lifetime_discount_50', priceString: '$17.49' },
+    }
+    mockGetOfferings.mockResolvedValue({
+      availablePackages: [promoPackage],
+    })
+
+    renderWithProviders(<RedeemCodeScreen />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('ENTER-CODE-HERE'), 'SAVE50')
+    fireEvent.press(screen.getByLabelText('Submit code'))
+
+    await screen.findByText('Code Accepted')
+
+    expect(screen.getByText('SAVE50')).toBeTruthy()
+    expect(screen.getByText('50% Off Lifetime Access')).toBeTruthy()
+    expect(screen.getByText('Price after discount: $17.49')).toBeTruthy()
+    expect(screen.getByText('Current price')).toBeTruthy()
+    expect(screen.getByText('$34.99')).toBeTruthy()
+    expect(screen.getByText('Promo price')).toBeTruthy()
+    expect(screen.getAllByText('$17.49').length).toBeGreaterThan(0)
+    expect(screen.getByText('Discount')).toBeTruthy()
+    expect(screen.getByText('50% off')).toBeTruthy()
+    expect(screen.getByText('Continue to Purchase - $17.49')).toBeTruthy()
+    expect(screen.queryByText('Open Store')).toBeNull()
+    expect(
+      screen.queryByText(
+        "We couldn't open the in-app store confirmation. Use the store fallback or try syncing if you already finished redemption.",
+      ),
+    ).toBeNull()
+
+    fireEvent.press(screen.getByText('Continue to Purchase - $17.49'))
+
+    await waitFor(() => {
+      expect(mockGetOfferings).toHaveBeenCalledWith('android_promos')
+      expect(mockPurchase).toHaveBeenCalledWith({
+        pkg: promoPackage,
+        attemptContext: expect.objectContaining({
+          campaignId: 'campaign-android-discount',
+          campaignType: 'percent_discount_lifetime',
+          discountKind: 'percent',
+          priceString: '$17.49',
+          promoCode: 'SAVE50',
+          promoOutcome: 'discounted',
+          redemptionAttemptId: 'attempt-android-discount',
+        }),
+      })
+    })
+    expect(Linking.openURL).not.toHaveBeenCalled()
+  })
+
   it('shows the Play Store fallback only when the mapped Android promo package is unavailable', async () => {
     mockGetOfferings.mockResolvedValue({
       availablePackages: [
