@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useCallback } from 'react'
 import { PostHogProvider, usePostHog } from 'posthog-react-native'
 import Constants from 'expo-constants'
 
@@ -31,6 +31,80 @@ export type AnalyticsEvent =
   // Subscription events
   | { name: 'subscription_started'; properties: { tier: string } }
   | { name: 'trial_started'; properties?: Record<string, never> }
+  // Promo events
+  | { name: 'promo_entry_opened'; properties: Record<string, never> }
+  | {
+      name: 'promo_validation_attempted'
+      properties: { platform: string; code_length: number }
+    }
+  | {
+      name: 'promo_validation_succeeded'
+      properties: {
+        platform: string
+        campaign_id?: string | null
+        campaign_slug?: string | null
+        campaign_type?: string | null
+        code_id?: string | null
+        redemption_attempt_id?: string | null
+        discount_kind?: string | null
+        promo_outcome?: 'free' | 'discounted' | 'unknown'
+        store_action?: string | null
+        product_id?: string | null
+        revenuecat_offering_id?: string | null
+        revenuecat_package_id?: string | null
+        validation_status?: string | null
+        fallback_available?: boolean
+      }
+    }
+  | {
+      name: 'promo_validation_failed'
+      properties: {
+        platform: string
+        campaign_id?: string | null
+        campaign_slug?: string | null
+        campaign_type?: string | null
+        code_id?: string | null
+        redemption_attempt_id?: string | null
+        validation_status?: string | null
+        error_code?: string | null
+      }
+    }
+  | {
+      name: 'promo_applied' | 'promo_store_handoff_started'
+      properties: {
+        platform: string
+        campaign_id?: string | null
+        campaign_slug?: string | null
+        campaign_type?: string | null
+        code_id?: string | null
+        redemption_attempt_id?: string | null
+        discount_kind?: string | null
+        promo_outcome?: 'free' | 'discounted' | 'unknown'
+        store_action?: string | null
+        product_id?: string | null
+        revenuecat_offering_id?: string | null
+        revenuecat_package_id?: string | null
+        fallback_available?: boolean
+        source?: string | null
+      }
+    }
+  | {
+      name:
+        | 'promo_app_returned'
+        | 'promo_sync_succeeded'
+        | 'promo_sync_failed'
+        | 'promo_redemption_completed'
+      properties: {
+        platform: string
+        campaign_id?: string | null
+        code_id?: string | null
+        redemption_attempt_id?: string | null
+        promo_outcome?: 'free' | 'discounted' | 'unknown'
+        sync_status?: string | null
+        source?: string | null
+        error_code?: string | null
+      }
+    }
   // Screen views
   | { name: 'screen_viewed'; properties: { screen: string } }
   // Engagement
