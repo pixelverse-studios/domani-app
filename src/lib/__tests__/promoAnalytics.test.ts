@@ -1,5 +1,6 @@
 import { supabase } from '~/lib/supabase'
 import {
+  buildPromoAttemptAnalyticsProps,
   buildPromoAnalyticsProps,
   recordPromoRedemptionAttemptEvent,
 } from '~/lib/promoAnalytics'
@@ -45,6 +46,29 @@ describe('promo analytics helpers', () => {
       store_action: 'revenuecat_purchase_package',
     })
     expect(JSON.stringify(props)).not.toContain('SAVE')
+  })
+
+  it('preserves promo type fields for post-validation sync events', () => {
+    expect(
+      buildPromoAttemptAnalyticsProps({
+        promoCode: 'SAVE100',
+        campaignId: 'campaign-1',
+        campaignSlug: 'launch',
+        campaignType: 'percent_discount_lifetime',
+        codeId: 'code-1',
+        redemptionAttemptId: 'attempt-1',
+        discountKind: 'percent',
+        promoOutcome: 'discounted',
+      }),
+    ).toMatchObject({
+      campaign_id: 'campaign-1',
+      campaign_slug: 'launch',
+      campaign_type: 'percent_discount_lifetime',
+      code_id: 'code-1',
+      discount_kind: 'percent',
+      promo_outcome: 'discounted',
+      redemption_attempt_id: 'attempt-1',
+    })
   })
 
   it('updates backend audit rows without raw code metadata', async () => {

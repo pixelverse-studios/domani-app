@@ -125,8 +125,11 @@ export default function RedeemCodeScreen() {
         ? {
             promoCode: normalizedCode,
             campaignId: validOffer.campaignId,
+            campaignSlug: validOffer.campaignSlug,
+            campaignType: validOffer.campaignType,
             codeId: validOffer.codeId,
             redemptionAttemptId: validOffer.redemptionAttemptId,
+            discountKind: validOffer.discountKind,
             promoOutcome: validOffer.display.paymentRequired
               ? ('discounted' as const)
               : ('free' as const),
@@ -184,8 +187,11 @@ export default function RedeemCodeScreen() {
         subscription.markPromoCodeValidated({
           promoCode: normalizedCode,
           campaignId: response.result.campaignId,
+          campaignSlug: response.result.campaignSlug,
+          campaignType: response.result.campaignType,
           codeId: response.result.codeId,
           redemptionAttemptId: response.result.redemptionAttemptId,
+          discountKind: response.result.discountKind,
           promoOutcome: response.result.display.paymentRequired ? 'discounted' : 'free',
           priceString: formatPromoPrice(response.result),
         })
@@ -226,7 +232,7 @@ export default function RedeemCodeScreen() {
       attemptContext: offerContext,
     })
     trackValidOfferEvent('promo_store_handoff_started', offer, 'store_fallback')
-    await recordPromoRedemptionAttemptEvent({
+    void recordPromoRedemptionAttemptEvent({
       redemptionAttemptId: offer.redemptionAttemptId,
       event: 'store_handoff_started',
       metadata: {
@@ -250,7 +256,7 @@ export default function RedeemCodeScreen() {
       await Linking.openURL(offer.routing.fallbackUrl)
       setActionError(t('subscription.redeemCode.storeFallbackOpened'))
     } catch {
-      await recordPromoRedemptionAttemptEvent({
+      void recordPromoRedemptionAttemptEvent({
         redemptionAttemptId: offer.redemptionAttemptId,
         event: 'redemption_failed',
         status: 'failed',
@@ -315,7 +321,7 @@ export default function RedeemCodeScreen() {
     }
 
     trackValidOfferEvent('promo_store_handoff_started', offer, 'revenuecat_purchase_package')
-    await recordPromoRedemptionAttemptEvent({
+    void recordPromoRedemptionAttemptEvent({
       redemptionAttemptId: offer.redemptionAttemptId,
       event: 'store_handoff_started',
       metadata: {
@@ -344,7 +350,7 @@ export default function RedeemCodeScreen() {
 
     try {
       trackValidOfferEvent('promo_applied', validOffer)
-      await recordPromoRedemptionAttemptEvent({
+      void recordPromoRedemptionAttemptEvent({
         redemptionAttemptId: validOffer.redemptionAttemptId,
         event: 'promo_applied',
         metadata: {
@@ -397,7 +403,7 @@ export default function RedeemCodeScreen() {
         }
 
         trackValidOfferEvent('promo_store_handoff_started', validOffer, 'native_redemption_sheet')
-        await recordPromoRedemptionAttemptEvent({
+        void recordPromoRedemptionAttemptEvent({
           redemptionAttemptId: validOffer.redemptionAttemptId,
           event: 'store_handoff_started',
           metadata: {
@@ -433,7 +439,7 @@ export default function RedeemCodeScreen() {
         setActionError(t('subscription.redeemCode.purchaseCancelled'))
       }
     } catch {
-      await recordPromoRedemptionAttemptEvent({
+      void recordPromoRedemptionAttemptEvent({
         redemptionAttemptId: validOffer.redemptionAttemptId,
         event: 'redemption_failed',
         status: 'failed',

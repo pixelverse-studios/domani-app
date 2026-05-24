@@ -63,9 +63,18 @@ BEGIN
 
   UPDATE public.promo_redemption_attempts
   SET
-    status = COALESCE(p_status, status),
-    error_code = COALESCE(p_error_code, error_code),
-    error_message = COALESCE(p_error_message, error_message),
+    status = CASE
+      WHEN status = 'confirmed'::public.promo_redemption_status THEN status
+      ELSE COALESCE(p_status, status)
+    END,
+    error_code = CASE
+      WHEN status = 'confirmed'::public.promo_redemption_status THEN error_code
+      ELSE COALESCE(p_error_code, error_code)
+    END,
+    error_message = CASE
+      WHEN status = 'confirmed'::public.promo_redemption_status THEN error_message
+      ELSE COALESCE(p_error_message, error_message)
+    END,
     response_payload = JSONB_SET(
       response_payload,
       '{auditEvents}',
@@ -74,7 +83,6 @@ BEGIN
     )
   WHERE id = p_redemption_attempt_id
     AND user_id = v_user_id
-    AND status <> 'confirmed'::public.promo_redemption_status
   RETURNING *
   INTO v_attempt;
 

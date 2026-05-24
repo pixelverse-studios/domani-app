@@ -97,8 +97,11 @@ export type PurchaseAccessSyncStatus =
 export interface PurchaseAccessSyncAttemptContext {
   promoCode?: string | null
   campaignId?: string | null
+  campaignSlug?: string | null
+  campaignType?: string | null
   codeId?: string | null
   redemptionAttemptId?: string | null
+  discountKind?: string | null
   promoOutcome?: 'free' | 'discounted' | null
   priceString?: string | null
 }

@@ -347,9 +347,12 @@ describe('purchase access sync', () => {
     const redemptionPromise = result.current.redeemPromoCode({
       promoCode: 'SAVE100',
       campaignId: 'campaign-1',
+      campaignSlug: 'launch',
+      campaignType: 'percent_discount_lifetime',
       codeId: 'code-1',
       redemptionAttemptId: 'attempt-1',
-      promoOutcome: 'free',
+      discountKind: 'percent',
+      promoOutcome: 'discounted',
     })
 
     await act(async () => {
@@ -360,9 +363,12 @@ describe('purchase access sync', () => {
     expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenCalledWith({
       promoCode: 'SAVE100',
       campaignId: 'campaign-1',
+      campaignSlug: 'launch',
+      campaignType: 'percent_discount_lifetime',
       codeId: 'code-1',
       redemptionAttemptId: 'attempt-1',
-      promoOutcome: 'free',
+      discountKind: 'percent',
+      promoOutcome: 'discounted',
     })
     expect(result.current.accessSyncPhase).toBe('os_confirmation_attempted')
 
@@ -376,14 +382,20 @@ describe('purchase access sync', () => {
     expect(result.current.accessSyncAttempt).toMatchObject({
       promoCode: 'SAVE100',
       campaignId: 'campaign-1',
+      campaignSlug: 'launch',
+      campaignType: 'percent_discount_lifetime',
       codeId: 'code-1',
       redemptionAttemptId: 'attempt-1',
-      promoOutcome: 'free',
+      discountKind: 'percent',
+      promoOutcome: 'discounted',
     })
     expect(mockTrack).toHaveBeenCalledWith(
       'promo_sync_succeeded',
       expect.objectContaining({
         campaign_id: 'campaign-1',
+        campaign_slug: 'launch',
+        campaign_type: 'percent_discount_lifetime',
+        discount_kind: 'percent',
         redemption_attempt_id: 'attempt-1',
         sync_status: 'confirmed',
       }),
@@ -392,6 +404,9 @@ describe('purchase access sync', () => {
       'promo_redemption_completed',
       expect.objectContaining({
         campaign_id: 'campaign-1',
+        campaign_slug: 'launch',
+        campaign_type: 'percent_discount_lifetime',
+        discount_kind: 'percent',
         redemption_attempt_id: 'attempt-1',
         sync_status: 'confirmed',
       }),
@@ -408,9 +423,12 @@ describe('purchase access sync', () => {
         attemptContext: {
           promoCode: 'SAVE100',
           campaignId: 'campaign-1',
+          campaignSlug: 'launch',
+          campaignType: 'percent_discount_lifetime',
           codeId: 'code-1',
           redemptionAttemptId: 'attempt-1',
-          promoOutcome: 'free',
+          discountKind: 'percent',
+          promoOutcome: 'discounted',
         },
       })
     })
@@ -514,7 +532,7 @@ describe('purchase access sync', () => {
       await result.current.redeemPromoCode({
         promoCode: 'SAVE100',
         campaignId: 'campaign-1',
-        promoOutcome: 'free',
+        promoOutcome: 'discounted',
       })
     })
 
@@ -538,7 +556,7 @@ describe('purchase access sync', () => {
       redemptionResult = await result.current.redeemPromoCode({
         promoCode: 'SAVE100',
         campaignId: 'campaign-1',
-        promoOutcome: 'free',
+        promoOutcome: 'discounted',
       })
     })
 

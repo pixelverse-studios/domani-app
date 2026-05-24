@@ -97,8 +97,11 @@ export type AnalyticsEvent =
       properties: {
         platform: string
         campaign_id?: string | null
+        campaign_slug?: string | null
+        campaign_type?: string | null
         code_id?: string | null
         redemption_attempt_id?: string | null
+        discount_kind?: string | null
         promo_outcome?: 'free' | 'discounted' | 'unknown'
         sync_status?: string | null
         source?: string | null

@@ -80,8 +80,11 @@ export function buildPromoAttemptAnalyticsProps(
   return {
     platform: Platform.OS,
     campaign_id: context?.campaignId ?? null,
+    campaign_slug: context?.campaignSlug ?? null,
+    campaign_type: context?.campaignType ?? null,
     code_id: context?.codeId ?? null,
     redemption_attempt_id: context?.redemptionAttemptId ?? null,
+    discount_kind: context?.discountKind ?? null,
     promo_outcome: context?.promoOutcome ?? 'unknown',
   }
 }

@@ -297,8 +297,11 @@ describe('RedeemCodeScreen Android promo routing', () => {
         attemptContext: {
           promoCode: 'SAVE100',
           campaignId: 'campaign-android-free',
+          campaignSlug: 'android-free',
+          campaignType: 'free_lifetime',
           codeId: 'code-android-free',
           redemptionAttemptId: 'attempt-android-free',
+          discountKind: 'free',
           promoOutcome: 'free',
           priceString: null,
         },
