@@ -461,7 +461,7 @@ export function useSubscription() {
   const canRequestIosRefund = Platform.OS === 'ios' && hasActiveRevenueCatEntitlement
   const canRequestAndroidRefund =
     Platform.OS === 'android' && activeRevenueCatEntitlement?.store === 'PLAY_STORE'
-  const canRedeemPromoCode = Platform.OS === 'ios'
+  const canRedeemPromoCode = Platform.OS === 'ios' || Platform.OS === 'android'
 
   const markPromoCodeValidated = useCallback((context?: PurchaseAccessSyncAttemptContext) => {
     const nextContext = context ?? null
