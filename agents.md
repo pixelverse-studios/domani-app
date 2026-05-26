@@ -97,10 +97,13 @@ After completing a scope of work (a feature, bug fix, or meaningful set of chang
 ### Workflow Steps:
 
 1. **Ensure all changes are committed** to the current branch
-2. **Create a pull request** against the `dev` branch using:
+2. **Create a pull request** against the requested target branch. Use this priority:
+   - If the command specifies a PR target/base branch, use that.
+   - If the user specifies a PR target/base branch, use that.
+   - If neither specifies a target, default to the `dev` branch.
 
 ```bash
-   gh pr create --base dev --title "[Brief description of changes]" --body "[Detailed description]"
+   gh pr create --base [target-branch] --title "[Brief description of changes]" --body "[Detailed description]"
 ```
 
 ### PR Title Format:
