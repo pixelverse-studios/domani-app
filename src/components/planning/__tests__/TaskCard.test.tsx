@@ -88,7 +88,7 @@ describe('TaskCard', () => {
 
       renderWithProviders(<TaskCard task={task} onEdit={jest.fn()} onDelete={jest.fn()} />)
 
-      fireEvent.press(screen.getByLabelText('Open notes'))
+      fireEvent.press(screen.getByLabelText('Open notes for Review launch checklist'))
 
       expect(screen.getByText('Notes')).toBeTruthy()
       expect(

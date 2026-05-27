@@ -89,6 +89,7 @@ export function TaskNotesIconButton({
   borderRadius = 6,
 }: TaskNotesIconButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const accessibilityLabel = `Open notes for ${taskTitle}`
 
   return (
     <>
@@ -100,7 +101,7 @@ export function TaskNotesIconButton({
         ]}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         accessibilityRole="button"
-        accessibilityLabel="Open notes"
+        accessibilityLabel={accessibilityLabel}
       >
         <FileText size={iconSize} color={iconColor} />
       </TouchableOpacity>
@@ -120,6 +121,7 @@ export function TaskNotesPreviewButton({
   iconColor,
 }: TaskNotesPreviewButtonProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const accessibilityLabel = `Open notes for ${taskTitle}`
 
   return (
     <>
@@ -127,7 +129,7 @@ export function TaskNotesPreviewButton({
         onPress={() => setIsOpen(true)}
         style={styles.previewRow}
         accessibilityRole="button"
-        accessibilityLabel="Open notes"
+        accessibilityLabel={accessibilityLabel}
       >
         <FileText size={11} color={iconColor} />
         <Text
