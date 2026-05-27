@@ -14,6 +14,7 @@ export function buildProfile(overrides: Partial<Profile> = {}): Profile {
     expo_push_token: null,
     full_name: 'Test User',
     id: 'profile-test-id',
+    is_admin: false,
     last_active_at: null,
     notification_onboarding_completed: false,
     planning_reminder_enabled: false,

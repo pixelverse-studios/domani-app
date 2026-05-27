@@ -494,6 +494,7 @@ export type Database = {
           expo_push_token: string | null
           full_name: string | null
           id: string
+          is_admin: boolean
           last_active_at: string | null
           notification_onboarding_completed: boolean
           planning_reminder_enabled: boolean
@@ -523,6 +524,7 @@ export type Database = {
           expo_push_token?: string | null
           full_name?: string | null
           id: string
+          is_admin?: boolean
           last_active_at?: string | null
           notification_onboarding_completed?: boolean
           planning_reminder_enabled?: boolean
@@ -552,6 +554,7 @@ export type Database = {
           expo_push_token?: string | null
           full_name?: string | null
           id?: string
+          is_admin?: boolean
           last_active_at?: string | null
           notification_onboarding_completed?: boolean
           planning_reminder_enabled?: boolean
