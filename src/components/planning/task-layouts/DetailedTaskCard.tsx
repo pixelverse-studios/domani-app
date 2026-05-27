@@ -132,7 +132,7 @@ export function DetailedTaskCard({
                   onPress={handleToggleNotes}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   accessibilityRole="button"
-                  accessibilityLabel="Hide notes"
+                  accessibilityLabel={`Hide notes for ${task.title}`}
                 >
                   <ChevronUp size={12} color={iconColor} />
                 </TouchableOpacity>
@@ -142,7 +142,7 @@ export function DetailedTaskCard({
                 onPress={handleToggleNotes}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel="Show notes"
+                accessibilityLabel={`Show notes for ${task.title}`}
               >
                 <View style={[styles.notesPreview, { backgroundColor: buttonBg }]}>
                   <FileText size={12} color={iconColor} style={{ marginTop: 2 }} />

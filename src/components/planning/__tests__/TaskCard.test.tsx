@@ -66,7 +66,7 @@ describe('TaskCard', () => {
   it('makes expanded default layout notes selectable', () => {
     renderWithProviders(<TaskCard task={task} onEdit={jest.fn()} onDelete={jest.fn()} />)
 
-    fireEvent.press(screen.getByLabelText('Show notes'))
+    fireEvent.press(screen.getByLabelText('Show notes for Review launch checklist'))
 
     expect(screen.getByText('Confirm core flows before build').props.selectable).toBe(true)
   })
@@ -76,7 +76,7 @@ describe('TaskCard', () => {
 
     renderWithProviders(<TaskCard task={task} onEdit={jest.fn()} onDelete={jest.fn()} />)
 
-    fireEvent.press(screen.getByLabelText('Show notes'))
+    fireEvent.press(screen.getByLabelText('Show notes for Review launch checklist'))
 
     expect(screen.getByText('Confirm core flows before build').props.selectable).toBe(true)
   })
