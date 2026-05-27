@@ -62,4 +62,38 @@ describe('TaskCard', () => {
     expect(onDelete).toHaveBeenCalledWith('task-layout-test')
     expect(onToggleComplete).toHaveBeenCalledWith('task-layout-test', true)
   })
+
+  it('makes expanded default layout notes selectable', () => {
+    renderWithProviders(<TaskCard task={task} onEdit={jest.fn()} onDelete={jest.fn()} />)
+
+    fireEvent.press(screen.getByLabelText('Show notes'))
+
+    expect(screen.getByText('Confirm core flows before build').props.selectable).toBe(true)
+  })
+
+  it('makes expanded detailed layout notes selectable', () => {
+    useLayoutStore.setState({ taskLayout: 'detailed' })
+
+    renderWithProviders(<TaskCard task={task} onEdit={jest.fn()} onDelete={jest.fn()} />)
+
+    fireEvent.press(screen.getByLabelText('Show notes'))
+
+    expect(screen.getByText('Confirm core flows before build').props.selectable).toBe(true)
+  })
+
+  it.each(['compact', 'minimal', 'grid', 'checklist'] as const)(
+    'opens selectable full notes from the %s layout',
+    (taskLayout) => {
+      useLayoutStore.setState({ taskLayout })
+
+      renderWithProviders(<TaskCard task={task} onEdit={jest.fn()} onDelete={jest.fn()} />)
+
+      fireEvent.press(screen.getByLabelText('Open notes'))
+
+      expect(screen.getByText('Notes')).toBeTruthy()
+      expect(
+        screen.getAllByText('Confirm core flows before build').some((node) => node.props.selectable),
+      ).toBe(true)
+    },
+  )
 })

@@ -5,6 +5,7 @@ import { Circle, CheckCircle, Pencil, Trash2, Bell, Crown, FileText } from 'luci
 import { Text } from '~/components/ui'
 import { getCategoryIcon } from '~/utils/categoryIcons'
 import { useTaskCardData, type TaskCardProps } from './shared'
+import { TaskNotesIconButton } from './TaskNotesModal'
 
 export function ChecklistTaskCard({
   task,
@@ -107,6 +108,16 @@ export function ChecklistTaskCard({
 
       {/* Actions */}
       <View style={styles.actions}>
+        {hasNotes && (
+          <TaskNotesIconButton
+            notes={task.notes ?? ''}
+            taskTitle={task.title}
+            backgroundColor={buttonBg}
+            iconColor={iconColor}
+            iconSize={11}
+            buttonSize={22}
+          />
+        )}
         <TouchableOpacity
           onPress={() => onEdit?.(task.id)}
           style={[styles.actionButton, { backgroundColor: buttonBg }]}

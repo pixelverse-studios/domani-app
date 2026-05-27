@@ -251,7 +251,9 @@ function DefaultTaskCard({
               <Text className="font-sans-medium text-sm text-content-secondary ml-1.5">Notes</Text>
             </View>
             <View style={[styles.notesContent, { backgroundColor: buttonBg }]}>
-              <Text className="font-sans text-sm text-content-primary">{task.notes}</Text>
+              <Text className="font-sans text-sm text-content-primary" selectable>
+                {task.notes}
+              </Text>
             </View>
           </View>
         </View>
