@@ -205,7 +205,11 @@ function DefaultTaskCard({
                   onPress={handleToggleNotes}
                   style={[styles.notesToggle, { backgroundColor: buttonBg }]}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityLabel={isNotesExpanded ? 'Hide notes' : 'Show notes'}
+                  accessibilityLabel={
+                    isNotesExpanded
+                      ? `Hide notes for ${task.title}`
+                      : `Show notes for ${task.title}`
+                  }
                 >
                   <FileText size={14} color={iconColor} />
                   {isNotesExpanded ? (
@@ -251,7 +255,9 @@ function DefaultTaskCard({
               <Text className="font-sans-medium text-sm text-content-secondary ml-1.5">Notes</Text>
             </View>
             <View style={[styles.notesContent, { backgroundColor: buttonBg }]}>
-              <Text className="font-sans text-sm text-content-primary">{task.notes}</Text>
+              <Text className="font-sans text-sm text-content-primary" selectable>
+                {task.notes}
+              </Text>
             </View>
           </View>
         </View>
