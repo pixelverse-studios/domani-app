@@ -154,7 +154,7 @@ Default expectations:
 
 - branch work should be reviewable
 - commits should be clean and focused
-- PRs should target `dev` unless the user says otherwise
+- PRs should target the command-specified base branch first, then any user-specified base branch, and only fall back to `dev` when no target is specified
 
 ### Self-Documenting Code
 

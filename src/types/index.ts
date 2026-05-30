@@ -20,6 +20,9 @@ export type UserCategoryPreference = Tables<'user_category_preferences'>
 export type SupportRequest = Tables<'support_requests'>
 export type Feedback = Tables<'beta_feedback'>
 export type PurchaseRefundState = Tables<'purchase_refund_states'>
+export type PromoCampaign = Tables<'promo_campaigns'>
+export type PromoCode = Tables<'promo_codes'>
+export type PromoRedemptionAttempt = Tables<'promo_redemption_attempts'>
 
 // Insert types
 export type ProfileInsert = TablesInsert<'profiles'>
@@ -29,16 +32,26 @@ export type UserCategoryPreferenceInsert = TablesInsert<'user_category_preferenc
 export type SupportRequestInsert = TablesInsert<'support_requests'>
 export type FeedbackInsert = TablesInsert<'beta_feedback'>
 export type PurchaseRefundStateInsert = TablesInsert<'purchase_refund_states'>
+export type PromoCampaignInsert = TablesInsert<'promo_campaigns'>
+export type PromoCodeInsert = TablesInsert<'promo_codes'>
+export type PromoRedemptionAttemptInsert = TablesInsert<'promo_redemption_attempts'>
 
 // Update types
 export type ProfileUpdate = TablesUpdate<'profiles'>
 export type TaskUpdate = TablesUpdate<'tasks'>
 export type UserCategoryUpdate = TablesUpdate<'user_categories'>
 export type PurchaseRefundStateUpdate = TablesUpdate<'purchase_refund_states'>
+export type PromoCampaignUpdate = TablesUpdate<'promo_campaigns'>
+export type PromoCodeUpdate = TablesUpdate<'promo_codes'>
+export type PromoRedemptionAttemptUpdate = TablesUpdate<'promo_redemption_attempts'>
 
 // Enum types
 export type Tier = Enums<'tier'>
 export type RefundRequestStatus = Enums<'refund_request_status'>
+export type PromoCampaignType = Enums<'promo_campaign_type'>
+export type PromoCodeStatus = Enums<'promo_code_status'>
+export type PromoDiscountKind = Enums<'promo_discount_kind'>
+export type PromoRedemptionStatus = Enums<'promo_redemption_status'>
 
 // Priority type - matches database enum
 export type TaskPriority = Enums<'task_priority'>

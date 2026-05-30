@@ -27,6 +27,67 @@ Use git commits and pull requests as the default implementation audit trail.
 - Write durable markdown docs in `docs/` only when the repository needs long-lived product, technical, or planning documentation that is separate from commit/PR history.
 - If documentation is created, place it in the appropriate `docs/features`, `docs/technical`, or `docs/planning` directory.
 
+## General Engineering Workflow
+
+### 1. Think Before Coding
+
+Do not assume, do not hide confusion, and surface tradeoffs before implementing.
+
+Before implementation:
+
+- State assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them instead of choosing silently.
+- If a simpler approach exists, say so and push back when warranted.
+- If something is unclear, stop, name what is confusing, and ask.
+
+### 2. Simplicity First
+
+Write the minimum code that solves the problem. Do not add speculative flexibility.
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No configurability that was not requested.
+- No error handling for impossible scenarios.
+- If the solution is much longer than it needs to be, simplify it before moving on.
+
+Ask: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+### 3. Surgical Changes
+
+Touch only what is required. Clean up only the mess created by the current change.
+
+When editing existing code:
+
+- Do not improve adjacent code, comments, or formatting.
+- Do not refactor unrelated code.
+- Match the existing style, even if a different style would be preferable.
+- If unrelated dead code is noticed, mention it instead of deleting it.
+
+When changes create orphans:
+
+- Remove imports, variables, functions, and files made unused by the current change.
+- Do not remove pre-existing dead code unless explicitly asked.
+
+Every changed line should trace directly to the user's request.
+
+### 4. Goal-Driven Execution
+
+Define success criteria and loop until they are verified.
+
+Transform tasks into verifiable goals:
+
+- "Add validation" means write tests for invalid inputs, then make them pass.
+- "Fix the bug" means reproduce it with a test or direct check, then make that pass.
+- "Refactor X" means ensure relevant checks pass before and after where practical.
+
+For multi-step tasks, state a brief plan:
+
+1. `[Step]` -> verify: `[check]`
+2. `[Step]` -> verify: `[check]`
+3. `[Step]` -> verify: `[check]`
+
+Strong success criteria enable independent execution. Weak criteria require clarification.
+
 ## Pull Request Workflow
 
 **IMPORTANT: Create a pull request after completing each scope of work**
@@ -36,10 +97,13 @@ After completing a scope of work (a feature, bug fix, or meaningful set of chang
 ### Workflow Steps:
 
 1. **Ensure all changes are committed** to the current branch
-2. **Create a pull request** against the `dev` branch using:
+2. **Create a pull request** against the requested target branch. Use this priority:
+   - If the command specifies a PR target/base branch, use that.
+   - If the user specifies a PR target/base branch, use that.
+   - If neither specifies a target, default to the `dev` branch.
 
 ```bash
-   gh pr create --base dev --title "[Brief description of changes]" --body "[Detailed description]"
+   gh pr create --base [target-branch] --title "[Brief description of changes]" --body "[Detailed description]"
 ```
 
 ### PR Title Format:
