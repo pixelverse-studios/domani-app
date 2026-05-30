@@ -834,19 +834,6 @@ export function useSubscription() {
 
       return latestResult
     },
-    onSettled: (_result, _error, context) => {
-      const attemptContext = context ?? null
-      if (!attemptContext?.redemptionAttemptId) return
-
-      setRevenueCatPromoRedemptionAttributes(null).catch((error) => {
-        console.warn('[useSubscription] Failed to clear promo attributes after redemption', {
-          userId: user?.id ?? null,
-          campaignId: attemptContext.campaignId ?? null,
-          redemptionAttemptId: attemptContext.redemptionAttemptId,
-          error,
-        })
-      })
-    },
   })
 
   useEffect(() => {
@@ -1122,19 +1109,6 @@ export function useSubscription() {
         return result.customerInfo
       }
       return null
-    },
-    onSettled: (_info, _error, input) => {
-      const attemptContext = input && 'pkg' in input ? (input.attemptContext ?? null) : null
-      if (!attemptContext?.redemptionAttemptId) return
-
-      setRevenueCatPromoRedemptionAttributes(null).catch((error) => {
-        console.warn('[useSubscription] Failed to clear promo attributes after purchase', {
-          userId: user?.id ?? null,
-          campaignId: attemptContext.campaignId ?? null,
-          redemptionAttemptId: attemptContext.redemptionAttemptId,
-          error,
-        })
-      })
     },
     onSuccess: (info) => {
       console.log('[useSubscription] Purchase mutation completed', {

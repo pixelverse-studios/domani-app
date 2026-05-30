@@ -545,7 +545,7 @@ describe('purchase access sync', () => {
     unmount()
   })
 
-  it('clears promo attributes after a promo package purchase settles', async () => {
+  it('keeps promo attributes after a promo package purchase settles', async () => {
     mockPurchasePackage.mockResolvedValue(buildLifetimeCustomerInfo())
     const { result, unmount } = renderHookWithProviders(() => useSubscription())
 
@@ -568,7 +568,7 @@ describe('purchase access sync', () => {
     })
 
     expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenNthCalledWith(1, attemptContext)
-    expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenLastCalledWith(null)
+    expect(mockSetRevenueCatPromoRedemptionAttributes).not.toHaveBeenCalledWith(null)
 
     unmount()
   })
