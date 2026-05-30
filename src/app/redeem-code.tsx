@@ -111,6 +111,8 @@ export default function RedeemCodeScreen() {
       ? priceString
       : t('subscription.redeemCode.freePrice')
     : null
+  const shouldShowCurrentPrice =
+    !!activePriceString && !!promoPriceString && activePriceString !== promoPriceString
   const discountLabel =
     validOffer?.display.discountPercent !== null &&
     validOffer?.display.discountPercent !== undefined
@@ -625,7 +627,7 @@ export default function RedeemCodeScreen() {
                   className="mt-5 pt-4"
                   style={{ borderTopWidth: 1, borderTopColor: theme.colors.border.primary }}
                 >
-                  {activePriceString && (
+                  {shouldShowCurrentPrice && (
                     <View className="flex-row items-center justify-between mb-2">
                       <Text className="text-sm text-content-secondary">
                         {t('subscription.redeemCode.currentPrice')}

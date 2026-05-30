@@ -6,6 +6,7 @@ import RedeemCodeScreen from '../redeem-code'
 import { supabase } from '~/lib/supabase'
 import { getOfferings, setRevenueCatPromoRedemptionAttributes } from '~/lib/revenuecat'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
+import { useSubscription } from '~/hooks/useSubscription'
 
 const mockBack = jest.fn()
 const mockReplace = jest.fn()
@@ -59,7 +60,30 @@ const mockGetOfferings = getOfferings as jest.Mock
 const mockSetRevenueCatPromoRedemptionAttributes =
   setRevenueCatPromoRedemptionAttributes as jest.Mock
 const mockUseAnalytics = useAnalytics as jest.Mock
+const mockUseSubscription = useSubscription as jest.Mock
 const mockTrack = jest.fn()
+
+function buildMockSubscription(overrides = {}) {
+  return {
+    accessSyncPhase: 'idle',
+    isSyncingAccess: false,
+    offerings: {
+      availablePackages: [
+        {
+          packageType: 'LIFETIME',
+          product: { priceString: '$34.99' },
+        },
+      ],
+    },
+    markExternalPurchaseAttempted: mockMarkExternalPurchaseAttempted,
+    markPromoCodeValidated: mockMarkPromoCodeValidated,
+    purchase: mockPurchase,
+    redeemPromoCode: mockRedeemPromoCode,
+    restore: mockRestore,
+    syncAccess: mockSyncAccess,
+    ...overrides,
+  }
+}
 
 const originalPlatform = Platform.OS
 
@@ -208,6 +232,7 @@ describe('RedeemCodeScreen iOS promo recovery', () => {
     mockGetOfferings.mockResolvedValue(null)
     mockSetRevenueCatPromoRedemptionAttributes.mockResolvedValue(undefined)
     jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined)
+    mockUseSubscription.mockImplementation(() => buildMockSubscription())
   })
 
   afterEach(() => {
@@ -408,6 +433,33 @@ describe('RedeemCodeScreen Android promo routing', () => {
       })
     })
     expect(Linking.openURL).not.toHaveBeenCalled()
+  })
+
+  it('does not show a current-price comparison when it matches the promo price', async () => {
+    mockValidAndroidDiscountCode()
+    mockUseSubscription.mockImplementation(() =>
+      buildMockSubscription({
+        offerings: {
+          availablePackages: [
+            {
+              packageType: 'LIFETIME',
+              product: { priceString: '$17.49' },
+            },
+          ],
+        },
+      }),
+    )
+
+    renderWithProviders(<RedeemCodeScreen />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('ENTER-CODE-HERE'), 'SAVE50')
+    fireEvent.press(screen.getByLabelText('Submit code'))
+
+    await screen.findByText('Code Accepted')
+
+    expect(screen.queryByText('Current price')).toBeNull()
+    expect(screen.getByText('Promo price')).toBeTruthy()
+    expect(screen.getAllByText('$17.49').length).toBeGreaterThan(0)
   })
 
   it('shows the Play Store fallback only when the mapped Android promo package is unavailable', async () => {
