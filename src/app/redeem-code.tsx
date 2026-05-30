@@ -14,11 +14,12 @@ import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AlertCircle, ArrowLeft, ArrowRight, Check, Crown } from 'lucide-react-native'
 import { PACKAGE_TYPE } from 'react-native-purchases'
+import { useQuery } from '@tanstack/react-query'
 
 import { Text } from '~/components/ui'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { addBreadcrumb } from '~/lib/sentry'
-import { getOfferings, setRevenueCatPromoRedemptionAttributes } from '~/lib/revenuecat'
+import { getOfferings, OFFERINGS, setRevenueCatPromoRedemptionAttributes } from '~/lib/revenuecat'
 import { findPromoPackage } from '~/lib/promoPackages'
 import {
   buildPromoAnalyticsProps,
@@ -99,20 +100,30 @@ export default function RedeemCodeScreen() {
     subscription.accessSyncPhase === 'syncing' ||
     subscription.accessSyncPhase === 'os_confirmation_attempted' ||
     subscription.isSyncingAccess
-  const activeLifetimePackage =
-    subscription.offerings?.availablePackages?.find(
+  const shouldLoadGeneralOfferingPrice =
+    !!validOffer && subscription.offeringIdentifier !== OFFERINGS.GENERAL
+  const { data: generalOffering } = useQuery({
+    queryKey: ['offerings', OFFERINGS.GENERAL],
+    queryFn: () => getOfferings(OFFERINGS.GENERAL),
+    enabled: shouldLoadGeneralOfferingPrice,
+    retry: false,
+  })
+  const comparisonOffering =
+    subscription.offeringIdentifier === OFFERINGS.GENERAL ? subscription.offerings : generalOffering
+  const comparisonLifetimePackage =
+    comparisonOffering?.availablePackages?.find(
       (pkg) => pkg.packageType === PACKAGE_TYPE.LIFETIME,
     ) ??
-    subscription.offerings?.availablePackages?.[0] ??
+    comparisonOffering?.availablePackages?.[0] ??
     null
-  const activePriceString = activeLifetimePackage?.product.priceString ?? null
+  const currentPriceString = comparisonLifetimePackage?.product.priceString ?? null
   const promoPriceString = validOffer
     ? validOffer.display.paymentRequired
       ? priceString
       : t('subscription.redeemCode.freePrice')
     : null
   const shouldShowCurrentPrice =
-    !!activePriceString && !!promoPriceString && activePriceString !== promoPriceString
+    !!currentPriceString && !!promoPriceString && currentPriceString !== promoPriceString
   const discountLabel =
     validOffer?.display.discountPercent !== null &&
     validOffer?.display.discountPercent !== undefined
@@ -636,7 +647,7 @@ export default function RedeemCodeScreen() {
                         className="text-sm text-content-tertiary"
                         style={{ textDecorationLine: 'line-through' }}
                       >
-                        {activePriceString}
+                        {currentPriceString}
                       </Text>
                     </View>
                   )}

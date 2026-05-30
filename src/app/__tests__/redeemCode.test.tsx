@@ -51,6 +51,11 @@ jest.mock('~/hooks/useSubscription', () => ({
 }))
 
 jest.mock('~/lib/revenuecat', () => ({
+  OFFERINGS: {
+    EARLY_ADOPTER: 'early_adopter',
+    FRIENDS_FAMILY: 'friends_family',
+    GENERAL: 'general',
+  },
   getOfferings: jest.fn(),
   setRevenueCatPromoRedemptionAttributes: jest.fn(() => Promise.resolve()),
 }))
@@ -75,6 +80,7 @@ function buildMockSubscription(overrides = {}) {
         },
       ],
     },
+    offeringIdentifier: 'general',
     markExternalPurchaseAttempted: mockMarkExternalPurchaseAttempted,
     markPromoCodeValidated: mockMarkPromoCodeValidated,
     purchase: mockPurchase,
@@ -290,6 +296,7 @@ describe('RedeemCodeScreen Android promo routing', () => {
     mockPurchase.mockResolvedValue({ entitlements: { active: {} } })
     mockSetRevenueCatPromoRedemptionAttributes.mockResolvedValue(undefined)
     jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined)
+    mockUseSubscription.mockImplementation(() => buildMockSubscription())
   })
 
   afterEach(() => {
@@ -460,6 +467,44 @@ describe('RedeemCodeScreen Android promo routing', () => {
     expect(screen.queryByText('Current price')).toBeNull()
     expect(screen.getByText('Promo price')).toBeTruthy()
     expect(screen.getAllByText('$17.49').length).toBeGreaterThan(0)
+  })
+
+  it('uses the general lifetime price for cohort promo comparisons', async () => {
+    mockValidAndroidDiscountCode()
+    mockUseSubscription.mockImplementation(() =>
+      buildMockSubscription({
+        offeringIdentifier: 'friends_family',
+        offerings: {
+          availablePackages: [
+            {
+              packageType: 'LIFETIME',
+              product: { priceString: '$4.99' },
+            },
+          ],
+        },
+      }),
+    )
+    mockGetOfferings.mockResolvedValue({
+      availablePackages: [
+        {
+          packageType: 'LIFETIME',
+          product: { priceString: '$34.99' },
+        },
+      ],
+    })
+
+    renderWithProviders(<RedeemCodeScreen />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('ENTER-CODE-HERE'), 'SAVE50')
+    fireEvent.press(screen.getByLabelText('Submit code'))
+
+    await screen.findByText('Code Accepted')
+
+    expect(await screen.findByText('$34.99')).toBeTruthy()
+    expect(screen.getByText('Current price')).toBeTruthy()
+    expect(screen.getByText('Promo price')).toBeTruthy()
+    expect(screen.getAllByText('$17.49').length).toBeGreaterThan(0)
+    expect(mockGetOfferings).toHaveBeenCalledWith('general')
   })
 
   it('shows the Play Store fallback only when the mapped Android promo package is unavailable', async () => {
