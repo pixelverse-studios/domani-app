@@ -548,10 +548,26 @@ describe('purchase access sync', () => {
       status: 'supabase_sync_failed',
       source: 'promo_redemption',
       hasEntitlement: true,
-      profileSynced: true,
+      profileSynced: false,
       recoverable: true,
     })
     expect(result.current.accessSyncPhase).toBe('verification_failed')
+    expect(mockSupabaseFrom).toHaveBeenCalledWith('profiles')
+    expect(
+      mockSupabaseFrom.mock.results.some((result) => {
+        const query = result.value as SupabaseQueryMock
+        return query.update.mock.calls.some(([values]) => {
+          const update = values as Record<string, unknown>
+          return (
+            update.tier === 'none' &&
+            update.purchased_at === null &&
+            update.refunded_at === null &&
+            update.trial_ends_at === null &&
+            update.revenuecat_user_id === null
+          )
+        })
+      }),
+    ).toBe(true)
     expect(mockTrack).toHaveBeenCalledWith(
       'promo_sync_failed',
       expect.objectContaining({
