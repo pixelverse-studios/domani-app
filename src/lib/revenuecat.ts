@@ -163,6 +163,15 @@ interface RevenueCatSubscriberAttributesInput {
   signupMethod?: string | null
 }
 
+interface RevenueCatPromoRedemptionAttributesInput {
+  promoCode?: string | null
+  campaignId?: string | null
+  codeId?: string | null
+  redemptionAttemptId?: string | null
+  promoOutcome?: 'free' | 'discounted' | null
+  priceString?: string | null
+}
+
 /**
  * Keep RevenueCat subscriber attributes useful for support and dashboard inspection.
  * Supabase remains the source of truth; this only mirrors a small, non-sensitive subset.
@@ -212,6 +221,39 @@ export async function syncRevenueCatSubscriberAttributes(
     signupCohort,
     signupMethod,
     platform: Platform.OS,
+  })
+}
+
+export async function setRevenueCatPromoRedemptionAttributes(
+  input: RevenueCatPromoRedemptionAttributesInput | null,
+) {
+  const attributes: Record<string, string | null> = input
+    ? {
+        promo_code: normalizeSubscriberAttributeValue(input.promoCode),
+        promo_campaign_id: normalizeSubscriberAttributeValue(input.campaignId),
+        promo_code_id: normalizeSubscriberAttributeValue(input.codeId),
+        promo_redemption_attempt_id: normalizeSubscriberAttributeValue(input.redemptionAttemptId),
+        promo_outcome: normalizeSubscriberAttributeValue(input.promoOutcome),
+        promo_price: normalizeSubscriberAttributeValue(input.priceString),
+      }
+    : {
+        promo_code: null,
+        promo_campaign_id: null,
+        promo_code_id: null,
+        promo_redemption_attempt_id: null,
+        promo_outcome: null,
+        promo_price: null,
+      }
+
+  await Purchases.setAttributes(attributes)
+
+  await Purchases.syncAttributesAndOfferingsIfNeeded()
+
+  console.log('[RevenueCat] Synced promo redemption attributes', {
+    hasPromoAttempt: !!input?.redemptionAttemptId,
+    campaignId: input?.campaignId ?? null,
+    codeId: input?.codeId ?? null,
+    promoOutcome: input?.promoOutcome ?? null,
   })
 }
 
@@ -390,6 +432,47 @@ export async function restorePurchases() {
     return customerInfo
   } catch (error) {
     console.error('[RevenueCat] Restore error:', error)
+    throw error
+  }
+}
+
+/**
+ * Ask RevenueCat to sync any store-side purchases, then fetch fresh customer info.
+ * Useful after native/external purchase surfaces return without direct customerInfo.
+ */
+export async function syncPurchasesAndRefreshCustomerInfo() {
+  try {
+    await Purchases.syncPurchases()
+    const customerInfo = await Purchases.getCustomerInfo()
+    console.log(
+      '[RevenueCat] Synced purchases and refreshed customer info',
+      getActiveEntitlementSummary(customerInfo),
+    )
+    return customerInfo
+  } catch (error) {
+    console.error('[RevenueCat] Purchase sync error:', error)
+    throw error
+  }
+}
+
+/**
+ * Present the native iOS offer-code redemption sheet.
+ * Returns false on unsupported platforms so callers can show a recoverable state.
+ */
+export async function presentCodeRedemptionSheet() {
+  if (Platform.OS !== 'ios') {
+    console.log('[RevenueCat] Code redemption sheet unavailable on this platform', {
+      platform: Platform.OS,
+    })
+    return false
+  }
+
+  try {
+    await Purchases.presentCodeRedemptionSheet()
+    console.log('[RevenueCat] Presented code redemption sheet')
+    return true
+  } catch (error) {
+    console.error('[RevenueCat] Code redemption sheet error:', error)
     throw error
   }
 }

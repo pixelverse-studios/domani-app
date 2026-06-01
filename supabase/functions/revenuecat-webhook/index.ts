@@ -90,6 +90,11 @@ interface RevenueCatWebhookPayload {
   api_version?: string
 }
 
+interface PromoConfirmationResult {
+  status?: unknown
+  [key: string]: unknown
+}
+
 const REVENUECAT_WEBHOOK_SECRET = Deno.env.get('REVENUECAT_WEBHOOK_SECRET')
 const LIFETIME_PRODUCT_IDS = new Set([
   'domani_lifetime',
@@ -134,6 +139,46 @@ function getEventTimestampIso(
 ) {
   const timestamp = typeof event[field] === 'number' ? event[field] : null
   return timestamp ? new Date(timestamp).toISOString() : new Date().toISOString()
+}
+
+function getSubscriberAttributeValue(event: RevenueCatWebhookEvent, key: string) {
+  const subscriberAttributes =
+    event.subscriber_attributes && typeof event.subscriber_attributes === 'object'
+      ? (event.subscriber_attributes as Record<string, unknown>)
+      : {}
+  const attribute = subscriberAttributes[key]
+
+  if (typeof attribute === 'string') return attribute
+  if (attribute && typeof attribute === 'object' && 'value' in attribute) {
+    const value = (attribute as { value?: unknown }).value
+    return typeof value === 'string' && value.trim() ? value.trim() : null
+  }
+
+  return null
+}
+
+function getPromoRedemptionContext(event: RevenueCatWebhookEvent) {
+  const redemptionAttemptId = getSubscriberAttributeValue(event, 'promo_redemption_attempt_id')
+  const codeId = getSubscriberAttributeValue(event, 'promo_code_id')
+  const campaignId = getSubscriberAttributeValue(event, 'promo_campaign_id')
+
+  if (!redemptionAttemptId || !codeId || !campaignId) return null
+
+  return {
+    redemptionAttemptId,
+    codeId,
+    campaignId,
+  }
+}
+
+function getPromoConfirmationStatus(data: unknown) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null
+  const status = (data as PromoConfirmationResult).status
+  return typeof status === 'string' ? status : null
+}
+
+function isSuccessfulPromoConfirmationStatus(status: string | null) {
+  return status === 'confirmed' || status === 'already_confirmed'
 }
 
 function isUuid(value: unknown): value is string {
@@ -388,6 +433,10 @@ async function grantLifetimeAccess(
 
   await clearRefundState(supabase, userId, event)
 
+  if (processedAction === 'granted_lifetime') {
+    await confirmPromoRedemptionFromWebhook(supabase, userId, event)
+  }
+
   await finalizeWebhookEvent(supabase, event, processedAction)
 
   await sendRevenueSlackAlert({
@@ -405,6 +454,58 @@ async function grantLifetimeAccess(
   })
 
   return null
+}
+
+async function confirmPromoRedemptionFromWebhook(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  event: RevenueCatWebhookEvent,
+) {
+  const promoContext = getPromoRedemptionContext(event)
+  if (!promoContext) return
+
+  const { data, error } = await supabase.rpc('confirm_promo_redemption_for_user', {
+    p_user_id: userId,
+    p_redemption_attempt_id: promoContext.redemptionAttemptId,
+    p_code_id: promoContext.codeId,
+    p_campaign_id: promoContext.campaignId,
+    p_revenuecat_app_user_id: typeof event.app_user_id === 'string' ? event.app_user_id : null,
+    p_store_product_id: typeof event.product_id === 'string' ? event.product_id : null,
+    p_store_transaction_id:
+      typeof event.transaction_id === 'string'
+        ? event.transaction_id
+        : typeof event.original_transaction_id === 'string'
+          ? event.original_transaction_id
+          : null,
+  })
+
+  if (error) {
+    console.error('[revenuecat-webhook] failed to confirm promo redemption:', {
+      ...getEventLogContext(event),
+      userId,
+      promoContext,
+      error,
+    })
+    throw error
+  }
+
+  const confirmationStatus = getPromoConfirmationStatus(data)
+  if (!isSuccessfulPromoConfirmationStatus(confirmationStatus)) {
+    console.error('[revenuecat-webhook] promo redemption was not confirmed:', {
+      ...getEventLogContext(event),
+      userId,
+      promoContext,
+      result: data,
+    })
+    throw new Error(`PROMO_CONFIRMATION_${confirmationStatus ?? 'INVALID_RESULT'}`)
+  }
+
+  console.log('[revenuecat-webhook] promo redemption confirmation result', {
+    ...getEventLogContext(event),
+    userId,
+    promoContext,
+    result: data,
+  })
 }
 
 async function clearRefundState(
