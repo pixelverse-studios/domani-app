@@ -97,6 +97,7 @@ describe('task hooks', () => {
 
     expect(mockFrom).toHaveBeenCalledWith('tasks')
     expect(query.eq).toHaveBeenCalledWith('scheduled_date', '2026-05-16')
+    expect(query.eq).toHaveBeenCalledWith('user_id', 'user-1')
     expect(query.is).toHaveBeenCalledWith('rolled_over_at', null)
     expect(query.order).toHaveBeenCalledWith('position')
   })
@@ -147,7 +148,7 @@ describe('task hooks', () => {
       reminder_at: null,
       scheduled_date: '2026-05-16',
     })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', '2026-05-16'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'user-1', '2026-05-16'] })
     expect(mockIncrementUsageMutate).toHaveBeenCalledWith({
       systemCategoryId: 'system-category-test-id',
       userCategoryId: null,
@@ -263,8 +264,8 @@ describe('task hooks', () => {
     mockFrom.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery)
 
     const { result, queryClient } = trackQueryClient(renderHookWithProviders(() => useUpdateTask()))
-    queryClient.setQueryData(['tasks', '2026-05-16'], [originalTask])
-    queryClient.setQueryData(['tasks', '2026-05-17'], [])
+    queryClient.setQueryData(['tasks', 'user-1', '2026-05-16'], [originalTask])
+    queryClient.setQueryData(['tasks', 'user-1', '2026-05-17'], [])
     const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries')
 
     await act(async () => {
@@ -280,12 +281,12 @@ describe('task hooks', () => {
 
     expect(updateQuery.update).toHaveBeenCalledWith({ scheduled_date: '2026-05-17' })
     expect(updateQuery.eq).toHaveBeenCalledWith('id', 'task-move')
-    expect(queryClient.getQueryData(['tasks', '2026-05-16'])).toEqual([])
-    expect(queryClient.getQueryData(['tasks', '2026-05-17'])).toEqual([
+    expect(queryClient.getQueryData(['tasks', 'user-1', '2026-05-16'])).toEqual([])
+    expect(queryClient.getQueryData(['tasks', 'user-1', '2026-05-17'])).toEqual([
       { ...originalTask, scheduled_date: '2026-05-17' },
     ])
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', '2026-05-17'] })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', '2026-05-16'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'user-1', '2026-05-17'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'user-1', '2026-05-16'] })
   })
 
   it('clears reminder fields when updated task reminder scheduling fails', async () => {
@@ -345,7 +346,7 @@ describe('task hooks', () => {
 
     const cachedTask = buildTaskWithCategory({ id: 'task-delete', completed_at: null })
     const { result, queryClient } = trackQueryClient(renderHookWithProviders(() => useDeleteTask()))
-    queryClient.setQueryData(['tasks', '2026-05-16'], [cachedTask])
+    queryClient.setQueryData(['tasks', 'user-1', '2026-05-16'], [cachedTask])
     const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries')
 
     await act(async () => {
@@ -357,6 +358,6 @@ describe('task hooks', () => {
 
     expect(deleteQuery.delete).toHaveBeenCalledTimes(1)
     expect(deleteQuery.eq).toHaveBeenCalledWith('id', 'task-delete')
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'user-1'] })
   })
 })
