@@ -245,8 +245,9 @@ export function shouldUseRevenueCatCustomerInfoForAccess(input: {
   if (input.accessSyncResult && blockingStatuses.includes(input.accessSyncResult.status)) {
     return false
   }
+  if (input.accessSyncResult?.status === 'confirmed') return true
 
-  return true
+  return false
 }
 
 const TRIAL_DURATION_DAYS = 14
@@ -733,12 +734,24 @@ export function useSubscription() {
           storeProductId: entitlement.productIdentifier ?? null,
         })
       } catch (error) {
+        if (attemptContext && !hasActiveRecordedLifetime(profile)) {
+          try {
+            await rollbackFailedPromoAccessSync(user.id)
+          } catch (rollbackError) {
+            console.warn('[useSubscription] Failed to roll back unconfirmed promo access sync', {
+              userId: user.id,
+              redemptionAttemptId: attemptContext.redemptionAttemptId ?? null,
+              error: rollbackError,
+            })
+          }
+        }
+
         const result: PurchaseAccessSyncResult = {
           ...baseResult,
           status: 'supabase_sync_failed',
           customerInfo: info,
           hasEntitlement: true,
-          profileSynced: true,
+          profileSynced: false,
           error,
         }
 
@@ -758,6 +771,7 @@ export function useSubscription() {
           },
         )
         await recordPromoSyncFailure(request, 'supabase_sync_failed', error)
+        queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
         return result
       }
 
@@ -829,6 +843,9 @@ export function useSubscription() {
     },
     [
       isInitialized,
+      profile?.purchased_at,
+      profile?.refunded_at,
+      profile?.tier,
       queryClient,
       recordPromoSyncFailure,
       refetchCustomerInfo,
@@ -1618,4 +1635,21 @@ async function syncSubscriptionToSupabase(
   }
 
   return entitlement ? 'synced' : 'non_lifetime_entitlement'
+}
+
+async function rollbackFailedPromoAccessSync(userId: string | undefined) {
+  if (!userId) return
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      tier: 'none',
+      purchased_at: null,
+      refunded_at: null,
+      trial_ends_at: null,
+      revenuecat_user_id: null,
+    })
+    .eq('id', userId)
+
+  if (error) throw error
 }
