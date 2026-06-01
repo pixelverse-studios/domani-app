@@ -509,6 +509,65 @@ describe('purchase access sync', () => {
     unmount()
   })
 
+  it('does not report paid promo redemption as confirmed when attempt confirmation fails', async () => {
+    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())
+    mockSupabaseRpc.mockImplementation((functionName: string) => {
+      if (functionName === 'confirm_current_user_promo_redemption') {
+        return Promise.resolve({
+          data: { status: 'product_mismatch' },
+          error: null,
+        })
+      }
+
+      return Promise.resolve({ data: null, error: null })
+    })
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    let syncResult: unknown
+    await act(async () => {
+      syncResult = await result.current.syncAccess({
+        source: 'promo_redemption',
+        forceStoreSync: true,
+        attemptContext: {
+          promoCode: 'SAVE100',
+          campaignId: 'campaign-1',
+          campaignSlug: 'launch',
+          campaignType: 'percent_discount_lifetime',
+          codeId: 'code-1',
+          redemptionAttemptId: 'attempt-1',
+          discountKind: 'percent',
+          promoOutcome: 'discounted',
+        },
+      })
+    })
+
+    expect(syncResult).toMatchObject({
+      status: 'supabase_sync_failed',
+      source: 'promo_redemption',
+      hasEntitlement: true,
+      profileSynced: true,
+      recoverable: true,
+    })
+    expect(result.current.accessSyncPhase).toBe('verification_failed')
+    expect(mockTrack).toHaveBeenCalledWith(
+      'promo_sync_failed',
+      expect.objectContaining({
+        campaign_id: 'campaign-1',
+        redemption_attempt_id: 'attempt-1',
+        sync_status: 'supabase_sync_failed',
+      }),
+    )
+    expect(mockTrack).not.toHaveBeenCalledWith(
+      'promo_redemption_completed',
+      expect.any(Object),
+    )
+
+    unmount()
+  })
+
   it('confirms free promo codes through the server without presenting native redemption', async () => {
     const { result, unmount } = renderHookWithProviders(() => useSubscription())
 
