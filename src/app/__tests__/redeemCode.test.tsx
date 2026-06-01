@@ -6,6 +6,7 @@ import RedeemCodeScreen from '../redeem-code'
 import { supabase } from '~/lib/supabase'
 import { getOfferings, setRevenueCatPromoRedemptionAttributes } from '~/lib/revenuecat'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
+import { useSubscription } from '~/hooks/useSubscription'
 
 const mockBack = jest.fn()
 const mockReplace = jest.fn()
@@ -50,6 +51,11 @@ jest.mock('~/hooks/useSubscription', () => ({
 }))
 
 jest.mock('~/lib/revenuecat', () => ({
+  OFFERINGS: {
+    EARLY_ADOPTER: 'early_adopter',
+    FRIENDS_FAMILY: 'friends_family',
+    GENERAL: 'general',
+  },
   getOfferings: jest.fn(),
   setRevenueCatPromoRedemptionAttributes: jest.fn(() => Promise.resolve()),
 }))
@@ -59,7 +65,31 @@ const mockGetOfferings = getOfferings as jest.Mock
 const mockSetRevenueCatPromoRedemptionAttributes =
   setRevenueCatPromoRedemptionAttributes as jest.Mock
 const mockUseAnalytics = useAnalytics as jest.Mock
+const mockUseSubscription = useSubscription as jest.Mock
 const mockTrack = jest.fn()
+
+function buildMockSubscription(overrides = {}) {
+  return {
+    accessSyncPhase: 'idle',
+    isSyncingAccess: false,
+    offerings: {
+      availablePackages: [
+        {
+          packageType: 'LIFETIME',
+          product: { priceString: '$34.99' },
+        },
+      ],
+    },
+    offeringIdentifier: 'general',
+    markExternalPurchaseAttempted: mockMarkExternalPurchaseAttempted,
+    markPromoCodeValidated: mockMarkPromoCodeValidated,
+    purchase: mockPurchase,
+    redeemPromoCode: mockRedeemPromoCode,
+    restore: mockRestore,
+    syncAccess: mockSyncAccess,
+    ...overrides,
+  }
+}
 
 const originalPlatform = Platform.OS
 
@@ -92,12 +122,12 @@ function mockValidFreeCode() {
       },
       routing: {
         platform: 'ios',
-        storeAction: 'ios_offer_code_sheet',
-        productId: 'domani_lifetime',
+        storeAction: 'server_grant_lifetime',
+        productId: null,
         revenueCatOfferingId: null,
         revenueCatPackageId: null,
         revenueCatEntitlementId: 'Domani Lifetime',
-        fallbackUrl: 'https://apps.apple.com/redeem?ctx=offercodes&id=1234567890&code=SAVE100',
+        fallbackUrl: null,
       },
     },
   })
@@ -125,12 +155,12 @@ function mockValidAndroidFreeCode() {
       },
       routing: {
         platform: 'android',
-        storeAction: 'android_promo_code_flow',
-        productId: 'domani_lifetime',
-        revenueCatOfferingId: 'android_promos',
+        storeAction: 'server_grant_lifetime',
+        productId: null,
+        revenueCatOfferingId: null,
         revenueCatPackageId: null,
         revenueCatEntitlementId: 'Domani Lifetime',
-        fallbackUrl: 'https://play.google.com/redeem?code=SAVE100',
+        fallbackUrl: null,
       },
     },
   })
@@ -169,7 +199,7 @@ function mockValidAndroidDiscountCode() {
   })
 }
 
-async function validateAndFailNativeRedemption() {
+async function validateAndFailFreeGrant() {
   renderWithProviders(<RedeemCodeScreen />)
 
   fireEvent.changeText(screen.getByPlaceholderText('ENTER-CODE-HERE'), 'SAVE100')
@@ -179,9 +209,7 @@ async function validateAndFailNativeRedemption() {
 
   fireEvent.press(screen.getByText('Redeem Free Access'))
 
-  await screen.findByText(
-    "We couldn't open the in-app store confirmation. Use the store fallback or try syncing if you already finished redemption.",
-  )
+  await screen.findByText('We could not apply this code. Please try again.')
 }
 
 describe('RedeemCodeScreen iOS promo recovery', () => {
@@ -208,40 +236,35 @@ describe('RedeemCodeScreen iOS promo recovery', () => {
     mockGetOfferings.mockResolvedValue(null)
     mockSetRevenueCatPromoRedemptionAttributes.mockResolvedValue(undefined)
     jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined)
+    mockUseSubscription.mockImplementation(() => buildMockSubscription())
   })
 
   afterEach(() => {
     setPlatform(originalPlatform)
   })
 
-  it('keeps the App Store fallback visible after sync recovery does not confirm access', async () => {
-    await validateAndFailNativeRedemption()
+  it('does not open the App Store sheet for a free lifetime code', async () => {
+    await validateAndFailFreeGrant()
 
-    expect(screen.getByText('Open Store')).toBeTruthy()
-
-    fireEvent.press(screen.getByText('Sync Access'))
-
-    await screen.findByText('Finish store confirmation, then retry sync if access does not update.')
-    expect(screen.getByText('Open Store')).toBeTruthy()
+    expect(mockRedeemPromoCode).toHaveBeenCalledWith(
+      expect.objectContaining({
+        campaignId: 'campaign-1',
+        promoCode: 'SAVE100',
+        promoOutcome: 'free',
+        redemptionAttemptId: 'attempt-1',
+      }),
+    )
+    expect(screen.queryByText('Open Store')).toBeNull()
+    expect(Linking.openURL).not.toHaveBeenCalled()
   })
 
-  it('opens the App Store fallback even when RevenueCat promo attributes fail to sync', async () => {
+  it('does not depend on RevenueCat promo attributes for free lifetime codes', async () => {
     mockSetRevenueCatPromoRedemptionAttributes.mockRejectedValue(new Error('attribute sync failed'))
 
-    await validateAndFailNativeRedemption()
+    await validateAndFailFreeGrant()
 
-    fireEvent.press(screen.getByText('Open Store'))
-
-    await waitFor(() => {
-      expect(Linking.openURL).toHaveBeenCalledWith(
-        'https://apps.apple.com/redeem?ctx=offercodes&id=1234567890&code=SAVE100',
-      )
-    })
-    expect(
-      screen.getByText(
-        'Finish redemption in the store, then return to Domani and sync access.',
-      ),
-    ).toBeTruthy()
+    expect(mockSetRevenueCatPromoRedemptionAttributes).not.toHaveBeenCalled()
+    expect(Linking.openURL).not.toHaveBeenCalled()
   })
 })
 
@@ -265,22 +288,14 @@ describe('RedeemCodeScreen Android promo routing', () => {
     mockPurchase.mockResolvedValue({ entitlements: { active: {} } })
     mockSetRevenueCatPromoRedemptionAttributes.mockResolvedValue(undefined)
     jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined)
+    mockUseSubscription.mockImplementation(() => buildMockSubscription())
   })
 
   afterEach(() => {
     setPlatform(originalPlatform)
   })
 
-  it('starts the mapped Play-backed RevenueCat package for a free Android promo code', async () => {
-    const promoPackage = {
-      identifier: 'android_lifetime',
-      packageType: 'LIFETIME',
-      product: { identifier: 'domani_lifetime', priceString: '$0.00' },
-    }
-    mockGetOfferings.mockResolvedValue({
-      availablePackages: [promoPackage],
-    })
-
+  it('confirms a free Android promo code through the in-app server grant', async () => {
     renderWithProviders(<RedeemCodeScreen />)
 
     fireEvent.changeText(screen.getByPlaceholderText('ENTER-CODE-HERE'), 'SAVE100')
@@ -291,10 +306,8 @@ describe('RedeemCodeScreen Android promo routing', () => {
     fireEvent.press(screen.getByText('Redeem Free Access'))
 
     await waitFor(() => {
-      expect(mockGetOfferings).toHaveBeenCalledWith('android_promos')
-      expect(mockPurchase).toHaveBeenCalledWith({
-        pkg: promoPackage,
-        attemptContext: {
+      expect(mockRedeemPromoCode).toHaveBeenCalledWith(
+        expect.objectContaining({
           promoCode: 'SAVE100',
           campaignId: 'campaign-android-free',
           campaignSlug: 'android-free',
@@ -304,8 +317,8 @@ describe('RedeemCodeScreen Android promo routing', () => {
           discountKind: 'free',
           promoOutcome: 'free',
           priceString: null,
-        },
-      })
+        }),
+      )
     })
     expect(mockTrack).toHaveBeenCalledWith(
       'promo_validation_attempted',
@@ -322,14 +335,8 @@ describe('RedeemCodeScreen Android promo routing', () => {
         redemption_attempt_id: 'attempt-android-free',
       }),
     )
-    expect(mockTrack).toHaveBeenCalledWith(
-      'promo_store_handoff_started',
-      expect.objectContaining({
-        campaign_id: 'campaign-android-free',
-        promo_outcome: 'free',
-        source: 'revenuecat_purchase_package',
-      }),
-    )
+    expect(mockGetOfferings).not.toHaveBeenCalledWith('android_promos')
+    expect(mockPurchase).not.toHaveBeenCalled()
     expect(Linking.openURL).not.toHaveBeenCalled()
   })
 
@@ -410,7 +417,72 @@ describe('RedeemCodeScreen Android promo routing', () => {
     expect(Linking.openURL).not.toHaveBeenCalled()
   })
 
-  it('shows the Play Store fallback only when the mapped Android promo package is unavailable', async () => {
+  it('does not show a current-price comparison when it matches the promo price', async () => {
+    mockValidAndroidDiscountCode()
+    mockUseSubscription.mockImplementation(() =>
+      buildMockSubscription({
+        offerings: {
+          availablePackages: [
+            {
+              packageType: 'LIFETIME',
+              product: { priceString: '$17.49' },
+            },
+          ],
+        },
+      }),
+    )
+
+    renderWithProviders(<RedeemCodeScreen />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('ENTER-CODE-HERE'), 'SAVE50')
+    fireEvent.press(screen.getByLabelText('Submit code'))
+
+    await screen.findByText('Code Accepted')
+
+    expect(screen.queryByText('Current price')).toBeNull()
+    expect(screen.getByText('Promo price')).toBeTruthy()
+    expect(screen.getAllByText('$17.49').length).toBeGreaterThan(0)
+  })
+
+  it('uses the general lifetime price for cohort promo comparisons', async () => {
+    mockValidAndroidDiscountCode()
+    mockUseSubscription.mockImplementation(() =>
+      buildMockSubscription({
+        offeringIdentifier: 'friends_family',
+        offerings: {
+          availablePackages: [
+            {
+              packageType: 'LIFETIME',
+              product: { priceString: '$4.99' },
+            },
+          ],
+        },
+      }),
+    )
+    mockGetOfferings.mockResolvedValue({
+      availablePackages: [
+        {
+          packageType: 'LIFETIME',
+          product: { priceString: '$34.99' },
+        },
+      ],
+    })
+
+    renderWithProviders(<RedeemCodeScreen />)
+
+    fireEvent.changeText(screen.getByPlaceholderText('ENTER-CODE-HERE'), 'SAVE50')
+    fireEvent.press(screen.getByLabelText('Submit code'))
+
+    await screen.findByText('Code Accepted')
+
+    expect(await screen.findByText('$34.99')).toBeTruthy()
+    expect(screen.getByText('Current price')).toBeTruthy()
+    expect(screen.getByText('Promo price')).toBeTruthy()
+    expect(screen.getAllByText('$17.49').length).toBeGreaterThan(0)
+    expect(mockGetOfferings).toHaveBeenCalledWith('general')
+  })
+
+  it('does not show the Play Store fallback when a free Android grant is not confirmed', async () => {
     mockGetOfferings.mockResolvedValue({
       availablePackages: [
         {
@@ -430,17 +502,10 @@ describe('RedeemCodeScreen Android promo routing', () => {
 
     fireEvent.press(screen.getByText('Redeem Free Access'))
 
-    await screen.findByText(
-      "We couldn't open the in-app store confirmation. Use the store fallback or try syncing if you already finished redemption.",
-    )
+    await screen.findByText('We could not apply this code. Please try again.')
     expect(mockPurchase).not.toHaveBeenCalled()
     expect(Linking.openURL).not.toHaveBeenCalled()
-
-    fireEvent.press(screen.getByText('Open Store'))
-
-    await waitFor(() => {
-      expect(Linking.openURL).toHaveBeenCalledWith('https://play.google.com/redeem?code=SAVE100')
-    })
+    expect(screen.queryByText('Open Store')).toBeNull()
   })
 
   it('shows the Play Store fallback when a discounted Android promo package is unavailable', async () => {

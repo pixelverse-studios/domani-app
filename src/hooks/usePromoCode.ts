@@ -30,6 +30,7 @@ export interface PromoCodeRouting {
     | 'ios_offer_code_sheet'
     | 'android_promo_code_flow'
     | 'revenuecat_purchase_package'
+    | 'server_grant_lifetime'
     | 'local_test'
     | string
     | null

@@ -246,6 +246,9 @@ export async function setRevenueCatPromoRedemptionAttributes(
       }
 
   await Purchases.setAttributes(attributes)
+
+  await Purchases.syncAttributesAndOfferingsIfNeeded()
+
   console.log('[RevenueCat] Synced promo redemption attributes', {
     hasPromoAttempt: !!input?.redemptionAttemptId,
     campaignId: input?.campaignId ?? null,

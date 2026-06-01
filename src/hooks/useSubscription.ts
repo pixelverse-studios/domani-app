@@ -142,6 +142,47 @@ type SupabaseSubscriptionSyncStatus =
   | 'preserved_existing_lifetime'
   | 'non_lifetime_entitlement'
 
+function isSuccessfulPromoConfirmationStatus(status: unknown) {
+  return status === 'confirmed' || status === 'already_confirmed'
+}
+
+async function confirmCurrentUserPromoRedemption(input: {
+  attemptContext: PurchaseAccessSyncAttemptContext | null
+  revenueCatAppUserId?: string | null
+  storeProductId?: string | null
+}) {
+  const { attemptContext } = input
+  if (
+    !attemptContext?.redemptionAttemptId ||
+    !attemptContext.codeId ||
+    !attemptContext.campaignId
+  ) {
+    return
+  }
+
+  const { data, error } = await supabase.rpc('confirm_current_user_promo_redemption', {
+    p_redemption_attempt_id: attemptContext.redemptionAttemptId,
+    p_code_id: attemptContext.codeId,
+    p_campaign_id: attemptContext.campaignId,
+    p_revenuecat_app_user_id: input.revenueCatAppUserId ?? null,
+    p_store_product_id: input.storeProductId ?? null,
+    p_store_transaction_id: null,
+  })
+
+  if (error) throw error
+
+  const status =
+    data && typeof data === 'object' && !Array.isArray(data) && 'status' in data
+      ? data.status
+      : null
+
+  if (!isSuccessfulPromoConfirmationStatus(status)) {
+    throw new Error(`PROMO_CONFIRMATION_${typeof status === 'string' ? status : 'INVALID_RESULT'}`)
+  }
+
+  return data
+}
+
 /**
  * The user is locked out of the app. True for users whose trial has ended
  * without purchase OR whose purchase was refunded. Pre-trial users are NOT
@@ -685,6 +726,29 @@ export function useSubscription() {
         return result
       }
 
+      try {
+        await confirmCurrentUserPromoRedemption({
+          attemptContext,
+          revenueCatAppUserId: info.originalAppUserId,
+          storeProductId: entitlement.productIdentifier ?? null,
+        })
+      } catch (error) {
+        addBreadcrumb(
+          'Promo redemption confirmation failed after access sync',
+          'promo.confirmation',
+          {
+            userId: user.id,
+            source: request.source,
+            redemptionAttemptId: attemptContext?.redemptionAttemptId ?? null,
+            codeId: attemptContext?.codeId ?? null,
+            campaignId: attemptContext?.campaignId ?? null,
+            productIdentifier: entitlement.productIdentifier ?? null,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        )
+        await recordPromoSyncFailure(request, 'supabase_sync_failed', error)
+      }
+
       const result: PurchaseAccessSyncResult = {
         ...baseResult,
         status: 'confirmed',
@@ -776,6 +840,58 @@ export function useSubscription() {
     mutationFn: async (context?: PurchaseAccessSyncAttemptContext) => {
       const attemptContext = context ?? null
       markPromoCodeValidated(context)
+
+      if (attemptContext?.promoOutcome === 'free') {
+        try {
+          await confirmCurrentUserPromoRedemption({
+            attemptContext,
+            revenueCatAppUserId: null,
+            storeProductId: null,
+          })
+
+          const result: PurchaseAccessSyncResult = {
+            status: 'confirmed',
+            source: 'promo_redemption',
+            customerInfo: null,
+            hasEntitlement: true,
+            profileSynced: true,
+            recoverable: false,
+            attemptContext,
+            error: null,
+          }
+
+          pendingExternalPurchaseSyncRef.current = null
+          setAccessSyncAttempt(attemptContext)
+          setAccessSyncResult(result)
+          setAccessSyncPhase('confirmed')
+          queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+          return result
+        } catch (error) {
+          const result: PurchaseAccessSyncResult = {
+            status: 'supabase_sync_failed',
+            source: 'promo_redemption',
+            customerInfo: null,
+            hasEntitlement: false,
+            profileSynced: false,
+            recoverable: true,
+            attemptContext,
+            error,
+          }
+
+          pendingExternalPurchaseSyncRef.current = null
+          setAccessSyncAttempt(attemptContext)
+          setAccessSyncResult(result)
+          setAccessSyncPhase('verification_failed')
+          addBreadcrumb('Free promo code server grant failed', 'monetization.sync', {
+            userId: user?.id ?? null,
+            campaignId: attemptContext?.campaignId ?? null,
+            redemptionAttemptId: attemptContext?.redemptionAttemptId ?? null,
+            error: error instanceof Error ? error.message : String(error),
+          })
+          return result
+        }
+      }
+
       await setRevenueCatPromoRedemptionAttributes(attemptContext)
 
       let wasPresented = false
@@ -833,19 +949,6 @@ export function useSubscription() {
       }
 
       return latestResult
-    },
-    onSettled: (_result, _error, context) => {
-      const attemptContext = context ?? null
-      if (!attemptContext?.redemptionAttemptId) return
-
-      setRevenueCatPromoRedemptionAttributes(null).catch((error) => {
-        console.warn('[useSubscription] Failed to clear promo attributes after redemption', {
-          userId: user?.id ?? null,
-          campaignId: attemptContext.campaignId ?? null,
-          redemptionAttemptId: attemptContext.redemptionAttemptId,
-          error,
-        })
-      })
     },
   })
 
@@ -1122,19 +1225,6 @@ export function useSubscription() {
         return result.customerInfo
       }
       return null
-    },
-    onSettled: (_info, _error, input) => {
-      const attemptContext = input && 'pkg' in input ? (input.attemptContext ?? null) : null
-      if (!attemptContext?.redemptionAttemptId) return
-
-      setRevenueCatPromoRedemptionAttributes(null).catch((error) => {
-        console.warn('[useSubscription] Failed to clear promo attributes after purchase', {
-          userId: user?.id ?? null,
-          campaignId: attemptContext.campaignId ?? null,
-          redemptionAttemptId: attemptContext.redemptionAttemptId,
-          error,
-        })
-      })
     },
     onSuccess: (info) => {
       console.log('[useSubscription] Purchase mutation completed', {

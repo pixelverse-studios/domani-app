@@ -57,7 +57,8 @@ const mockInitializeRevenueCat = initializeRevenueCat as jest.Mock
 const mockLoginRevenueCat = loginRevenueCat as jest.Mock
 const mockPresentCodeRedemptionSheet = presentCodeRedemptionSheet as jest.Mock
 const mockPurchasePackage = purchasePackage as jest.Mock
-const mockSetRevenueCatPromoRedemptionAttributes = setRevenueCatPromoRedemptionAttributes as jest.Mock
+const mockSetRevenueCatPromoRedemptionAttributes =
+  setRevenueCatPromoRedemptionAttributes as jest.Mock
 const mockSyncPurchasesAndRefreshCustomerInfo = syncPurchasesAndRefreshCustomerInfo as jest.Mock
 const mockSyncRevenueCatSubscriberAttributes = syncRevenueCatSubscriberAttributes as jest.Mock
 const revenueCatBlockingPhases = [
@@ -157,7 +158,13 @@ function setupSubscriptionHookMocks() {
   mockSetRevenueCatPromoRedemptionAttributes.mockResolvedValue(undefined)
   mockSyncRevenueCatSubscriberAttributes.mockResolvedValue(undefined)
   mockSupabaseFrom.mockImplementation(() => createSupabaseQueryMock())
-  mockSupabaseRpc.mockResolvedValue({ data: null, error: null })
+  mockSupabaseRpc.mockImplementation((functionName: string) => {
+    if (functionName === 'confirm_current_user_promo_redemption') {
+      return Promise.resolve({ data: { status: 'confirmed' }, error: null })
+    }
+
+    return Promise.resolve({ data: null, error: null })
+  })
 }
 
 beforeEach(() => {
@@ -452,6 +459,14 @@ describe('purchase access sync', () => {
         sync_status: 'confirmed',
       }),
     )
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('confirm_current_user_promo_redemption', {
+      p_campaign_id: 'campaign-1',
+      p_code_id: 'code-1',
+      p_redemption_attempt_id: 'attempt-1',
+      p_revenuecat_app_user_id: 'user-1',
+      p_store_product_id: 'domani_lifetime',
+      p_store_transaction_id: null,
+    })
     expect(mockTrack).toHaveBeenCalledWith(
       'promo_redemption_completed',
       expect.objectContaining({
@@ -491,6 +506,46 @@ describe('purchase access sync', () => {
     ).toBe(completedCount)
 
     jest.useRealTimers()
+    unmount()
+  })
+
+  it('confirms free promo codes through the server without presenting native redemption', async () => {
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    let redemptionResult: unknown
+    await act(async () => {
+      redemptionResult = await result.current.redeemPromoCode({
+        promoCode: 'GIFT03',
+        campaignId: 'campaign-1',
+        campaignSlug: 'private-gifts',
+        campaignType: 'free_lifetime',
+        codeId: 'code-1',
+        redemptionAttemptId: 'attempt-1',
+        discountKind: 'free',
+        promoOutcome: 'free',
+      })
+    })
+
+    expect(redemptionResult).toMatchObject({
+      status: 'confirmed',
+      source: 'promo_redemption',
+      hasEntitlement: true,
+      profileSynced: true,
+    })
+    expect(mockPresentCodeRedemptionSheet).not.toHaveBeenCalled()
+    expect(mockSyncPurchasesAndRefreshCustomerInfo).not.toHaveBeenCalled()
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('confirm_current_user_promo_redemption', {
+      p_campaign_id: 'campaign-1',
+      p_code_id: 'code-1',
+      p_redemption_attempt_id: 'attempt-1',
+      p_revenuecat_app_user_id: null,
+      p_store_product_id: null,
+      p_store_transaction_id: null,
+    })
+    expect(result.current.accessSyncPhase).toBe('confirmed')
+
     unmount()
   })
 
@@ -545,7 +600,7 @@ describe('purchase access sync', () => {
     unmount()
   })
 
-  it('clears promo attributes after a promo package purchase settles', async () => {
+  it('keeps promo attributes after a promo package purchase settles', async () => {
     mockPurchasePackage.mockResolvedValue(buildLifetimeCustomerInfo())
     const { result, unmount } = renderHookWithProviders(() => useSubscription())
 
@@ -568,7 +623,7 @@ describe('purchase access sync', () => {
     })
 
     expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenNthCalledWith(1, attemptContext)
-    expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenLastCalledWith(null)
+    expect(mockSetRevenueCatPromoRedemptionAttributes).not.toHaveBeenCalledWith(null)
 
     unmount()
   })
