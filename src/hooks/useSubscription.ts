@@ -733,6 +733,17 @@ export function useSubscription() {
           storeProductId: entitlement.productIdentifier ?? null,
         })
       } catch (error) {
+        const result: PurchaseAccessSyncResult = {
+          ...baseResult,
+          status: 'supabase_sync_failed',
+          customerInfo: info,
+          hasEntitlement: true,
+          profileSynced: true,
+          error,
+        }
+
+        setAccessSyncResult(result)
+        setAccessSyncPhase('verification_failed')
         addBreadcrumb(
           'Promo redemption confirmation failed after access sync',
           'promo.confirmation',
@@ -747,6 +758,7 @@ export function useSubscription() {
           },
         )
         await recordPromoSyncFailure(request, 'supabase_sync_failed', error)
+        return result
       }
 
       const result: PurchaseAccessSyncResult = {
