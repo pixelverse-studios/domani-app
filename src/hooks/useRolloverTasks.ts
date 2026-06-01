@@ -19,6 +19,7 @@ import { format, subDays } from 'date-fns'
 import { useCallback, useMemo } from 'react'
 
 import { supabase } from '~/lib/supabase'
+import { useAuth } from '~/hooks/useAuth'
 import {
   wasPromptedToday,
   markPromptedToday,
@@ -80,20 +81,18 @@ export interface UseRolloverTasksResult {
  */
 export function useRolloverTasks(): UseRolloverTasksResult {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
 
   // Calculate yesterday's date once for all queries
   const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd')
 
   // Query yesterday's tasks directly by scheduled_date
   const { data: rawTasks = [], isLoading: isLoadingTasks } = useQuery({
-    queryKey: ['rolloverTasks', yesterday],
+    queryKey: ['rolloverTasks', user?.id, yesterday],
     queryFn: async (): Promise<
       Array<RolloverTask & { completed_at: string | null; position: number | null }>
     > => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return []
+      if (!user?.id) return []
 
       const { data: tasks, error } = await supabase
         .from('tasks')
@@ -112,6 +111,7 @@ export function useRolloverTasks(): UseRolloverTasksResult {
       if (__DEV__) console.log('[useRolloverTasks] Yesterday:', yesterday, '| Tasks:', all.length)
       return all
     },
+    enabled: !!user?.id,
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
 
@@ -138,20 +138,22 @@ export function useRolloverTasks(): UseRolloverTasksResult {
   // Check if user was already prompted today
   // Default to true (fail closed) to prevent duplicate prompts on error
   const { data: alreadyPrompted = true, isLoading: isLoadingPrompt } = useQuery({
-    queryKey: ['rolloverPromptedToday'],
+    queryKey: ['rolloverPromptedToday', user?.id],
     queryFn: async () => {
-      const result = await wasPromptedToday()
+      const result = await wasPromptedToday(user?.id)
       if (__DEV__) console.log('[useRolloverTasks] wasPromptedToday:', result)
       return result
     },
+    enabled: !!user?.id,
     staleTime: 1000 * 60 * 60, // 1 hour - prompt status doesn't change frequently
   })
 
   // Check if user was already celebrated today
   // Default to true (fail closed) to prevent duplicate celebrations on error
   const { data: alreadyCelebrated = true, isLoading: isLoadingCelebration } = useQuery({
-    queryKey: ['celebrationShownToday'],
-    queryFn: wasCelebratedToday,
+    queryKey: ['celebrationShownToday', user?.id],
+    queryFn: () => wasCelebratedToday(user?.id),
+    enabled: !!user?.id,
     staleTime: 1000 * 60 * 60, // 1 hour
   })
 
@@ -174,17 +176,21 @@ export function useRolloverTasks(): UseRolloverTasksResult {
 
   // Memoized function to mark user as prompted
   const markPrompted = useCallback(async () => {
-    await markPromptedToday()
+    await markPromptedToday(user?.id)
     // Invalidate the prompt status query so shouldShowPrompt updates
-    await queryClient.invalidateQueries({ queryKey: ['rolloverPromptedToday'] })
-  }, [queryClient])
+    if (user?.id) {
+      await queryClient.invalidateQueries({ queryKey: ['rolloverPromptedToday', user.id] })
+    }
+  }, [queryClient, user?.id])
 
   // Memoized function to mark user as celebrated
   const markCelebrated = useCallback(async () => {
-    await markCelebratedToday()
+    await markCelebratedToday(user?.id)
     // Invalidate the celebration status query so shouldShowCelebration updates
-    await queryClient.invalidateQueries({ queryKey: ['celebrationShownToday'] })
-  }, [queryClient])
+    if (user?.id) {
+      await queryClient.invalidateQueries({ queryKey: ['celebrationShownToday', user.id] })
+    }
+  }, [queryClient, user?.id])
 
   return {
     incompleteTasks,
