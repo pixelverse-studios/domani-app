@@ -109,6 +109,5 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public, pg_temp;
-
 COMMENT ON FUNCTION handle_new_user() IS
 'Trigger function that creates a user profile when a new user signs up via OAuth. Sets up 14-day free trial, captures signup_method, and assigns signup_cohort by account creation date: before 2026-08-01 UTC -> early_adopter, otherwise general.';
