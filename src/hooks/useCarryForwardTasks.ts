@@ -14,6 +14,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { carryForwardTasks, type CarryForwardInput } from '~/lib/rollover'
+import { useAuth } from '~/hooks/useAuth'
 import type { TaskWithCategory } from '~/types'
 
 /**
@@ -35,17 +36,20 @@ import type { TaskWithCategory } from '~/types'
  */
 export function useCarryForwardTasks() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
 
   return useMutation<TaskWithCategory[], Error, CarryForwardInput>({
     mutationFn: carryForwardTasks,
 
     onSuccess: (createdTasks) => {
+      if (!user?.id) return
+
       // Broad invalidation: refreshes both source plan (rolled-over tasks disappear)
       // and target plan (new tasks appear). Matches useDeleteTask/useToggleTask pattern.
-      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks', user.id] })
 
       // Invalidate rollover tasks query (no longer show carried tasks)
-      queryClient.invalidateQueries({ queryKey: ['rolloverTasks'] })
+      queryClient.invalidateQueries({ queryKey: ['rolloverTasks', user.id] })
 
       // TODO: Add analytics tracking for tasks_carried_forward event
       console.log(`[useCarryForwardTasks] Carried forward ${createdTasks.length} tasks`)

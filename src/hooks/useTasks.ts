@@ -6,6 +6,7 @@ import { NotificationService } from '~/lib/notifications'
 import { wasCelebratedToday, markCelebratedToday } from '~/lib/rollover'
 import { useCelebrationStore } from '~/stores/celebrationStore'
 import { useIncrementCategoryUsage } from '~/hooks/useCategories'
+import { useAuth } from '~/hooks/useAuth'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import type { TaskWithCategory, TaskPriority } from '~/types'
 
@@ -13,10 +14,12 @@ import type { TaskWithCategory, TaskPriority } from '~/types'
 const TASKS_STALE_TIME = 1000 * 60 * 5
 
 export function useTasks(date: string | undefined) {
+  const { user } = useAuth()
+
   return useQuery({
-    queryKey: ['tasks', date],
+    queryKey: ['tasks', user?.id, date],
     queryFn: async () => {
-      if (!date) return []
+      if (!user?.id || !date) return []
 
       const { data, error } = await supabase
         .from('tasks')
@@ -28,6 +31,7 @@ export function useTasks(date: string | undefined) {
         `,
         )
         .eq('scheduled_date', date)
+        .eq('user_id', user.id)
         .is('rolled_over_at', null)
         .order('position')
 
@@ -35,7 +39,7 @@ export function useTasks(date: string | undefined) {
 
       return data as TaskWithCategory[]
     },
-    enabled: !!date,
+    enabled: !!user?.id && !!date,
     placeholderData: [],
     staleTime: TASKS_STALE_TIME,
   })
@@ -43,10 +47,13 @@ export function useTasks(date: string | undefined) {
 
 export function useToggleTask() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const { track } = useAnalytics()
 
   return useMutation({
     mutationFn: async ({ taskId, completed }: { taskId: string; completed: boolean }) => {
+      if (!user?.id) throw new Error('Not authenticated')
+
       // First get the task to check for notification_id
       const { data: existingTask } = await supabase
         .from('tasks')
@@ -73,10 +80,12 @@ export function useToggleTask() {
       return data
     },
     onMutate: async ({ taskId, completed }) => {
-      // Optimistic update
-      await queryClient.cancelQueries({ queryKey: ['tasks'] })
+      if (!user?.id) return
 
-      const previousTasks = queryClient.getQueriesData({ queryKey: ['tasks'] })
+      // Optimistic update
+      await queryClient.cancelQueries({ queryKey: ['tasks', user.id] })
+
+      const previousTasks = queryClient.getQueriesData({ queryKey: ['tasks', user.id] })
 
       // Find the task being toggled for analytics
       let taskForAnalytics: TaskWithCategory | undefined
@@ -88,14 +97,17 @@ export function useToggleTask() {
         }
       }
 
-      queryClient.setQueriesData({ queryKey: ['tasks'] }, (old: TaskWithCategory[] | undefined) => {
-        if (!old) return old
-        return old.map((task) =>
-          task.id === taskId
-            ? { ...task, completed_at: completed ? new Date().toISOString() : null }
-            : task,
-        )
-      })
+      queryClient.setQueriesData(
+        { queryKey: ['tasks', user.id] },
+        (old: TaskWithCategory[] | undefined) => {
+          if (!old) return old
+          return old.map((task) =>
+            task.id === taskId
+              ? { ...task, completed_at: completed ? new Date().toISOString() : null }
+              : task,
+          )
+        },
+      )
 
       return { previousTasks, taskForAnalytics }
     },
@@ -107,7 +119,14 @@ export function useToggleTask() {
       try {
         if (!variables.completed) return
 
-        const tasks = queryClient.getQueryData<TaskWithCategory[]>(['tasks', data.scheduled_date])
+        const userId = user?.id ?? data.user_id
+        if (!userId) return
+
+        const tasks = queryClient.getQueryData<TaskWithCategory[]>([
+          'tasks',
+          userId,
+          data.scheduled_date,
+        ])
         if (!tasks || tasks.length === 0) return
 
         const allComplete = tasks.every((t) => t.completed_at !== null)
@@ -118,10 +137,10 @@ export function useToggleTask() {
         if (useCelebrationStore.getState().shouldShowCelebration) return
 
         // Idempotency: don't show twice if the user toggles a task off and on again
-        const alreadyCelebrated = await wasCelebratedToday()
+        const alreadyCelebrated = await wasCelebratedToday(userId)
         if (alreadyCelebrated) return
 
-        await markCelebratedToday()
+        await markCelebratedToday(userId)
         useCelebrationStore.getState().trigger(tasks.length)
       } catch (error) {
         if (__DEV__) console.error('[useToggleTask] Celebration trigger failed:', error)
@@ -137,7 +156,9 @@ export function useToggleTask() {
       }
     },
     onSettled: (_data, _error, variables, context) => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: ['tasks', user.id] })
+      }
       addBreadcrumb('Task toggled', 'task', {
         taskId: variables.taskId,
         completed: variables.completed,
@@ -182,6 +203,7 @@ interface CreateTaskInput {
 
 export function useCreateTask() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const incrementUsage = useIncrementCategoryUsage()
   const { track } = useAnalytics()
 
@@ -197,11 +219,7 @@ export function useCreateTask() {
       notes,
       reminderAt,
     }: CreateTaskInput) => {
-      // Get current user for user_id
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      if (!user?.id) throw new Error('Not authenticated')
 
       const { data, error } = await supabase
         .from('tasks')
@@ -264,7 +282,10 @@ export function useCreateTask() {
       return data as TaskWithCategory
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', data.scheduled_date] })
+      const userId = user?.id ?? data.user_id
+      if (userId) {
+        queryClient.invalidateQueries({ queryKey: ['tasks', userId, data.scheduled_date] })
+      }
       addBreadcrumb('Task created', 'task', {
         taskId: data.id,
         priority: data.priority,
@@ -293,6 +314,7 @@ export function useCreateTask() {
 
 export function useUpdateTask() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
 
   return useMutation({
     mutationFn: async ({
@@ -318,6 +340,8 @@ export function useUpdateTask() {
       /** Original scheduled_date for cache invalidation when task moves to different day */
       originalDate?: string
     }) => {
+      if (!user?.id) throw new Error('Not authenticated')
+
       // Get existing task to check for notification changes
       const { data: existingTask } = await supabase
         .from('tasks')
@@ -391,25 +415,32 @@ export function useUpdateTask() {
       return { data, originalDate }
     },
     onMutate: async ({ taskId, updates, originalDate }) => {
+      if (!user?.id) return
+
       // Only do optimistic update when moving between days
       if (!updates.scheduled_date || !originalDate || updates.scheduled_date === originalDate)
         return
 
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['tasks', originalDate] })
-      await queryClient.cancelQueries({ queryKey: ['tasks', updates.scheduled_date] })
+      await queryClient.cancelQueries({ queryKey: ['tasks', user.id, originalDate] })
+      await queryClient.cancelQueries({ queryKey: ['tasks', user.id, updates.scheduled_date] })
 
       // Snapshot previous values for rollback
-      const previousOriginal = queryClient.getQueryData<TaskWithCategory[]>(['tasks', originalDate])
+      const previousOriginal = queryClient.getQueryData<TaskWithCategory[]>([
+        'tasks',
+        user.id,
+        originalDate,
+      ])
       const previousTarget = queryClient.getQueryData<TaskWithCategory[]>([
         'tasks',
+        user.id,
         updates.scheduled_date,
       ])
 
       // Remove task from original day cache
       if (previousOriginal) {
         queryClient.setQueryData<TaskWithCategory[]>(
-          ['tasks', originalDate],
+          ['tasks', user.id, originalDate],
           previousOriginal.filter((t) => t.id !== taskId),
         )
       }
@@ -420,7 +451,7 @@ export function useUpdateTask() {
         if (movedTask) {
           const updatedTask = { ...movedTask, ...updates }
           queryClient.setQueryData<TaskWithCategory[]>(
-            ['tasks', updates.scheduled_date],
+            ['tasks', user.id, updates.scheduled_date],
             [...(previousTarget || []), updatedTask],
           )
         }
@@ -429,20 +460,25 @@ export function useUpdateTask() {
       return { previousOriginal, previousTarget }
     },
     onError: (_err, { updates, originalDate }, context) => {
+      if (!user?.id) return
+
       // Rollback on error
       if (context?.previousOriginal && originalDate) {
-        queryClient.setQueryData(['tasks', originalDate], context.previousOriginal)
+        queryClient.setQueryData(['tasks', user.id, originalDate], context.previousOriginal)
       }
       if (context?.previousTarget && updates.scheduled_date) {
-        queryClient.setQueryData(['tasks', updates.scheduled_date], context.previousTarget)
+        queryClient.setQueryData(['tasks', user.id, updates.scheduled_date], context.previousTarget)
       }
     },
     onSuccess: ({ data, originalDate }) => {
+      const userId = user?.id ?? data.user_id
+      if (!userId) return
+
       // Invalidate the new day's tasks
-      queryClient.invalidateQueries({ queryKey: ['tasks', data.scheduled_date] })
+      queryClient.invalidateQueries({ queryKey: ['tasks', userId, data.scheduled_date] })
       // If task moved to different day, also invalidate the original day's tasks
       if (originalDate && originalDate !== data.scheduled_date) {
-        queryClient.invalidateQueries({ queryKey: ['tasks', originalDate] })
+        queryClient.invalidateQueries({ queryKey: ['tasks', userId, originalDate] })
       }
     },
   })
@@ -450,10 +486,13 @@ export function useUpdateTask() {
 
 export function useDeleteTask() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const { track } = useAnalytics()
 
   return useMutation({
     mutationFn: async (taskId: string) => {
+      if (!user?.id) throw new Error('Not authenticated')
+
       // First get the task to check for notification_id
       const { data: existingTask } = await supabase
         .from('tasks')
@@ -467,7 +506,7 @@ export function useDeleteTask() {
       }
 
       // Look up task from cache before deleting for analytics
-      const allTaskQueries = queryClient.getQueriesData({ queryKey: ['tasks'] })
+      const allTaskQueries = queryClient.getQueriesData({ queryKey: ['tasks', user.id] })
       let wasCompleted = false
       for (const [, tasks] of allTaskQueries) {
         const found = (tasks as TaskWithCategory[] | undefined)?.find((t) => t.id === taskId)
@@ -483,7 +522,9 @@ export function useDeleteTask() {
       return { taskId, wasCompleted }
     },
     onSuccess: ({ taskId, wasCompleted }) => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: ['tasks', user.id] })
+      }
       addBreadcrumb('Task deleted', 'task', { taskId })
 
       // Track task deletion

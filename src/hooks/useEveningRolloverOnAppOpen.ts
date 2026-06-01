@@ -42,6 +42,7 @@ import { AppState, type AppStateStatus } from 'react-native'
 
 import { supabase } from '~/lib/supabase'
 import { wasPromptedInCurrentCycle, isPastReminderTime } from '~/lib/rollover'
+import { useAuth } from '~/hooks/useAuth'
 import { useNotificationStore } from '~/stores/notificationStore'
 import {
   useEveningRolloverTasks,
@@ -59,6 +60,7 @@ export type UseEveningRolloverOnAppOpenResult = Omit<
 }
 
 export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult {
+  const { user } = useAuth()
   const [timeCheckPassed, setTimeCheckPassed] = useState(false)
   const [isBeforeReminderTime, setIsBeforeReminderTime] = useState(false)
   // Ref copy prevents timeCheckPassed from being a dep of runCheck,
@@ -72,6 +74,15 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
 
   const setEveningRolloverSource = useNotificationStore((s) => s.setEveningRolloverSource)
   const devRecheckCounter = useNotificationStore((s) => s.devRolloverRecheckCounter)
+
+  useEffect(() => {
+    timeCheckPassedRef.current = false
+    isCheckingRef.current = false
+    reminderTimeRef.current = undefined
+    setTimeCheckPassed(false)
+    setIsBeforeReminderTime(false)
+    setEveningRolloverSource(null)
+  }, [setEveningRolloverSource, user?.id])
 
   // Dev-only: reset all internal state so runCheck can fire again
   useEffect(() => {
@@ -90,6 +101,7 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
   const runCheck = useCallback(async () => {
     // Prevent concurrent checks and re-running once already activated
     if (isCheckingRef.current || timeCheckPassedRef.current) return
+    if (!user?.id) return
     isCheckingRef.current = true
 
     // Dev bypass: skip all preconditions, immediately activate
@@ -113,12 +125,6 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
           return
         }
       }
-
-      // 2. Get auth user (always needed — can't skip)
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return
 
       if (!shouldBypass) {
         // 3. User has a planning_reminder_time set
@@ -149,7 +155,7 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
         // — catch here and fail-closed (skip rollover on error)
         let alreadyPrompted: boolean
         try {
-          alreadyPrompted = await wasPromptedInCurrentCycle(reminderTime)
+          alreadyPrompted = await wasPromptedInCurrentCycle(reminderTime, user.id)
         } catch {
           if (__DEV__)
             console.error(
@@ -190,7 +196,7 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
     } finally {
       isCheckingRef.current = false
     }
-  }, [setEveningRolloverSource]) // setEveningRolloverSource is a stable Zustand setter
+  }, [setEveningRolloverSource, user?.id])
 
   useEffect(() => {
     // Check on mount

@@ -2,6 +2,7 @@ import React from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { supabase } from '~/lib/supabase'
+import { useAuth } from '~/hooks/useAuth'
 import type { UserCategory, SystemCategory, UserCategoryPreference } from '~/types'
 import { getTheme } from '~/theme/themes'
 import { validateCategoryName } from '~/constants/systemCategories.validation'
@@ -61,13 +62,12 @@ export function useSystemCategoryId(formCategoryId: string | undefined) {
 }
 
 export function useUserCategories() {
+  const { user } = useAuth()
+
   return useQuery({
-    queryKey: ['userCategories'],
+    queryKey: ['userCategories', user?.id],
     queryFn: async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return []
+      if (!user?.id) return []
 
       const { data, error } = await supabase
         .from('user_categories')
@@ -79,12 +79,14 @@ export function useUserCategories() {
 
       return data as UserCategory[]
     },
+    enabled: !!user?.id,
     staleTime: USER_CATEGORIES_STALE_TIME,
   })
 }
 
 export function useCreateUserCategory() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
 
   return useMutation({
     mutationFn: async ({
@@ -99,10 +101,7 @@ export function useCreateUserCategory() {
       // Validate name before database call (fail fast)
       validateCategoryName(name)
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      if (!user?.id) throw new Error('Not authenticated')
 
       const { data, error } = await supabase
         .from('user_categories')
@@ -120,20 +119,20 @@ export function useCreateUserCategory() {
       return data as UserCategory
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['userCategories'] })
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: ['userCategories', user.id] })
+      }
     },
   })
 }
 
 export function useDeleteUserCategory() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
 
   return useMutation({
     mutationFn: async (categoryId: string) => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      if (!user?.id) throw new Error('Not authenticated')
 
       const { error } = await supabase
         .from('user_categories')
@@ -144,20 +143,21 @@ export function useDeleteUserCategory() {
       if (error) throw error
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['userCategories'] })
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: ['userCategories', user.id] })
+      }
     },
   })
 }
 
 // Fetch user preferences for system categories (positions, usage counts)
 export function useUserCategoryPreferences() {
+  const { user } = useAuth()
+
   return useQuery({
-    queryKey: ['userCategoryPreferences'],
+    queryKey: ['userCategoryPreferences', user?.id],
     queryFn: async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return []
+      if (!user?.id) return []
 
       const { data, error } = await supabase
         .from('user_category_preferences')
@@ -168,6 +168,7 @@ export function useUserCategoryPreferences() {
 
       return data as UserCategoryPreference[]
     },
+    enabled: !!user?.id,
     staleTime: USER_CATEGORIES_STALE_TIME,
   })
 }
@@ -251,13 +252,11 @@ export function useFavoriteCategories(autoSort: boolean = false) {
 // Update favorite categories
 export function useUpdateFavoriteCategories() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
 
   return useMutation({
     mutationFn: async (categoryIds: string[]) => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      if (!user?.id) throw new Error('Not authenticated')
 
       if (categoryIds.length > 4) {
         throw new Error('Maximum 4 favorite categories allowed')
@@ -271,8 +270,10 @@ export function useUpdateFavoriteCategories() {
       if (error) throw error
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['userCategories'] })
-      queryClient.invalidateQueries({ queryKey: ['userCategoryPreferences'] })
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: ['userCategories', user.id] })
+        queryClient.invalidateQueries({ queryKey: ['userCategoryPreferences', user.id] })
+      }
     },
   })
 }
@@ -280,13 +281,11 @@ export function useUpdateFavoriteCategories() {
 // Update category positions after drag-and-drop reorder
 export function useUpdateCategoryPositions() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
 
   return useMutation({
     mutationFn: async (categories: { id: string; position: number; isSystem: boolean }[]) => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      if (!user?.id) throw new Error('Not authenticated')
 
       // Call the database function to batch update positions
       const { error } = await supabase.rpc('update_category_positions', {
@@ -297,8 +296,10 @@ export function useUpdateCategoryPositions() {
       if (error) throw error
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['userCategories'] })
-      queryClient.invalidateQueries({ queryKey: ['userCategoryPreferences'] })
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: ['userCategories', user.id] })
+        queryClient.invalidateQueries({ queryKey: ['userCategoryPreferences', user.id] })
+      }
     },
   })
 }
@@ -306,6 +307,7 @@ export function useUpdateCategoryPositions() {
 // Increment usage count when a task is created with a category
 export function useIncrementCategoryUsage() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
 
   return useMutation({
     mutationFn: async ({
@@ -315,10 +317,7 @@ export function useIncrementCategoryUsage() {
       systemCategoryId?: string | null
       userCategoryId?: string | null
     }) => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      if (!user?.id) throw new Error('Not authenticated')
 
       // Only call if there's a category to update
       if (!systemCategoryId && !userCategoryId) return
@@ -332,8 +331,10 @@ export function useIncrementCategoryUsage() {
       if (error) throw error
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['userCategories'] })
-      queryClient.invalidateQueries({ queryKey: ['userCategoryPreferences'] })
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: ['userCategories', user.id] })
+        queryClient.invalidateQueries({ queryKey: ['userCategoryPreferences', user.id] })
+      }
     },
   })
 }

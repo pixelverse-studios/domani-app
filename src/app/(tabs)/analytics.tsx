@@ -16,6 +16,7 @@ import { useAnalyticsSummary, useDailyCompletions } from '~/hooks/useAnalytics'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
+import { useAuth } from '~/hooks/useAuth'
 import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 
 export default function AnalyticsScreen() {
@@ -26,6 +27,7 @@ export default function AnalyticsScreen() {
   const brandColor = theme.colors.brand.primary
   const insets = useSafeAreaInsets()
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const [refreshing, setRefreshing] = useState(false)
   const [animationKey, setAnimationKey] = useState(0)
 
@@ -41,9 +43,11 @@ export default function AnalyticsScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    await queryClient.invalidateQueries({ queryKey: ['analytics'] })
+    if (user?.id) {
+      await queryClient.invalidateQueries({ queryKey: ['analytics', user.id] })
+    }
     setRefreshing(false)
-  }, [queryClient])
+  }, [queryClient, user?.id])
 
   // Loading state
   if (isLoading && !refreshing) {
