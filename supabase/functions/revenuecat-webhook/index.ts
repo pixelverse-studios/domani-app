@@ -95,12 +95,20 @@ interface PromoConfirmationResult {
   [key: string]: unknown
 }
 
+interface ProfileAccessSnapshot {
+  tier: string | null
+  purchased_at: string | null
+  refunded_at: string | null
+  trial_ends_at: string | null
+}
+
 const REVENUECAT_WEBHOOK_SECRET = Deno.env.get('REVENUECAT_WEBHOOK_SECRET')
 const LIFETIME_PRODUCT_IDS = new Set([
   'domani_lifetime',
   'domani_lifetime_early',
   'domani_lifetime_friends',
 ])
+const PROMO_GATED_LIFETIME_PRODUCT_IDS = new Set(['domani_lifetime_friends'])
 const REFUND_LIKE_CANCELLATION_REASONS = new Set(['CUSTOMER_SUPPORT'])
 const APP_STORE_EVENT_STORES = new Set(['APP_STORE', 'MAC_APP_STORE'])
 
@@ -237,6 +245,11 @@ function getProductId(event: RevenueCatWebhookEvent) {
 function isLifetimeProductEvent(event: RevenueCatWebhookEvent) {
   const productId = getProductId(event)
   return !!productId && LIFETIME_PRODUCT_IDS.has(productId)
+}
+
+function isPromoGatedLifetimeProductEvent(event: RevenueCatWebhookEvent) {
+  const productId = getProductId(event)
+  return !!productId && PROMO_GATED_LIFETIME_PRODUCT_IDS.has(productId)
 }
 
 function isAppStoreEvent(event: RevenueCatWebhookEvent) {
@@ -396,6 +409,23 @@ async function grantLifetimeAccess(
   event: RevenueCatWebhookEvent,
   processedAction: 'granted_lifetime' | 'restored_refund',
 ) {
+  const requiresPromoConfirmation =
+    processedAction === 'granted_lifetime' && isPromoGatedLifetimeProductEvent(event)
+  const promoContext = getPromoRedemptionContext(event)
+
+  if (requiresPromoConfirmation && !promoContext) {
+    console.error('[revenuecat-webhook] promo-gated lifetime grant missing promo context:', {
+      ...getEventLogContext(event),
+    })
+    await finalizeWebhookEvent(supabase, event, 'ignored_missing_promo_context')
+    await sendRevenueSlackAlert({
+      alertType: 'processing_failed',
+      eventContext: getEventLogContext(event),
+      errorMessage: 'Promo-gated lifetime grant missing promo redemption context',
+    })
+    return jsonResponse({ received: true, ignored: 'missing_promo_context' })
+  }
+
   const userId = await resolveProfileUserId(supabase, event)
 
   if (!userId) {
@@ -410,6 +440,21 @@ async function grantLifetimeAccess(
       processedAction: 'ignored_user_not_found',
     })
     return jsonResponse({ received: true, ignored: 'user_not_found' })
+  }
+
+  const { data: previousProfile, error: snapshotError } = await supabase
+    .from('profiles')
+    .select('tier,purchased_at,refunded_at,trial_ends_at')
+    .eq('id', userId)
+    .maybeSingle<ProfileAccessSnapshot>()
+
+  if (snapshotError) {
+    console.error('[revenuecat-webhook] failed to snapshot profile access:', {
+      ...getEventLogContext(event),
+      userId,
+      error: snapshotError,
+    })
+    throw snapshotError
   }
 
   const { error } = await supabase
@@ -433,8 +478,41 @@ async function grantLifetimeAccess(
 
   await clearRefundState(supabase, userId, event)
 
-  if (processedAction === 'granted_lifetime') {
-    await confirmPromoRedemptionFromWebhook(supabase, userId, event)
+  if (requiresPromoConfirmation) {
+    try {
+      await confirmPromoRedemptionFromWebhook(supabase, userId, event)
+    } catch (confirmationError) {
+      if (previousProfile) {
+        const { error: restoreError } = await supabase
+          .from('profiles')
+          .update({
+            tier: previousProfile.tier,
+            purchased_at: previousProfile.purchased_at,
+            refunded_at: previousProfile.refunded_at,
+            trial_ends_at: previousProfile.trial_ends_at,
+          })
+          .eq('id', userId)
+
+        if (restoreError) {
+          console.error('[revenuecat-webhook] failed to restore access after promo failure:', {
+            ...getEventLogContext(event),
+            userId,
+            confirmationError,
+            restoreError,
+          })
+          throw restoreError
+        }
+      }
+
+      console.error('[revenuecat-webhook] rolled back unconfirmed promo lifetime grant:', {
+        ...getEventLogContext(event),
+        userId,
+        promoContext,
+        error:
+          confirmationError instanceof Error ? confirmationError.message : String(confirmationError),
+      })
+      throw confirmationError
+    }
   }
 
   await finalizeWebhookEvent(supabase, event, processedAction)
