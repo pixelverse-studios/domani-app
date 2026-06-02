@@ -146,6 +146,20 @@ function isSuccessfulPromoConfirmationStatus(status: unknown) {
   return status === 'confirmed' || status === 'already_confirmed'
 }
 
+function isPromoPurchaseAccessSync(request: PurchaseAccessSyncRequest) {
+  return request.source === 'promo_redemption' || request.source === 'foreground'
+}
+
+function hasPromoRedemptionAttemptContext(
+  attemptContext: PurchaseAccessSyncAttemptContext | null,
+) {
+  return !!(
+    attemptContext?.redemptionAttemptId &&
+    attemptContext.codeId &&
+    attemptContext.campaignId
+  )
+}
+
 async function confirmCurrentUserPromoRedemption(input: {
   attemptContext: PurchaseAccessSyncAttemptContext | null
   revenueCatAppUserId?: string | null
@@ -617,6 +631,25 @@ export function useSubscription() {
           source: request.source,
           shouldBypassRevenueCat,
           revenueCatInitialized: isInitialized,
+        })
+        return result
+      }
+
+      if (isPromoPurchaseAccessSync(request) && !hasPromoRedemptionAttemptContext(attemptContext)) {
+        const result: PurchaseAccessSyncResult = {
+          ...baseResult,
+          status: 'supabase_sync_failed',
+          recoverable: true,
+          error: new Error('PROMO_ATTEMPT_CONTEXT_REQUIRED'),
+        }
+        setAccessSyncResult(result)
+        setAccessSyncPhase('verification_failed')
+        addBreadcrumb('Blocked promo access sync without validated attempt', 'promo.confirmation', {
+          userId: user.id,
+          source: request.source,
+          hasRedemptionAttemptId: !!attemptContext?.redemptionAttemptId,
+          hasCodeId: !!attemptContext?.codeId,
+          hasCampaignId: !!attemptContext?.campaignId,
         })
         return result
       }

@@ -343,6 +343,35 @@ describe('purchase access sync', () => {
     unmount()
   })
 
+  it('blocks promo access sync when no validated redemption attempt exists', async () => {
+    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    let syncResult: unknown
+    await act(async () => {
+      syncResult = await result.current.syncAccess({
+        source: 'promo_redemption',
+        forceStoreSync: true,
+        attemptContext: null,
+      })
+    })
+
+    expect(syncResult).toMatchObject({
+      status: 'supabase_sync_failed',
+      source: 'promo_redemption',
+      hasEntitlement: false,
+      profileSynced: false,
+      recoverable: true,
+    })
+    expect(result.current.accessSyncPhase).toBe('verification_failed')
+    expect(mockSyncPurchasesAndRefreshCustomerInfo).not.toHaveBeenCalled()
+
+    unmount()
+  })
+
   it('records promo sync failure analytics and audit when entitlement is missing', async () => {
     mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildCustomerInfo({}))
     const { result, unmount } = renderHookWithProviders(() => useSubscription())
@@ -714,6 +743,8 @@ describe('purchase access sync', () => {
       await result.current.redeemPromoCode({
         promoCode: 'SAVE100',
         campaignId: 'campaign-1',
+        codeId: 'code-1',
+        redemptionAttemptId: 'attempt-1',
         promoOutcome: 'discounted',
       })
     })
