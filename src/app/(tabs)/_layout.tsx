@@ -150,19 +150,19 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="feedback"
-          options={{
-            title: copy.tabs.feedback,
-            href: hideLockedTabs ? null : undefined,
-            tabBarIcon: ({ color, size }) => <MessageCircle size={size} color={color} />,
-          }}
-        />
-        <Tabs.Screen
           name="analytics"
           options={{
             title: copy.tabs.progress,
             href: hideLockedTabs ? null : undefined,
             tabBarIcon: ({ color, size }) => <BarChart3 size={size} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="feedback"
+          options={{
+            title: copy.tabs.feedback,
+            href: hideLockedTabs ? null : undefined,
+            tabBarIcon: ({ color, size }) => <MessageCircle size={size} color={color} />,
           }}
         />
         <Tabs.Screen

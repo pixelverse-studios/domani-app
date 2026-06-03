@@ -112,6 +112,36 @@ describe('TabLayout access gating', () => {
     expect(getByText('analytics:hidden')).toBeTruthy()
   })
 
+  it('defaults unresolved subscription state to Today and Settings only', () => {
+    mockSubscription('trialing', true)
+
+    const { getByText } = renderWithProviders(<TabLayout />)
+
+    expect(getByText('index:visible')).toBeTruthy()
+    expect(getByText('settings:visible')).toBeTruthy()
+    expect(getByText('planning:hidden')).toBeTruthy()
+    expect(getByText('feedback:hidden')).toBeTruthy()
+    expect(getByText('analytics:hidden')).toBeTruthy()
+  })
+
+  it('orders Feedback as the fourth tab after Progress', () => {
+    mockSubscription('trialing')
+
+    const { getAllByText } = renderWithProviders(<TabLayout />)
+
+    expect(
+      getAllByText(/^(index|planning|analytics|feedback|settings):(visible|hidden)$/).map(
+        (node) => node.props.children,
+      ),
+    ).toEqual([
+      'index:visible',
+      'planning:visible',
+      'analytics:visible',
+      'feedback:visible',
+      'settings:visible',
+    ])
+  })
+
   it('does not redirect full-access direct Planning navigation', () => {
     mockUsePathname.mockReturnValue('/(tabs)/planning')
     mockSubscription('trialing')
