@@ -409,8 +409,8 @@ async function grantLifetimeAccess(
   event: RevenueCatWebhookEvent,
   processedAction: 'granted_lifetime' | 'restored_refund',
 ) {
-  const requiresPromoConfirmation =
-    processedAction === 'granted_lifetime' && isPromoGatedLifetimeProductEvent(event)
+  const isPromoGatedGrant = isPromoGatedLifetimeProductEvent(event)
+  const requiresPromoConfirmation = processedAction === 'granted_lifetime' && isPromoGatedGrant
   const promoContext = getPromoRedemptionContext(event)
 
   if (requiresPromoConfirmation && !promoContext) {
@@ -440,6 +440,44 @@ async function grantLifetimeAccess(
       processedAction: 'ignored_user_not_found',
     })
     return jsonResponse({ received: true, ignored: 'user_not_found' })
+  }
+
+  if (processedAction === 'restored_refund' && isPromoGatedGrant) {
+    const productId = getProductId(event)
+    const { data: confirmedPromoRedemption, error: confirmedPromoError } = await supabase
+      .from('promo_redemption_attempts')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('status', 'confirmed')
+      .eq('store_product_id', productId)
+      .maybeSingle()
+
+    if (confirmedPromoError) {
+      console.error('[revenuecat-webhook] failed to verify promo refund reversal:', {
+        ...getEventLogContext(event),
+        userId,
+        productId,
+        error: confirmedPromoError,
+      })
+      throw confirmedPromoError
+    }
+
+    if (!confirmedPromoRedemption) {
+      console.error('[revenuecat-webhook] promo-gated refund reversal missing confirmation:', {
+        ...getEventLogContext(event),
+        userId,
+        productId,
+      })
+      await finalizeWebhookEvent(supabase, event, 'ignored_missing_promo_confirmation')
+      await sendRevenueSlackAlert({
+        alertType: 'processing_failed',
+        eventContext: getEventLogContext(event),
+        processedAction: 'ignored_missing_promo_confirmation',
+        userId,
+        errorMessage: 'Promo-gated refund reversal missing confirmed promo redemption',
+      })
+      return jsonResponse({ received: true, ignored: 'missing_promo_confirmation' })
+    }
   }
 
   const { data: previousProfile, error: snapshotError } = await supabase

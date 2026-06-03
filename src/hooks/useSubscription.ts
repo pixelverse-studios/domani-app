@@ -150,6 +150,12 @@ function isPromoPurchaseAccessSync(request: PurchaseAccessSyncRequest) {
   return request.source === 'promo_redemption' || request.source === 'foreground'
 }
 
+const PROMO_GATED_LIFETIME_PRODUCT_IDS = new Set(['domani_lifetime_friends'])
+
+function isPromoGatedLifetimeProduct(productIdentifier: string | null | undefined) {
+  return !!productIdentifier && PROMO_GATED_LIFETIME_PRODUCT_IDS.has(productIdentifier)
+}
+
 function hasPromoRedemptionAttemptContext(
   attemptContext: PurchaseAccessSyncAttemptContext | null,
 ) {
@@ -700,6 +706,40 @@ export function useSubscription() {
         refetchCustomerInfo()
         queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
         await recordPromoSyncFailure(request, result.status)
+        return result
+      }
+
+      if (
+        isPromoGatedLifetimeProduct(entitlement.productIdentifier) &&
+        !hasPromoRedemptionAttemptContext(attemptContext)
+      ) {
+        const result: PurchaseAccessSyncResult = {
+          ...baseResult,
+          status: 'supabase_sync_failed',
+          customerInfo: info,
+          hasEntitlement: true,
+          profileSynced: false,
+          recoverable: true,
+          error: new Error('PROMO_GATED_PRODUCT_ATTEMPT_CONTEXT_REQUIRED'),
+        }
+        setAccessSyncResult(result)
+        setAccessSyncPhase('verification_failed')
+        addBreadcrumb(
+          'Blocked promo-gated product sync without validated attempt',
+          'promo.confirmation',
+          {
+            userId: user.id,
+            source: request.source,
+            entitlementId: ENTITLEMENT_ID,
+            productIdentifier: entitlement.productIdentifier ?? null,
+            hasRedemptionAttemptId: !!attemptContext?.redemptionAttemptId,
+            hasCodeId: !!attemptContext?.codeId,
+            hasCampaignId: !!attemptContext?.campaignId,
+          },
+        )
+        await recordPromoSyncFailure(request, result.status, result.error)
+        refetchCustomerInfo()
+        queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
         return result
       }
 
