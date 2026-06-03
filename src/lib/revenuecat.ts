@@ -51,7 +51,7 @@ export const BETA_END_DATE = new Date('2026-03-01T00:00:00Z')
 // Cohort-specific offerings (must match RevenueCat dashboard identifiers)
 export const OFFERINGS = {
   EARLY_ADOPTER: 'early_adopter', // $9.99 lifetime
-  FRIENDS_FAMILY: 'friends_family', // $4.99 lifetime
+  FRIENDS_FAMILY: 'friends_family', // Promo-code only $4.99 lifetime
   GENERAL: 'general', // $34.99 lifetime
 } as const
 
@@ -327,7 +327,7 @@ export async function getOfferings(offeringIdentifier?: string): Promise<Purchas
  * Get the appropriate offering identifier based on user's signup cohort
  * Maps cohort to corresponding RevenueCat offering:
  * - early_adopter → early_adopter offering ($9.99)
- * - friends_family → friends_family offering ($4.99)
+ * - friends_family → general offering (friends/family pricing is promo-code only)
  * - general (or null/undefined) → general offering ($34.99)
  */
 export function getOfferingForCohort(
@@ -336,8 +336,6 @@ export function getOfferingForCohort(
   switch (signupCohort) {
     case 'early_adopter':
       return OFFERINGS.EARLY_ADOPTER
-    case 'friends_family':
-      return OFFERINGS.FRIENDS_FAMILY
     default:
       return OFFERINGS.GENERAL
   }
