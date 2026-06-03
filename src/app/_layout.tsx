@@ -37,6 +37,7 @@ import { useCarryForwardTasks } from '~/hooks/useCarryForwardTasks'
 import { useCelebrationStore } from '~/stores/celebrationStore'
 import { useNotificationStore } from '~/stores/notificationStore'
 import { useEveningRolloverOnAppOpen } from '~/hooks/useEveningRolloverOnAppOpen'
+import { hasFullAccess, useSubscription } from '~/hooks/useSubscription'
 import { AccountConfirmationOverlay } from '~/components/AccountConfirmationOverlay'
 import { RolloverModal, CelebrationModal } from '~/components/planning'
 import { ErrorBoundary } from '~/components/ErrorBoundary'
@@ -87,6 +88,8 @@ function RootLayoutContent() {
   }, [fetchConfig])
 
   const { accountReactivated, clearAccountReactivated, loading } = useAuth()
+  const { status: subscriptionStatus, isLoading: subscriptionLoading } = useSubscription()
+  const hasAppAccess = !subscriptionLoading && hasFullAccess(subscriptionStatus)
 
   // Real-time celebration — triggered immediately when the last task is completed
   const celebrationVisible = useCelebrationStore((s) => s.shouldShowCelebration)
@@ -127,6 +130,7 @@ function RootLayoutContent() {
     !tutorialActive &&
     !eveningAppOpenLoading &&
     !loading &&
+    hasAppAccess &&
     !showCelebration
 
   // Debug: log rollover/celebration state on every change (DEV only)
@@ -141,6 +145,8 @@ function RootLayoutContent() {
         eveningAppOpenLoading,
         eveningIsBeforeReminderTime,
         eveningShouldPromptPlanning,
+        subscriptionLoading,
+        subscriptionStatus,
       })
     }
   }, [
@@ -152,6 +158,8 @@ function RootLayoutContent() {
     eveningAppOpenLoading,
     eveningIsBeforeReminderTime,
     eveningShouldPromptPlanning,
+    subscriptionLoading,
+    subscriptionStatus,
   ])
 
   // Evening "Plan Tomorrow" redirect — when time checks pass but there are no tasks to roll over,
@@ -170,6 +178,7 @@ function RootLayoutContent() {
       eveningShouldPromptPlanning &&
       !tutorialActive &&
       !loading &&
+      hasAppAccess &&
       !showCelebration &&
       !planningRedirectFiredRef.current
     ) {
@@ -187,7 +196,16 @@ function RootLayoutContent() {
         }
       })()
     }
-  }, [eveningShouldPromptPlanning, tutorialActive, loading, showCelebration, eveningIsBeforeReminderTime, markEveningAppOpenPrompted, router])
+  }, [
+    eveningShouldPromptPlanning,
+    tutorialActive,
+    loading,
+    hasAppAccess,
+    showCelebration,
+    eveningIsBeforeReminderTime,
+    markEveningAppOpenPrompted,
+    router,
+  ])
 
   // Track when celebration modal is shown
   React.useEffect(() => {
@@ -319,9 +337,21 @@ function RootLayoutContent() {
         visible={showEveningAppOpenRollover}
         mitTask={eveningAppOpenMitTask}
         otherTasks={eveningAppOpenOtherTasks}
-        title={eveningIsBeforeReminderTime ? copy.planning.rolloverYesterdayTitle : copy.planning.rolloverTodayTitle}
-        subtitle={eveningIsBeforeReminderTime ? copy.planning.rolloverYesterdaySubtitle : copy.planning.rolloverTodaySubtitle}
-        mitToggleLabel={eveningIsBeforeReminderTime ? copy.planning.rolloverMitToday : copy.planning.rolloverMitTomorrow}
+        title={
+          eveningIsBeforeReminderTime
+            ? copy.planning.rolloverYesterdayTitle
+            : copy.planning.rolloverTodayTitle
+        }
+        subtitle={
+          eveningIsBeforeReminderTime
+            ? copy.planning.rolloverYesterdaySubtitle
+            : copy.planning.rolloverTodaySubtitle
+        }
+        mitToggleLabel={
+          eveningIsBeforeReminderTime
+            ? copy.planning.rolloverMitToday
+            : copy.planning.rolloverMitTomorrow
+        }
         onCarryForward={handleEveningAppOpenCarryForward}
         onStartFresh={handleEveningAppOpenStartFresh}
       />
