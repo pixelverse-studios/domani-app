@@ -21,10 +21,7 @@ import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { addBreadcrumb } from '~/lib/sentry'
 import { getOfferings, OFFERINGS, setRevenueCatPromoRedemptionAttributes } from '~/lib/revenuecat'
 import { findPromoPackage } from '~/lib/promoPackages'
-import {
-  buildPromoAnalyticsProps,
-  recordPromoRedemptionAttemptEvent,
-} from '~/lib/promoAnalytics'
+import { buildPromoAnalyticsProps, recordPromoRedemptionAttemptEvent } from '~/lib/promoAnalytics'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import {
   normalizePromoCodeInput,
@@ -131,6 +128,15 @@ export default function RedeemCodeScreen() {
           percent: validOffer.display.discountPercent,
         })
       : null
+  const primaryCtaLabel = isConfirmed
+    ? t('subscription.redeemCode.done')
+    : validOffer?.display.paymentRequired
+      ? priceString
+        ? t('subscription.redeemCode.redeemDiscountedAccessWithPrice', {
+            price: priceString,
+          })
+        : t('subscription.redeemCode.redeemDiscountedAccess')
+      : t('subscription.redeemCode.redeemFreeAccess')
 
   const offerContext = useMemo(
     () =>
@@ -722,30 +728,30 @@ export default function RedeemCodeScreen() {
               onPress={isConfirmed ? handleBack : handleApplyOffer}
               disabled={isApplyingOffer || isSyncing}
               activeOpacity={0.85}
-              className="rounded-full py-4 mt-6 flex-row justify-center items-center"
+              className="rounded-full px-5 mt-6 flex-row justify-center items-center"
               style={{
                 backgroundColor: theme.colors.brand.primary,
+                minHeight: 56,
                 opacity: isApplyingOffer || isSyncing ? 0.55 : 1,
               }}
               accessibilityRole="button"
+              accessibilityLabel={primaryCtaLabel}
             >
               {isApplyingOffer || isSyncing ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <>
-                  {!isConfirmed && <Crown size={18} color="#FFFFFF" />}
-                  <Text className="text-white font-sans-bold ml-2">
-                    {isConfirmed
-                      ? t('subscription.redeemCode.done')
-                      : validOffer.display.paymentRequired
-                        ? priceString
-                          ? t('subscription.redeemCode.redeemDiscountedAccessWithPrice', {
-                              price: priceString,
-                            })
-                          : t('subscription.redeemCode.redeemDiscountedAccess')
-                        : t('subscription.redeemCode.redeemFreeAccess')}
+                <View className="flex-row justify-center items-center max-w-full">
+                  {!isConfirmed && <Crown size={18} color="#FFFFFF" style={{ flexShrink: 0 }} />}
+                  <Text
+                    className="text-white font-sans-bold ml-2 flex-shrink text-center"
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.82}
+                    style={{ lineHeight: 22 }}
+                  >
+                    {primaryCtaLabel}
                   </Text>
-                </>
+                </View>
               )}
             </TouchableOpacity>
 
