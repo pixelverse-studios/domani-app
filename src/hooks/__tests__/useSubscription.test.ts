@@ -34,6 +34,7 @@ import {
   loginRevenueCat,
   presentCodeRedemptionSheet,
   purchasePackage,
+  restorePurchases,
   setRevenueCatPromoRedemptionAttributes,
   syncPurchasesAndRefreshCustomerInfo,
   syncRevenueCatSubscriberAttributes,
@@ -57,6 +58,7 @@ const mockInitializeRevenueCat = initializeRevenueCat as jest.Mock
 const mockLoginRevenueCat = loginRevenueCat as jest.Mock
 const mockPresentCodeRedemptionSheet = presentCodeRedemptionSheet as jest.Mock
 const mockPurchasePackage = purchasePackage as jest.Mock
+const mockRestorePurchases = restorePurchases as jest.Mock
 const mockSetRevenueCatPromoRedemptionAttributes =
   setRevenueCatPromoRedemptionAttributes as jest.Mock
 const mockSyncPurchasesAndRefreshCustomerInfo = syncPurchasesAndRefreshCustomerInfo as jest.Mock
@@ -155,6 +157,7 @@ function setupSubscriptionHookMocks() {
   mockLoginRevenueCat.mockResolvedValue(undefined)
   mockPresentCodeRedemptionSheet.mockResolvedValue(true)
   mockPurchasePackage.mockResolvedValue(null)
+  mockRestorePurchases.mockResolvedValue(null)
   mockSetRevenueCatPromoRedemptionAttributes.mockResolvedValue(undefined)
   mockSyncRevenueCatSubscriberAttributes.mockResolvedValue(undefined)
   mockSupabaseFrom.mockImplementation(() => createSupabaseQueryMock())
@@ -368,6 +371,92 @@ describe('purchase access sync', () => {
     })
     expect(result.current.accessSyncPhase).toBe('verification_failed')
     expect(mockSyncPurchasesAndRefreshCustomerInfo).not.toHaveBeenCalled()
+
+    unmount()
+  })
+
+  it('blocks manual sync of promo-gated lifetime product without a validated attempt', async () => {
+    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(
+      buildCustomerInfo({
+        'test-entitlement': {
+          periodType: 'NORMAL',
+          productIdentifier: 'domani_lifetime_friends',
+          originalPurchaseDate: '2026-06-02T23:52:24.253Z',
+          latestPurchaseDate: '2026-06-02T23:52:24.253Z',
+          expirationDate: null,
+        },
+      }),
+    )
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    let syncResult: unknown
+    await act(async () => {
+      syncResult = await result.current.syncAccess({ source: 'manual', forceStoreSync: true })
+    })
+
+    expect(syncResult).toMatchObject({
+      status: 'supabase_sync_failed',
+      source: 'manual',
+      hasEntitlement: true,
+      profileSynced: false,
+      recoverable: true,
+    })
+    expect(result.current.accessSyncPhase).toBe('verification_failed')
+    expect(
+      mockSupabaseFrom.mock.results.some((result) => {
+        const query = result.value as SupabaseQueryMock
+        return query.update.mock.calls.some(([values]) => {
+          const update = values as Record<string, unknown>
+          return update.tier === 'lifetime'
+        })
+      }),
+    ).toBe(false)
+
+    unmount()
+  })
+
+  it('blocks restore of promo-gated lifetime product without a validated attempt', async () => {
+    mockRestorePurchases.mockResolvedValue(
+      buildCustomerInfo({
+        'test-entitlement': {
+          periodType: 'NORMAL',
+          productIdentifier: 'domani_lifetime_friends',
+          originalPurchaseDate: '2026-06-02T23:52:24.253Z',
+          latestPurchaseDate: '2026-06-02T23:52:24.253Z',
+          expirationDate: null,
+        },
+      }),
+    )
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    let restoreResult: unknown
+    await act(async () => {
+      restoreResult = await result.current.restore()
+    })
+
+    expect(restoreResult).toBeNull()
+    expect(result.current.accessSyncResult).toMatchObject({
+      status: 'supabase_sync_failed',
+      source: 'restore',
+      hasEntitlement: true,
+      profileSynced: false,
+    })
+    expect(result.current.accessSyncPhase).toBe('verification_failed')
+    expect(
+      mockSupabaseFrom.mock.results.some((result) => {
+        const query = result.value as SupabaseQueryMock
+        return query.update.mock.calls.some(([values]) => {
+          const update = values as Record<string, unknown>
+          return update.tier === 'lifetime'
+        })
+      }),
+    ).toBe(false)
 
     unmount()
   })
