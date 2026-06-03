@@ -324,6 +324,57 @@ describe('purchase access sync', () => {
     unmount()
   })
 
+  it('uses the latest lifetime purchase date when syncing RevenueCat access', async () => {
+    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(
+      buildCustomerInfo({
+        'test-entitlement': {
+          periodType: 'NORMAL',
+          productIdentifier: 'domani_lifetime_friends',
+          originalPurchaseDate: '2026-05-06T16:00:01.000Z',
+          latestPurchaseDate: '2026-06-02T23:52:24.253Z',
+          expirationDate: null,
+        },
+      }),
+    )
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    await act(async () => {
+      await result.current.syncAccess({
+        source: 'promo_redemption',
+        forceStoreSync: true,
+        attemptContext: {
+          promoCode: 'LY49',
+          campaignId: 'campaign-1',
+          campaignSlug: 'launch',
+          campaignType: 'fixed_price_lifetime',
+          codeId: 'code-1',
+          redemptionAttemptId: 'attempt-1',
+          discountKind: 'fixed_price',
+          promoOutcome: 'discounted',
+          priceString: '$4.99',
+        },
+      })
+    })
+
+    expect(
+      mockSupabaseFrom.mock.results.some((result) => {
+        const query = result.value as SupabaseQueryMock
+        return query.update.mock.calls.some(([values]) => {
+          const update = values as Record<string, unknown>
+          return (
+            update.tier === 'lifetime' &&
+            update.purchased_at === '2026-06-02T23:52:24.253Z'
+          )
+        })
+      }),
+    ).toBe(true)
+
+    unmount()
+  })
+
   it('moves to verification failed when RevenueCat does not return the lifetime entitlement', async () => {
     mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildCustomerInfo({}))
 
