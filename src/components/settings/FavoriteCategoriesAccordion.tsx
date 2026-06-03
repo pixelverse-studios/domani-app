@@ -42,7 +42,13 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const MAX_FAVORITES = 4
 
-export function FavoriteCategoriesAccordion() {
+interface FavoriteCategoriesAccordionProps {
+  disabled?: boolean
+}
+
+export function FavoriteCategoriesAccordion({
+  disabled = false,
+}: FavoriteCategoriesAccordionProps) {
   const theme = useAppTheme()
   const { locale, t } = useTranslation()
   const copy = getMainScreenCopy(locale)
@@ -105,6 +111,7 @@ export function FavoriteCategoriesAccordion() {
   const canSelectMore = selectedCount < MAX_FAVORITES
 
   const handleToggleExpand = useCallback(() => {
+    if (disabled) return
     if (autoSort) return // Don't expand if managed by smart
 
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
@@ -113,7 +120,7 @@ export function FavoriteCategoriesAccordion() {
       duration: 200,
       easing: Easing.ease,
     })
-  }, [autoSort, isExpanded, rotation])
+  }, [autoSort, disabled, isExpanded, rotation])
 
   const handleToggleCategory = useCallback(
     async (categoryId: string) => {
@@ -174,13 +181,13 @@ export function FavoriteCategoriesAccordion() {
   // Render a non-draggable category row (for "other" categories)
   const renderCategoryRow = (category: UnifiedCategory, isLast: boolean = false) => {
     const isSelected = selectedIds.has(category.id)
-    const canSelect = isSelected || canSelectMore
+    const canSelect = !disabled && (isSelected || canSelectMore)
 
     return (
       <TouchableOpacity
         key={category.id}
         onPress={() => canSelect && handleToggleCategory(category.id)}
-        disabled={!canSelect && !isSelected}
+        disabled={disabled || (!canSelect && !isSelected)}
         activeOpacity={0.7}
         style={[
           styles.categoryRow,
@@ -225,12 +232,16 @@ export function FavoriteCategoriesAccordion() {
         <ScaleDecorator activeScale={1.02}>
           <TouchableOpacity
             onLongPress={() => {
+              if (disabled) return
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {
                 // Haptics not available (e.g., in Expo Go)
               })
               drag()
             }}
-            onPress={() => handleToggleCategory(item.id)}
+            onPress={() => {
+              if (!disabled) handleToggleCategory(item.id)
+            }}
+            disabled={disabled}
             delayLongPress={150}
             activeOpacity={0.7}
             style={[
@@ -278,6 +289,7 @@ export function FavoriteCategoriesAccordion() {
       favoriteCategories.length,
       handleToggleCategory,
       dividerColor,
+      disabled,
       brandColor,
       iconColor,
       selectedHeartColor,
@@ -287,12 +299,17 @@ export function FavoriteCategoriesAccordion() {
   )
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.card }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: theme.colors.card, opacity: disabled ? 0.5 : 1 },
+      ]}
+    >
       {/* Header Row - Always Visible */}
       <TouchableOpacity
         onPress={handleToggleExpand}
-        disabled={autoSort}
-        activeOpacity={autoSort ? 1 : 0.7}
+        disabled={autoSort || disabled}
+        activeOpacity={autoSort || disabled ? 1 : 0.7}
         style={styles.headerRow}
       >
         <View style={styles.headerLeft}>
