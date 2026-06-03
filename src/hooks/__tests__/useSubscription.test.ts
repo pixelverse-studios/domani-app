@@ -301,6 +301,36 @@ describe('purchase access sync', () => {
     unmount()
   })
 
+  it('uses general pricing for friends-family cohort users outside promo redemption', async () => {
+    mockGetOfferingForCohort.mockReturnValue('general')
+    mockUseProfile.mockReturnValue({
+      isLoading: false,
+      profile: {
+        id: 'user-1',
+        tier: 'none',
+        purchased_at: null,
+        refunded_at: null,
+        trial_started_at: null,
+        trial_ends_at: null,
+        created_at: '2026-05-20T12:00:00.000Z',
+        email: 'test@example.com',
+        expo_push_token: null,
+        full_name: 'Test User',
+        signup_cohort: 'friends_family',
+        signup_method: null,
+      },
+    })
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(mockGetOfferingForCohort).toHaveBeenCalledWith('friends_family')
+    expect(result.current.offeringIdentifier).toBe('general')
+
+    unmount()
+  })
+
   it('confirms access when RevenueCat entitlement and Supabase sync both succeed', async () => {
     mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())
 
