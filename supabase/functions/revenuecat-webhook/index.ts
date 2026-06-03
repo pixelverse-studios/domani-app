@@ -149,6 +149,14 @@ function getEventTimestampIso(
   return timestamp ? new Date(timestamp).toISOString() : new Date().toISOString()
 }
 
+function getLifetimeGrantPurchasedAtIso(event: RevenueCatWebhookEvent, isPromoGatedGrant: boolean) {
+  if (isPromoGatedGrant) {
+    return getEventTimestampIso(event, 'event_timestamp_ms')
+  }
+
+  return getEventTimestampIso(event, 'purchased_at_ms')
+}
+
 function getSubscriberAttributeValue(event: RevenueCatWebhookEvent, key: string) {
   const subscriberAttributes =
     event.subscriber_attributes && typeof event.subscriber_attributes === 'object'
@@ -499,7 +507,7 @@ async function grantLifetimeAccess(
     .from('profiles')
     .update({
       tier: 'lifetime',
-      purchased_at: getEventTimestampIso(event, 'purchased_at_ms'),
+      purchased_at: getLifetimeGrantPurchasedAtIso(event, isPromoGatedGrant),
       refunded_at: null,
       trial_ends_at: null,
     })

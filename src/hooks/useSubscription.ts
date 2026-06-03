@@ -1672,8 +1672,8 @@ async function syncSubscriptionToSupabase(
 
     const tier: 'trialing' | 'lifetime' = isTrialing ? 'trialing' : 'lifetime'
     const purchasedAt = !isTrialing
-      ? entitlement.originalPurchaseDate ||
-        entitlement.latestPurchaseDate ||
+      ? entitlement.latestPurchaseDate ||
+        entitlement.originalPurchaseDate ||
         new Date().toISOString()
       : null
     const trialEndsAt = isTrialing ? entitlement.expirationDate : null
