@@ -14,6 +14,7 @@ interface CategoriesSectionProps {
   isLoading: boolean
   autoSortCategories: boolean
   onToggleSmartCategories: (value: boolean) => void
+  disabled?: boolean
 }
 
 /**
@@ -23,6 +24,7 @@ export function CategoriesSection({
   isLoading,
   autoSortCategories,
   onToggleSmartCategories,
+  disabled = false,
 }: CategoriesSectionProps) {
   const theme = useAppTheme()
   const { locale } = useTranslation()
@@ -30,11 +32,9 @@ export function CategoriesSection({
   const brandColor = theme.colors.brand.primary
 
   const showSmartCategoriesInfo = () => {
-    Alert.alert(
-      copy.settings.smartCategoriesTitle,
-      copy.settings.smartCategoriesBody,
-      [{ text: copy.settings.gotIt }],
-    )
+    Alert.alert(copy.settings.smartCategoriesTitle, copy.settings.smartCategoriesBody, [
+      { text: copy.settings.gotIt },
+    ])
   }
 
   return (
@@ -47,7 +47,7 @@ export function CategoriesSection({
           {/* Smart Categories Toggle */}
           <View
             className="rounded-xl px-4 py-3 mb-2 flex-row items-center justify-between"
-            style={{ backgroundColor: theme.colors.card }}
+            style={{ backgroundColor: theme.colors.card, opacity: disabled ? 0.5 : 1 }}
           >
             <View className="flex-row items-center">
               <Sparkles
@@ -69,6 +69,7 @@ export function CategoriesSection({
             <Switch
               value={autoSortCategories}
               onValueChange={onToggleSmartCategories}
+              disabled={disabled}
               trackColor={{
                 false: theme.colors.border.primary,
                 true: brandColor,
@@ -79,7 +80,7 @@ export function CategoriesSection({
           </View>
 
           {/* Favorite Categories Accordion */}
-          <FavoriteCategoriesAccordion />
+          <FavoriteCategoriesAccordion disabled={disabled} />
         </View>
       )}
     </View>

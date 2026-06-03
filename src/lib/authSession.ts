@@ -10,6 +10,31 @@ export type AuthSessionGetter = () => Promise<{
   error?: unknown
 }>
 
+export interface PendingPromiseRef<T> {
+  current: Promise<T> | null
+}
+
+export const runSingleFlight = async <T>(
+  pendingRef: PendingPromiseRef<T>,
+  operation: () => Promise<T>,
+): Promise<T> => {
+  const pending = pendingRef.current
+  if (pending) {
+    return pending
+  }
+
+  const promise = Promise.resolve().then(operation)
+  pendingRef.current = promise
+
+  try {
+    return await promise
+  } finally {
+    if (pendingRef.current === promise) {
+      pendingRef.current = null
+    }
+  }
+}
+
 const getFirstParamValue = (value: string | string[] | undefined): string | null => {
   if (Array.isArray(value)) {
     return value[0] ?? null

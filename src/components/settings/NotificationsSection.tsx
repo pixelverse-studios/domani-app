@@ -21,6 +21,7 @@ interface NotificationsSectionProps {
   onEditPlanningTime: () => void
   onTogglePlanningReminder: (enabled: boolean) => void
   onOpenSettings: () => void
+  disabled?: boolean
 }
 
 /**
@@ -35,6 +36,7 @@ export function NotificationsSection({
   onEditPlanningTime,
   onTogglePlanningReminder,
   onOpenSettings,
+  disabled = false,
 }: NotificationsSectionProps) {
   const theme = useAppTheme()
   const { locale } = useTranslation()
@@ -59,7 +61,7 @@ export function NotificationsSection({
           {/* Planning Reminder Notification Toggle */}
           <View
             className="flex-row items-center justify-between py-3.5 px-4 rounded-xl mb-2"
-            style={{ backgroundColor: theme.colors.card }}
+            style={{ backgroundColor: theme.colors.card, opacity: disabled ? 0.5 : 1 }}
           >
             <View className="flex-row items-center flex-1">
               <View className="mr-3">
@@ -72,7 +74,7 @@ export function NotificationsSection({
             <Switch
               value={planningReminderEnabled}
               onValueChange={onTogglePlanningReminder}
-              disabled={isUpdating}
+              disabled={isUpdating || disabled}
               trackColor={{
                 false: theme.colors.border.primary,
                 true: theme.colors.brand.primary,
@@ -90,15 +92,16 @@ export function NotificationsSection({
               value={formatTimeDisplay(planningReminderTime)}
               onPress={isUpdating ? undefined : onEditPlanningTime}
               icon={ClipboardClock}
+              disabled={disabled}
             />
           ) : (
             // Variant B — notifications OFF: explains that the time still drives the in-app prompt
             <TouchableOpacity
               onPress={onEditPlanningTime}
               activeOpacity={0.7}
-              disabled={isUpdating}
+              disabled={isUpdating || disabled}
               className="flex-row items-center justify-between py-3.5 px-4 rounded-xl mb-2"
-              style={{ backgroundColor: theme.colors.card }}
+              style={{ backgroundColor: theme.colors.card, opacity: disabled ? 0.5 : 1 }}
             >
               <View className="flex-row items-center flex-1">
                 <View className="mr-3">
@@ -127,7 +130,9 @@ export function NotificationsSection({
             <TouchableOpacity
               onPress={onOpenSettings}
               activeOpacity={0.7}
+              disabled={disabled}
               className="flex-row items-center justify-between py-3.5 px-4 bg-amber-50 rounded-xl mb-2 border border-amber-200"
+              style={{ opacity: disabled ? 0.5 : 1 }}
             >
               <View className="flex-row items-center flex-1">
                 <View className="mr-3">
@@ -146,7 +151,11 @@ export function NotificationsSection({
             </TouchableOpacity>
           )}
 
-          <View className="mt-2">
+          <View
+            className="mt-2"
+            pointerEvents={disabled ? 'none' : 'auto'}
+            style={{ opacity: disabled ? 0.5 : 1 }}
+          >
             <ReminderShortcutsSection />
           </View>
         </View>

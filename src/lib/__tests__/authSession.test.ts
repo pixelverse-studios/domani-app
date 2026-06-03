@@ -1,10 +1,56 @@
 import {
   parseOAuthTokensFromParams,
   parseOAuthTokensFromUrl,
+  runSingleFlight,
   waitForAuthSession,
 } from '../authSession'
 
 describe('authSession', () => {
+  describe('runSingleFlight', () => {
+    it('reuses a pending operation instead of starting another one', async () => {
+      let resolveOperation: (value: string) => void = () => {}
+      const ref = { current: null as Promise<string> | null }
+      const operation = jest.fn(
+        () =>
+          new Promise<string>((resolve) => {
+            resolveOperation = resolve
+          }),
+      )
+
+      const first = runSingleFlight(ref, operation)
+      const second = runSingleFlight(ref, operation)
+      await Promise.resolve()
+
+      expect(operation).toHaveBeenCalledTimes(1)
+
+      resolveOperation('done')
+
+      await expect(first).resolves.toBe('done')
+      await expect(second).resolves.toBe('done')
+      expect(ref.current).toBeNull()
+    })
+
+    it('clears the pending operation after rejection', async () => {
+      const ref = { current: null as Promise<string> | null }
+      const operation = jest.fn().mockRejectedValueOnce(new Error('failed'))
+
+      await expect(runSingleFlight(ref, operation)).rejects.toThrow('failed')
+
+      expect(ref.current).toBeNull()
+    })
+
+    it('normalizes synchronous operation failures into rejected promises', async () => {
+      const ref = { current: null as Promise<string> | null }
+      const operation = jest.fn(() => {
+        throw new Error('failed synchronously')
+      })
+
+      await expect(runSingleFlight(ref, operation)).rejects.toThrow('failed synchronously')
+
+      expect(ref.current).toBeNull()
+    })
+  })
+
   describe('parseOAuthTokensFromUrl', () => {
     it('parses OAuth tokens from URL fragments', () => {
       expect(

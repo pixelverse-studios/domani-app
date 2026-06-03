@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState } from 'react'
+import React, { createContext, useEffect, useRef, useState } from 'react'
 import { Alert, Platform, NativeModules } from 'react-native'
 import { Session, User } from '@supabase/supabase-js'
 import * as WebBrowser from 'expo-web-browser'
@@ -8,7 +8,7 @@ import * as AppleAuthentication from 'expo-apple-authentication'
 import { supabase, sendAccountEmail } from '~/lib/supabase'
 import { sendTeamNotification } from '~/lib/teamNotifications'
 import { captureException, addBreadcrumb } from '~/lib/sentry'
-import { parseOAuthTokensFromUrl, waitForAuthSession } from '~/lib/authSession'
+import { parseOAuthTokensFromUrl, runSingleFlight, waitForAuthSession } from '~/lib/authSession'
 import { useTranslation } from '~/hooks/useTranslation'
 import { formatLocalizedDate } from '~/i18n/date'
 import type { AppLocale } from '~/i18n'
@@ -307,6 +307,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [accountReactivated, setAccountReactivated] = useState(false)
+  const googleSignInPromiseRef = useRef<Promise<void> | null>(null)
 
   // Configure OAuth redirect for mobile app
   // Uses the native scheme defined in app.json: domani://
@@ -411,15 +412,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe()
   }, [locale, t])
 
-  const signInWithGoogle = async () => {
-    try {
+  const signInWithGoogle = () =>
+    runSingleFlight(googleSignInPromiseRef, async () => {
       console.log('[AuthProvider] Starting Google Sign In...')
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo,
-          skipBrowserRedirect: false,
+          skipBrowserRedirect: true,
           queryParams: {
             prompt: 'select_account',
           },
@@ -480,11 +481,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         throw new Error('Google sign in could not start.')
       }
-    } catch (error) {
+    }).catch((error) => {
       console.error('[AuthProvider] Google sign in error:', error)
       throw error
-    }
-  }
+    })
 
   const signInWithApple = async () => {
     if (Platform.OS !== 'ios') {
