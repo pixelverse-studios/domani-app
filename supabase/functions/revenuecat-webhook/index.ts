@@ -1,6 +1,9 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { sendRevenueSlackAlert } from './revenueSlack.ts'
+import {
+  sendRevenueSlackAlert as sendRevenueSlackAlertBase,
+  type RevenueSlackAlertInput,
+} from './revenueSlack.ts'
 
 /**
  * RevenueCat webhook handler.
@@ -102,6 +105,12 @@ interface ProfileAccessSnapshot {
   trial_ends_at: string | null
 }
 
+interface RevenueSlackProfile {
+  id: string
+  email: string | null
+  full_name: string | null
+}
+
 const REVENUECAT_WEBHOOK_SECRET = Deno.env.get('REVENUECAT_WEBHOOK_SECRET')
 const LIFETIME_PRODUCT_IDS = new Set([
   'domani_lifetime',
@@ -138,6 +147,7 @@ function getEventLogContext(event: RevenueCatWebhookEvent) {
         : typeof event.currency_code === 'string'
           ? event.currency_code
           : null,
+    promoCode: getSubscriberAttributeValue(event, 'promo_code'),
   }
 }
 
@@ -412,6 +422,45 @@ async function resolveProfileUserId(
   return null
 }
 
+async function getRevenueSlackUser(
+  supabase: ReturnType<typeof createClient>,
+  userId: string | null | undefined,
+) {
+  if (!userId) return null
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id,email,full_name')
+    .eq('id', userId)
+    .maybeSingle<RevenueSlackProfile>()
+
+  if (error) {
+    console.warn('[revenuecat-webhook] failed to load Slack user context:', {
+      userId,
+      error,
+    })
+    return { id: userId }
+  }
+
+  return data
+    ? {
+        id: data.id,
+        email: data.email,
+        name: data.full_name,
+      }
+    : { id: userId }
+}
+
+async function sendRevenueSlackAlert(
+  supabase: ReturnType<typeof createClient>,
+  input: RevenueSlackAlertInput,
+) {
+  await sendRevenueSlackAlertBase({
+    ...input,
+    user: input.user ?? (await getRevenueSlackUser(supabase, input.userId)),
+  })
+}
+
 async function grantLifetimeAccess(
   supabase: ReturnType<typeof createClient>,
   event: RevenueCatWebhookEvent,
@@ -422,13 +471,16 @@ async function grantLifetimeAccess(
   const promoContext = getPromoRedemptionContext(event)
 
   if (requiresPromoConfirmation && !promoContext) {
+    const missingPromoContextUserId = await resolveProfileUserId(supabase, event)
     console.error('[revenuecat-webhook] promo-gated lifetime grant missing promo context:', {
       ...getEventLogContext(event),
+      userId: missingPromoContextUserId,
     })
     await finalizeWebhookEvent(supabase, event, 'ignored_missing_promo_context')
-    await sendRevenueSlackAlert({
+    await sendRevenueSlackAlert(supabase, {
       alertType: 'processing_failed',
       eventContext: getEventLogContext(event),
+      userId: missingPromoContextUserId,
       errorMessage: 'Promo-gated lifetime grant missing promo redemption context',
     })
     return jsonResponse({ received: true, ignored: 'missing_promo_context' })
@@ -442,7 +494,7 @@ async function grantLifetimeAccess(
       candidateUserIds: getCandidateUserIds(event),
     })
     await finalizeWebhookEvent(supabase, event, 'ignored_user_not_found')
-    await sendRevenueSlackAlert({
+    await sendRevenueSlackAlert(supabase, {
       alertType: 'user_not_found',
       eventContext: getEventLogContext(event),
       processedAction: 'ignored_user_not_found',
@@ -477,7 +529,7 @@ async function grantLifetimeAccess(
         productId,
       })
       await finalizeWebhookEvent(supabase, event, 'ignored_missing_promo_confirmation')
-      await sendRevenueSlackAlert({
+      await sendRevenueSlackAlert(supabase, {
         alertType: 'processing_failed',
         eventContext: getEventLogContext(event),
         processedAction: 'ignored_missing_promo_confirmation',
@@ -563,7 +615,7 @@ async function grantLifetimeAccess(
 
   await finalizeWebhookEvent(supabase, event, processedAction)
 
-  await sendRevenueSlackAlert({
+  await sendRevenueSlackAlert(supabase, {
     alertType: processedAction === 'restored_refund' ? 'refund_restored' : 'purchase_granted',
     eventContext: getEventLogContext(event),
     processedAction,
@@ -692,7 +744,7 @@ async function revokeLifetimeAccess(
       candidateUserIds: getCandidateUserIds(event),
     })
     await finalizeWebhookEvent(supabase, event, 'ignored_user_not_found')
-    await sendRevenueSlackAlert({
+    await sendRevenueSlackAlert(supabase, {
       alertType: 'user_not_found',
       eventContext: getEventLogContext(event),
       processedAction: 'ignored_user_not_found',
@@ -724,7 +776,7 @@ async function revokeLifetimeAccess(
 
   await finalizeWebhookEvent(supabase, event, processedAction)
 
-  await sendRevenueSlackAlert({
+  await sendRevenueSlackAlert(supabase, {
     alertType: 'refund_revoked',
     eventContext: getEventLogContext(event),
     processedAction,
@@ -887,7 +939,7 @@ Deno.serve(async (req) => {
       await releaseWebhookClaim(supabase, event)
     }
     console.error('[revenuecat-webhook] handler error:', err)
-    await sendRevenueSlackAlert({
+    await sendRevenueSlackAlert(supabase, {
       alertType: 'processing_failed',
       eventContext: getEventLogContext(event),
       errorMessage: err instanceof Error ? err.message : String(err),
