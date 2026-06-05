@@ -2,6 +2,7 @@ import React from 'react'
 import { useQuery } from '@tanstack/react-query'
 
 import { Text } from '~/components/ui/Text'
+import { useAuth } from '~/hooks/useAuth'
 import { useLocalization } from '~/providers/LocalizationProvider'
 import {
   buildProfile,
@@ -34,6 +35,14 @@ describe('test utilities', () => {
     )
 
     expect(result.current.failureCount).toBe(0)
+  })
+
+  it('passes auth user overrides into hook wrappers', () => {
+    const { result } = renderHookWithProviders(() => useAuth(), {
+      user: null,
+    })
+
+    expect(result.current.user).toBeNull()
   })
 
   it('builds common model factories with useful defaults', () => {

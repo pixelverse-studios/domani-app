@@ -7,13 +7,16 @@ import {
   type RenderResult,
 } from '@testing-library/react-native'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { User } from '@supabase/supabase-js'
 
+import { AuthContext } from '~/providers/AuthProvider'
 import { AnalyticsProvider } from '~/providers/AnalyticsProvider'
 import { LocalizationProvider } from '~/providers/LocalizationProvider'
 import { ThemeProvider } from '~/providers/ThemeProvider'
 
 type TestProviderOptions = {
   queryClient?: QueryClient
+  user?: User | null
 }
 
 type CustomRenderOptions = RenderOptions & TestProviderOptions
@@ -35,13 +38,29 @@ export function createTestQueryClient() {
 
 export function createTestWrapper(options: TestProviderOptions = {}) {
   const queryClient = options.queryClient ?? createTestQueryClient()
+  const user =
+    options.user === undefined
+      ? ({ id: 'user-1', email: 'test@example.com' } as User)
+      : options.user
+  const authValue = {
+    session: null,
+    user,
+    loading: false,
+    signInWithGoogle: jest.fn(),
+    signInWithApple: jest.fn(),
+    signOut: jest.fn(),
+    accountReactivated: false,
+    clearAccountReactivated: jest.fn(),
+  }
 
   return function TestWrapper({ children }: { children: React.ReactNode }) {
     return (
       <LocalizationProvider>
         <ThemeProvider>
           <AnalyticsProvider>
-            <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+            <AuthContext.Provider value={authValue}>
+              <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+            </AuthContext.Provider>
           </AnalyticsProvider>
         </ThemeProvider>
       </LocalizationProvider>
@@ -54,12 +73,12 @@ export function renderWithProviders(
   options: CustomRenderOptions = {},
 ): RenderResult & { queryClient: QueryClient } {
   const queryClient = options.queryClient ?? createTestQueryClient()
-  const { queryClient: _queryClient, ...renderOptions } = options
+  const { queryClient: _queryClient, user, ...renderOptions } = options
 
   return {
     queryClient,
     ...render(ui, {
-      wrapper: createTestWrapper({ queryClient }),
+      wrapper: createTestWrapper({ queryClient, user }),
       ...renderOptions,
     }),
   }
@@ -75,7 +94,7 @@ export function renderHookWithProviders<Result, Props>(
     queryClient,
     ...renderHook(callback, {
       initialProps: options.initialProps,
-      wrapper: createTestWrapper({ queryClient }),
+      wrapper: createTestWrapper({ queryClient, user: options.user }),
     }),
   }
 }

@@ -1328,6 +1328,17 @@ export type Database = {
         }
         Returns: Json
       }
+      confirm_current_user_promo_redemption: {
+        Args: {
+          p_campaign_id: string
+          p_code_id: string
+          p_redemption_attempt_id: string
+          p_revenuecat_app_user_id?: string | null
+          p_store_product_id?: string | null
+          p_store_transaction_id?: string | null
+        }
+        Returns: Json
+      }
       cleanup_expired_sessions: { Args: never; Returns: undefined }
       delete_expired_accounts: { Args: never; Returns: undefined }
       delete_user_by_email: { Args: { target_email: string }; Returns: string }

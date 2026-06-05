@@ -324,40 +324,39 @@ function SettingsContent() {
           onOpenPurchaseHelp={() => router.push('/purchase-help?source=settings')}
         />
 
-        {/* 3–6. Categories, Notifications, Preferences, Support — hidden for
-            gated states (expired/pre_trial) so locked/limbo users see only
-            the subscription CTA and account management. */}
-        {!isGated && (
-          <>
-            <CategoriesSection
-              isLoading={isLoading}
-              autoSortCategories={profile?.auto_sort_categories ?? false}
-              onToggleSmartCategories={handleSmartCategoriesToggle}
-            />
+        {/* 3–6. Categories, Notifications, Preferences, Support stay visible.
+            App-specific controls are disabled for gated states while account,
+            subscription, and support access remains available. */}
+        <CategoriesSection
+          isLoading={isLoading}
+          autoSortCategories={profile?.auto_sort_categories ?? false}
+          onToggleSmartCategories={handleSmartCategoriesToggle}
+          disabled={isGated}
+        />
 
-            <NotificationsSection
-              isLoading={isLoading}
-              planningReminderTime={profile?.planning_reminder_time || null}
-              planningReminderEnabled={profile?.planning_reminder_enabled ?? false}
-              permissionStatus={permissionStatus}
-              isUpdating={updateProfile.isPending}
-              onEditPlanningTime={openPlanningTimeModal}
-              onTogglePlanningReminder={handleTogglePlanningReminder}
-              onOpenSettings={openSettings}
-            />
+        <NotificationsSection
+          isLoading={isLoading}
+          planningReminderTime={profile?.planning_reminder_time || null}
+          planningReminderEnabled={profile?.planning_reminder_enabled ?? false}
+          permissionStatus={permissionStatus}
+          isUpdating={updateProfile.isPending}
+          onEditPlanningTime={openPlanningTimeModal}
+          onTogglePlanningReminder={handleTogglePlanningReminder}
+          onOpenSettings={openSettings}
+          disabled={isGated}
+        />
 
-            <PreferencesSection
-              isLoading={isLoading}
-              timezone={profile?.timezone || null}
-              onEditTimezone={() => setShowTimezoneModal(true)}
-              onEditLayout={() => setShowLayoutModal(true)}
-            />
+        <PreferencesSection
+          isLoading={isLoading}
+          timezone={profile?.timezone || null}
+          onEditTimezone={() => setShowTimezoneModal(true)}
+          onEditLayout={() => setShowLayoutModal(true)}
+          disabled={isGated}
+        />
 
-            <SupportSection onReplayTutorial={handleReplayTutorial} />
-          </>
-        )}
+        <SupportSection onReplayTutorial={handleReplayTutorial} disableTutorialReplay={isGated} />
 
-        {__DEV__ && (
+        {__DEV__ && !isGated && (
           <TouchableOpacity
             onPress={() => router.push('/notification-setup')}
             activeOpacity={0.7}

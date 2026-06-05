@@ -1,10 +1,11 @@
 import React from 'react'
 import { View, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native'
-import { Pencil, Trash2, Circle, CheckCircle, Crown, FileText } from 'lucide-react-native'
+import { Pencil, Trash2, Circle, CheckCircle, Crown } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
 import { getCategoryIcon } from '~/utils/categoryIcons'
 import { useTaskCardData, type TaskCardProps } from './shared'
+import { TaskNotesPreviewButton } from './TaskNotesModal'
 
 const CARD_GAP = 8
 const CARD_MARGIN = 20 // matches parent mx-5 (20px)
@@ -88,16 +89,11 @@ export function GridTaskCard({
 
         {/* Notes indicator */}
         {hasNotes && (
-          <View style={styles.notesRow}>
-            <FileText size={11} color={iconColor} />
-            <Text
-              className="font-sans text-xs text-content-tertiary ml-1"
-              numberOfLines={1}
-              style={{ flex: 1 }}
-            >
-              {task.notes}
-            </Text>
-          </View>
+          <TaskNotesPreviewButton
+            notes={task.notes ?? ''}
+            taskTitle={task.title}
+            iconColor={iconColor}
+          />
         )}
 
         <View style={{ flex: 1 }} />
@@ -193,10 +189,5 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  notesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
   },
 })

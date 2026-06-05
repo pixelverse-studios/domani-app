@@ -26,6 +26,10 @@ const ROLLOVER_PROMPTED_DATE_KEY = 'rollover_prompted_date'
  */
 const CELEBRATION_SHOWN_DATE_KEY = 'celebration_shown_date'
 
+function getUserScopedStorageKey(baseKey: string, userId?: string | null): string {
+  return userId ? `${baseKey}:${userId}` : baseKey
+}
+
 /**
  * Check if the user was already prompted for rollover today
  *
@@ -37,9 +41,11 @@ const CELEBRATION_SHOWN_DATE_KEY = 'celebration_shown_date'
  *   // Show rollover modal
  * }
  */
-export async function wasPromptedToday(): Promise<boolean> {
+export async function wasPromptedToday(userId?: string | null): Promise<boolean> {
   try {
-    const lastPrompted = await AsyncStorage.getItem(ROLLOVER_PROMPTED_DATE_KEY)
+    const lastPrompted = await AsyncStorage.getItem(
+      getUserScopedStorageKey(ROLLOVER_PROMPTED_DATE_KEY, userId),
+    )
     const today = format(new Date(), 'yyyy-MM-dd')
     return lastPrompted === today
   } catch (error) {
@@ -61,10 +67,10 @@ export async function wasPromptedToday(): Promise<boolean> {
  * // After showing rollover modal
  * await markPromptedToday()
  */
-export async function markPromptedToday(): Promise<void> {
+export async function markPromptedToday(userId?: string | null): Promise<void> {
   try {
     const today = format(new Date(), 'yyyy-MM-dd')
-    await AsyncStorage.setItem(ROLLOVER_PROMPTED_DATE_KEY, today)
+    await AsyncStorage.setItem(getUserScopedStorageKey(ROLLOVER_PROMPTED_DATE_KEY, userId), today)
   } catch (error) {
     console.error('Error marking rollover prompt:', error)
     // Fail silently - not critical if we can't save the state
@@ -79,9 +85,9 @@ export async function markPromptedToday(): Promise<void> {
  * @example
  * await clearPromptState()
  */
-export async function clearPromptState(): Promise<void> {
+export async function clearPromptState(userId?: string | null): Promise<void> {
   try {
-    await AsyncStorage.removeItem(ROLLOVER_PROMPTED_DATE_KEY)
+    await AsyncStorage.removeItem(getUserScopedStorageKey(ROLLOVER_PROMPTED_DATE_KEY, userId))
   } catch (error) {
     console.error('Error clearing rollover prompt state:', error)
   }
@@ -98,9 +104,11 @@ export async function clearPromptState(): Promise<void> {
  *   // Show celebration modal
  * }
  */
-export async function wasCelebratedToday(): Promise<boolean> {
+export async function wasCelebratedToday(userId?: string | null): Promise<boolean> {
   try {
-    const lastCelebrated = await AsyncStorage.getItem(CELEBRATION_SHOWN_DATE_KEY)
+    const lastCelebrated = await AsyncStorage.getItem(
+      getUserScopedStorageKey(CELEBRATION_SHOWN_DATE_KEY, userId),
+    )
     const today = format(new Date(), 'yyyy-MM-dd')
     return lastCelebrated === today
   } catch (error) {
@@ -122,10 +130,10 @@ export async function wasCelebratedToday(): Promise<boolean> {
  * // After showing celebration modal
  * await markCelebratedToday()
  */
-export async function markCelebratedToday(): Promise<void> {
+export async function markCelebratedToday(userId?: string | null): Promise<void> {
   try {
     const today = format(new Date(), 'yyyy-MM-dd')
-    await AsyncStorage.setItem(CELEBRATION_SHOWN_DATE_KEY, today)
+    await AsyncStorage.setItem(getUserScopedStorageKey(CELEBRATION_SHOWN_DATE_KEY, userId), today)
   } catch (error) {
     console.error('Error marking celebration:', error)
     // Fail silently - not critical if we can't save the state
@@ -140,9 +148,9 @@ export async function markCelebratedToday(): Promise<void> {
  * @example
  * await clearCelebrationState()
  */
-export async function clearCelebrationState(): Promise<void> {
+export async function clearCelebrationState(userId?: string | null): Promise<void> {
   try {
-    await AsyncStorage.removeItem(CELEBRATION_SHOWN_DATE_KEY)
+    await AsyncStorage.removeItem(getUserScopedStorageKey(CELEBRATION_SHOWN_DATE_KEY, userId))
   } catch (error) {
     console.error('Error clearing celebration state:', error)
   }
@@ -171,9 +179,12 @@ const EVENING_ROLLOVER_PROMPTED_DATE_KEY = 'evening_rollover_prompted_date'
  * Mark the user as having been shown the evening rollover prompt.
  * Stores a full ISO timestamp for cycle-aware comparisons.
  */
-export async function markEveningPromptedToday(): Promise<void> {
+export async function markEveningPromptedToday(userId?: string | null): Promise<void> {
   try {
-    await AsyncStorage.setItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY, new Date().toISOString())
+    await AsyncStorage.setItem(
+      getUserScopedStorageKey(EVENING_ROLLOVER_PROMPTED_DATE_KEY, userId),
+      new Date().toISOString(),
+    )
   } catch (error) {
     console.error('Error marking evening rollover prompt:', error)
   }
@@ -182,9 +193,11 @@ export async function markEveningPromptedToday(): Promise<void> {
 /**
  * Clear the evening rollover prompt state (for testing/debugging)
  */
-export async function clearEveningPromptState(): Promise<void> {
+export async function clearEveningPromptState(userId?: string | null): Promise<void> {
   try {
-    await AsyncStorage.removeItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
+    await AsyncStorage.removeItem(
+      getUserScopedStorageKey(EVENING_ROLLOVER_PROMPTED_DATE_KEY, userId),
+    )
   } catch (error) {
     console.error('Error clearing evening rollover prompt state:', error)
   }
@@ -202,8 +215,13 @@ export async function clearEveningPromptState(): Promise<void> {
  * @param planningReminderTime - Postgres time format "HH:mm:ss"
  * @returns Promise<boolean> - true if prompted in current cycle, false otherwise
  */
-export async function wasPromptedInCurrentCycle(planningReminderTime: string): Promise<boolean> {
-  const storedValue = await AsyncStorage.getItem(EVENING_ROLLOVER_PROMPTED_DATE_KEY)
+export async function wasPromptedInCurrentCycle(
+  planningReminderTime: string,
+  userId?: string | null,
+): Promise<boolean> {
+  const storedValue = await AsyncStorage.getItem(
+    getUserScopedStorageKey(EVENING_ROLLOVER_PROMPTED_DATE_KEY, userId),
+  )
   if (!storedValue) return false
 
   // Parse stored value — handle both old YYYY-MM-DD and new ISO timestamp

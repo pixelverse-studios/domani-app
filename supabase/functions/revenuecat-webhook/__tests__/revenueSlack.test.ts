@@ -17,6 +17,7 @@ const eventContext: RevenueCatEventContext = {
   transactionId: 'transaction-123',
   price: 99,
   currency: 'USD',
+  promoCode: 'GIFT01',
 }
 
 describe('RevenueCat Slack alerts', () => {
@@ -30,17 +31,31 @@ describe('RevenueCat Slack alerts', () => {
       eventContext,
       processedAction: 'granted_lifetime',
       userId: 'user-123',
+      user: {
+        id: 'user-123',
+        name: 'Sami Fares',
+        email: 'sami@example.com',
+      },
     })
 
     const serializedBlocks = JSON.stringify(message.blocks)
 
     expect(message.text).toBe('Lifetime purchase granted: INITIAL_PURCHASE')
     expect(serializedBlocks).toContain('Revenue: Lifetime Purchase Granted')
-    expect(serializedBlocks).toContain('granted_lifetime')
     expect(serializedBlocks).toContain('user-123')
+    expect(serializedBlocks).toContain('Sami Fares')
+    expect(serializedBlocks).toContain('sami@example.com')
     expect(serializedBlocks).toContain('domani_lifetime')
+    expect(serializedBlocks).toContain('iOS')
+    expect(serializedBlocks).toContain('GIFT01')
     expect(serializedBlocks).toContain('99')
     expect(serializedBlocks).toContain('USD')
+    expect(serializedBlocks).toContain('09/15/2026, 3:20:00 PM EDT')
+    expect(serializedBlocks).not.toContain('granted_lifetime')
+    expect(serializedBlocks).not.toContain('transaction-123')
+    expect(serializedBlocks).not.toContain('original-transaction-123')
+    expect(serializedBlocks).not.toContain('event-123')
+    expect(serializedBlocks).not.toContain('Domani Lifetime')
   })
 
   it('splits Slack section fields to stay within Slack block limits', () => {
@@ -55,7 +70,7 @@ describe('RevenueCat Slack alerts', () => {
       (block) => block.type === 'section' && Array.isArray(block.fields),
     )
 
-    expect(fieldSections).toHaveLength(2)
+    expect(fieldSections).toHaveLength(1)
     expect(fieldSections.every((block) => block.fields!.length <= 10)).toBe(true)
   })
 
@@ -74,7 +89,20 @@ describe('RevenueCat Slack alerts', () => {
 
     expect(message.text).toBe('Refund reversed and access restored: REFUND_REVERSED')
     expect(serializedBlocks).toContain('Revenue: Refund Reversed')
-    expect(serializedBlocks).toContain('restored_refund')
+    expect(serializedBlocks).not.toContain('restored_refund')
+  })
+
+  it('formats Play Store events as Android', () => {
+    const message = buildRevenueSlackMessage({
+      alertType: 'purchase_granted',
+      eventContext: {
+        ...eventContext,
+        store: 'PLAY_STORE',
+      },
+      userId: 'user-123',
+    })
+
+    expect(JSON.stringify(message.blocks)).toContain('Android')
   })
 
   it('builds escaped processing failure messages', () => {
@@ -103,7 +131,7 @@ describe('RevenueCat Slack alerts', () => {
     expect(message.text).toBe(
       'RevenueCat event could not be matched to a Domani user: INITIAL_PURCHASE',
     )
-    expect(serializedBlocks).toContain('ignored_user_not_found')
-    expect(serializedBlocks).toContain('rc-user-123')
+    expect(serializedBlocks).not.toContain('ignored_user_not_found')
+    expect(serializedBlocks).not.toContain('rc-user-123')
   })
 })

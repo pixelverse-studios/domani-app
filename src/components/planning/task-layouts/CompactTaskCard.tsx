@@ -5,6 +5,7 @@ import { Pencil, Trash2, Circle, CheckCircle, Bell, Crown, FileText } from 'luci
 import { Text } from '~/components/ui'
 import { getCategoryIcon } from '~/utils/categoryIcons'
 import { useTaskCardData, type TaskCardProps } from './shared'
+import { TaskNotesIconButton } from './TaskNotesModal'
 
 export function CompactTaskCard({
   task,
@@ -119,6 +120,16 @@ export function CompactTaskCard({
 
         {/* Compact action buttons */}
         <View style={styles.actions}>
+          {hasNotes && (
+            <TaskNotesIconButton
+              notes={task.notes ?? ''}
+              taskTitle={task.title}
+              backgroundColor={buttonBg}
+              iconColor={iconColor}
+              iconSize={13}
+              buttonSize={28}
+            />
+          )}
           <TouchableOpacity
             onPress={() => onEdit?.(task.id)}
             style={[styles.actionButton, { backgroundColor: buttonBg }]}

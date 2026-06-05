@@ -12,12 +12,16 @@ import { SettingsRow } from './SettingsRow'
 
 interface SupportSectionProps {
   onReplayTutorial: () => void
+  disableTutorialReplay?: boolean
 }
 
 /**
  * Support section with tutorial replay and contact options
  */
-export function SupportSection({ onReplayTutorial }: SupportSectionProps) {
+export function SupportSection({
+  onReplayTutorial,
+  disableTutorialReplay = false,
+}: SupportSectionProps) {
   const router = useRouter()
   const theme = useAppTheme()
   const { locale } = useTranslation()
@@ -32,6 +36,7 @@ export function SupportSection({ onReplayTutorial }: SupportSectionProps) {
           onPress={onReplayTutorial}
           icon={Sparkles}
           showChevron={false}
+          disabled={disableTutorialReplay}
         />
         <TouchableOpacity
           onPress={() => router.push('/contact-support')}

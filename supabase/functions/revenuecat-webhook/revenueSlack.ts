@@ -18,6 +18,13 @@ export type RevenueCatEventContext = {
   transactionId: string | null
   price: number | null
   currency: string | null
+  promoCode: string | null
+}
+
+export type RevenueSlackUserContext = {
+  id?: string | null
+  name?: string | null
+  email?: string | null
 }
 
 export type RevenueSlackAlertInput = {
@@ -25,6 +32,7 @@ export type RevenueSlackAlertInput = {
   eventContext: RevenueCatEventContext
   processedAction?: string
   userId?: string | null
+  user?: RevenueSlackUserContext | null
   errorMessage?: string | null
 }
 
@@ -102,7 +110,33 @@ function buildField(label: string, value: unknown): SlackTextObject {
 }
 
 function getEventTimestamp(context: RevenueCatEventContext) {
-  return context.eventTimestampMs ? new Date(context.eventTimestampMs).toISOString() : 'n/a'
+  if (!context.eventTimestampMs) return 'n/a'
+
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZoneName: 'short',
+  }).format(new Date(context.eventTimestampMs))
+}
+
+function getDisplayStore(store: string | null) {
+  const normalizedStore = store?.toUpperCase() ?? null
+
+  switch (normalizedStore) {
+    case 'APP_STORE':
+    case 'MAC_APP_STORE':
+      return 'iOS'
+    case 'PLAY_STORE':
+    case 'GOOGLE_PLAY':
+      return 'Android'
+    default:
+      return store
+  }
 }
 
 function buildFieldSectionBlocks(fields: SlackTextObject[]): SlackBlock[] {
@@ -121,20 +155,17 @@ function buildFieldSectionBlocks(fields: SlackTextObject[]): SlackBlock[] {
 export function buildRevenueSlackMessage(input: RevenueSlackAlertInput): SlackMessage {
   const config = ALERT_CONFIG[input.alertType]
   const context = input.eventContext
+  const user = input.user ?? null
   const fields: SlackTextObject[] = [
-    buildField('Event', context.eventType),
-    buildField('Action', input.processedAction),
-    buildField('User', input.userId),
-    buildField('App User ID', context.appUserId),
+    buildField('User', user?.id ?? input.userId),
+    buildField('Name', user?.name),
+    buildField('Email', user?.email),
     buildField('Product', context.productId),
-    buildField('Store', context.store),
+    buildField('Store', getDisplayStore(context.store)),
     buildField('Environment', context.environment),
-    buildField('Event ID', context.eventId),
-    buildField('Transaction', context.transactionId),
-    buildField('Original Transaction', context.originalTransactionId),
+    buildField('Promo Code', context.promoCode),
     buildField('Price', context.price),
     buildField('Currency', context.currency),
-    buildField('Entitlements', context.entitlementIds),
     buildField('Event Time', getEventTimestamp(context)),
   ]
 

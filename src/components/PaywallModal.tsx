@@ -68,10 +68,6 @@ export function PaywallModal({
       label: t('subscription.paywall.discountLabelEarlyAdopter'),
       badge: t('subscription.paywall.discountBadgeEarlyAdopter'),
     },
-    friends_family: {
-      label: t('subscription.paywall.discountLabelFriendsFamily'),
-      badge: t('subscription.paywall.discountBadgeFriendsFamily'),
-    },
   }
   const discount = discountConfig[offeringIdentifier]
   const isCompactHeight = height < 780

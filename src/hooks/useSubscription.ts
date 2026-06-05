@@ -142,6 +142,67 @@ type SupabaseSubscriptionSyncStatus =
   | 'preserved_existing_lifetime'
   | 'non_lifetime_entitlement'
 
+function isSuccessfulPromoConfirmationStatus(status: unknown) {
+  return status === 'confirmed' || status === 'already_confirmed'
+}
+
+function isPromoPurchaseAccessSync(request: PurchaseAccessSyncRequest) {
+  return request.source === 'promo_redemption' || request.source === 'foreground'
+}
+
+const PROMO_GATED_LIFETIME_PRODUCT_IDS = new Set(['domani_lifetime_friends'])
+
+function isPromoGatedLifetimeProduct(productIdentifier: string | null | undefined) {
+  return !!productIdentifier && PROMO_GATED_LIFETIME_PRODUCT_IDS.has(productIdentifier)
+}
+
+function hasPromoRedemptionAttemptContext(
+  attemptContext: PurchaseAccessSyncAttemptContext | null,
+) {
+  return !!(
+    attemptContext?.redemptionAttemptId &&
+    attemptContext.codeId &&
+    attemptContext.campaignId
+  )
+}
+
+async function confirmCurrentUserPromoRedemption(input: {
+  attemptContext: PurchaseAccessSyncAttemptContext | null
+  revenueCatAppUserId?: string | null
+  storeProductId?: string | null
+}) {
+  const { attemptContext } = input
+  if (
+    !attemptContext?.redemptionAttemptId ||
+    !attemptContext.codeId ||
+    !attemptContext.campaignId
+  ) {
+    return
+  }
+
+  const { data, error } = await supabase.rpc('confirm_current_user_promo_redemption', {
+    p_redemption_attempt_id: attemptContext.redemptionAttemptId,
+    p_code_id: attemptContext.codeId,
+    p_campaign_id: attemptContext.campaignId,
+    p_revenuecat_app_user_id: input.revenueCatAppUserId ?? null,
+    p_store_product_id: input.storeProductId ?? null,
+    p_store_transaction_id: null,
+  })
+
+  if (error) throw error
+
+  const status =
+    data && typeof data === 'object' && !Array.isArray(data) && 'status' in data
+      ? data.status
+      : null
+
+  if (!isSuccessfulPromoConfirmationStatus(status)) {
+    throw new Error(`PROMO_CONFIRMATION_${typeof status === 'string' ? status : 'INVALID_RESULT'}`)
+  }
+
+  return data
+}
+
 /**
  * The user is locked out of the app. True for users whose trial has ended
  * without purchase OR whose purchase was refunded. Pre-trial users are NOT
@@ -204,8 +265,9 @@ export function shouldUseRevenueCatCustomerInfoForAccess(input: {
   if (input.accessSyncResult && blockingStatuses.includes(input.accessSyncResult.status)) {
     return false
   }
+  if (input.accessSyncResult?.status === 'confirmed') return true
 
-  return true
+  return false
 }
 
 const TRIAL_DURATION_DAYS = 14
@@ -579,6 +641,25 @@ export function useSubscription() {
         return result
       }
 
+      if (isPromoPurchaseAccessSync(request) && !hasPromoRedemptionAttemptContext(attemptContext)) {
+        const result: PurchaseAccessSyncResult = {
+          ...baseResult,
+          status: 'supabase_sync_failed',
+          recoverable: true,
+          error: new Error('PROMO_ATTEMPT_CONTEXT_REQUIRED'),
+        }
+        setAccessSyncResult(result)
+        setAccessSyncPhase('verification_failed')
+        addBreadcrumb('Blocked promo access sync without validated attempt', 'promo.confirmation', {
+          userId: user.id,
+          source: request.source,
+          hasRedemptionAttemptId: !!attemptContext?.redemptionAttemptId,
+          hasCodeId: !!attemptContext?.codeId,
+          hasCampaignId: !!attemptContext?.campaignId,
+        })
+        return result
+      }
+
       let info: CustomerInfo | null = null
 
       try {
@@ -625,6 +706,40 @@ export function useSubscription() {
         refetchCustomerInfo()
         queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
         await recordPromoSyncFailure(request, result.status)
+        return result
+      }
+
+      if (
+        isPromoGatedLifetimeProduct(entitlement.productIdentifier) &&
+        !hasPromoRedemptionAttemptContext(attemptContext)
+      ) {
+        const result: PurchaseAccessSyncResult = {
+          ...baseResult,
+          status: 'supabase_sync_failed',
+          customerInfo: info,
+          hasEntitlement: true,
+          profileSynced: false,
+          recoverable: true,
+          error: new Error('PROMO_GATED_PRODUCT_ATTEMPT_CONTEXT_REQUIRED'),
+        }
+        setAccessSyncResult(result)
+        setAccessSyncPhase('verification_failed')
+        addBreadcrumb(
+          'Blocked promo-gated product sync without validated attempt',
+          'promo.confirmation',
+          {
+            userId: user.id,
+            source: request.source,
+            entitlementId: ENTITLEMENT_ID,
+            productIdentifier: entitlement.productIdentifier ?? null,
+            hasRedemptionAttemptId: !!attemptContext?.redemptionAttemptId,
+            hasCodeId: !!attemptContext?.codeId,
+            hasCampaignId: !!attemptContext?.campaignId,
+          },
+        )
+        await recordPromoSyncFailure(request, result.status, result.error)
+        refetchCustomerInfo()
+        queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
         return result
       }
 
@@ -682,6 +797,54 @@ export function useSubscription() {
         if (supabaseSyncStatus !== 'preserved_existing_lifetime') {
           await recordPromoSyncFailure(request, supabaseSyncStatus)
         }
+        return result
+      }
+
+      try {
+        await confirmCurrentUserPromoRedemption({
+          attemptContext,
+          revenueCatAppUserId: info.originalAppUserId,
+          storeProductId: entitlement.productIdentifier ?? null,
+        })
+      } catch (error) {
+        if (attemptContext && !hasActiveRecordedLifetime(profile)) {
+          try {
+            await rollbackFailedPromoAccessSync(user.id)
+          } catch (rollbackError) {
+            console.warn('[useSubscription] Failed to roll back unconfirmed promo access sync', {
+              userId: user.id,
+              redemptionAttemptId: attemptContext.redemptionAttemptId ?? null,
+              error: rollbackError,
+            })
+          }
+        }
+
+        const result: PurchaseAccessSyncResult = {
+          ...baseResult,
+          status: 'supabase_sync_failed',
+          customerInfo: info,
+          hasEntitlement: true,
+          profileSynced: false,
+          error,
+        }
+
+        setAccessSyncResult(result)
+        setAccessSyncPhase('verification_failed')
+        addBreadcrumb(
+          'Promo redemption confirmation failed after access sync',
+          'promo.confirmation',
+          {
+            userId: user.id,
+            source: request.source,
+            redemptionAttemptId: attemptContext?.redemptionAttemptId ?? null,
+            codeId: attemptContext?.codeId ?? null,
+            campaignId: attemptContext?.campaignId ?? null,
+            productIdentifier: entitlement.productIdentifier ?? null,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        )
+        await recordPromoSyncFailure(request, 'supabase_sync_failed', error)
+        queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
         return result
       }
 
@@ -753,6 +916,9 @@ export function useSubscription() {
     },
     [
       isInitialized,
+      profile?.purchased_at,
+      profile?.refunded_at,
+      profile?.tier,
       queryClient,
       recordPromoSyncFailure,
       refetchCustomerInfo,
@@ -776,6 +942,58 @@ export function useSubscription() {
     mutationFn: async (context?: PurchaseAccessSyncAttemptContext) => {
       const attemptContext = context ?? null
       markPromoCodeValidated(context)
+
+      if (attemptContext?.promoOutcome === 'free') {
+        try {
+          await confirmCurrentUserPromoRedemption({
+            attemptContext,
+            revenueCatAppUserId: null,
+            storeProductId: null,
+          })
+
+          const result: PurchaseAccessSyncResult = {
+            status: 'confirmed',
+            source: 'promo_redemption',
+            customerInfo: null,
+            hasEntitlement: true,
+            profileSynced: true,
+            recoverable: false,
+            attemptContext,
+            error: null,
+          }
+
+          pendingExternalPurchaseSyncRef.current = null
+          setAccessSyncAttempt(attemptContext)
+          setAccessSyncResult(result)
+          setAccessSyncPhase('confirmed')
+          queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+          return result
+        } catch (error) {
+          const result: PurchaseAccessSyncResult = {
+            status: 'supabase_sync_failed',
+            source: 'promo_redemption',
+            customerInfo: null,
+            hasEntitlement: false,
+            profileSynced: false,
+            recoverable: true,
+            attemptContext,
+            error,
+          }
+
+          pendingExternalPurchaseSyncRef.current = null
+          setAccessSyncAttempt(attemptContext)
+          setAccessSyncResult(result)
+          setAccessSyncPhase('verification_failed')
+          addBreadcrumb('Free promo code server grant failed', 'monetization.sync', {
+            userId: user?.id ?? null,
+            campaignId: attemptContext?.campaignId ?? null,
+            redemptionAttemptId: attemptContext?.redemptionAttemptId ?? null,
+            error: error instanceof Error ? error.message : String(error),
+          })
+          return result
+        }
+      }
+
       await setRevenueCatPromoRedemptionAttributes(attemptContext)
 
       let wasPresented = false
@@ -833,19 +1051,6 @@ export function useSubscription() {
       }
 
       return latestResult
-    },
-    onSettled: (_result, _error, context) => {
-      const attemptContext = context ?? null
-      if (!attemptContext?.redemptionAttemptId) return
-
-      setRevenueCatPromoRedemptionAttributes(null).catch((error) => {
-        console.warn('[useSubscription] Failed to clear promo attributes after redemption', {
-          userId: user?.id ?? null,
-          campaignId: attemptContext.campaignId ?? null,
-          redemptionAttemptId: attemptContext.redemptionAttemptId,
-          error,
-        })
-      })
     },
   })
 
@@ -1122,19 +1327,6 @@ export function useSubscription() {
         return result.customerInfo
       }
       return null
-    },
-    onSettled: (_info, _error, input) => {
-      const attemptContext = input && 'pkg' in input ? (input.attemptContext ?? null) : null
-      if (!attemptContext?.redemptionAttemptId) return
-
-      setRevenueCatPromoRedemptionAttributes(null).catch((error) => {
-        console.warn('[useSubscription] Failed to clear promo attributes after purchase', {
-          userId: user?.id ?? null,
-          campaignId: attemptContext.campaignId ?? null,
-          redemptionAttemptId: attemptContext.redemptionAttemptId,
-          error,
-        })
-      })
     },
     onSuccess: (info) => {
       console.log('[useSubscription] Purchase mutation completed', {
@@ -1480,8 +1672,8 @@ async function syncSubscriptionToSupabase(
 
     const tier: 'trialing' | 'lifetime' = isTrialing ? 'trialing' : 'lifetime'
     const purchasedAt = !isTrialing
-      ? entitlement.originalPurchaseDate ||
-        entitlement.latestPurchaseDate ||
+      ? entitlement.latestPurchaseDate ||
+        entitlement.originalPurchaseDate ||
         new Date().toISOString()
       : null
     const trialEndsAt = isTrialing ? entitlement.expirationDate : null
@@ -1516,4 +1708,21 @@ async function syncSubscriptionToSupabase(
   }
 
   return entitlement ? 'synced' : 'non_lifetime_entitlement'
+}
+
+async function rollbackFailedPromoAccessSync(userId: string | undefined) {
+  if (!userId) return
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      tier: 'none',
+      purchased_at: null,
+      refunded_at: null,
+      trial_ends_at: null,
+      revenuecat_user_id: null,
+    })
+    .eq('id', userId)
+
+  if (error) throw error
 }

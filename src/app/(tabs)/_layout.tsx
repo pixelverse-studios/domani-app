@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 import { View, ActivityIndicator, Platform, Text } from 'react-native'
-import { Tabs, Redirect } from 'expo-router'
+import { Tabs, Redirect, usePathname } from 'expo-router'
 import { CheckCircle, Calendar, MessageCircle, BarChart3, Settings } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -14,8 +14,21 @@ import { useTutorialStore } from '~/stores/tutorialStore'
 
 const TAB_BAR_CONTENT_HEIGHT = 54
 const ANDROID_MIN_BOTTOM_PADDING = 16
+const RESTRICTED_TAB_PATHS = [
+  '/planning',
+  '/(tabs)/planning',
+  '/feedback',
+  '/(tabs)/feedback',
+  '/analytics',
+  '/(tabs)/analytics',
+]
+
+function isRestrictedTabPath(pathname: string) {
+  return RESTRICTED_TAB_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))
+}
 
 export default function TabLayout() {
+  const pathname = usePathname()
   const insets = useSafeAreaInsets()
   const bottomPadding =
     Platform.OS === 'android'
@@ -30,7 +43,9 @@ export default function TabLayout() {
   // (i.e. pre_trial or expired), so the user only sees Today + Settings
   // until they start a trial or upgrade. Also hide while loading to avoid
   // a flash of fully-enabled tabs before the state machine resolves.
-  const hideLockedTabs = subscriptionLoading || !hasFullAccess(subscriptionStatus)
+  const userHasFullAccess = hasFullAccess(subscriptionStatus)
+  const hideLockedTabs = subscriptionLoading || !userHasFullAccess
+  const isRestrictedPath = isRestrictedTabPath(pathname)
   const initializeTutorialState = useTutorialStore((state) => state.initializeTutorialState)
 
   // Initialize tutorial state when user is authenticated
@@ -55,6 +70,18 @@ export default function TabLayout() {
   // Redirect to welcome if not authenticated
   if (!user) {
     return <Redirect href="/welcome" />
+  }
+
+  if (isRestrictedPath && subscriptionLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-surface-bg">
+        <ActivityIndicator size="large" color={theme.colors.brand.primary} />
+      </View>
+    )
+  }
+
+  if (isRestrictedPath && !userHasFullAccess) {
+    return <Redirect href="/(tabs)" />
   }
 
   return (
@@ -123,19 +150,19 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="feedback"
-          options={{
-            title: copy.tabs.feedback,
-            href: hideLockedTabs ? null : undefined,
-            tabBarIcon: ({ color, size }) => <MessageCircle size={size} color={color} />,
-          }}
-        />
-        <Tabs.Screen
           name="analytics"
           options={{
             title: copy.tabs.progress,
             href: hideLockedTabs ? null : undefined,
             tabBarIcon: ({ color, size }) => <BarChart3 size={size} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="feedback"
+          options={{
+            title: copy.tabs.feedback,
+            href: hideLockedTabs ? null : undefined,
+            tabBarIcon: ({ color, size }) => <MessageCircle size={size} color={color} />,
           }}
         />
         <Tabs.Screen

@@ -58,7 +58,7 @@ describe('promo code helpers', () => {
       },
       routing: {
         platform: 'ios',
-        storeAction: 'ios_offer_code_sheet',
+        storeAction: 'server_grant_lifetime',
         productId: 'domani_lifetime',
         revenueCatOfferingId: null,
         revenueCatPackageId: null,
@@ -71,7 +71,7 @@ describe('promo code helpers', () => {
     if (result.status === 'valid') {
       expect(result.discountKind).toBe('free')
       expect(result.display.paymentRequired).toBe(false)
-      expect(result.routing.storeAction).toBe('ios_offer_code_sheet')
+      expect(result.routing.storeAction).toBe('server_grant_lifetime')
     }
   })
 

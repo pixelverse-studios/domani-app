@@ -34,6 +34,7 @@ import {
   loginRevenueCat,
   presentCodeRedemptionSheet,
   purchasePackage,
+  restorePurchases,
   setRevenueCatPromoRedemptionAttributes,
   syncPurchasesAndRefreshCustomerInfo,
   syncRevenueCatSubscriberAttributes,
@@ -57,7 +58,9 @@ const mockInitializeRevenueCat = initializeRevenueCat as jest.Mock
 const mockLoginRevenueCat = loginRevenueCat as jest.Mock
 const mockPresentCodeRedemptionSheet = presentCodeRedemptionSheet as jest.Mock
 const mockPurchasePackage = purchasePackage as jest.Mock
-const mockSetRevenueCatPromoRedemptionAttributes = setRevenueCatPromoRedemptionAttributes as jest.Mock
+const mockRestorePurchases = restorePurchases as jest.Mock
+const mockSetRevenueCatPromoRedemptionAttributes =
+  setRevenueCatPromoRedemptionAttributes as jest.Mock
 const mockSyncPurchasesAndRefreshCustomerInfo = syncPurchasesAndRefreshCustomerInfo as jest.Mock
 const mockSyncRevenueCatSubscriberAttributes = syncRevenueCatSubscriberAttributes as jest.Mock
 const revenueCatBlockingPhases = [
@@ -154,10 +157,17 @@ function setupSubscriptionHookMocks() {
   mockLoginRevenueCat.mockResolvedValue(undefined)
   mockPresentCodeRedemptionSheet.mockResolvedValue(true)
   mockPurchasePackage.mockResolvedValue(null)
+  mockRestorePurchases.mockResolvedValue(null)
   mockSetRevenueCatPromoRedemptionAttributes.mockResolvedValue(undefined)
   mockSyncRevenueCatSubscriberAttributes.mockResolvedValue(undefined)
   mockSupabaseFrom.mockImplementation(() => createSupabaseQueryMock())
-  mockSupabaseRpc.mockResolvedValue({ data: null, error: null })
+  mockSupabaseRpc.mockImplementation((functionName: string) => {
+    if (functionName === 'confirm_current_user_promo_redemption') {
+      return Promise.resolve({ data: { status: 'confirmed' }, error: null })
+    }
+
+    return Promise.resolve({ data: null, error: null })
+  })
 }
 
 beforeEach(() => {
@@ -291,6 +301,36 @@ describe('purchase access sync', () => {
     unmount()
   })
 
+  it('uses general pricing for friends-family cohort users outside promo redemption', async () => {
+    mockGetOfferingForCohort.mockReturnValue('general')
+    mockUseProfile.mockReturnValue({
+      isLoading: false,
+      profile: {
+        id: 'user-1',
+        tier: 'none',
+        purchased_at: null,
+        refunded_at: null,
+        trial_started_at: null,
+        trial_ends_at: null,
+        created_at: '2026-05-20T12:00:00.000Z',
+        email: 'test@example.com',
+        expo_push_token: null,
+        full_name: 'Test User',
+        signup_cohort: 'friends_family',
+        signup_method: null,
+      },
+    })
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(mockGetOfferingForCohort).toHaveBeenCalledWith('friends_family')
+    expect(result.current.offeringIdentifier).toBe('general')
+
+    unmount()
+  })
+
   it('confirms access when RevenueCat entitlement and Supabase sync both succeed', async () => {
     mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())
 
@@ -314,6 +354,57 @@ describe('purchase access sync', () => {
     unmount()
   })
 
+  it('uses the latest lifetime purchase date when syncing RevenueCat access', async () => {
+    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(
+      buildCustomerInfo({
+        'test-entitlement': {
+          periodType: 'NORMAL',
+          productIdentifier: 'domani_lifetime_friends',
+          originalPurchaseDate: '2026-05-06T16:00:01.000Z',
+          latestPurchaseDate: '2026-06-02T23:52:24.253Z',
+          expirationDate: null,
+        },
+      }),
+    )
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    await act(async () => {
+      await result.current.syncAccess({
+        source: 'promo_redemption',
+        forceStoreSync: true,
+        attemptContext: {
+          promoCode: 'LY49',
+          campaignId: 'campaign-1',
+          campaignSlug: 'launch',
+          campaignType: 'fixed_price_lifetime',
+          codeId: 'code-1',
+          redemptionAttemptId: 'attempt-1',
+          discountKind: 'fixed_price',
+          promoOutcome: 'discounted',
+          priceString: '$4.99',
+        },
+      })
+    })
+
+    expect(
+      mockSupabaseFrom.mock.results.some((result) => {
+        const query = result.value as SupabaseQueryMock
+        return query.update.mock.calls.some(([values]) => {
+          const update = values as Record<string, unknown>
+          return (
+            update.tier === 'lifetime' &&
+            update.purchased_at === '2026-06-02T23:52:24.253Z'
+          )
+        })
+      }),
+    ).toBe(true)
+
+    unmount()
+  })
+
   it('moves to verification failed when RevenueCat does not return the lifetime entitlement', async () => {
     mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildCustomerInfo({}))
 
@@ -332,6 +423,121 @@ describe('purchase access sync', () => {
       profileSynced: false,
       recoverable: true,
     })
+
+    unmount()
+  })
+
+  it('blocks promo access sync when no validated redemption attempt exists', async () => {
+    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    let syncResult: unknown
+    await act(async () => {
+      syncResult = await result.current.syncAccess({
+        source: 'promo_redemption',
+        forceStoreSync: true,
+        attemptContext: null,
+      })
+    })
+
+    expect(syncResult).toMatchObject({
+      status: 'supabase_sync_failed',
+      source: 'promo_redemption',
+      hasEntitlement: false,
+      profileSynced: false,
+      recoverable: true,
+    })
+    expect(result.current.accessSyncPhase).toBe('verification_failed')
+    expect(mockSyncPurchasesAndRefreshCustomerInfo).not.toHaveBeenCalled()
+
+    unmount()
+  })
+
+  it('blocks manual sync of promo-gated lifetime product without a validated attempt', async () => {
+    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(
+      buildCustomerInfo({
+        'test-entitlement': {
+          periodType: 'NORMAL',
+          productIdentifier: 'domani_lifetime_friends',
+          originalPurchaseDate: '2026-06-02T23:52:24.253Z',
+          latestPurchaseDate: '2026-06-02T23:52:24.253Z',
+          expirationDate: null,
+        },
+      }),
+    )
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    let syncResult: unknown
+    await act(async () => {
+      syncResult = await result.current.syncAccess({ source: 'manual', forceStoreSync: true })
+    })
+
+    expect(syncResult).toMatchObject({
+      status: 'supabase_sync_failed',
+      source: 'manual',
+      hasEntitlement: true,
+      profileSynced: false,
+      recoverable: true,
+    })
+    expect(result.current.accessSyncPhase).toBe('verification_failed')
+    expect(
+      mockSupabaseFrom.mock.results.some((result) => {
+        const query = result.value as SupabaseQueryMock
+        return query.update.mock.calls.some(([values]) => {
+          const update = values as Record<string, unknown>
+          return update.tier === 'lifetime'
+        })
+      }),
+    ).toBe(false)
+
+    unmount()
+  })
+
+  it('blocks restore of promo-gated lifetime product without a validated attempt', async () => {
+    mockRestorePurchases.mockResolvedValue(
+      buildCustomerInfo({
+        'test-entitlement': {
+          periodType: 'NORMAL',
+          productIdentifier: 'domani_lifetime_friends',
+          originalPurchaseDate: '2026-06-02T23:52:24.253Z',
+          latestPurchaseDate: '2026-06-02T23:52:24.253Z',
+          expirationDate: null,
+        },
+      }),
+    )
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    let restoreResult: unknown
+    await act(async () => {
+      restoreResult = await result.current.restore()
+    })
+
+    expect(restoreResult).toBeNull()
+    expect(result.current.accessSyncResult).toMatchObject({
+      status: 'supabase_sync_failed',
+      source: 'restore',
+      hasEntitlement: true,
+      profileSynced: false,
+    })
+    expect(result.current.accessSyncPhase).toBe('verification_failed')
+    expect(
+      mockSupabaseFrom.mock.results.some((result) => {
+        const query = result.value as SupabaseQueryMock
+        return query.update.mock.calls.some(([values]) => {
+          const update = values as Record<string, unknown>
+          return update.tier === 'lifetime'
+        })
+      }),
+    ).toBe(false)
 
     unmount()
   })
@@ -452,6 +658,14 @@ describe('purchase access sync', () => {
         sync_status: 'confirmed',
       }),
     )
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('confirm_current_user_promo_redemption', {
+      p_campaign_id: 'campaign-1',
+      p_code_id: 'code-1',
+      p_redemption_attempt_id: 'attempt-1',
+      p_revenuecat_app_user_id: 'user-1',
+      p_store_product_id: 'domani_lifetime',
+      p_store_transaction_id: null,
+    })
     expect(mockTrack).toHaveBeenCalledWith(
       'promo_redemption_completed',
       expect.objectContaining({
@@ -491,6 +705,121 @@ describe('purchase access sync', () => {
     ).toBe(completedCount)
 
     jest.useRealTimers()
+    unmount()
+  })
+
+  it('does not report paid promo redemption as confirmed when attempt confirmation fails', async () => {
+    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())
+    mockSupabaseRpc.mockImplementation((functionName: string) => {
+      if (functionName === 'confirm_current_user_promo_redemption') {
+        return Promise.resolve({
+          data: { status: 'product_mismatch' },
+          error: null,
+        })
+      }
+
+      return Promise.resolve({ data: null, error: null })
+    })
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    let syncResult: unknown
+    await act(async () => {
+      syncResult = await result.current.syncAccess({
+        source: 'promo_redemption',
+        forceStoreSync: true,
+        attemptContext: {
+          promoCode: 'SAVE100',
+          campaignId: 'campaign-1',
+          campaignSlug: 'launch',
+          campaignType: 'percent_discount_lifetime',
+          codeId: 'code-1',
+          redemptionAttemptId: 'attempt-1',
+          discountKind: 'percent',
+          promoOutcome: 'discounted',
+        },
+      })
+    })
+
+    expect(syncResult).toMatchObject({
+      status: 'supabase_sync_failed',
+      source: 'promo_redemption',
+      hasEntitlement: true,
+      profileSynced: false,
+      recoverable: true,
+    })
+    expect(result.current.accessSyncPhase).toBe('verification_failed')
+    expect(mockSupabaseFrom).toHaveBeenCalledWith('profiles')
+    expect(
+      mockSupabaseFrom.mock.results.some((result) => {
+        const query = result.value as SupabaseQueryMock
+        return query.update.mock.calls.some(([values]) => {
+          const update = values as Record<string, unknown>
+          return (
+            update.tier === 'none' &&
+            update.purchased_at === null &&
+            update.refunded_at === null &&
+            update.trial_ends_at === null &&
+            update.revenuecat_user_id === null
+          )
+        })
+      }),
+    ).toBe(true)
+    expect(mockTrack).toHaveBeenCalledWith(
+      'promo_sync_failed',
+      expect.objectContaining({
+        campaign_id: 'campaign-1',
+        redemption_attempt_id: 'attempt-1',
+        sync_status: 'supabase_sync_failed',
+      }),
+    )
+    expect(mockTrack).not.toHaveBeenCalledWith(
+      'promo_redemption_completed',
+      expect.any(Object),
+    )
+
+    unmount()
+  })
+
+  it('confirms free promo codes through the server without presenting native redemption', async () => {
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    let redemptionResult: unknown
+    await act(async () => {
+      redemptionResult = await result.current.redeemPromoCode({
+        promoCode: 'GIFT03',
+        campaignId: 'campaign-1',
+        campaignSlug: 'private-gifts',
+        campaignType: 'free_lifetime',
+        codeId: 'code-1',
+        redemptionAttemptId: 'attempt-1',
+        discountKind: 'free',
+        promoOutcome: 'free',
+      })
+    })
+
+    expect(redemptionResult).toMatchObject({
+      status: 'confirmed',
+      source: 'promo_redemption',
+      hasEntitlement: true,
+      profileSynced: true,
+    })
+    expect(mockPresentCodeRedemptionSheet).not.toHaveBeenCalled()
+    expect(mockSyncPurchasesAndRefreshCustomerInfo).not.toHaveBeenCalled()
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('confirm_current_user_promo_redemption', {
+      p_campaign_id: 'campaign-1',
+      p_code_id: 'code-1',
+      p_redemption_attempt_id: 'attempt-1',
+      p_revenuecat_app_user_id: null,
+      p_store_product_id: null,
+      p_store_transaction_id: null,
+    })
+    expect(result.current.accessSyncPhase).toBe('confirmed')
+
     unmount()
   })
 
@@ -545,7 +874,7 @@ describe('purchase access sync', () => {
     unmount()
   })
 
-  it('clears promo attributes after a promo package purchase settles', async () => {
+  it('keeps promo attributes after a promo package purchase settles', async () => {
     mockPurchasePackage.mockResolvedValue(buildLifetimeCustomerInfo())
     const { result, unmount } = renderHookWithProviders(() => useSubscription())
 
@@ -568,7 +897,7 @@ describe('purchase access sync', () => {
     })
 
     expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenNthCalledWith(1, attemptContext)
-    expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenLastCalledWith(null)
+    expect(mockSetRevenueCatPromoRedemptionAttributes).not.toHaveBeenCalledWith(null)
 
     unmount()
   })
@@ -584,6 +913,8 @@ describe('purchase access sync', () => {
       await result.current.redeemPromoCode({
         promoCode: 'SAVE100',
         campaignId: 'campaign-1',
+        codeId: 'code-1',
+        redemptionAttemptId: 'attempt-1',
         promoOutcome: 'discounted',
       })
     })

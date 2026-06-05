@@ -1,6 +1,9 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { sendRevenueSlackAlert } from './revenueSlack.ts'
+import {
+  sendRevenueSlackAlert as sendRevenueSlackAlertBase,
+  type RevenueSlackAlertInput,
+} from './revenueSlack.ts'
 
 /**
  * RevenueCat webhook handler.
@@ -95,12 +98,26 @@ interface PromoConfirmationResult {
   [key: string]: unknown
 }
 
+interface ProfileAccessSnapshot {
+  tier: string | null
+  purchased_at: string | null
+  refunded_at: string | null
+  trial_ends_at: string | null
+}
+
+interface RevenueSlackProfile {
+  id: string
+  email: string | null
+  full_name: string | null
+}
+
 const REVENUECAT_WEBHOOK_SECRET = Deno.env.get('REVENUECAT_WEBHOOK_SECRET')
 const LIFETIME_PRODUCT_IDS = new Set([
   'domani_lifetime',
   'domani_lifetime_early',
   'domani_lifetime_friends',
 ])
+const PROMO_GATED_LIFETIME_PRODUCT_IDS = new Set(['domani_lifetime_friends'])
 const REFUND_LIKE_CANCELLATION_REASONS = new Set(['CUSTOMER_SUPPORT'])
 const APP_STORE_EVENT_STORES = new Set(['APP_STORE', 'MAC_APP_STORE'])
 
@@ -130,6 +147,7 @@ function getEventLogContext(event: RevenueCatWebhookEvent) {
         : typeof event.currency_code === 'string'
           ? event.currency_code
           : null,
+    promoCode: getSubscriberAttributeValue(event, 'promo_code'),
   }
 }
 
@@ -139,6 +157,14 @@ function getEventTimestampIso(
 ) {
   const timestamp = typeof event[field] === 'number' ? event[field] : null
   return timestamp ? new Date(timestamp).toISOString() : new Date().toISOString()
+}
+
+function getLifetimeGrantPurchasedAtIso(event: RevenueCatWebhookEvent, isPromoGatedGrant: boolean) {
+  if (isPromoGatedGrant) {
+    return getEventTimestampIso(event, 'event_timestamp_ms')
+  }
+
+  return getEventTimestampIso(event, 'purchased_at_ms')
 }
 
 function getSubscriberAttributeValue(event: RevenueCatWebhookEvent, key: string) {
@@ -237,6 +263,11 @@ function getProductId(event: RevenueCatWebhookEvent) {
 function isLifetimeProductEvent(event: RevenueCatWebhookEvent) {
   const productId = getProductId(event)
   return !!productId && LIFETIME_PRODUCT_IDS.has(productId)
+}
+
+function isPromoGatedLifetimeProductEvent(event: RevenueCatWebhookEvent) {
+  const productId = getProductId(event)
+  return !!productId && PROMO_GATED_LIFETIME_PRODUCT_IDS.has(productId)
 }
 
 function isAppStoreEvent(event: RevenueCatWebhookEvent) {
@@ -391,11 +422,70 @@ async function resolveProfileUserId(
   return null
 }
 
+async function getRevenueSlackUser(
+  supabase: ReturnType<typeof createClient>,
+  userId: string | null | undefined,
+) {
+  if (!userId) return null
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id,email,full_name')
+    .eq('id', userId)
+    .maybeSingle<RevenueSlackProfile>()
+
+  if (error) {
+    console.warn('[revenuecat-webhook] failed to load Slack user context:', {
+      userId,
+      error,
+    })
+    return { id: userId }
+  }
+
+  return data
+    ? {
+        id: data.id,
+        email: data.email,
+        name: data.full_name,
+      }
+    : { id: userId }
+}
+
+async function sendRevenueSlackAlert(
+  supabase: ReturnType<typeof createClient>,
+  input: RevenueSlackAlertInput,
+) {
+  await sendRevenueSlackAlertBase({
+    ...input,
+    user: input.user ?? (await getRevenueSlackUser(supabase, input.userId)),
+  })
+}
+
 async function grantLifetimeAccess(
   supabase: ReturnType<typeof createClient>,
   event: RevenueCatWebhookEvent,
   processedAction: 'granted_lifetime' | 'restored_refund',
 ) {
+  const isPromoGatedGrant = isPromoGatedLifetimeProductEvent(event)
+  const requiresPromoConfirmation = processedAction === 'granted_lifetime' && isPromoGatedGrant
+  const promoContext = getPromoRedemptionContext(event)
+
+  if (requiresPromoConfirmation && !promoContext) {
+    const missingPromoContextUserId = await resolveProfileUserId(supabase, event)
+    console.error('[revenuecat-webhook] promo-gated lifetime grant missing promo context:', {
+      ...getEventLogContext(event),
+      userId: missingPromoContextUserId,
+    })
+    await finalizeWebhookEvent(supabase, event, 'ignored_missing_promo_context')
+    await sendRevenueSlackAlert(supabase, {
+      alertType: 'processing_failed',
+      eventContext: getEventLogContext(event),
+      userId: missingPromoContextUserId,
+      errorMessage: 'Promo-gated lifetime grant missing promo redemption context',
+    })
+    return jsonResponse({ received: true, ignored: 'missing_promo_context' })
+  }
+
   const userId = await resolveProfileUserId(supabase, event)
 
   if (!userId) {
@@ -404,7 +494,7 @@ async function grantLifetimeAccess(
       candidateUserIds: getCandidateUserIds(event),
     })
     await finalizeWebhookEvent(supabase, event, 'ignored_user_not_found')
-    await sendRevenueSlackAlert({
+    await sendRevenueSlackAlert(supabase, {
       alertType: 'user_not_found',
       eventContext: getEventLogContext(event),
       processedAction: 'ignored_user_not_found',
@@ -412,11 +502,64 @@ async function grantLifetimeAccess(
     return jsonResponse({ received: true, ignored: 'user_not_found' })
   }
 
+  if (processedAction === 'restored_refund' && isPromoGatedGrant) {
+    const productId = getProductId(event)
+    const { data: confirmedPromoRedemption, error: confirmedPromoError } = await supabase
+      .from('promo_redemption_attempts')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('status', 'confirmed')
+      .eq('store_product_id', productId)
+      .maybeSingle()
+
+    if (confirmedPromoError) {
+      console.error('[revenuecat-webhook] failed to verify promo refund reversal:', {
+        ...getEventLogContext(event),
+        userId,
+        productId,
+        error: confirmedPromoError,
+      })
+      throw confirmedPromoError
+    }
+
+    if (!confirmedPromoRedemption) {
+      console.error('[revenuecat-webhook] promo-gated refund reversal missing confirmation:', {
+        ...getEventLogContext(event),
+        userId,
+        productId,
+      })
+      await finalizeWebhookEvent(supabase, event, 'ignored_missing_promo_confirmation')
+      await sendRevenueSlackAlert(supabase, {
+        alertType: 'processing_failed',
+        eventContext: getEventLogContext(event),
+        processedAction: 'ignored_missing_promo_confirmation',
+        userId,
+        errorMessage: 'Promo-gated refund reversal missing confirmed promo redemption',
+      })
+      return jsonResponse({ received: true, ignored: 'missing_promo_confirmation' })
+    }
+  }
+
+  const { data: previousProfile, error: snapshotError } = await supabase
+    .from('profiles')
+    .select('tier,purchased_at,refunded_at,trial_ends_at')
+    .eq('id', userId)
+    .maybeSingle<ProfileAccessSnapshot>()
+
+  if (snapshotError) {
+    console.error('[revenuecat-webhook] failed to snapshot profile access:', {
+      ...getEventLogContext(event),
+      userId,
+      error: snapshotError,
+    })
+    throw snapshotError
+  }
+
   const { error } = await supabase
     .from('profiles')
     .update({
       tier: 'lifetime',
-      purchased_at: getEventTimestampIso(event, 'purchased_at_ms'),
+      purchased_at: getLifetimeGrantPurchasedAtIso(event, isPromoGatedGrant),
       refunded_at: null,
       trial_ends_at: null,
     })
@@ -433,13 +576,46 @@ async function grantLifetimeAccess(
 
   await clearRefundState(supabase, userId, event)
 
-  if (processedAction === 'granted_lifetime') {
-    await confirmPromoRedemptionFromWebhook(supabase, userId, event)
+  if (requiresPromoConfirmation) {
+    try {
+      await confirmPromoRedemptionFromWebhook(supabase, userId, event)
+    } catch (confirmationError) {
+      if (previousProfile) {
+        const { error: restoreError } = await supabase
+          .from('profiles')
+          .update({
+            tier: previousProfile.tier,
+            purchased_at: previousProfile.purchased_at,
+            refunded_at: previousProfile.refunded_at,
+            trial_ends_at: previousProfile.trial_ends_at,
+          })
+          .eq('id', userId)
+
+        if (restoreError) {
+          console.error('[revenuecat-webhook] failed to restore access after promo failure:', {
+            ...getEventLogContext(event),
+            userId,
+            confirmationError,
+            restoreError,
+          })
+          throw restoreError
+        }
+      }
+
+      console.error('[revenuecat-webhook] rolled back unconfirmed promo lifetime grant:', {
+        ...getEventLogContext(event),
+        userId,
+        promoContext,
+        error:
+          confirmationError instanceof Error ? confirmationError.message : String(confirmationError),
+      })
+      throw confirmationError
+    }
   }
 
   await finalizeWebhookEvent(supabase, event, processedAction)
 
-  await sendRevenueSlackAlert({
+  await sendRevenueSlackAlert(supabase, {
     alertType: processedAction === 'restored_refund' ? 'refund_restored' : 'purchase_granted',
     eventContext: getEventLogContext(event),
     processedAction,
@@ -568,7 +744,7 @@ async function revokeLifetimeAccess(
       candidateUserIds: getCandidateUserIds(event),
     })
     await finalizeWebhookEvent(supabase, event, 'ignored_user_not_found')
-    await sendRevenueSlackAlert({
+    await sendRevenueSlackAlert(supabase, {
       alertType: 'user_not_found',
       eventContext: getEventLogContext(event),
       processedAction: 'ignored_user_not_found',
@@ -600,7 +776,7 @@ async function revokeLifetimeAccess(
 
   await finalizeWebhookEvent(supabase, event, processedAction)
 
-  await sendRevenueSlackAlert({
+  await sendRevenueSlackAlert(supabase, {
     alertType: 'refund_revoked',
     eventContext: getEventLogContext(event),
     processedAction,
@@ -763,7 +939,7 @@ Deno.serve(async (req) => {
       await releaseWebhookClaim(supabase, event)
     }
     console.error('[revenuecat-webhook] handler error:', err)
-    await sendRevenueSlackAlert({
+    await sendRevenueSlackAlert(supabase, {
       alertType: 'processing_failed',
       eventContext: getEventLogContext(event),
       errorMessage: err instanceof Error ? err.message : String(err),

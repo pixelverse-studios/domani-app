@@ -119,22 +119,43 @@ export function DetailedTaskCard({
 
           {/* Notes preview — always visible (2 lines, truncated) */}
           {hasNotes && (
-            <TouchableOpacity onPress={handleToggleNotes} activeOpacity={0.7}>
+            isNotesExpanded ? (
               <View style={[styles.notesPreview, { backgroundColor: buttonBg }]}>
                 <FileText size={12} color={iconColor} style={{ marginTop: 2 }} />
                 <Text
                   className="font-sans text-xs text-content-secondary ml-1.5 flex-1"
-                  numberOfLines={isNotesExpanded ? undefined : 2}
+                  selectable
                 >
                   {task.notes}
                 </Text>
-                {isNotesExpanded ? (
+                <TouchableOpacity
+                  onPress={handleToggleNotes}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Hide notes for ${task.title}`}
+                >
                   <ChevronUp size={12} color={iconColor} />
-                ) : (
-                  <ChevronDown size={12} color={iconColor} />
-                )}
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={handleToggleNotes}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Show notes for ${task.title}`}
+              >
+                <View style={[styles.notesPreview, { backgroundColor: buttonBg }]}>
+                  <FileText size={12} color={iconColor} style={{ marginTop: 2 }} />
+                  <Text
+                    className="font-sans text-xs text-content-secondary ml-1.5 flex-1"
+                    numberOfLines={2}
+                  >
+                    {task.notes}
+                  </Text>
+                  <ChevronDown size={12} color={iconColor} />
+                </View>
+              </TouchableOpacity>
+            )
           )}
 
           {/* Bottom row: Reminder + Actions */}

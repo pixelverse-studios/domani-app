@@ -14,16 +14,14 @@ import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AlertCircle, ArrowLeft, ArrowRight, Check, Crown } from 'lucide-react-native'
 import { PACKAGE_TYPE } from 'react-native-purchases'
+import { useQuery } from '@tanstack/react-query'
 
 import { Text } from '~/components/ui'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { addBreadcrumb } from '~/lib/sentry'
-import { getOfferings, setRevenueCatPromoRedemptionAttributes } from '~/lib/revenuecat'
+import { getOfferings, OFFERINGS, setRevenueCatPromoRedemptionAttributes } from '~/lib/revenuecat'
 import { findPromoPackage } from '~/lib/promoPackages'
-import {
-  buildPromoAnalyticsProps,
-  recordPromoRedemptionAttemptEvent,
-} from '~/lib/promoAnalytics'
+import { buildPromoAnalyticsProps, recordPromoRedemptionAttemptEvent } from '~/lib/promoAnalytics'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import {
   normalizePromoCodeInput,
@@ -99,18 +97,30 @@ export default function RedeemCodeScreen() {
     subscription.accessSyncPhase === 'syncing' ||
     subscription.accessSyncPhase === 'os_confirmation_attempted' ||
     subscription.isSyncingAccess
-  const activeLifetimePackage =
-    subscription.offerings?.availablePackages?.find(
+  const shouldLoadGeneralOfferingPrice =
+    !!validOffer && subscription.offeringIdentifier !== OFFERINGS.GENERAL
+  const { data: generalOffering } = useQuery({
+    queryKey: ['offerings', OFFERINGS.GENERAL],
+    queryFn: () => getOfferings(OFFERINGS.GENERAL),
+    enabled: shouldLoadGeneralOfferingPrice,
+    retry: false,
+  })
+  const comparisonOffering =
+    subscription.offeringIdentifier === OFFERINGS.GENERAL ? subscription.offerings : generalOffering
+  const comparisonLifetimePackage =
+    comparisonOffering?.availablePackages?.find(
       (pkg) => pkg.packageType === PACKAGE_TYPE.LIFETIME,
     ) ??
-    subscription.offerings?.availablePackages?.[0] ??
+    comparisonOffering?.availablePackages?.[0] ??
     null
-  const activePriceString = activeLifetimePackage?.product.priceString ?? null
+  const currentPriceString = comparisonLifetimePackage?.product.priceString ?? null
   const promoPriceString = validOffer
     ? validOffer.display.paymentRequired
       ? priceString
       : t('subscription.redeemCode.freePrice')
     : null
+  const shouldShowCurrentPrice =
+    !!currentPriceString && !!promoPriceString && currentPriceString !== promoPriceString
   const discountLabel =
     validOffer?.display.discountPercent !== null &&
     validOffer?.display.discountPercent !== undefined
@@ -118,6 +128,15 @@ export default function RedeemCodeScreen() {
           percent: validOffer.display.discountPercent,
         })
       : null
+  const primaryCtaLabel = isConfirmed
+    ? t('subscription.redeemCode.done')
+    : validOffer?.display.paymentRequired
+      ? priceString
+        ? t('subscription.redeemCode.redeemDiscountedAccessWithPrice', {
+            price: priceString,
+          })
+        : t('subscription.redeemCode.redeemDiscountedAccess')
+      : t('subscription.redeemCode.redeemFreeAccess')
 
   const offerContext = useMemo(
     () =>
@@ -384,43 +403,9 @@ export default function RedeemCodeScreen() {
       }
 
       if (!validOffer.display.paymentRequired) {
-        if (
-          validOffer.routing.storeAction === 'android_promo_code_flow' &&
-          Platform.OS === 'android'
-        ) {
-          const purchaseResult = await purchasePromoPackage(validOffer)
-          if (purchaseResult === 'package_unavailable') {
-            if (validOffer.routing.fallbackUrl) {
-              setShowStoreFallback(true)
-              setActionError(t('subscription.redeemCode.nativeRedemptionUnavailable'))
-            } else {
-              setActionError(t('subscription.redeemCode.errorPlatformUnavailable'))
-            }
-          } else if (purchaseResult === 'cancelled') {
-            setActionError(t('subscription.redeemCode.purchaseCancelled'))
-          }
-          return
-        }
-
-        trackValidOfferEvent('promo_store_handoff_started', validOffer, 'native_redemption_sheet')
-        void recordPromoRedemptionAttemptEvent({
-          redemptionAttemptId: validOffer.redemptionAttemptId,
-          event: 'store_handoff_started',
-          metadata: {
-            source: 'native_redemption_sheet',
-            platform: Platform.OS,
-            storeAction: validOffer.routing.storeAction,
-            productId: validOffer.routing.productId,
-          },
-        })
         const result = await subscription.redeemPromoCode(offerContext)
         if (!result || result.status !== 'confirmed') {
-          if (result?.status === 'revenuecat_unavailable' && validOffer.routing.fallbackUrl) {
-            setShowStoreFallback(true)
-            setActionError(t('subscription.redeemCode.nativeRedemptionUnavailable'))
-          } else {
-            setActionError(t('subscription.redeemCode.syncPending'))
-          }
+          setActionError(t('subscription.redeemCode.applyFailed'))
         }
         return
       }
@@ -625,7 +610,7 @@ export default function RedeemCodeScreen() {
                   className="mt-5 pt-4"
                   style={{ borderTopWidth: 1, borderTopColor: theme.colors.border.primary }}
                 >
-                  {activePriceString && (
+                  {shouldShowCurrentPrice && (
                     <View className="flex-row items-center justify-between mb-2">
                       <Text className="text-sm text-content-secondary">
                         {t('subscription.redeemCode.currentPrice')}
@@ -634,7 +619,7 @@ export default function RedeemCodeScreen() {
                         className="text-sm text-content-tertiary"
                         style={{ textDecorationLine: 'line-through' }}
                       >
-                        {activePriceString}
+                        {currentPriceString}
                       </Text>
                     </View>
                   )}
@@ -743,30 +728,30 @@ export default function RedeemCodeScreen() {
               onPress={isConfirmed ? handleBack : handleApplyOffer}
               disabled={isApplyingOffer || isSyncing}
               activeOpacity={0.85}
-              className="rounded-full py-4 mt-6 flex-row justify-center items-center"
+              className="rounded-full px-5 mt-6 flex-row justify-center items-center"
               style={{
                 backgroundColor: theme.colors.brand.primary,
+                minHeight: 56,
                 opacity: isApplyingOffer || isSyncing ? 0.55 : 1,
               }}
               accessibilityRole="button"
+              accessibilityLabel={primaryCtaLabel}
             >
               {isApplyingOffer || isSyncing ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <>
-                  {!isConfirmed && <Crown size={18} color="#FFFFFF" />}
-                  <Text className="text-white font-sans-bold ml-2">
-                    {isConfirmed
-                      ? t('subscription.redeemCode.done')
-                      : validOffer.display.paymentRequired
-                        ? priceString
-                          ? t('subscription.redeemCode.redeemDiscountedAccessWithPrice', {
-                              price: priceString,
-                            })
-                          : t('subscription.redeemCode.redeemDiscountedAccess')
-                        : t('subscription.redeemCode.redeemFreeAccess')}
+                <View className="flex-row justify-center items-center max-w-full">
+                  {!isConfirmed && <Crown size={18} color="#FFFFFF" style={{ flexShrink: 0 }} />}
+                  <Text
+                    className="text-white font-sans-bold ml-2 flex-shrink text-center"
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.82}
+                    style={{ lineHeight: 22 }}
+                  >
+                    {primaryCtaLabel}
                   </Text>
-                </>
+                </View>
               )}
             </TouchableOpacity>
 

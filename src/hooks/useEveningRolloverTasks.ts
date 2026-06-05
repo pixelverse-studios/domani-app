@@ -15,6 +15,7 @@ import { useCallback, useMemo } from 'react'
 
 import { supabase } from '~/lib/supabase'
 import { wasPromptedInCurrentCycle, markEveningPromptedToday, isPastReminderTime } from '~/lib/rollover'
+import { useAuth } from '~/hooks/useAuth'
 import { useCurrentDate } from '~/hooks/useCurrentDate'
 import { useNotificationStore } from '~/stores/notificationStore'
 import type { RolloverTask } from './useRolloverTasks'
@@ -45,19 +46,17 @@ export function useEveningRolloverTasks({
   enabled = false,
 }: UseEveningRolloverTasksOptions = {}): UseEveningRolloverTasksResult {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   // Refreshes on foreground and at midnight — prevents stale dates after overnight sleep
   const { today, yesterday } = useCurrentDate()
 
   // Query 0: Fetch the user's planning_reminder_time — shared by both the tasks
   // query (morning vs evening mode) and the prompt-check query (cycle-aware dedup).
   const { data: planningReminderTime } = useQuery({
-    queryKey: ['planningReminderTime'],
-    enabled,
+    queryKey: ['planningReminderTime', user?.id],
+    enabled: enabled && !!user?.id,
     queryFn: async (): Promise<string | null> => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return null
+      if (!user?.id) return null
       const { data: profile } = await supabase
         .from('profiles')
         .select('planning_reminder_time')
@@ -73,13 +72,10 @@ export function useEveningRolloverTasks({
   // planning_reminder_time — so both call sites (app-open and notification-tap)
   // get the correct date filtering without threading props.
   const { data: rawTasks = [], isLoading: isLoadingTasks, isFetched: isFetchedTasks } = useQuery({
-    queryKey: ['eveningRolloverTasks', today, yesterday, planningReminderTime],
-    enabled: enabled && planningReminderTime !== undefined,
+    queryKey: ['eveningRolloverTasks', user?.id, today, yesterday, planningReminderTime],
+    enabled: enabled && !!user?.id && planningReminderTime !== undefined,
     queryFn: async (): Promise<RolloverTask[]> => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return []
+      if (!user?.id) return []
 
       const reminderTime = planningReminderTime
 
@@ -146,12 +142,15 @@ export function useEveningRolloverTasks({
   // doesn't block the evening planning prompt (after reminder time) on the same day.
   // Default to true (fail closed) to prevent duplicate prompts on error.
   const { data: alreadyPrompted = true, isLoading: isLoadingPrompt, isFetched: isFetchedPrompt } = useQuery({
-    queryKey: ['eveningRolloverPromptedInCycle', today, planningReminderTime],
-    enabled: enabled && planningReminderTime !== undefined,
+    queryKey: ['eveningRolloverPromptedInCycle', user?.id, today, planningReminderTime],
+    enabled: enabled && !!user?.id && planningReminderTime !== undefined,
     queryFn: async () => {
       // If no reminder time configured, fall back to cycle-aware with a default
       // that effectively checks the full calendar day
-      const result = await wasPromptedInCurrentCycle(planningReminderTime ?? '00:00:00')
+      const result = await wasPromptedInCurrentCycle(
+        planningReminderTime ?? '00:00:00',
+        user?.id,
+      )
       if (__DEV__) console.log('[useEveningRolloverTasks] wasPromptedInCurrentCycle:', result, 'reminderTime:', planningReminderTime)
       return result
     },
@@ -164,9 +163,11 @@ export function useEveningRolloverTasks({
   const shouldShow = !isLoading && !alreadyPrompted && eligibleTasks.length > 0
 
   const markEveningPrompted = useCallback(async () => {
-    await markEveningPromptedToday()
-    await queryClient.invalidateQueries({ queryKey: ['eveningRolloverPromptedInCycle'] })
-  }, [queryClient])
+    await markEveningPromptedToday(user?.id)
+    if (user?.id) {
+      await queryClient.invalidateQueries({ queryKey: ['eveningRolloverPromptedInCycle', user.id] })
+    }
+  }, [queryClient, user?.id])
 
   return {
     eligibleTasks,

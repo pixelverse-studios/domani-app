@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import {
   Alert,
   Modal,
@@ -19,6 +19,8 @@ import { useAuth } from '~/hooks/useAuth'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useTranslation } from '~/hooks/useTranslation'
+import { waitForAuthSession } from '~/lib/authSession'
+import { supabase } from '~/lib/supabase'
 import { useAppConfig } from '~/stores/appConfigStore'
 import type { PublicPricingTier } from '~/types/appConfig'
 
@@ -45,11 +47,24 @@ export default function LoginScreen() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [appleLoading, setAppleLoading] = useState(false)
   const [trialConfirmProvider, setTrialConfirmProvider] = useState<'google' | 'apple' | null>(null)
+  const googleSignInInFlightRef = useRef(false)
 
   const handleGoogleSignIn = async () => {
+    if (googleSignInInFlightRef.current) return
+
     try {
+      googleSignInInFlightRef.current = true
       setGoogleLoading(true)
       await signInWithGoogle()
+      const persistedSession = await waitForAuthSession(() => supabase.auth.getSession(), {
+        attempts: 8,
+        intervalMs: 150,
+      })
+
+      if (!persistedSession) {
+        throw new Error(t('auth.errors.googleFallback'))
+      }
+
       router.replace('/')
     } catch (error) {
       Alert.alert(
@@ -57,6 +72,7 @@ export default function LoginScreen() {
         error instanceof Error ? error.message : t('auth.errors.googleFallback'),
       )
     } finally {
+      googleSignInInFlightRef.current = false
       setGoogleLoading(false)
     }
   }

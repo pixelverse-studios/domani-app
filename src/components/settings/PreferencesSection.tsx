@@ -15,6 +15,7 @@ interface PreferencesSectionProps {
   timezone: string | null
   onEditTimezone: () => void
   onEditLayout: () => void
+  disabled?: boolean
 }
 
 /**
@@ -25,6 +26,7 @@ export function PreferencesSection({
   timezone,
   onEditTimezone,
   onEditLayout,
+  disabled = false,
 }: PreferencesSectionProps) {
   const { locale } = useTranslation()
   const copy = getMainScreenCopy(locale)
@@ -51,12 +53,14 @@ export function PreferencesSection({
             value={getTimezoneLabel(timezone)}
             onPress={onEditTimezone}
             icon={Globe}
+            disabled={disabled}
           />
           <SettingsRow
             label={copy.settings.taskLayout}
             value={layoutLabel}
             onPress={onEditLayout}
             icon={LayoutGrid}
+            disabled={disabled}
           />
         </View>
       )}

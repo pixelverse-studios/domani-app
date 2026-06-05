@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { supabase } from '~/lib/supabase'
+import { useAuth } from '~/hooks/useAuth'
 import {
   checkHasAnalyticsData,
   fetchCompletionRate,
@@ -21,16 +21,16 @@ const ANALYTICS_STALE_TIME = 1000 * 60 * 5
  * Used to determine whether to show empty state
  */
 export function useHasAnalyticsData() {
+  const { user } = useAuth()
+
   return useQuery({
-    queryKey: ['analytics', 'hasData'],
+    queryKey: ['analytics', user?.id, 'hasData'],
     queryFn: async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      if (!user?.id) throw new Error('Not authenticated')
 
       return checkHasAnalyticsData(user.id)
     },
+    enabled: !!user?.id,
     staleTime: ANALYTICS_STALE_TIME,
   })
 }
@@ -39,16 +39,16 @@ export function useHasAnalyticsData() {
  * Fetch completion rate data for the current user
  */
 export function useCompletionRate() {
+  const { user } = useAuth()
+
   return useQuery<CompletionRateData | null>({
-    queryKey: ['analytics', 'completionRate'],
+    queryKey: ['analytics', user?.id, 'completionRate'],
     queryFn: async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      if (!user?.id) throw new Error('Not authenticated')
 
       return fetchCompletionRate(user.id)
     },
+    enabled: !!user?.id,
     staleTime: ANALYTICS_STALE_TIME,
   })
 }
@@ -57,16 +57,16 @@ export function useCompletionRate() {
  * Fetch daily completion data for the last N days
  */
 export function useDailyCompletions(days: number = 7) {
+  const { user } = useAuth()
+
   return useQuery<DailyCompletionData[]>({
-    queryKey: ['analytics', 'dailyCompletions', days],
+    queryKey: ['analytics', user?.id, 'dailyCompletions', days],
     queryFn: async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      if (!user?.id) throw new Error('Not authenticated')
 
       return fetchDailyCompletions(user.id, days)
     },
+    enabled: !!user?.id,
     staleTime: ANALYTICS_STALE_TIME,
   })
 }
@@ -81,13 +81,12 @@ export function useDailyCompletions(days: number = 7) {
  * - DOM-248: useMitCompletionRate
  */
 export function useAnalyticsSummary() {
+  const { user } = useAuth()
+
   return useQuery<AnalyticsSummary>({
-    queryKey: ['analytics', 'summary'],
+    queryKey: ['analytics', user?.id, 'summary'],
     queryFn: async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      if (!user?.id) throw new Error('Not authenticated')
 
       // Fetch all metrics in parallel
       const [hasData, completionRate, executionStreak, planningStreak, mitCompletionRate] =
@@ -107,6 +106,7 @@ export function useAnalyticsSummary() {
         hasData,
       }
     },
+    enabled: !!user?.id,
     staleTime: ANALYTICS_STALE_TIME,
   })
 }

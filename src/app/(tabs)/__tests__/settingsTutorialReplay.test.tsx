@@ -3,6 +3,7 @@ import React from 'react'
 import { fireEvent, renderWithProviders, screen } from '~/test/test-utils'
 import SettingsScreen from '../settings'
 import { useTutorialStore } from '~/stores/tutorialStore'
+import { hasFullAccess, useSubscription } from '~/hooks/useSubscription'
 
 const mockPush = jest.fn()
 const mockReplace = jest.fn()
@@ -51,17 +52,30 @@ jest.mock('~/components/settings', () => {
   const { Text, TouchableOpacity } = require('react-native')
 
   return {
-    ProfileSection: () => null,
-    SubscriptionSection: () => null,
-    CategoriesSection: () => null,
-    NotificationsSection: () => null,
-    PreferencesSection: () => null,
-    SupportSection: ({ onReplayTutorial }: { onReplayTutorial: () => void }) => (
-      <TouchableOpacity onPress={onReplayTutorial}>
+    ProfileSection: () => <Text>Profile Section</Text>,
+    SubscriptionSection: () => <Text>Subscription Section</Text>,
+    CategoriesSection: ({ disabled }: { disabled?: boolean }) => (
+      <Text>{`Categories Section ${disabled ? 'disabled' : 'enabled'}`}</Text>
+    ),
+    NotificationsSection: ({ disabled }: { disabled?: boolean }) => (
+      <Text>{`Notifications Section ${disabled ? 'disabled' : 'enabled'}`}</Text>
+    ),
+    PreferencesSection: ({ disabled }: { disabled?: boolean }) => (
+      <Text>{`Preferences Section ${disabled ? 'disabled' : 'enabled'}`}</Text>
+    ),
+    SupportSection: ({
+      onReplayTutorial,
+      disableTutorialReplay,
+    }: {
+      onReplayTutorial: () => void
+      disableTutorialReplay?: boolean
+    }) => (
+      <TouchableOpacity onPress={onReplayTutorial} disabled={disableTutorialReplay}>
         <Text>Replay Tutorial</Text>
+        <Text>{`Replay Tutorial ${disableTutorialReplay ? 'disabled' : 'enabled'}`}</Text>
       </TouchableOpacity>
     ),
-    DangerZoneSection: () => null,
+    DangerZoneSection: () => <Text>Danger Zone Section</Text>,
     NameModal: () => null,
     TimezoneModal: () => null,
     PlanningTimeModal: () => null,
@@ -95,12 +109,23 @@ jest.mock('~/hooks/useProfile', () => ({
 }))
 
 jest.mock('~/hooks/useSubscription', () => ({
-  hasFullAccess: jest.fn(() => true),
-  useSubscription: jest.fn(() => ({
-    status: 'trialing',
+  hasFullAccess: jest.fn((status: string) => status === 'trialing' || status === 'lifetime'),
+  useSubscription: jest.fn(),
+}))
+
+const mockHasFullAccess = hasFullAccess as jest.MockedFunction<typeof hasFullAccess>
+const mockUseSubscription = useSubscription as jest.MockedFunction<typeof useSubscription>
+
+function mockSubscriptionStatus(status: 'pre_trial' | 'trialing') {
+  mockUseSubscription.mockReturnValue({
+    status,
     isLoading: false,
     isStartingTrial: false,
     isRestoring: false,
+    isSyncingAccess: false,
+    isRedeemingPromoCode: false,
+    accessSyncPhase: 'idle',
+    accessSyncAttempt: null,
     trialDaysRemaining: null,
     trialExpirationDate: null,
     graceDaysRemaining: null,
@@ -111,8 +136,9 @@ jest.mock('~/hooks/useSubscription', () => ({
     startTrial: jest.fn(),
     restore: jest.fn(),
     purchase: jest.fn(),
-  })),
-}))
+    syncAccess: jest.fn(),
+  } as unknown as ReturnType<typeof useSubscription>)
+}
 
 jest.mock('~/hooks/useNotifications', () => ({
   useNotifications: jest.fn(() => ({
@@ -161,6 +187,8 @@ jest.mock('~/stores/appConfigStore', () => ({
 describe('SettingsScreen tutorial replay', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockHasFullAccess.mockImplementation((status) => status === 'trialing' || status === 'lifetime')
+    mockSubscriptionStatus('trialing')
     useTutorialStore.setState({
       isActive: false,
       currentStep: null,
@@ -183,5 +211,24 @@ describe('SettingsScreen tutorial replay', () => {
       isOverlayHidden: false,
     })
     expect(mockPush).toHaveBeenCalledWith('/(tabs)/')
+  })
+
+  it('keeps account settings visible and disables app-specific settings while gated', () => {
+    mockSubscriptionStatus('pre_trial')
+
+    renderWithProviders(<SettingsScreen />)
+
+    expect(screen.getByText('Profile Section')).toBeTruthy()
+    expect(screen.getByText('Subscription Section')).toBeTruthy()
+    expect(screen.getByText('Danger Zone Section')).toBeTruthy()
+    expect(screen.getByText('Categories Section disabled')).toBeTruthy()
+    expect(screen.getByText('Notifications Section disabled')).toBeTruthy()
+    expect(screen.getByText('Preferences Section disabled')).toBeTruthy()
+    expect(screen.getByText('Replay Tutorial disabled')).toBeTruthy()
+
+    fireEvent.press(screen.getByText('Replay Tutorial'))
+
+    expect(mockResetTracking).not.toHaveBeenCalled()
+    expect(mockTrackTutorialStarted).not.toHaveBeenCalled()
   })
 })
