@@ -34,7 +34,7 @@ Together, these changes make Domani's core planning loop tighter, more reliable,
 
 ### Product summary
 
-Domani is a daily task planning app grounded in the psychology of intentional planning. Its central premise is that users plan tomorrow's tasks the night before, giving them clarity before the day begins rather than scrambling in the morning. Each day's plan supports up to three tasks (on the free tier), one of which is designated as the Most Important Task (MIT). Users receive a planning reminder notification at a time they set themselves, prompting them to plan for the following day.
+Domani is a daily task planning app grounded in the psychology of intentional planning. Its central premise is that users plan tomorrow's tasks the night before, giving them clarity before the day begins rather than scrambling in the morning. Each day's plan highlights one Most Important Task (MIT). Users receive a planning reminder notification at a time they set themselves, prompting them to plan for the following day.
 
 The feature described in this document refactors the rollover and planning trigger mechanics to align with that core premise — one planning moment, in the evening, every time.
 

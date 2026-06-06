@@ -37,7 +37,7 @@ KEY FEATURES TO TEST
 
 2. EVENING PLANNING (Primary Feature)
    - Tap the "Planning" tab to create tomorrow's tasks
-   - Add up to 3 tasks (free tier limit)
+   - Add tomorrow's tasks while your trial or lifetime access is active
    - Mark ONE task as your Most Important Task (MIT) by setting it to HIGH priority
    - Note: Only one HIGH priority task is allowed - this is your MIT
    - Try assigning different categories to each task
@@ -81,7 +81,7 @@ EDGE CASES TO TRY
 ===================
 
 - Create a task, then immediately delete it
-- Try to add a 4th task (should see free tier limit message)
+- Verify an inactive account is prompted to start a trial or purchase lifetime access
 - Lock a plan, then try to edit it (should be prevented)
 - Set a HIGH priority task, then try to set another as HIGH
 - Use the app at midnight to test timezone handling
@@ -125,7 +125,7 @@ THE SCIENCE BEHIND DOMANI
 Research shows we make better decisions in the evening when cognitive load is lower and we can think strategically. Domani leverages this by encouraging you to plan tomorrow's tasks at night, then simply execute in the morning without decision fatigue.
 
 HOW IT WORKS
-1. Each evening, open Domani and add up to 3 tasks for tomorrow
+1. Each evening, open Domani and add tasks for tomorrow
 2. Choose your Most Important Task (MIT) - the one thing that will make tomorrow successful
 3. Assign categories to track different areas of your life
 4. Lock your plan to prevent midnight anxiety editing
@@ -141,8 +141,8 @@ KEY FEATURES
 - Progress Tracking: Satisfying completion animations and progress indicators
 - Dark Mode: Full dark mode support for evening planning sessions
 
-FREE TIER INCLUDES
-- 3 tasks per day (enough for focused productivity)
+TRIAL AND LIFETIME ACCESS INCLUDE
+- Full planning and execution experience
 - System categories (Work, Personal, Health, and more)
 - MIT designation
 - Plan locking
@@ -157,7 +157,7 @@ This beta focuses on the core planning and execution experience. We're gathering
 - Overall app stability
 
 KNOWN LIMITATIONS
-- Subscription features are not yet active
+- Lifetime purchase and trial access should be tested in the target environment
 - Some analytics features are coming soon
 - Push notifications require iOS permission
 
@@ -215,7 +215,7 @@ Use this account for Apple App Review submission and internal testing:
 | Provider | Apple Sign-In                     |
 | Email    | `testuser@domaniapp.com`          |
 | Password | N/A (Apple Sign-In uses Apple ID) |
-| Notes    | Standard free tier user           |
+| Notes    | Test user with active trial or lifetime access |
 
 ### Alternative: Google Sign-In Test Account
 

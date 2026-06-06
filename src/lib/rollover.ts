@@ -371,12 +371,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
         )
         .single()
 
-      // FIX 3: IMPORTANT - Check for FREE_TIER_LIMIT error
       if (createError) {
-        // Check if this is a free tier limit error
-        if ((createError as any).code === '23514' || createError.message.includes('task limit')) {
-          throw new Error('FREE_TIER_LIMIT')
-        }
         throw createError
       }
 

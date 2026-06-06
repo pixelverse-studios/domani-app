@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Domani is a React Native mobile productivity app that revolutionizes task planning through evening psychology. Built with Expo, Supabase, and RevenueCat, it implements a freemium model with three tiers: Free (3 tasks/day), Premium ($3.99/month or $25/year), and Lifetime ($99 one-time).
+Domani is a React Native mobile productivity app that revolutionizes task planning through evening psychology. Built with Expo, Supabase, and RevenueCat, it uses a 14-day trial followed by lifetime purchase access. There is no ongoing unpaid plan and no recurring paid subscription plan.
 
 **Core Philosophy**: Plan tomorrow tonight when calm, execute in the morning when focused.
 
@@ -175,7 +175,7 @@ Closes #[issue number] (if applicable)
 
 - **IAP Platform**: RevenueCat
 - **Payment Processing**: Native App Store/Play Store
-- **Subscription Types**: Monthly, Annual, Lifetime (non-consumable)
+- **Purchase Types**: Lifetime non-consumable products, with trial access and promotional lifetime grants handled through the access model
 
 ### Developer Experience
 
@@ -290,11 +290,11 @@ const PLANNING_PHILOSOPHY = {
 }
 ```
 
-### The 3-Task Free Tier Philosophy
+### Focused Daily Planning Philosophy
 
 ```typescript
-// Why 3 tasks is a feature, not a limitation
-const FREE_TIER_LOGIC = {
+// Focused planning is a product philosophy, not a free-tier limit
+const FOCUSED_PLANNING_LOGIC = {
   rationale: 'Research shows 3-6 tasks is optimal for daily productivity',
 
   benefits: [
@@ -308,21 +308,22 @@ const FREE_TIER_LOGIC = {
 }
 ```
 
-### Tier Enforcement Strategy
+### Access Enforcement Strategy
 
 ```typescript
-interface TierFeatures {
-  free: {
-    tasksPerDay: 3
-    categories: 4 // Work, Personal, Health, Other
-    features: string[]
+interface AccessFeatures {
+  none: {
+    canUseApp: false
+    features: []
   }
-  premium: {
+  trialing: {
+    canUseApp: true
     tasksPerDay: 'unlimited'
     categories: 'unlimited'
     features: string[]
   }
   lifetime: {
+    canUseApp: true
     tasksPerDay: 'unlimited'
     categories: 'unlimited'
     features: string[]
@@ -564,11 +565,11 @@ export const PlanningScreen = () => {
   const { mutate: createTask } = useCreateTask();
   const { profile } = useAuth();
 
-  const canAddTask = profile?.tier !== 'free' || tasks.length < 3;
+  const canUsePlanning = profile?.tier === 'trialing' || profile?.tier === 'lifetime';
 
   if (isLoading) return <LoadingState />;
 
-  return <PlanningView plan={plan} tasks={tasks} canAddTask={canAddTask} onCreateTask={createTask} />;
+  return <PlanningView plan={plan} tasks={tasks} canUsePlanning={canUsePlanning} onCreateTask={createTask} />;
 };
 
 // Presenter handles display
@@ -576,17 +577,17 @@ export const PlanningScreen = () => {
 interface PlanningViewProps {
   plan: Plan;
   tasks: Task[];
-  canAddTask: boolean;
+  canUsePlanning: boolean;
   onCreateTask: (task: CreateTaskInput) => void;
 }
 
-export const PlanningView = ({ plan, tasks, canAddTask, onCreateTask }: PlanningViewProps) => {
+export const PlanningView = ({ plan, tasks, canUsePlanning, onCreateTask }: PlanningViewProps) => {
   return (
     <ScrollView className="flex-1 bg-background">
       <PlanningHeader date={plan.planned_for} />
-      <TaskInput onSubmit={onCreateTask} disabled={!canAddTask} />
+      <TaskInput onSubmit={onCreateTask} disabled={!canUsePlanning} />
       <TaskList tasks={tasks} />
-      {!canAddTask && <UpgradePrompt />}
+      {!canUsePlanning && <UpgradePrompt />}
       <LockPlanButton plan={plan} />
     </ScrollView>
   );
@@ -627,9 +628,9 @@ export function useCreateTask() {
       const { data, error } = await supabase.from('tasks').insert(task).select().single()
 
       if (error) {
-        // Backend RLS enforces 3-task limit
-        if (error.code === '23514') {
-          throw new Error('FREE_TIER_LIMIT')
+        // Backend RLS enforces app access
+        if (error.code === '42501') {
+          throw new Error('ACCESS_REQUIRED')
         }
         throw error
       }
@@ -643,8 +644,8 @@ export function useCreateTask() {
     },
 
     onError: (error: Error) => {
-      if (error.message === 'FREE_TIER_LIMIT') {
-        // Show upgrade prompt
+      if (error.message === 'ACCESS_REQUIRED') {
+        // Show trial/lifetime access prompt
         navigation.navigate('Upgrade')
       }
     },
@@ -787,7 +788,6 @@ export async function initializePurchases(userId: string) {
 }
 
 export const ENTITLEMENTS = {
-  PREMIUM: 'premium',
   LIFETIME: 'lifetime',
 } as const
 ```
@@ -826,16 +826,14 @@ export function usePurchases() {
     },
   })
 
-  const isPremium = customerInfo
-    ? checkEntitlement(customerInfo, ENTITLEMENTS.PREMIUM) ||
-      checkEntitlement(customerInfo, ENTITLEMENTS.LIFETIME)
+  const hasLifetimeAccess = customerInfo
+    ? checkEntitlement(customerInfo, ENTITLEMENTS.LIFETIME)
     : false
 
   return {
     offerings,
     customerInfo,
-    isPremium,
-    isLifetime: checkEntitlement(customerInfo, ENTITLEMENTS.LIFETIME),
+    hasLifetimeAccess,
     purchase: purchaseMutation.mutateAsync,
   }
 }
@@ -999,14 +997,14 @@ describe('useTasks', () => {
     })
   })
 
-  it('enforces free tier limit', async () => {
+  it('blocks task creation without active access', async () => {
     const { result } = renderHook(() => useCreateTask())
 
     await act(async () => {
       try {
         await result.current.mutateAsync(newTask)
       } catch (error) {
-        expect(error.message).toBe('FREE_TIER_LIMIT')
+        expect(error.message).toBe('ACCESS_REQUIRED')
       }
     })
   })
@@ -1139,10 +1137,10 @@ eas submit --platform android
 - **App Performance**: 60fps animations, <500ms API calls
 - **Bundle Size**: Keep under 20MB initial download
 - **Crash-Free Rate**: Target 99.5%+
-- **Conversion Rate**: Free → Premium
+- **Conversion Rate**: Trial → Lifetime
 - **Retention**: Day 1 (70%), Day 7 (60%), Day 30 (40%)
-- **Task Completion**: Track completion rate by tier
-- **Revenue**: MRR growth, LTV/CAC ratio
+- **Task Completion**: Track completion rate by access state
+- **Revenue**: Lifetime purchase revenue and LTV/CAC ratio
 
 ## Development Mantras
 

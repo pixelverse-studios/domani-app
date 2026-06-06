@@ -9,14 +9,14 @@
 
 ### RevenueCat Android Setup
 
-**Context**: RevenueCat is not configured for Android, causing subscription features to fail silently. Currently the app gracefully handles this, but subscriptions won't work on Android until configured.
+**Context**: RevenueCat must be configured for Android so lifetime purchases and entitlement checks work correctly. Currently the app gracefully handles missing configuration, but Android purchase flows need verification before release.
 **Scope**:
 
 - Create Android app in RevenueCat dashboard
 - Configure Google Play Store connection in RevenueCat
 - Add products/offerings matching iOS configuration
 - Add `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` to environment variables
-- Test subscription flow on Android device/emulator
+- Test lifetime purchase and restore flows on Android device/emulator
   **Files to modify**: `.env`, `.env.local`
   **Reference**: [RevenueCat Android Setup Guide](https://www.revenuecat.com/docs/getting-started/installation/android)
 
@@ -33,7 +33,7 @@
 - Duration picker (preset options: 15m, 30m, 1h, 2h, custom)
 - MIT toggle (mark as Most Important Task)
 - Integration with `useCreateTask` hook
-- Free tier limit handling (show upgrade prompt on 4th task)
+- Access-state handling for inactive users
   **Files to create/modify**: `src/components/today/AddTaskModal.tsx`, `src/app/(tabs)/index.tsx`
 
 ### Task Detail/Edit Modal
@@ -85,7 +85,7 @@
 **Scope**:
 
 - Categories list in Settings
-- Create custom category (Premium feature)
+- Create custom category
 - Edit category name/color/icon
 - Reorder categories
 - Delete category (handle tasks with that category)
@@ -109,7 +109,7 @@
 
 ### Analytics Screen
 
-**Context**: Track productivity trends and insights (Premium feature)
+**Context**: Track productivity trends and insights
 **Scope**:
 
 - Weekly/monthly completion rates

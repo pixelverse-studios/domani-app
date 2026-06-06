@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This proposal recommends shifting Domani from a freemium subscription model to a **14-day free trial + one-time purchase** model. Research indicates this approach capitalizes on growing subscription fatigue while positioning Domani as a premium, "own forever" productivity tool.
+This proposal recommends shifting Domani from the old recurring-plan concept to a **14-day free trial + one-time purchase** model. Research indicates this approach capitalizes on growing subscription fatigue while positioning Domani as an "own forever" productivity tool.
 
 **Price: $34.99 USD (one-time, own forever)**
 **Early Adopter Price (Public Beta): $9.99 USD**

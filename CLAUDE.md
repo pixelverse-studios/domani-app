@@ -126,14 +126,14 @@ This ensures nothing falls through the cracks between development sessions.
 
 ## Project Documentation
 
-- `development-plan.md` - Full project spec, architecture, and business logic
+- `development-plan.md` - Deprecated historical project spec; do not use for current monetization or access rules
 - `docs/FUTURE_WORK.md` - Backlog of planned features and improvements
 - `docs/plans/` - Implementation plans for major features
 
 ## Key Architecture Decisions
 
 - **Evening Planning Psychology**: Users plan tomorrow's tasks at night, execute during the day
-- **Free Tier**: 3 tasks per day (enforced at database level via RLS)
+- **Access Model**: Users need an active 14-day trial or lifetime access. There is no ongoing unpaid plan and no recurring paid subscription plan.
 - **MIT**: Each plan has exactly one Most Important Task
 - **Plan Locking**: Locked plans cannot be edited (prevents midnight anxiety)
 

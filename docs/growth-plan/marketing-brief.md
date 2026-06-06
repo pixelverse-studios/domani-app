@@ -181,7 +181,7 @@ Unlike traditional todo apps, Domani shifts planning to the evening when users a
 | Traditional Apps            | Domani                        |
 | --------------------------- | ----------------------------- |
 | Morning planning (reactive) | Evening planning (reflective) |
-| Unlimited tasks (overwhelm) | 3 tasks/day (focused)         |
+| Everything at once          | Focused daily planning        |
 | All tasks equal             | MIT for daily priority        |
 | Edit anytime (anxiety)      | Plan locking (commitment)     |
 | Monthly subscriptions       | One-time purchase             |

@@ -342,11 +342,11 @@ export function getOfferingForCohort(
 }
 
 /**
- * Check if user has premium access (lifetime purchase or trial)
+ * Check if user has active access through the configured lifetime entitlement or trial.
  * Lifetime purchases have no expiration date; trials have expiration dates
  */
-export async function checkPremiumAccess(): Promise<{
-  hasPremium: boolean
+export async function checkActiveAccess(): Promise<{
+  hasAccess: boolean
   isTrialing: boolean
   trialExpirationDate: string | null
 }> {
@@ -354,7 +354,7 @@ export async function checkPremiumAccess(): Promise<{
     const customerInfo = await Purchases.getCustomerInfo()
     const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID]
 
-    console.log('[RevenueCat] Checked premium access', {
+    console.log('[RevenueCat] Checked active access', {
       entitlementId: ENTITLEMENT_ID,
       hasEntitlement: !!entitlement,
       ...getActiveEntitlementSummary(customerInfo),
@@ -363,7 +363,7 @@ export async function checkPremiumAccess(): Promise<{
     if (entitlement) {
       const isTrialing = entitlement.periodType === 'TRIAL'
       return {
-        hasPremium: true,
+        hasAccess: true,
         isTrialing,
         // Only include expiration for trials (lifetime has no expiration)
         trialExpirationDate: isTrialing ? entitlement.expirationDate : null,
@@ -371,14 +371,14 @@ export async function checkPremiumAccess(): Promise<{
     }
 
     return {
-      hasPremium: false,
+      hasAccess: false,
       isTrialing: false,
       trialExpirationDate: null,
     }
   } catch (error) {
-    console.error('[RevenueCat] Error checking premium access:', error)
+    console.error('[RevenueCat] Error checking active access:', error)
     return {
-      hasPremium: false,
+      hasAccess: false,
       isTrialing: false,
       trialExpirationDate: null,
     }
@@ -386,7 +386,7 @@ export async function checkPremiumAccess(): Promise<{
 }
 
 /**
- * Purchase a package (subscription)
+ * Purchase a lifetime package.
  */
 export async function purchasePackage(packageToPurchase: PurchasesPackage) {
   try {

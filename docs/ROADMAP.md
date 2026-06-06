@@ -136,7 +136,7 @@ Evening notification fires
 #### Monetization Angle
 
 - Reflection/intention history beyond 7 days behind paywall
-- Energy-vs-productivity insights as premium analytics
+- Energy-vs-productivity insights as advanced analytics
 - "See your last 7 reflections free, unlock full journal with lifetime purchase"
 
 #### Technical Scope
@@ -176,7 +176,7 @@ A horizontal week view showing all 7 days at a glance. Move tasks between days. 
 
 #### Monetization Angle
 
-- Weekly view as a premium feature (free users limited to today/tomorrow)
+- Weekly view can support the paid lifetime product without introducing a separate tier
 
 ---
 

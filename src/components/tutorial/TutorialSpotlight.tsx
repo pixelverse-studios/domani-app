@@ -46,7 +46,7 @@ const TOOLTIP_OFFSET = 20
 const TOOLTIP_ESTIMATED_HEIGHT = 220
 
 /**
- * Premium spotlight overlay for tutorial guidance.
+ * Polished spotlight overlay for tutorial guidance.
  * Uses absolute positioning instead of Modal to allow touch pass-through.
  */
 export function TutorialSpotlight() {

@@ -218,7 +218,7 @@ function useToggleTask() {
 ```typescript
 function useCreateTask() {
   // Mutation to create new task
-  // Handles free tier limit error
+  // Handles task creation errors
 }
 ```
 
@@ -297,5 +297,5 @@ Already have:
 
 - The designs show dark mode only - ensure light mode also looks good
 - MIT (Most Important Task) is shown on FocusCard, indicated by `is_mit` field
-- Free tier limit (3 tasks) enforced at database level via RLS
+- Access enforcement happens at the database/API boundary; inactive users cannot create tasks
 - Plan locking prevents edits - execution screen should respect this

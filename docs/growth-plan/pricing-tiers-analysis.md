@@ -163,7 +163,7 @@ Subscriptions create ongoing pressure - both for users (another monthly bill) an
 
 ---
 
-## 6. Why No Free Tier
+## 6. Why No Ongoing Unpaid Plan
 
 ### The Decision: All or Nothing
 
@@ -172,13 +172,13 @@ After the 14-day trial, Domani is either:
 - **Unlocked**: Full access to everything, forever
 - **Locked**: Read-only during grace period, then complete lock
 
-There is no permanent free tier with limited features.
+There is no permanent unpaid plan with limited features.
 
 ### Rationale
 
 1. **Simplifies the product**: No need to artificially limit features or create upgrade friction
 2. **Clear value proposition**: Trial lets you experience everything; purchase unlocks it permanently
-3. **Prevents devaluation**: A "good enough" free tier undermines the paid offering
+3. **Prevents devaluation**: A "good enough" unpaid plan undermines the paid offering
 4. **Better user experience**: No constant upsell prompts or feature gates
 5. **Sustainable business**: Every active user is a paying customer
 

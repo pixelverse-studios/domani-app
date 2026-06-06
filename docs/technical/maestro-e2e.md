@@ -42,7 +42,7 @@ The default command runs the authenticated Android smoke flow. Run the welcome c
 
 ## Test Data Expectations
 
-Use a non-production test user. The user should be allowed to create at least one task and submit feedback in the target environment. If the account is on the free tier, make sure it has remaining daily task capacity before running the authenticated flow.
+Use a non-production test user. The user should have active trial or lifetime access and be allowed to create at least one task and submit feedback in the target environment.
 
 ## Out Of Scope
 

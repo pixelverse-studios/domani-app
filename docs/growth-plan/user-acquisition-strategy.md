@@ -394,7 +394,7 @@ Reddit visibility in Google increased 1,348% in 2025 - major SEO opportunity.
 
 1. Engage with their content first
 2. Personalized pitch highlighting alignment
-3. Offer lifetime premium access + affiliate code (they earn commission on each $9.99/$34.99 purchase)
+3. Offer lifetime access + affiliate code (they earn commission on each $9.99/$34.99 purchase)
 4. Consider usage rights fees ($100-1,500+)
 
 **Budget:**
@@ -566,14 +566,14 @@ Reddit visibility in Google increased 1,348% in 2025 - major SEO opportunity.
 - Referee: Extended trial (e.g., 21 days instead of 14)
 - Referrer rewards tier system:
   - Refer 1 friend: 7 extra trial days
-  - Refer 3 friends: Unlock premium free (lifetime)
-  - Refer 5+ friends: Premium + exclusive "Founding Member" badge
+  - Refer 3 friends: Unlock lifetime access
+  - Refer 5+ friends: Lifetime access + exclusive "Founding Member" badge
 
 **Why This Works:**
 
-- Since Domani uses a one-time purchase ($34.99, or $9.99 during beta), the referral reward of "free premium" is a strong incentive
+- Since Domani uses a one-time purchase ($34.99, or $9.99 during beta), the referral reward of lifetime access is a strong incentive
 - Each successful referral has potential lifetime value of $9.99-$34.99
-- Users who earn premium through referrals become advocates
+- Users who earn lifetime access through referrals become advocates
 
 **Implementation Tips:**
 
@@ -582,13 +582,13 @@ Reddit visibility in Google increased 1,348% in 2025 - major SEO opportunity.
 - Pre-written share messages
 - Unique referral links/codes
 - Gamify with tiers (Bronze/Silver/Gold referrer)
-- Show progress toward "3 referrals = free premium" goal
+- Show progress toward "3 referrals = lifetime access" goal
 
 **Key Metrics:**
 
 - Need 1.1+ referrals per user for viral loop
 - Track: referrals, conversion rate, revenue per referred user
-- Break-even: 3 referrals at $9.99 each = $29.97 (covers one free premium grant)
+- Break-even: 3 referrals at $9.99 each = $29.97 (covers one lifetime access grant)
 
 **Tools:**
 

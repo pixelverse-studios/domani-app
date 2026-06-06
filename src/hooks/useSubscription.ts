@@ -1276,7 +1276,7 @@ export function useSubscription() {
     },
   })
 
-  // Purchase subscription
+  // Purchase lifetime access
   const purchaseMutation = useMutation({
     mutationFn: async (input: PurchasesPackage | PurchaseRequest) => {
       const pkg = 'pkg' in input ? input.pkg : input

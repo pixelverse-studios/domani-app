@@ -12,14 +12,14 @@ When project documentation conflicts, use this order:
 2. `docs/domani-app-guide.md`
 3. Older planning or setup docs
 
-Older docs may still reference beta-only behavior, the old freemium model, or subscription SKUs that are no longer current.
+Older docs may still reference beta-only behavior, old pricing assumptions, or retired purchase SKUs that are no longer current.
 
 ## Current Product State
 
 - Beta development is complete.
 - The team is preparing for a public paid launch.
 - Current priority is paywall and monetization work, then App Store submission readiness.
-- The app is no longer centered on the old "free 3 tasks per day" model.
+- The app is no longer centered on the old limited daily-task model.
 
 ## Current Monetization Model
 

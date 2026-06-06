@@ -65,7 +65,7 @@ The Maestro smoke suite requires:
 - A Domani Android test build installed with app package `com.baitedz.domaniapp`.
 - A non-production authenticated test user for `npm run e2e:maestro` and `npm run e2e:maestro:android`.
 
-The authenticated flow does not automate OAuth sign-in. Sign in manually before running it. If the test user is on the free tier, confirm it has remaining daily task capacity because the flow creates one task.
+The authenticated flow does not automate OAuth sign-in. Sign in manually before running it. Confirm the test user has active trial or lifetime access because the flow creates one task.
 
 See `docs/technical/maestro-e2e.md` for the current Maestro flow coverage and scope exclusions.
 

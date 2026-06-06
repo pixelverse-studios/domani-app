@@ -115,7 +115,7 @@ Two buttons in Settings to simulate rollover flows without waiting for your remi
 - [ ] Normal daily planning works (add tasks, set MIT, lock plan)
 - [ ] Task completion/uncomplete works
 - [ ] Task editing works
-- [ ] Free tier 3-task limit enforced
+- [ ] Access gating works for inactive, trialing, and lifetime users
 - [ ] Profile editing (name, timezone) works
 - [ ] Sign out / sign in flow works
 - [ ] App navigation between all tabs works

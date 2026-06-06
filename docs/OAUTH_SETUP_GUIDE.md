@@ -544,7 +544,7 @@ ON CONFLICT (id) DO NOTHING;
 - [ ] `profiles` table has trigger to auto-create on signup
 - [ ] RLS policies prevent unauthorized access
 - [ ] Default categories created for new users
-- [ ] Tier enforcement working (free = 3 tasks)
+- [ ] Access enforcement working (trialing/lifetime users can use the app; inactive users are blocked)
 
 ---
 
