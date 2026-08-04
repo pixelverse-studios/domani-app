@@ -1,500 +1,309 @@
 # Domani Meta Ads Campaign Plan
 
-**Status:** Living final plan
+**Status:** Draft for final review
 
-**Current stage:** Pre-launch readiness and measurement planning
+**Target launch:** August 11, 2026
 
-**Last updated:** July 27, 2026
+**Initial market:** United States, iOS
 
-## Purpose
+**Owners:** Phil and Sami
 
-This is the working source of truth for Domani's Meta advertising plan. Agreed decisions will be added as each stage is completed. Recommendations that still require validation are labeled provisional and should not be treated as final performance commitments.
+**Last updated:** August 4, 2026
 
-## Current Product Context
+## How to Use This Plan
 
-Domani is a mobile daily-planning app built around one core behavior:
+This document contains the campaign decisions Phil and Sami need for approval and launch. Supporting details are kept in three working documents:
 
-> Plan tomorrow tonight, then start the next day calm, clear, and focused on what matters.
+- [Creative brief](./meta-ads-creative-brief.md)
+- [Measurement plan](./meta-ads-measurement-plan.md)
+- [Launch checklist](./meta-ads-launch-checklist.md)
 
-Current commercial model:
+The campaign should not launch until every item marked `Launch blocker` in the checklist is complete.
+
+## Executive Summary
+
+| Decision | Plan |
+| --- | --- |
+| Business goal | Learn whether Meta can bring Domani users who start a trial, create a real task, and return to the app |
+| Stage 1 purpose | Generate directional conversion and activation signals; it is not expected to prove profitability |
+| Campaign | One Meta App Promotion campaign |
+| Ad set | One broad US iOS ad set |
+| Launch optimization | App installs |
+| Placements | Advantage+ placements, using the correct asset for each placement |
+| Audience | US, English, ages 25-54, all genders, no interest targeting |
+| Stage 1 budget | $20 per day for 10 days, up to $200 |
+| Conditional reserve | Up to $100 for five additional days if the continuation rules are met |
+| Initial ads | One video concept and two screenshot-led concepts |
+| Offer | 14-day free trial, then $9.99 lifetime access during the early-adopter period |
+| Target launch | August 11, 2026, subject to launch readiness |
+| Review cadence | Phil and Sami check delivery daily and review results together at least twice per week |
+
+## 1. Product and Offer
+
+Domani is a daily-planning app built around one simple habit:
+
+> Plan tomorrow tonight, then start the next day knowing what matters.
+
+Current offer:
 
 - 14-day free trial with no payment method required upfront
-- $9.99 current early-adopter lifetime purchase
-- $34.99 planned standard lifetime price after the early-adopter campaign
-- No recurring subscription
-- No continuing unpaid plan after trial access expires
-- One lifetime product for paid users
-- The early-adopter price is available to eligible new and existing users, not only Meta-acquired users
-- The early-adopter period will end after 200 lifetime purchases or on a specific date, whichever happens first
-- The specific end date remains pending Sami's final review
-
-## Campaign Development Stages
-
-1. Campaign foundation
-2. Product funnel validation
-3. Meta business infrastructure
-4. Attribution and tracking
-5. Conversion-event configuration
-6. Campaign structure
-7. Creative strategy
-8. Creative production
-9. Testing methodology
-10. Pre-launch validation
-11. Launch, evaluation, and scaling
-
-Only decisions that have been reviewed and accepted should be added to the relevant stage below.
-
----
-
-## 1. Campaign Foundation
-
-### Business North Star
-
-Acquire lifetime customers profitably.
-
-Lifetime-purchase customer acquisition cost is the long-term financial measure that determines whether Meta can become a sustainable growth channel for Domani.
-
-### First-Test Objective
-
-The first paid test will determine whether Meta-acquired users progress through Domani's early product funnel at an acceptable cost.
-
-The test should evaluate:
-
-1. Install
-2. Completed sign-in
-3. Trial activation
-4. First genuine task created for today or tomorrow
-5. Return usage and continued planning
-6. Lifetime purchase, once the full trial window has elapsed
-
-Purchases will be measured from the beginning, but a small first campaign should not be expected to prove long-term profitability by itself. Early activation and retention signals will determine whether additional testing is justified.
-
-### Primary Success Measures
-
-The campaign will be evaluated using:
-
-- Cost per install
-- Install-to-sign-in rate
-- Cost per activated trial
-- Trial-to-planning-activation rate
-- Day 1 retention
-- Day 7 retention
-- Day 14 retention
-- Trial-to-lifetime-purchase conversion rate
-- Cost per lifetime purchaser
-- Gross and net revenue from acquired purchasers
-- Return on ad spend
-
-### Provisional First-Test Thresholds
-
-The following are starting hypotheses, not established Domani benchmarks:
-
-- Generate at least 25-50 qualified trial starts
-- At least 60% of acquired trial users create their first genuine task
-- At least 25-35% of acquired trial users return and use Domani within seven days
-- Identify at least one creative concept that materially outperforms the other tested concepts
-- Follow every acquired trial cohort through its complete 14-day trial window before judging purchase conversion
-
-These thresholds must be replaced with evidence-based targets after Domani has enough acquisition and retention data.
-
-### Funnel Definition
-
-The initial paid-acquisition funnel is:
-
-```text
-Meta ad
-  -> App Store or Google Play listing
-  -> Install
-  -> First app open
-  -> Sign in
-  -> Activate 14-day trial
-  -> Create first genuine task for today or tomorrow
-  -> Return and continue planning
-  -> Purchase lifetime access
-```
-
-An install is not considered a complete business result. Trial activation, first-task creation, repeat usage, and lifetime purchase determine acquired-user quality.
-
-### Initial Customer
-
-The first creative persona is:
-
-> A working adult between approximately 28 and 45 who balances professional and personal responsibilities, ends the day thinking about everything tomorrow requires, starts mornings reactively, and has abandoned other productivity tools because they required too much maintenance.
-
-Meta targeting may remain broad. This persona is primarily used to produce specific, recognizable creative and messaging rather than to construct a narrowly restricted interest audience.
-
-Students and broad general-productivity audiences will not lead the first test.
-
-### Primary Problem
-
-The lead problem is:
-
-> Starting the morning without a clear plan and spending valuable energy deciding what to do.
-
-This problem is recognizable, connects directly to Domani's evening-planning mechanism, and supports a clear before-and-after transformation.
-
-### Secondary Problem
-
-The supporting problem is:
-
-> Most productivity systems are too complicated to maintain consistently.
-
-Domani responds with a focused evening habit, a user-selected planning reminder, and a clear plan for the following day.
-
-### Offer Differentiator
-
-Domani's one-time lifetime purchase is a supporting differentiator:
-
-> One payment instead of another recurring productivity subscription.
-
-The no-subscription position should strengthen the offer after the audience understands the product outcome. It should not replace the core emotional and functional value proposition.
-
-### Early-Adopter Offer
+- $9.99 early-adopter lifetime purchase
+- Available to eligible new and existing users who have not purchased lifetime access
+- No subscription
+- No continuing free plan after the trial
+- Planned standard lifetime price of $34.99 after the early-adopter period
 
 Approved campaign wording:
 
-> Early adopter lifetime price: $9.99. One payment. No subscription.
+> Early-adopter lifetime price: $9.99. One payment. No subscription.
 
-The offer is intended to make Domani inclusive and accessible to its founding members while they help shape the app.
+The early-adopter offer ends after 200 lifetime purchases or on a date approved by Phil and Sami, whichever happens first. The $34.99 price is planned but has not been Domani's established selling price, so ads must not present it as a former price or use a crossed-out-price treatment.
 
-Offer rules:
+Phil and Sami will monitor the purchase count together. Before launch, they still need to choose the authoritative purchase-count report, alert points, and price-change procedure.
 
-- $9.99 is the actual in-app lifetime purchase price during the early-adopter period
-- No Meta-specific promo code or extra redemption step is required
-- New and existing users who have not already purchased lifetime access may qualify
-- The offer ends after 200 lifetime purchases or on a specific date, whichever happens first
-- The date component remains pending Sami's final review
-- The planned post-campaign lifetime price is $34.99
+## 2. Audience and Message
 
-Because Domani has not previously maintained a bona fide $34.99 selling price, advertising should not describe $34.99 as a former price or use misleading crossed-out sale treatment. It may be described accurately as the planned standard price when that context is necessary.
+### Initial Customer
 
-### Transformation Statement
+The creative is written for a working adult who balances professional and personal responsibilities, starts mornings reactively, and has stopped using productivity tools that require too much upkeep.
 
-> Domani helps me plan tomorrow tonight so I can start the day calm, clear, and focused on what matters.
+This persona guides the message. It is not a narrow Meta targeting profile.
 
-### Emotional Movement
+### Lead Message
 
-**Before Domani:** Mentally carrying tomorrow without a clear plan, then starting the morning reactively and hoping the important work gets done.
+The campaign will lead with a familiar problem: starting the morning without a clear plan and spending energy deciding what to do first.
 
-**After Domani:** Calm, prepared, and confident about what matters next.
+Domani's answer is straightforward:
 
-Advertising may communicate mental load, uncertainty, or morning stress. It should not diagnose the viewer, assign a sensitive mental-health condition, or make unsupported therapeutic claims.
+> Decide what matters the night before. Wake up with a plan.
 
-### Initial Market
+The no-subscription offer supports the product message; it should not replace it.
 
-- United States
-- English-language advertising
-- One platform during the first controlled test
+### Message Priorities
 
-Canada, the United Kingdom, and other English-speaking markets may be considered after the first market and platform produce interpretable results.
+1. Plan tomorrow while the day is quiet.
+2. Wake up knowing what matters.
+3. Use a focused planning habit instead of maintaining a complicated productivity system.
+4. Try the full app for 14 days, then pay once if it works for you.
 
-### Platform Approach
+## 3. Campaign Structure
 
-The first limited-budget test will use iOS.
+### Campaign
 
-The selection remains subject to a pre-launch review of:
+| Setting | Decision |
+| --- | --- |
+| Objective | App Promotion |
+| Platform | iOS |
+| Market | United States |
+| Budget control | Ad-set daily budget |
+| Stage 1 budget | $20 per day |
+| Schedule | August 11-20, 2026 |
+| Bid strategy | Highest volume / lowest cost available in the selected App Promotion setup |
+| Initial optimization | App installs |
 
-- Store impressions and product-page views
-- Store-listing conversion rate
-- Existing installs
-- Completed sign-ins
-- Trial activations
-- Lifetime purchases
-- Ratings and reviews
-- Measurement readiness
+Install optimization is the practical starting point because Domani does not yet have enough Meta-reported trial events for stable downstream optimization. Stage 1 will still be judged on qualified trials and planning activation, not installs alone.
 
-Android will be considered after the iOS test produces an interpretable baseline or if the remaining readiness review identifies a material iOS measurement blocker.
+Do not change the optimization event during Stage 1. Changing it would restart delivery learning and make the small test harder to interpret.
 
-### Meta Campaign Direction
+Trial-event optimization may be tested in Stage 2 only after:
 
-- Use Meta's App Promotion campaign objective
-- Begin with broad audience delivery rather than narrow interest targeting
-- Use automated placements unless campaign evidence supports an exception
-- Optimize toward an activated trial once that event can be sent to Meta reliably and has sufficient volume
-- Use install optimization temporarily if downstream event volume is too low for stable delivery
-- Judge traffic quality using activation, retention, and purchase outcomes rather than CPI alone
+- Meta is receiving the verified `trial_started` event reliably;
+- the event is available as an optimization choice;
+- event volume is high enough for Meta to deliver consistently; and
+- Phil and Sami approve the change before the Stage 2 budget is released.
 
-### Initial Budget Structure
+### Ad Set
 
-The initial budget will be released in stages rather than committed all at once.
+| Setting | Decision |
+| --- | --- |
+| Number of ad sets | One |
+| Geography | United States |
+| Language | English |
+| Age | 25-54 |
+| Gender | All |
+| Interests | None; keep targeting broad |
+| Placements | Advantage+ placements |
+| Existing-user exclusion | Exclude known lifetime purchasers when technically reliable; do not delay launch solely for this exclusion |
+| Destination | Domani's US App Store product page |
 
-#### Stage 1: Controlled Signal Test
+One ad set keeps the limited budget concentrated. Do not split Stage 1 by age, gender, interest, placement, or region.
 
-- Approved initial media spend: Up to $200
-- Conditional reserve: $100
-- Duration: Approximately 10-14 days
-- Approximate daily budget: $15-20
-- Market: United States
-- Platform: iOS
-- Initial creative concepts: Three materially different concepts
+### Ads
 
-Purpose:
+Stage 1 will launch with three ads:
 
-- Establish an initial CPI
-- Measure store-to-sign-in behavior
-- Measure cost per activated trial
-- Determine whether any positioning concept earns meaningful attention and action
+1. **Morning clarity video:** the existing video, with its 9:16, 4:5, and 1:1 layouts assigned to the placements they fit.
+2. **Evening habit static:** a screenshot-led ad showing how Domani helps someone plan the next day in a few focused steps.
+3. **Pay once/product proof:** a screenshot-led static or carousel that shows the app first and supports it with the 14-day trial and $9.99 lifetime offer.
 
-This stage is not expected to prove purchase profitability.
+The three layouts of the existing video count as placement versions of one concept, not three different ads. Production requirements and message direction are in the [creative brief](./meta-ads-creative-brief.md).
 
-The $100 reserve may be released only when early CPI, trial activation, and planning activation justify continuing.
+Meta may distribute spend unevenly across the ads. Stage 1 is therefore a directional creative test, not a controlled split test.
 
-Organic creative testing will run alongside the paid campaign where practical.
+### Naming
 
-#### Stage 2: Funnel Validation
+Use names that can be read without opening the setup:
 
-- Additional provisional spend: $500-700
-- Duration: An additional 14-21 days
-- Continue only if Stage 1 meets the agreed continuation thresholds
-- Requires final budget approval from Phil and Sami
-- Pause losing concepts
-- Develop variations of the strongest concept
-- Measure planning activation, retention, and trial progression
-- Follow acquired cohorts through the purchase window
+```text
+Campaign: 2026-08_US_iOS_AppPromotion_Stage1
+Ad set: US_25-54_Broad_Install_20USD
+Ads:
+  A_MorningClarity_Video
+  B_EveningHabit_Static
+  C_ProductProof_Offer
+```
 
-#### Initial Maximum Commitment
+## 4. Budget and Decision Rules
 
-The provisional maximum initial commitment remains $800-1,000, released in stages and subject to partner approval.
+### Stage 1: Directional Signal Test
 
-No paid test should begin if the Stage 1 budget would create financial pressure. In that situation, the creative concepts should first be tested through organic short-form content and direct audience outreach.
+- Run August 11-20 at $20 per day.
+- Spend no more than $200 without a joint decision from Phil and Sami.
+- Check delivery, spend, links, comments, and event receipt daily.
+- Avoid major edits during the first three full days unless there is a technical, policy, billing, or message problem.
 
-### Test Timing
+Stage 1 targets are working decision rules, not industry benchmarks:
 
-Campaign run time and outcome evaluation are separate:
+| Metric | Minimum signal | Encouraging signal |
+| --- | ---: | ---: |
+| Cost per install | $9 or less | $6 or less |
+| Install-to-qualified-trial rate | 40% | 50% or more |
+| Qualified trials from $200 | 12 | 20 or more |
+| Trial-to-planning-activation rate | 50% | 60% or more |
+| Cost per activated user | $25 or less | $15 or less |
+| Day 1 product retention | 20% | 30% or more |
+| Day 7 product retention | 15% | 25% or more |
 
-1. Run the controlled campaign stage.
-2. Allow acquired users to progress through the 14-day trial.
-3. Continue observing the cohort after media spend pauses.
-4. Judge lifetime-purchase performance only after the relevant trial window has elapsed.
+A qualified trial is a new user in the paid-acquisition cohort who installs Domani, signs in, and successfully starts the 14-day trial. An activated user is a qualified trial user who creates a genuine, non-tutorial task for today or tomorrow.
 
-### Provisional Campaign Window
+### Immediate Pause Rules
 
-- Target start: August 1, 2026
-- Target end: September 15, 2026
-- The app is already publicly launched
-- The media start may move if a required privacy, attribution, billing, app-registration, or measurement gate is not ready
-- The early-adopter offer's final calendar end date remains separate and pending Sami's review
+Pause the affected ad or campaign immediately if:
 
-### Purchase CAC Targets
+- the App Store link or app experience is broken;
+- spend is running materially above the approved daily budget;
+- Meta or PostHog events are missing, duplicated, or clearly incorrect;
+- an ad is rejected or creates a policy concern;
+- the offer or price shown in the ad no longer matches the app;
+- comments reveal a repeated, material misunderstanding of the offer; or
+- a creative spends $40 without producing an install, unless Phil and Sami explicitly agree to keep observing it.
 
-Until the actual Apple and Google fee status is confirmed, planning assumes approximately $8.49 in proceeds from a $9.99 purchase after a 15% store fee.
+### Conditional $100 Reserve
 
-- Excellent purchase CAC: $4.00 or less
-- Acceptable purchase CAC: $4.01-$6.00
-- Thin-margin / caution: $6.01-$8.49
-- Unprofitable before other overhead: Above $8.49
+Phil and Sami may release the $100 reserve for up to five more days at $20 per day when all of the following are true:
 
-These thresholds must be recalculated using actual store proceeds, taxes, refunds, and measured conversion data.
+- at least seven full campaign days or $140 in spend have elapsed;
+- tracking is working well enough to read the funnel;
+- at least eight qualified trials have been recorded;
+- at least 50% of those users have activated, or cost per activated user is $25 or less;
+- Day 1 product retention is at least 20% among users whose Day 1 window has matured; and
+- no unresolved billing, store, policy, privacy, or offer issue remains.
 
-### Creative Starting Point
+If the campaign narrowly misses one rule but shows a clear positive pattern, Phil and Sami may still release the reserve. The reason should be written in the launch checklist before additional spend begins.
 
-The first test will compare three genuinely different strategic concepts rather than minor visual variations of one advertisement.
+### Stage 2: Funnel Validation
 
-Initial concept territories should include:
+Stage 2 remains provisional:
 
-1. Morning clarity through planning the night before
-2. A simple evening habit that is easier to maintain than a complex productivity system
-3. Lifetime ownership without another recurring subscription
+- Additional budget: $500-$700
+- Duration: 14-21 days
+- Requires joint approval from Phil and Sami
+- Keep the account structure simple
+- Pause clearly weak creative and produce variations of the strongest message
+- Continue measuring activation, retention, and purchase progression
 
-Detailed hooks, scripts, formats, and production requirements will be established during the creative-strategy and creative-production stages.
+Stage 2 should proceed only if Stage 1 produces at least 12 qualified trials, at least six activated users, a trial-to-activation rate of at least 50%, and no major measurement or store-conversion problem. Day 1 product retention should be at least 20% among users whose Day 1 window has matured.
 
-An existing third-party-produced vertical video is ready for Reddit, YouTube Shorts, and Instagram Reels dimensions. It must be reviewed against the approved offer wording, campaign guardrails, Meta placement requirements, and in-store experience before launch.
+Stage 1 is too small to prove purchase profitability. Purchase results should still be recorded and followed through the complete evaluation window.
 
-### Campaign Guardrails
+## 5. Measurement and Evaluation
 
-- Do not use fear, shame, or aggressive productivity pressure
-- Do not diagnose viewers or imply knowledge of a sensitive personal condition
-- Do not promise guaranteed productivity or mental-health outcomes
-- Do not use fake testimonials or manufactured social proof
-- Represent the trial, promotional price, and lifetime offer transparently
-- Do not judge campaign success using installs alone
-- Minimize advertising data collection and respect platform consent requirements
-- Do not divide a limited initial budget across multiple countries and platforms
+### Primary Stage 1 Decision Metric
 
----
+The primary Stage 1 metric is **cost per activated user**.
 
-## 2. Product Funnel Validation
+Supporting metrics are:
 
-### Reporting Definitions
+- Cost per install
+- Install-to-qualified-trial rate
+- Trial-to-planning-activation rate
+- Day 1, Day 7, and Day 14 general and product retention
+- Trial-to-lifetime-purchase rate
+- Purchase CAC
+- Gross and net return on ad spend
 
-- **Qualified new user:** An attributed user who signs in and successfully activates the 14-day trial
-- **Activated user:** A qualified new user who creates their first genuine, non-tutorial task for today or tomorrow
-- Tutorial-created or sample tasks do not count as activation
+The exact event definitions, attribution windows, and retention windows are in the [measurement plan](./meta-ads-measurement-plan.md).
 
-The former `plans` table and `plan_id` data model were removed. Campaign analytics must use task-based terminology and must not introduce a `plan_created` event.
+### Purchase Economics
 
-### Retention Definitions
+Until the store fee is confirmed, the plan assumes approximately $8.49 in proceeds from a $9.99 purchase after a 15% store fee.
 
-- **General retention:** The user returns and opens Domani
-- **Product retention:** The user creates, edits, completes, or rolls forward a task
-- Opening the app without task interaction does not count as product retention
-- The retention cohort begins at verified `trial_started`
-- Measure both general and product retention at Day 1, Day 7, and Day 14
+| Purchase CAC | Interpretation |
+| ---: | --- |
+| $4 or less | Strong enough to consider careful scaling |
+| $4.01-$6 | Potentially workable before other variable costs |
+| $6.01-$8.49 | Little room for refunds or other costs |
+| Above $8.49 | Media cost exceeds estimated store proceeds |
 
-## 3. Meta Business Infrastructure
+These numbers must be recalculated using actual fees, taxes, refunds, and conversion data. Gross ROAS and net-proceeds ROAS must be reported separately.
 
-Current known state:
+The acceptable cost per trial depends on trial-to-purchase conversion. At a $6 purchase CAC:
 
-- Meta Business Portfolio exists
-- Meta advertising account exists
-- Phil and Sami have administrative access
-- No known account restrictions or payment issues
+| Trial-to-purchase rate | Maximum cost per trial |
+| ---: | ---: |
+| 10% | $0.60 |
+| 20% | $1.20 |
+| 30% | $1.80 |
 
-Required verification:
+This table is an economics check, not a Stage 1 performance requirement.
 
-- Confirm billing is configured and can successfully fund the campaign
-- Confirm the iOS app is registered correctly with Meta
-- Confirm the Android app registration for the later Android stage
-- Create dedicated Domani Facebook and Instagram identities
-- Connect the Domani identities, ad account, app records, and business portfolio correctly
-- Confirm PixelVerse Studios assets do not create an advertiser-identity mismatch
+## 6. App Store Alignment
 
-## 4. Attribution and Tracking
+The App Store page must continue the promise made by the ads. Before launch, Phil and Sami will compare the live listing with the three ad concepts and complete the [store-alignment checklist](./meta-ads-creative-brief.md#app-store-alignment-checklist).
 
-### Initial Attribution Approach
+The minimum standard is:
 
-- Do not purchase a mobile measurement partner for the first test
-- Research and implement a direct Meta app-event integration if technically and financially appropriate
-- Use Apple's privacy-preserving attribution where applicable
-- Preserve campaign attribution through anonymous first open and later sign-in where reliable
-- Use Meta Ads Manager for media reporting and PostHog for product behavior and retention
-- Do not claim user-level campaign attribution that the selected integration cannot provide
+- The first screenshot communicates evening planning or waking up with a clear plan.
+- The first three screenshots show the planning flow, the most important task, and the morning outcome.
+- The visible interface matches the current app.
+- The description accurately explains the 14-day trial, $9.99 lifetime price, and no-subscription model.
+- The listing does not present $34.99 as a former selling price.
+- The app opens, sign-in works, the trial starts correctly, and the in-app price matches the ad.
 
-Useful properties, when genuinely available:
+Custom Product Pages can be considered after Stage 1. The first test does not need separate store pages for each concept; it needs one clear page that supports all three.
 
-- Source
-- Campaign ID and name
-- Ad-set ID and name
-- Ad ID and name
-- Creative ID
-- Platform
-- Country
-- Offer
-- Attribution method
-- Attribution timestamp
-- First-touch source
-- Latest-touch source
+## 7. Brand, Privacy, and Offer Rules
 
-### Privacy Requirements
+- Do not use fear, shame, or aggressive productivity pressure.
+- Do not diagnose viewers or imply knowledge of a sensitive personal condition.
+- Do not promise guaranteed productivity or mental-health outcomes.
+- Do not use fake testimonials or manufactured social proof.
+- Explain the trial, promotional price, and lifetime offer plainly.
+- Do not send task titles, task notes, email content, or other user-created planning content to Meta or an attribution provider.
+- Collect only the event and attribution data needed to measure the campaign.
+- Do not divide Stage 1 across multiple countries or platforms.
 
-- Review whether App Tracking Transparency applies to the selected integration
-- If ATT is required, request permission only after an appropriate explanation and before prohibited tracking begins
-- Review and update the privacy policy
-- Review Apple App Privacy answers
-- Review Google Play Data Safety answers
-- Never send task titles, task notes, email content, or other user-generated planning content to Meta or an attribution provider
-- Send only the minimum event and attribution data required for measurement
+## 8. Ownership and Review Rhythm
 
-## 5. Conversion-Event Configuration
+Phil and Sami jointly own campaign approval, spend, monitoring, creative, measurement, store alignment, offer operations, and final decisions.
 
-Required PostHog and campaign measurement:
+During Stage 1 they will:
 
-- `first_open`: First attributed app open, with privacy-safe attribution properties when available
-- `trial_started`: Emitted only after trial creation succeeds in the database
-- `task_created`: Continue recording successful task creation
-- `planning_activated`: Emitted once when the user creates the first genuine, non-tutorial task for today or tomorrow
-- `lifetime_purchase_completed`: Emitted only after RevenueCat and Supabase confirm lifetime access
-- Verified refund or access-revocation event
-- Purchase-restored event kept distinct from a new purchase
+- check spend, delivery, links, event receipt, and comments every day;
+- review the full funnel together at least twice per week;
+- record reserve, pause, or Stage 2 decisions in the launch checklist; and
+- avoid judging purchase conversion until the relevant cohort has completed its purchase window.
 
-The verified purchase event should include the product identifier, store, localized price, currency, offer, purchase timestamp, and reliable attribution properties.
+## 9. Open Decisions
 
-Required PostHog insights:
+The remaining decisions are tracked in the [launch checklist](./meta-ads-launch-checklist.md). The most important open items are:
 
-- Day 1 general and product retention
-- Day 7 general and product retention
-- Day 14 general and product retention
-- Breakdowns by platform, campaign, creative, offer, country, and activation status where those properties are reliably available
+- Final early-adopter calendar end date
+- Authoritative source and alert process for the 200-purchase limit
+- Direct Meta app-event and iOS attribution implementation
+- ATT, privacy policy, and App Store privacy review
+- Live App Store message and screenshot approval
+- Final creative files and ad copy
+- Billing, app registration, and event QA
 
-## 6. Campaign Structure
-
-Pending review.
-
-## 7. Creative Strategy
-
-Approved starting territories:
-
-1. Morning clarity through planning the night before
-2. A simple evening habit that is easier to maintain than a complex productivity system
-3. Lifetime ownership without another recurring subscription
-
-The creative should use the approved early-adopter language and must not imply that $34.99 was Domani's former prevailing price.
-
-## 8. Creative Production
-
-Current asset:
-
-- One third-party-produced vertical video
-- Prepared for Reddit, YouTube Shorts, and Instagram Reels dimensions
-
-Remaining work:
-
-- Review the video file and exact script
-- Confirm whether its aspect ratio, safe zones, duration, captions, audio, and resolution cover the intended Meta placements
-- Confirm the offer wording matches the approved language
-- Produce additional conceptually distinct creative so the campaign does not rely on one video
-
-## 9. Testing Methodology
-
-Pending review.
-
-## 10. Pre-Launch Validation
-
-The campaign must not spend until these launch gates are resolved:
-
-- Sami reviews and approves the plan
-- Phil and Sami approve any spend beyond the initial $200
-- The early-adopter calendar end date is selected
-- The 200-purchase limit has an operational monitoring and price-change process
-- Apple Small Business Program enrollment and actual commission are confirmed
-- Google Play fee-tier enrollment and actual commission are confirmed for the later Android stage
-- Current App Store Connect baseline metrics are collected
-- Billing is verified in Meta
-- iOS app registration in Meta is verified
-- Direct Meta event and iOS attribution approach is selected
-- ATT applicability is determined
-- Privacy policy and store privacy disclosures are reviewed
-- PostHog funnel events and retention insights are implemented and tested
-- The existing video is reviewed for Meta compatibility and approved offer wording
-- Dedicated Domani Facebook and Instagram identities are created and connected
-
-### Required iOS Baseline
-
-Carry forward for collection:
-
-- Date range
-- Store impressions
-- Product-page views
-- Store conversion rate
-- First-time downloads
-- Completed sign-ins
-- Trial activations
-- Lifetime purchases
-- Refunds
-- Current rating and review count
-
-### Store-Fee Confirmation
-
-Carry forward for console verification:
-
-- Apple Small Business Program enrollment
-- Actual iOS commission and net proceeds for the $9.99 product
-- Google Play 15% tier or current applicable program enrollment
-- Actual Android fee and net proceeds for the $9.99 product
-
-## 11. Launch, Evaluation, and Scaling
-
-Phil and Sami will review performance at least twice per week during the paid test.
-
-Do not make major optimization decisions from partial purchase cohorts. Continue observing each acquired cohort through the 14-day trial and purchase window.
-
----
-
-## Revision Standard
-
-When this plan changes:
-
-- Replace provisional assumptions with measured Domani data
-- Preserve the distinction between agreed decisions and unresolved recommendations
-- Record material strategic changes in the relevant section
-- Keep implementation details aligned with the current app, store configuration, privacy requirements, and advertising platform behavior
+Once every launch blocker is complete, Phil and Sami can change the status of this document to `Approved for launch`.
