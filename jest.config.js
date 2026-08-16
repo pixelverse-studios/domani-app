@@ -6,6 +6,6 @@ module.exports = {
     '^~/(.*)$': '<rootDir>/src/$1',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|expo-.*|@expo/.*|@sentry/react-native|nativewind|react-native-css-interop|react-native-reanimated|react-native-svg|lucide-react-native)/)',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|expo-.*|@expo/.*|@sentry/react-native|nativewind|react-native-css-interop|react-native-fbsdk-next|react-native-reanimated|react-native-svg|lucide-react-native)/)',
   ],
 }

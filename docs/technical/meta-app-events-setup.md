@@ -6,45 +6,83 @@ Search terms: `Meta App Events`, `Facebook SDK`, `Meta SDK`, `Meta App ID`, `Fac
 
 ## Current Status
 
-As of August 13, 2026:
+As of August 16, 2026:
 
 - The Domani Meta developer app has been created.
 - The iOS platform has been registered with Meta.
 - The Meta app is connected to the Domani ad account in the PixelVerse Studios business portfolio.
 - Meta Events Manager recognizes Domani.
 - Meta's manual App Events setup was configured to request implementation instructions for `StartTrial`, `Purchase`, and `CompleteRegistration`.
-- The Meta/Facebook SDK and App Events calls have **not** been installed in this repository yet.
+- `react-native-fbsdk-next` and `expo-tracking-transparency` are installed for Expo SDK 54.
+- The Expo config plugin supplies the production Meta App ID, display name, URL scheme, privacy flags, ATT copy, and build-time Client Token.
+- The SDK initializes once at app startup with advertiser tracking and advertiser-ID collection disabled.
+- ATT permission handling is implemented but is not invoked until the prompt wording and product timing in DEV-1110 are approved.
+- Manual funnel event calls remain tracked separately in DEV-1109.
 - Automatic in-app event logging is disabled in Meta.
 - The iOS shared-secret field is intentionally blank because Domani does not sell an auto-renewing subscription.
 
 ## Meta Asset Identifiers
 
-| Asset | Identifier |
-| --- | --- |
-| PixelVerse Studios business portfolio | `840721742090338` |
-| Domani ad account | `1325069346419325` |
-| Domani Meta app | `1378815353582072` |
-| iOS bundle ID | `com.baitedz.domani-app` |
-| Apple App Store ID | `6755746985` |
+| Asset                                 | Identifier               |
+| ------------------------------------- | ------------------------ |
+| PixelVerse Studios business portfolio | `840721742090338`        |
+| Domani ad account                     | `1325069346419325`       |
+| Domani Meta app                       | `1378815353582072`       |
+| iOS bundle ID                         | `com.baitedz.domani-app` |
+| Apple App Store ID                    | `6755746985`             |
 
 The Meta App Secret must not be committed to this repository. Store any server-only secret in the approved secret manager or remote environment if a future server integration requires it.
+
+The Meta Client Token is not the App Secret. Supply it to local/EAS native generation as `META_CLIENT_TOKEN`; do not use `META_APP_SECRET` or expose an App Secret through an `EXPO_PUBLIC_*` variable.
+
+## Build Configuration
+
+The dynamic Expo config accepts:
+
+| Variable                              | Purpose                                                                        | Default                                |
+| ------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------- |
+| `META_CLIENT_TOKEN`                   | Writes Meta's Client Token into generated native configuration                 | Missing; SDK initialization is skipped |
+| `META_IOS_TRACKING_USAGE_DESCRIPTION` | Approved `NSUserTrackingUsageDescription` copy                                 | Missing; ATT plugin is omitted         |
+| `META_AUTO_LOG_APP_EVENTS_ENABLED`    | Enables automatic App Install/App Launch logging when explicitly set to `true` | `false`                                |
+
+Production EAS config evaluation fails if the Client Token or ATT description is missing. Advertiser-ID collection remains disabled in generated configuration regardless of the automatic-event setting and is enabled at runtime on iOS only after ATT is granted.
+
+Because this repository contains checked-in native directories, app-config changes are not automatically synchronized into those directories. Before any native build—including an EAS build that uses the checked-in projects—supply the build variables and run:
+
+```bash
+npx expo prebuild
+```
+
+Then rebuild the development client or native app. Expo Go cannot load the Meta native module.
+
+DEV-1108 intentionally does not commit a placeholder Client Token or unapproved ATT wording into the generated native projects. DEV-1110 owns those values; once approved, regenerate the native projects before producing the 1.1.2 release build.
+
+The generated configuration can be inspected without writing native files:
+
+```bash
+npx expo config --type introspect --json
+```
+
+Keep automatic in-app-purchase logging disabled in Meta. DEV-1109 owns the single manual `Purchase` event after RevenueCat and Supabase verification.
 
 ## Where to Resume
 
 1. Open Meta Events Manager: <https://business.facebook.com/events_manager2/>.
 2. Select the PixelVerse Studios portfolio and the Domani app data source.
 3. Resume the manual iOS App Events setup.
-4. Review Meta's current SDK instructions before choosing the React Native/Expo integration package.
-5. Implement and test the SDK through a dedicated code change and new iOS build.
+4. Add `META_CLIENT_TOKEN` through the approved build environment.
+5. Approve `META_IOS_TRACKING_USAGE_DESCRIPTION` and the product moment that will call `requestMetaTrackingPermission()`.
+6. Record the final `META_AUTO_LOG_APP_EVENTS_ENABLED` decision.
+7. Run Expo prebuild, create new native builds, and verify them on physical devices.
 
 The initial event mapping is:
 
-| Meta event | Domani trigger |
-| --- | --- |
+| Meta event             | Domani trigger                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------ |
 | `CompleteRegistration` | First-time account registration completes successfully; never ordinary sign-in |
-| `StartTrial` | Backend trial creation succeeds |
-| `Purchase` | A new lifetime purchase is verified; never a restored purchase |
-| `planning_activated` | First genuine, non-tutorial task for today or tomorrow |
+| `StartTrial`           | Backend trial creation succeeds                                                |
+| `Purchase`             | A new lifetime purchase is verified; never a restored purchase                 |
+| `planning_activated`   | First genuine, non-tutorial task for today or tomorrow                         |
 
 Events must be verified in Meta Events Manager from a physical iPhone. Each event must arrive exactly once. Do not send task titles, task notes, email content, or other user-created planning content to Meta.
 

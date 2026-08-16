@@ -31,6 +31,7 @@ import { useSentryIdentify } from '~/hooks/useSentryIdentify'
 import { useAuthAnalytics } from '~/hooks/useAuthAnalytics'
 import { useAccessStateAnalytics } from '~/hooks/useAccessStateAnalytics'
 import { useAppLifecycleAnalytics } from '~/hooks/useAppLifecycleAnalytics'
+import { initializeMetaAppEvents } from '~/lib/metaAppEvents'
 import { useAuth } from '~/hooks/useAuth'
 import { useTranslation } from '~/hooks/useTranslation'
 import { useAppConfigStore } from '~/stores/appConfigStore'
@@ -48,6 +49,10 @@ import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 const queryClient = new QueryClient()
 
 function RootLayoutContent() {
+  React.useEffect(() => {
+    void initializeMetaAppEvents()
+  }, [])
+
   const router = useRouter()
   const queryClient = useQueryClient()
   const { locale } = useTranslation()
