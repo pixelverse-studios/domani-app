@@ -2,35 +2,115 @@ import React, { createContext, useContext, useCallback } from 'react'
 import { PostHogProvider, usePostHog } from 'posthog-react-native'
 import Constants from 'expo-constants'
 
+export interface AnalyticsBaseProperties {
+  platform: 'ios' | 'android'
+  app_version: string | null
+  app_build: string | null
+  country: string | null
+}
+
 const POSTHOG_API_KEY =
   Constants.expoConfig?.extra?.posthogApiKey || process.env.EXPO_PUBLIC_POSTHOG_KEY || ''
 const POSTHOG_HOST = 'https://us.i.posthog.com'
 
 // Event types for type-safe tracking
 export type AnalyticsEvent =
-  // Plan events
+  // Acquisition and lifecycle events
+  | { name: 'first_open'; properties: AnalyticsBaseProperties }
   | {
-      name: 'plan_created'
-      properties: { task_count: number; has_mit: boolean; plan_date: string }
+      name: 'app_opened'
+      properties: AnalyticsBaseProperties & { session_source: 'cold_start' | 'foreground' }
+    }
+  | {
+      name: 'sign_in_completed'
+      properties: AnalyticsBaseProperties & {
+        provider: 'google' | 'apple'
+        is_new_registration: boolean
+      }
     }
   // Task events
   | {
       name: 'task_created'
-      properties: { priority: string; has_duration: boolean; has_notes: boolean; category?: string }
+      properties: AnalyticsBaseProperties & {
+        priority: string
+        has_duration: boolean
+        has_notes: boolean
+        has_reminder: boolean
+        category_type: 'system' | 'custom' | 'none'
+        system_category?: string
+        scheduled_for: 'today' | 'tomorrow' | 'other'
+        tutorial_active: boolean
+      }
+    }
+  | {
+      name: 'planning_activated'
+      properties: AnalyticsBaseProperties & {
+        priority: string
+        has_reminder: boolean
+        category_type: 'system' | 'custom' | 'none'
+        scheduled_for: 'today' | 'tomorrow'
+      }
+    }
+  | {
+      name: 'task_edited'
+      properties: AnalyticsBaseProperties & {
+        changed_priority: boolean
+        changed_category: boolean
+        changed_notes: boolean
+        changed_reminder: boolean
+        moved_day: boolean
+      }
     }
   | {
       name: 'task_completed'
-      properties: { is_mit: boolean; priority: string; time_to_complete_hours?: number }
+      properties: AnalyticsBaseProperties & {
+        is_mit: boolean
+        priority: string
+        time_to_complete_hours?: number
+      }
     }
   | { name: 'task_uncompleted'; properties: { is_mit: boolean } }
   | { name: 'task_deleted'; properties: { was_completed: boolean } }
   | { name: 'task_reordered'; properties: { task_count: number } }
+  | {
+      name: 'task_rolled_forward'
+      properties: AnalyticsBaseProperties & { task_count: number; kept_reminders: boolean }
+    }
   // Auth events
   | { name: 'signed_in'; properties: { provider: 'google' | 'apple' } }
   | { name: 'signed_out'; properties?: Record<string, never> }
   // Subscription events
   | { name: 'subscription_started'; properties: { tier: string } }
-  | { name: 'trial_started'; properties?: Record<string, never> }
+  | {
+      name: 'trial_started'
+      properties: AnalyticsBaseProperties & {
+        offer: string | null
+        signup_cohort: string | null
+        trial_expires_at: string
+      }
+    }
+  | {
+      name: 'lifetime_purchase_completed'
+      properties: AnalyticsBaseProperties & {
+        product_id: string
+        store: string | null
+        price: number | null
+        currency: string | null
+        offer: string | null
+        purchase_timestamp: string | null
+        campaign_id: string | null
+        campaign_slug: string | null
+        promo_outcome: 'free' | 'discounted' | null
+      }
+    }
+  | {
+      name: 'purchase_restored'
+      properties: AnalyticsBaseProperties & { product_id: string; store: string | null }
+    }
+  | {
+      name: 'access_revoked'
+      properties: AnalyticsBaseProperties & { revoked_at: string }
+    }
   // Promo events
   | { name: 'promo_entry_opened'; properties: Record<string, never> }
   | {
@@ -147,7 +227,12 @@ export type AnalyticsEvent =
     }
   | {
       name: 'evening_rollover_started_fresh'
-      properties: { task_count: number; had_mit: boolean; source: 'notification' | 'app_open'; mode?: 'morning' | 'evening' }
+      properties: {
+        task_count: number
+        had_mit: boolean
+        source: 'notification' | 'app_open'
+        mode?: 'morning' | 'evening'
+      }
     }
   // Celebration events
   | {
@@ -174,7 +259,7 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
         return
       }
       console.log('[Analytics] Tracking event:', eventName, properties)
-      posthog.capture(eventName, properties)
+      posthog.capture(eventName, properties as Parameters<typeof posthog.capture>[1])
     },
     [posthog],
   )

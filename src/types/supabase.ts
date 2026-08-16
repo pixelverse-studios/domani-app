@@ -496,6 +496,7 @@ export type Database = {
           id: string
           last_active_at: string | null
           notification_onboarding_completed: boolean
+          planning_activated_at: string | null
           planning_reminder_enabled: boolean
           planning_reminder_time: string | null
           purchased_at: string | null
@@ -525,6 +526,7 @@ export type Database = {
           id: string
           last_active_at?: string | null
           notification_onboarding_completed?: boolean
+          planning_activated_at?: string | null
           planning_reminder_enabled?: boolean
           planning_reminder_time?: string | null
           purchased_at?: string | null
@@ -554,6 +556,7 @@ export type Database = {
           id?: string
           last_active_at?: string | null
           notification_onboarding_completed?: boolean
+          planning_activated_at?: string | null
           planning_reminder_enabled?: boolean
           planning_reminder_time?: string | null
           purchased_at?: string | null

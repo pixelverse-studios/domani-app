@@ -1,6 +1,15 @@
 import { useEffect, useRef } from 'react'
 import { useAuth } from '~/hooks/useAuth'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
+import { getAnalyticsBaseProperties } from '~/lib/productAnalytics'
+
+const RECENT_AUTH_WINDOW_MS = 2 * 60 * 1000
+
+export function isRecentAuthTimestamp(timestamp: string | undefined, now = Date.now()) {
+  if (!timestamp) return false
+  const value = new Date(timestamp).getTime()
+  return Number.isFinite(value) && Math.abs(now - value) <= RECENT_AUTH_WINDOW_MS
+}
 
 /**
  * Hook to track auth events (sign in, sign out) in PostHog.
@@ -20,10 +29,20 @@ export function useAuthAnalytics() {
     }
 
     if (currentUserId && user) {
-      // User signed in - track the event
       const provider = user.identities?.[0]?.provider as 'google' | 'apple' | undefined
-      if (provider === 'google' || provider === 'apple') {
+      const isCompletedSignIn = isRecentAuthTimestamp(user.last_sign_in_at)
+
+      // Ignore restored cached sessions. A completed sign-in is only emitted when
+      // Supabase reports a recent authentication timestamp.
+      if ((provider === 'google' || provider === 'apple') && isCompletedSignIn) {
+        const isNewRegistration = isRecentAuthTimestamp(user.created_at)
+
         track('signed_in', { provider })
+        track('sign_in_completed', {
+          ...getAnalyticsBaseProperties(),
+          provider,
+          is_new_registration: isNewRegistration,
+        })
       }
     } else if (previousUserId.current && !currentUserId) {
       // User signed out - track the event

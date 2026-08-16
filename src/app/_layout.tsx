@@ -29,6 +29,8 @@ import { useNotificationObserver } from '~/hooks/useNotifications'
 import { useAnalyticsIdentify } from '~/hooks/useAnalyticsIdentify'
 import { useSentryIdentify } from '~/hooks/useSentryIdentify'
 import { useAuthAnalytics } from '~/hooks/useAuthAnalytics'
+import { useAccessStateAnalytics } from '~/hooks/useAccessStateAnalytics'
+import { useAppLifecycleAnalytics } from '~/hooks/useAppLifecycleAnalytics'
 import { useAuth } from '~/hooks/useAuth'
 import { useTranslation } from '~/hooks/useTranslation'
 import { useAppConfigStore } from '~/stores/appConfigStore'
@@ -72,11 +74,17 @@ function RootLayoutContent() {
   // Initialize analytics user identification
   useAnalyticsIdentify()
 
+  // Track stable first-open/app-open events for acquisition and retention reporting
+  useAppLifecycleAnalytics()
+
   // Initialize Sentry user identification
   useSentryIdentify()
 
   // Track auth events (sign in, sign out)
   useAuthAnalytics()
+
+  // Track server-confirmed access revocation once per refund timestamp
+  useAccessStateAnalytics()
 
   // Analytics tracking
   const { track } = useAnalytics()
