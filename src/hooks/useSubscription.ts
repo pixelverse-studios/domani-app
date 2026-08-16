@@ -13,6 +13,7 @@ import {
 import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
+import { getAnalyticsBaseProperties } from '~/lib/productAnalytics'
 import { useAppConfig } from '~/stores/appConfigStore'
 import { isBetaPhase } from '~/types/appConfig'
 import type { Profile } from '~/types'
@@ -104,6 +105,8 @@ export interface PurchaseAccessSyncAttemptContext {
   discountKind?: string | null
   promoOutcome?: 'free' | 'discounted' | null
   priceString?: string | null
+  price?: number | null
+  currency?: string | null
 }
 
 export interface PurchaseAccessSyncRequest {
@@ -797,6 +800,13 @@ export function useSubscription() {
         if (supabaseSyncStatus !== 'preserved_existing_lifetime') {
           await recordPromoSyncFailure(request, supabaseSyncStatus)
         }
+        if (supabaseSyncStatus === 'preserved_existing_lifetime' && request.source === 'restore') {
+          track('purchase_restored', {
+            ...getAnalyticsBaseProperties(),
+            product_id: entitlement.productIdentifier,
+            store: entitlement.store ?? null,
+          })
+        }
         return result
       }
 
@@ -905,6 +915,28 @@ export function useSubscription() {
           periodType: entitlement.periodType ?? null,
           campaignId: attemptContext?.campaignId ?? null,
         })
+
+        if (request.source === 'purchase') {
+          track('lifetime_purchase_completed', {
+            ...getAnalyticsBaseProperties(),
+            product_id: entitlement.productIdentifier,
+            store: entitlement.store ?? null,
+            price: attemptContext?.price ?? null,
+            currency: attemptContext?.currency ?? null,
+            offer: offeringIdentifier ?? null,
+            purchase_timestamp:
+              entitlement.latestPurchaseDate ?? entitlement.originalPurchaseDate ?? null,
+            campaign_id: attemptContext?.campaignId ?? null,
+            campaign_slug: attemptContext?.campaignSlug ?? null,
+            promo_outcome: attemptContext?.promoOutcome ?? null,
+          })
+        } else if (request.source === 'restore') {
+          track('purchase_restored', {
+            ...getAnalyticsBaseProperties(),
+            product_id: entitlement.productIdentifier,
+            store: entitlement.store ?? null,
+          })
+        }
       }
 
       pendingExternalPurchaseSyncRef.current = null
@@ -922,6 +954,7 @@ export function useSubscription() {
       queryClient,
       recordPromoSyncFailure,
       refetchCustomerInfo,
+      offeringIdentifier,
       shouldBypassRevenueCat,
       track,
       user?.id,
@@ -1266,7 +1299,13 @@ export function useSubscription() {
         queryClient.setQueryData<Profile>(['profile', user.id], context.previousProfile)
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      track('trial_started', {
+        ...getAnalyticsBaseProperties(),
+        offer: offeringIdentifier ?? null,
+        signup_cohort: profile?.signup_cohort ?? null,
+        trial_expires_at: data.trial_ends_at!,
+      })
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
     },
     onSettled: () => {
@@ -1280,7 +1319,7 @@ export function useSubscription() {
   const purchaseMutation = useMutation({
     mutationFn: async (input: PurchasesPackage | PurchaseRequest) => {
       const pkg = 'pkg' in input ? input.pkg : input
-      const attemptContext =
+      const providedAttemptContext =
         'pkg' in input
           ? (input.attemptContext ?? null)
           : {
@@ -1289,6 +1328,12 @@ export function useSubscription() {
               promoOutcome: null,
               priceString: pkg.product.priceString ?? null,
             }
+      const attemptContext = {
+        ...(providedAttemptContext ?? {}),
+        priceString: providedAttemptContext?.priceString ?? pkg.product.priceString ?? null,
+        price: pkg.product.price ?? null,
+        currency: pkg.product.currencyCode ?? null,
+      }
 
       if (attemptContext?.redemptionAttemptId) {
         await setRevenueCatPromoRedemptionAttributes(attemptContext)

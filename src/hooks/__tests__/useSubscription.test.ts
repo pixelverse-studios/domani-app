@@ -75,6 +75,7 @@ type SupabaseQueryMock = {
   update: jest.Mock<SupabaseQueryMock, [unknown]>
   eq: jest.Mock<SupabaseQueryMock, [string, unknown]>
   maybeSingle: jest.Mock<Promise<{ data: unknown; error: unknown }>, []>
+  single: jest.Mock<Promise<{ data: unknown; error: unknown }>, []>
   then: jest.Mock<unknown, [(result: { data: unknown; error: unknown }) => unknown]>
 }
 
@@ -86,6 +87,7 @@ function createSupabaseQueryMock(
     update: jest.fn((_values: unknown) => query),
     eq: jest.fn((_column: string, _value: unknown) => query),
     maybeSingle: jest.fn(() => Promise.resolve(result)),
+    single: jest.fn(() => Promise.resolve(result)),
     then: jest.fn((resolve) => resolve(result)),
   }
 
@@ -120,6 +122,8 @@ function buildPurchasesPackage() {
     product: {
       identifier: 'domani_lifetime',
       priceString: '$9.99',
+      price: 9.99,
+      currencyCode: 'USD',
     },
   }
 }
@@ -272,6 +276,37 @@ describe('RevenueCat access gating', () => {
   })
 })
 
+describe('subscription product analytics', () => {
+  it('tracks a trial only after the profile update succeeds', async () => {
+    mockSupabaseFrom.mockReturnValue(
+      createSupabaseQueryMock({
+        data: {
+          tier: 'trialing',
+          trial_started_at: '2026-08-16T12:00:00.000Z',
+          trial_ends_at: '2026-08-30T12:00:00.000Z',
+        },
+        error: null,
+      }),
+    )
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await act(async () => {
+      await result.current.startTrial()
+    })
+
+    expect(mockTrack).toHaveBeenCalledWith(
+      'trial_started',
+      expect.objectContaining({
+        offer: 'default',
+        trial_expires_at: '2026-08-30T12:00:00.000Z',
+      }),
+    )
+
+    unmount()
+  })
+})
+
 describe('purchase access sync', () => {
   it('reports refunded when a stale lifetime profile also has refunded_at', async () => {
     mockUseProfile.mockReturnValue({
@@ -394,10 +429,7 @@ describe('purchase access sync', () => {
         const query = result.value as SupabaseQueryMock
         return query.update.mock.calls.some(([values]) => {
           const update = values as Record<string, unknown>
-          return (
-            update.tier === 'lifetime' &&
-            update.purchased_at === '2026-06-02T23:52:24.253Z'
-          )
+          return update.tier === 'lifetime' && update.purchased_at === '2026-06-02T23:52:24.253Z'
         })
       }),
     ).toBe(true)
@@ -775,10 +807,7 @@ describe('purchase access sync', () => {
         sync_status: 'supabase_sync_failed',
       }),
     )
-    expect(mockTrack).not.toHaveBeenCalledWith(
-      'promo_redemption_completed',
-      expect.any(Object),
-    )
+    expect(mockTrack).not.toHaveBeenCalledWith('promo_redemption_completed', expect.any(Object))
 
     unmount()
   })
@@ -853,6 +882,14 @@ describe('purchase access sync', () => {
     })
 
     expect(mockPurchasePackage).toHaveBeenCalledWith(pkg)
+    expect(mockTrack).toHaveBeenCalledWith(
+      'lifetime_purchase_completed',
+      expect.objectContaining({
+        currency: 'USD',
+        price: 9.99,
+        product_id: 'domani_lifetime',
+      }),
+    )
 
     unmount()
   })
@@ -896,7 +933,10 @@ describe('purchase access sync', () => {
       })
     })
 
-    expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenNthCalledWith(1, attemptContext)
+    expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining(attemptContext),
+    )
     expect(mockSetRevenueCatPromoRedemptionAttributes).not.toHaveBeenCalledWith(null)
 
     unmount()

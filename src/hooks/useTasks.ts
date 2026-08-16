@@ -8,10 +8,26 @@ import { useCelebrationStore } from '~/stores/celebrationStore'
 import { useIncrementCategoryUsage } from '~/hooks/useCategories'
 import { useAuth } from '~/hooks/useAuth'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
+import { getAnalyticsBaseProperties, getScheduledFor } from '~/lib/productAnalytics'
+import { useTutorialStore } from '~/stores/tutorialStore'
 import type { TaskWithCategory, TaskPriority } from '~/types'
 
 // 5 minutes - tasks change with user action but don't need real-time updates
 const TASKS_STALE_TIME = 1000 * 60 * 5
+
+async function claimPlanningActivation(userId: string) {
+  const activatedAt = new Date().toISOString()
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ planning_activated_at: activatedAt })
+    .eq('id', userId)
+    .is('planning_activated_at', null)
+    .select('planning_activated_at')
+    .maybeSingle()
+
+  if (error) throw error
+  return data?.planning_activated_at ?? null
+}
 
 export function useTasks(date: string | undefined) {
   const { user } = useAuth()
@@ -173,6 +189,7 @@ export function useToggleTask() {
           const timeToCompleteHours = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60)
 
           track('task_completed', {
+            ...getAnalyticsBaseProperties(),
             is_mit: task.is_mit ?? false,
             priority: task.priority ?? 'medium',
             time_to_complete_hours: Math.round(timeToCompleteHours * 10) / 10,
@@ -281,7 +298,7 @@ export function useCreateTask() {
 
       return data as TaskWithCategory
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       const userId = user?.id ?? data.user_id
       if (userId) {
         queryClient.invalidateQueries({ queryKey: ['tasks', userId, data.scheduled_date] })
@@ -292,14 +309,43 @@ export function useCreateTask() {
         isMit: data.is_mit,
       })
 
-      // Track task creation
-      const categoryName = data.system_category?.name || data.user_category?.name
+      const scheduledFor = getScheduledFor(data.scheduled_date)
+      const tutorialActive = useTutorialStore.getState().isActive
+      const categoryType = data.system_category_id
+        ? 'system'
+        : data.user_category_id
+          ? 'custom'
+          : 'none'
+
+      // Track task creation without sending task or custom-category content.
       track('task_created', {
+        ...getAnalyticsBaseProperties(),
         priority: data.priority ?? 'medium',
         has_duration: !!data.estimated_duration_minutes,
         has_notes: !!data.notes,
-        ...(categoryName && { category: categoryName }),
+        has_reminder: !!data.reminder_at,
+        category_type: categoryType,
+        ...(data.system_category?.name && { system_category: data.system_category.name }),
+        scheduled_for: scheduledFor,
+        tutorial_active: tutorialActive,
       })
+
+      if (userId && !tutorialActive && (scheduledFor === 'today' || scheduledFor === 'tomorrow')) {
+        try {
+          const activatedAt = await claimPlanningActivation(userId)
+          if (activatedAt) {
+            track('planning_activated', {
+              ...getAnalyticsBaseProperties(),
+              priority: data.priority ?? 'medium',
+              has_reminder: !!data.reminder_at,
+              category_type: categoryType,
+              scheduled_for: scheduledFor,
+            })
+          }
+        } catch (error) {
+          if (__DEV__) console.warn('[Analytics] Failed to claim planning activation', error)
+        }
+      }
 
       // Increment category usage count for smart sorting
       if (data.system_category_id || data.user_category_id) {
@@ -315,6 +361,7 @@ export function useCreateTask() {
 export function useUpdateTask() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
+  const { track } = useAnalytics()
 
   return useMutation({
     mutationFn: async ({
@@ -470,7 +517,7 @@ export function useUpdateTask() {
         queryClient.setQueryData(['tasks', user.id, updates.scheduled_date], context.previousTarget)
       }
     },
-    onSuccess: ({ data, originalDate }) => {
+    onSuccess: ({ data, originalDate }, { updates }) => {
       const userId = user?.id ?? data.user_id
       if (!userId) return
 
@@ -480,6 +527,15 @@ export function useUpdateTask() {
       if (originalDate && originalDate !== data.scheduled_date) {
         queryClient.invalidateQueries({ queryKey: ['tasks', userId, originalDate] })
       }
+
+      track('task_edited', {
+        ...getAnalyticsBaseProperties(),
+        changed_priority: 'priority' in updates,
+        changed_category: 'system_category_id' in updates || 'user_category_id' in updates,
+        changed_notes: 'notes' in updates,
+        changed_reminder: 'reminder_at' in updates,
+        moved_day: 'scheduled_date' in updates,
+      })
     },
   })
 }
