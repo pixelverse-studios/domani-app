@@ -16,9 +16,9 @@ As of August 16, 2026:
 - `react-native-fbsdk-next` and `expo-tracking-transparency` are installed for Expo SDK 54.
 - The Expo config plugin supplies the production Meta App ID, display name, URL scheme, privacy flags, ATT copy, and build-time Client Token.
 - The SDK initializes once at app startup with advertiser tracking and advertiser-ID collection disabled.
-- ATT permission handling is implemented but is not invoked until the prompt wording and product timing in DEV-1110 are approved.
+- ATT permission is requested when the user taps **Start 14-Day Free Trial**, immediately before trial creation. A denial, unavailable prompt, or permission error never blocks the trial.
 - Manual funnel event calls remain tracked separately in DEV-1109.
-- Automatic in-app event logging is disabled in Meta.
+- Automatic App Install/App Launch logging is enabled through build configuration; automatic in-app-purchase logging remains disabled in Meta.
 - The iOS shared-secret field is intentionally blank because Domani does not sell an auto-renewing subscription.
 
 ## Meta Asset Identifiers
@@ -55,7 +55,7 @@ npx expo prebuild
 
 Then rebuild the development client or native app. Expo Go cannot load the Meta native module.
 
-DEV-1108 intentionally does not commit a placeholder Client Token or unapproved ATT wording into the generated native projects. DEV-1110 owns those values; once approved, regenerate the native projects before producing the 1.1.2 release build.
+DEV-1108 intentionally does not commit the environment-provided Client Token or ATT wording into the generated native projects. Regenerate the native projects from the approved local/build environment before producing the 1.1.2 release build.
 
 The generated configuration can be inspected without writing native files:
 
@@ -70,10 +70,9 @@ Keep automatic in-app-purchase logging disabled in Meta. DEV-1109 owns the singl
 1. Open Meta Events Manager: <https://business.facebook.com/events_manager2/>.
 2. Select the PixelVerse Studios portfolio and the Domani app data source.
 3. Resume the manual iOS App Events setup.
-4. Add `META_CLIENT_TOKEN` through the approved build environment.
-5. Approve `META_IOS_TRACKING_USAGE_DESCRIPTION` and the product moment that will call `requestMetaTrackingPermission()`.
-6. Record the final `META_AUTO_LOG_APP_EVENTS_ENABLED` decision.
-7. Run Expo prebuild, create new native builds, and verify them on physical devices.
+4. Confirm `META_CLIENT_TOKEN`, `META_IOS_TRACKING_USAGE_DESCRIPTION`, and `META_AUTO_LOG_APP_EVENTS_ENABLED` are present in the approved build environment.
+5. Complete the privacy/store-disclosure review in DEV-1110.
+6. Run Expo prebuild, create new native builds, and verify them on physical devices.
 
 The initial event mapping is:
 
