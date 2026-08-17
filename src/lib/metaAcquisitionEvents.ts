@@ -26,17 +26,41 @@ function safeKeyPart(value: string) {
     .slice(0, 80)
 }
 
-async function claimAndLog(eventKey: string, log: () => void): Promise<MetaAcquisitionEventResult> {
+async function claimAndLog(
+  userId: string,
+  eventKey: string,
+  log: () => void,
+): Promise<MetaAcquisitionEventResult> {
   try {
     if (!(await initializeMetaAppEvents())) return 'not_configured'
 
     const { data, error } = await supabase.rpc('claim_meta_app_event', {
       p_event_key: eventKey,
+      p_user_id: userId,
     })
     if (error) throw error
     if (!data) return 'duplicate'
 
-    log()
+    try {
+      log()
+    } catch (error) {
+      await supabase.rpc('release_meta_app_event_claim', {
+        p_event_key: eventKey,
+        p_user_id: userId,
+      })
+      throw error
+    }
+
+    const { data: completed, error: completionError } = await supabase.rpc(
+      'complete_meta_app_event_claim',
+      {
+        p_event_key: eventKey,
+        p_user_id: userId,
+      },
+    )
+    if (completionError) throw completionError
+    if (!completed) throw new Error('Meta app event claim could not be completed')
+
     return 'logged'
   } catch (error) {
     console.warn('[Meta App Events] Failed to log acquisition event', {
@@ -66,7 +90,7 @@ export function logMetaCompletedRegistration(input: {
   userId: string
   method: RegistrationMethod
 }) {
-  return claimAndLog('completed_registration', () => {
+  return claimAndLog(input.userId, 'completed_registration', () => {
     AppEventsLogger.logEvent(AppEventsLogger.AppEvents.CompletedRegistration, {
       [AppEventsLogger.AppEventParams.RegistrationMethod]: input.method,
       platform: Platform.OS,
@@ -75,7 +99,7 @@ export function logMetaCompletedRegistration(input: {
 }
 
 export function logMetaStartTrial(input: { userId: string; offer?: string | null }) {
-  return claimAndLog('start_trial', () => {
+  return claimAndLog(input.userId, 'start_trial', () => {
     AppEventsLogger.logEvent(AppEventsLogger.AppEvents.StartTrial, {
       platform: Platform.OS,
       ...(input.offer && { offer: input.offer }),
@@ -84,7 +108,7 @@ export function logMetaStartTrial(input: { userId: string; offer?: string | null
 }
 
 export function logMetaPlanningActivated(input: { userId: string; scheduledFor: ScheduledFor }) {
-  return claimAndLog('planning_activated', () => {
+  return claimAndLog(input.userId, 'planning_activated', () => {
     AppEventsLogger.logEvent('planning_activated', {
       platform: Platform.OS,
       scheduled_for: input.scheduledFor,
@@ -93,7 +117,7 @@ export function logMetaPlanningActivated(input: { userId: string; scheduledFor: 
 }
 
 export function logMetaPurchase(input: PurchaseEventInput) {
-  return claimAndLog(purchaseEventKey('purchase', input), () => {
+  return claimAndLog(input.userId, purchaseEventKey('purchase', input), () => {
     const params = purchaseParameters(input)
     if (
       typeof input.amount === 'number' &&
@@ -110,7 +134,7 @@ export function logMetaPurchase(input: PurchaseEventInput) {
 }
 
 export function logMetaPurchaseRestored(input: PurchaseEventInput) {
-  return claimAndLog(purchaseEventKey('purchase_restored', input), () => {
+  return claimAndLog(input.userId, purchaseEventKey('purchase_restored', input), () => {
     AppEventsLogger.logEvent('purchase_restored', purchaseParameters(input))
   })
 }

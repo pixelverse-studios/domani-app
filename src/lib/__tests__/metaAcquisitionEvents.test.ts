@@ -25,6 +25,8 @@ describe('Meta acquisition events', () => {
     jest.clearAllMocks()
     mockInitialize.mockResolvedValue(true)
     mockRpc.mockResolvedValue({ data: true, error: null })
+    mockLogEvent.mockImplementation(() => undefined)
+    mockLogPurchase.mockImplementation(() => undefined)
   })
 
   it('maps registration, trial, and activation to sanitized events', async () => {
@@ -54,6 +56,14 @@ describe('Meta acquisition events', () => {
     expect(serializedPayloads).not.toContain('email')
     expect(serializedPayloads).not.toContain('title')
     expect(serializedPayloads).not.toContain('category')
+    expect(mockRpc).toHaveBeenCalledWith('claim_meta_app_event', {
+      p_event_key: 'completed_registration',
+      p_user_id: 'user-1',
+    })
+    expect(mockRpc).toHaveBeenCalledWith('complete_meta_app_event_claim', {
+      p_event_key: 'completed_registration',
+      p_user_id: 'user-1',
+    })
   })
 
   it('uses logPurchase only when verified price and currency are available', async () => {
@@ -110,6 +120,28 @@ describe('Meta acquisition events', () => {
 
     expect(result).toBe('duplicate')
     expect(mockLogEvent).not.toHaveBeenCalled()
+  })
+
+  it('releases a pending claim when the SDK logger throws', async () => {
+    mockLogEvent.mockImplementationOnce(() => {
+      throw new Error('native logger unavailable')
+    })
+
+    const result = await logMetaStartTrial({ userId: 'user-1' })
+
+    expect(result).toBe('error')
+    expect(mockRpc).toHaveBeenNthCalledWith(1, 'claim_meta_app_event', {
+      p_event_key: 'start_trial',
+      p_user_id: 'user-1',
+    })
+    expect(mockRpc).toHaveBeenNthCalledWith(2, 'release_meta_app_event_claim', {
+      p_event_key: 'start_trial',
+      p_user_id: 'user-1',
+    })
+    expect(mockRpc).not.toHaveBeenCalledWith(
+      'complete_meta_app_event_claim',
+      expect.any(Object),
+    )
   })
 
   it('does not claim or log when the SDK is not configured', async () => {

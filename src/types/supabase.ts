@@ -486,16 +486,19 @@ export type Database = {
       meta_app_event_claims: {
         Row: {
           claimed_at: string
+          delivered_at: string | null
           event_key: string
           user_id: string
         }
         Insert: {
           claimed_at?: string
+          delivered_at?: string | null
           event_key: string
           user_id: string
         }
         Update: {
           claimed_at?: string
+          delivered_at?: string | null
           event_key?: string
           user_id?: string
         }
@@ -1330,7 +1333,15 @@ export type Database = {
     }
     Functions: {
       claim_meta_app_event: {
-        Args: { p_event_key: string }
+        Args: { p_event_key: string; p_user_id: string }
+        Returns: boolean
+      }
+      complete_meta_app_event_claim: {
+        Args: { p_event_key: string; p_user_id: string }
+        Returns: boolean
+      }
+      release_meta_app_event_claim: {
+        Args: { p_event_key: string; p_user_id: string }
         Returns: boolean
       }
       cancel_account_deletion: {
