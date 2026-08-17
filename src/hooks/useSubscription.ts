@@ -147,6 +147,7 @@ interface SubscriptionState {
 
 type SupabaseSubscriptionSyncStatus =
   | 'synced'
+  | 'synced_new_lifetime'
   | 'preserved_existing_lifetime'
   | 'non_lifetime_entitlement'
 
@@ -777,7 +778,12 @@ export function useSubscription() {
         return result
       }
 
-      if (supabaseSyncStatus !== 'synced') {
+      const isNewLifetimePurchase = supabaseSyncStatus === 'synced_new_lifetime'
+
+      if (
+        supabaseSyncStatus === 'preserved_existing_lifetime' ||
+        supabaseSyncStatus === 'non_lifetime_entitlement'
+      ) {
         const result: PurchaseAccessSyncResult = {
           ...baseResult,
           status: supabaseSyncStatus,
@@ -926,7 +932,7 @@ export function useSubscription() {
           campaignId: attemptContext?.campaignId ?? null,
         })
 
-        if (request.source === 'purchase') {
+        if (isNewLifetimePurchase && request.source === 'purchase') {
           track('lifetime_purchase_completed', {
             ...getAnalyticsBaseProperties(),
             product_id: entitlement.productIdentifier,
@@ -949,6 +955,7 @@ export function useSubscription() {
             store: entitlement.store ?? null,
           })
         } else if (
+          isNewLifetimePurchase &&
           attemptContext?.promoOutcome === 'discounted' &&
           (request.source === 'promo_redemption' || request.source === 'foreground')
         ) {
@@ -1731,6 +1738,7 @@ async function syncSubscriptionToSupabase(
     const isTrialing = entitlement.periodType === 'TRIAL'
     const hasRecordedLifetime =
       currentProfile?.tier === 'lifetime' || !!currentProfile?.purchased_at
+    const isNewLifetimePurchase = !isTrialing && !hasRecordedLifetime
     const hasActiveRecordedLifetime = hasRecordedLifetime && !currentProfile?.refunded_at
 
     if (isTrialing && !hasActiveRecordedLifetime) {
@@ -1788,9 +1796,10 @@ async function syncSubscriptionToSupabase(
       entitlementId: ENTITLEMENT_ID,
       productIdentifier: entitlement.productIdentifier ?? null,
     })
+    return isNewLifetimePurchase ? 'synced_new_lifetime' : 'synced'
   }
 
-  return entitlement ? 'synced' : 'non_lifetime_entitlement'
+  return 'non_lifetime_entitlement'
 }
 
 async function rollbackFailedPromoAccessSync(userId: string | undefined) {

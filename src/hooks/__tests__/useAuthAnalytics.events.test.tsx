@@ -31,12 +31,14 @@ describe('useAuthAnalytics Meta registration event', () => {
       },
     })
 
-    renderHook(() => useAuthAnalytics())
+    const { unmount } = renderHook(() => useAuthAnalytics())
 
     expect(mockLogMetaCompletedRegistration).toHaveBeenCalledWith({
       userId: 'user-1',
       method: 'google',
     })
+
+    unmount()
   })
 
   it('does not log Completed Registration for an ordinary sign-in', async () => {
@@ -49,9 +51,11 @@ describe('useAuthAnalytics Meta registration event', () => {
       },
     })
 
-    renderHook(() => useAuthAnalytics())
+    const { unmount } = renderHook(() => useAuthAnalytics())
 
     expect(mockTrack).toHaveBeenCalledWith('signed_in', { provider: 'apple' })
     expect(mockLogMetaCompletedRegistration).not.toHaveBeenCalled()
+
+    unmount()
   })
 })

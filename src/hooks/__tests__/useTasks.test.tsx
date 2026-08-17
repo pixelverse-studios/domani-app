@@ -210,7 +210,7 @@ describe('task hooks', () => {
     })
     mockFrom.mockReturnValueOnce(insertQuery).mockReturnValueOnce(activationQuery)
 
-    const { result } = trackQueryClient(renderHookWithProviders(() => useCreateTask()))
+    const { result, unmount } = trackQueryClient(renderHookWithProviders(() => useCreateTask()))
 
     await act(async () => {
       await result.current.mutateAsync({ scheduledDate: '2026-05-16', title: 'Start the day' })
@@ -230,6 +230,7 @@ describe('task hooks', () => {
       scheduledFor: 'today',
     })
 
+    unmount()
     jest.useRealTimers()
   })
 
@@ -242,7 +243,7 @@ describe('task hooks', () => {
     })
     mockFrom.mockReturnValue(insertQuery)
 
-    const { result } = trackQueryClient(renderHookWithProviders(() => useCreateTask()))
+    const { result, unmount } = trackQueryClient(renderHookWithProviders(() => useCreateTask()))
     await act(async () => {
       await result.current.mutateAsync({ scheduledDate: '2026-05-16', title: 'Tutorial task' })
     })
@@ -251,6 +252,7 @@ describe('task hooks', () => {
     expect(mockTrack).not.toHaveBeenCalledWith('planning_activated', expect.any(Object))
     expect(mockLogMetaPlanningActivated).not.toHaveBeenCalled()
 
+    unmount()
     jest.useRealTimers()
   })
 

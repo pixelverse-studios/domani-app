@@ -770,8 +770,8 @@ describe('purchase access sync', () => {
         .length,
     ).toBe(completedCount)
 
-    jest.useRealTimers()
     unmount()
+    jest.useRealTimers()
   })
 
   it('does not report paid promo redemption as confirmed when attempt confirmation fails', async () => {
@@ -933,6 +933,35 @@ describe('purchase access sync', () => {
         currency: 'USD',
       }),
     )
+
+    unmount()
+  })
+
+  it('does not report an already-recorded lifetime owner as a new acquisition', async () => {
+    mockPurchasePackage.mockResolvedValue(buildLifetimeCustomerInfo())
+    mockSupabaseFrom.mockImplementation(() =>
+      createSupabaseQueryMock({
+        data: {
+          tier: 'lifetime',
+          purchased_at: '2026-05-20T12:00:00.000Z',
+          refunded_at: null,
+        },
+        error: null,
+      }),
+    )
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await act(async () => {
+      await result.current.purchase(buildPurchasesPackage() as never)
+    })
+
+    expect(mockTrack).not.toHaveBeenCalledWith(
+      'lifetime_purchase_completed',
+      expect.any(Object),
+    )
+    expect(mockLogMetaPurchase).not.toHaveBeenCalled()
 
     unmount()
   })

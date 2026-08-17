@@ -1354,7 +1354,7 @@ export type Database = {
           event_payload: Json
         }[]
       }
-      complete_meta_app_event_claim: {
+      authorize_meta_app_event_dispatch: {
         Args: { p_claim_token: string; p_event_key: string; p_user_id: string }
         Returns: boolean
       }
@@ -1365,6 +1365,10 @@ export type Database = {
       clear_current_user_refund_request_state: {
         Args: never
         Returns: undefined
+      }
+      get_meta_app_event_claim_status: {
+        Args: { p_event_key: string; p_user_id: string }
+        Returns: string
       }
       confirm_promo_redemption_for_user: {
         Args: {
@@ -1377,6 +1381,10 @@ export type Database = {
           p_store_transaction_id?: string | null
         }
         Returns: Json
+      }
+      retry_failed_meta_app_event_dispatch: {
+        Args: { p_claim_token: string; p_event_key: string; p_user_id: string }
+        Returns: boolean
       }
       confirm_current_user_promo_redemption: {
         Args: {

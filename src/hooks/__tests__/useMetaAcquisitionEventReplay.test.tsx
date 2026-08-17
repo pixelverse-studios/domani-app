@@ -53,9 +53,11 @@ describe('useMetaAcquisitionEventReplay', () => {
   it('does not start replay without an authenticated user', () => {
     mockUseAuth.mockReturnValue({ user: null })
 
-    renderHook(() => useMetaAcquisitionEventReplay())
+    const { unmount } = renderHook(() => useMetaAcquisitionEventReplay())
 
     expect(mockReplayPendingMetaAppEvents).not.toHaveBeenCalled()
     expect(AppState.addEventListener).not.toHaveBeenCalled()
+
+    unmount()
   })
 })

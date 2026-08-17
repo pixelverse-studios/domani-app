@@ -3,6 +3,7 @@ jest.mock('~/lib/metaAppEvents', () => ({
 }))
 
 import { Platform } from 'react-native'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppEventsLogger } from 'react-native-fbsdk-next'
 
 import { initializeMetaAppEvents } from '~/lib/metaAppEvents'
@@ -41,8 +42,9 @@ function successfulRpc(functionName: string, args?: Record<string, unknown>) {
 }
 
 describe('Meta acquisition events', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks()
+    await AsyncStorage.clear()
     mockInitialize.mockResolvedValue(true)
     mockRpc.mockImplementation(successfulRpc)
     mockLogEvent.mockImplementation(() => undefined)
@@ -81,7 +83,7 @@ describe('Meta acquisition events', () => {
       p_event_payload: { method: 'apple', platform: Platform.OS },
       p_user_id: 'user-1',
     })
-    expect(mockRpc).toHaveBeenCalledWith('complete_meta_app_event_claim', {
+    expect(mockRpc).toHaveBeenCalledWith('authorize_meta_app_event_dispatch', {
       p_claim_token: 'claim-completed_registration',
       p_event_key: 'completed_registration',
       p_user_id: 'user-1',
@@ -147,6 +149,9 @@ describe('Meta acquisition events', () => {
       if (functionName === 'claim_meta_app_event') {
         return Promise.resolve({ data: [], error: null })
       }
+      if (functionName === 'get_meta_app_event_claim_status') {
+        return Promise.resolve({ data: 'delivered', error: null })
+      }
       return successfulRpc(functionName, args)
     })
 
@@ -156,7 +161,7 @@ describe('Meta acquisition events', () => {
     expect(mockLogEvent).not.toHaveBeenCalled()
   })
 
-  it('leaves the token-owned claim pending when the SDK logger throws', async () => {
+  it('returns a token-owned claim to the retry queue when the SDK logger throws', async () => {
     mockLogEvent.mockImplementationOnce(() => {
       throw new Error('native logger unavailable')
     })
@@ -164,15 +169,16 @@ describe('Meta acquisition events', () => {
     const result = await logMetaStartTrial({ userId: 'user-1' })
 
     expect(result).toBe('error')
-    expect(mockRpc).not.toHaveBeenCalledWith(
-      'complete_meta_app_event_claim',
-      expect.any(Object),
-    )
+    expect(mockRpc).toHaveBeenCalledWith('retry_failed_meta_app_event_dispatch', {
+      p_claim_token: 'claim-start_trial',
+      p_event_key: 'start_trial',
+      p_user_id: 'user-1',
+    })
   })
 
-  it('leaves an enqueued event pending when completion fails so replay can recover it', async () => {
+  it('does not call the SDK when server dispatch authorization fails', async () => {
     mockRpc.mockImplementation((functionName: string, args?: Record<string, unknown>) => {
-      if (functionName === 'complete_meta_app_event_claim') {
+      if (functionName === 'authorize_meta_app_event_dispatch') {
         return Promise.resolve({ data: null, error: new Error('network unavailable') })
       }
       return successfulRpc(functionName, args)
@@ -181,7 +187,7 @@ describe('Meta acquisition events', () => {
     const result = await logMetaStartTrial({ userId: 'user-1' })
 
     expect(result).toBe('error')
-    expect(mockLogEvent).toHaveBeenCalledTimes(1)
+    expect(mockLogEvent).not.toHaveBeenCalled()
   })
 
   it('replays an expired pending event and completes it with the new claim token', async () => {
@@ -208,14 +214,14 @@ describe('Meta acquisition events', () => {
       platform: Platform.OS,
       scheduled_for: 'today',
     })
-    expect(mockRpc).toHaveBeenCalledWith('complete_meta_app_event_claim', {
+    expect(mockRpc).toHaveBeenCalledWith('authorize_meta_app_event_dispatch', {
       p_claim_token: 'replay-token',
       p_event_key: 'planning_activated',
       p_user_id: 'user-1',
     })
   })
 
-  it('does not claim or log when the SDK is not configured', async () => {
+  it('persists but does not claim or log when the SDK is not configured', async () => {
     mockInitialize.mockResolvedValue(false)
 
     const result = await logMetaStartTrial({ userId: 'user-1' })
@@ -223,5 +229,24 @@ describe('Meta acquisition events', () => {
     expect(result).toBe('not_configured')
     expect(mockRpc).not.toHaveBeenCalled()
     expect(mockLogEvent).not.toHaveBeenCalled()
+    expect(await AsyncStorage.getAllKeys()).toContain(
+      '@domani/meta-app-event-intent:user-1:start_trial',
+    )
+  })
+
+  it('replays a locally persisted intent after SDK configuration becomes available', async () => {
+    mockInitialize.mockResolvedValueOnce(false).mockResolvedValue(true)
+
+    await logMetaStartTrial({ userId: 'user-1', offer: 'default' })
+    const delivered = await replayPendingMetaAppEvents('user-1')
+
+    expect(delivered).toBe(1)
+    expect(mockLogEvent).toHaveBeenCalledWith(AppEventsLogger.AppEvents.StartTrial, {
+      offer: 'default',
+      platform: Platform.OS,
+    })
+    expect(await AsyncStorage.getAllKeys()).not.toContain(
+      '@domani/meta-app-event-intent:user-1:start_trial',
+    )
   })
 })

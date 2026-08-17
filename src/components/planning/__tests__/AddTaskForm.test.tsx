@@ -90,7 +90,7 @@ describe('AddTaskForm', () => {
   it('keeps submit disabled until title, category, and priority are present', async () => {
     const onSubmit = jest.fn(() => new Promise<void>(() => {}))
 
-    renderWithProviders(
+    const { unmount } = renderWithProviders(
       <AddTaskForm onClose={jest.fn()} onSubmit={onSubmit} selectedTarget="tomorrow" />,
     )
 
@@ -111,5 +111,7 @@ describe('AddTaskForm', () => {
         }),
       )
     })
+
+    unmount()
   })
 })
