@@ -485,21 +485,27 @@ export type Database = {
       }
       meta_app_event_claims: {
         Row: {
+          claim_token: string | null
           claimed_at: string
           delivered_at: string | null
           event_key: string
+          event_payload: Json
           user_id: string
         }
         Insert: {
+          claim_token?: string | null
           claimed_at?: string
           delivered_at?: string | null
           event_key: string
+          event_payload?: Json
           user_id: string
         }
         Update: {
+          claim_token?: string | null
           claimed_at?: string
           delivered_at?: string | null
           event_key?: string
+          event_payload?: Json
           user_id?: string
         }
         Relationships: []
@@ -1333,15 +1339,23 @@ export type Database = {
     }
     Functions: {
       claim_meta_app_event: {
-        Args: { p_event_key: string; p_user_id: string }
-        Returns: boolean
+        Args: { p_event_key: string; p_event_payload: Json; p_user_id: string }
+        Returns: {
+          claim_token: string
+          event_key: string
+          event_payload: Json
+        }[]
+      }
+      claim_pending_meta_app_events: {
+        Args: { p_user_id: string }
+        Returns: {
+          claim_token: string
+          event_key: string
+          event_payload: Json
+        }[]
       }
       complete_meta_app_event_claim: {
-        Args: { p_event_key: string; p_user_id: string }
-        Returns: boolean
-      }
-      release_meta_app_event_claim: {
-        Args: { p_event_key: string; p_user_id: string }
+        Args: { p_claim_token: string; p_event_key: string; p_user_id: string }
         Returns: boolean
       }
       cancel_account_deletion: {

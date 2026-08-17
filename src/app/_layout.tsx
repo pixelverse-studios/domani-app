@@ -29,6 +29,7 @@ import { useNotificationObserver } from '~/hooks/useNotifications'
 import { useAnalyticsIdentify } from '~/hooks/useAnalyticsIdentify'
 import { useSentryIdentify } from '~/hooks/useSentryIdentify'
 import { useAuthAnalytics } from '~/hooks/useAuthAnalytics'
+import { useMetaAcquisitionEventReplay } from '~/hooks/useMetaAcquisitionEventReplay'
 import { useAccessStateAnalytics } from '~/hooks/useAccessStateAnalytics'
 import { useAppLifecycleAnalytics } from '~/hooks/useAppLifecycleAnalytics'
 import { initializeMetaAppEvents } from '~/lib/metaAppEvents'
@@ -87,6 +88,9 @@ function RootLayoutContent() {
 
   // Track auth events (sign in, sign out)
   useAuthAnalytics()
+
+  // Replay interrupted one-time Meta acquisition events for the authenticated user.
+  useMetaAcquisitionEventReplay()
 
   // Track server-confirmed access revocation once per refund timestamp
   useAccessStateAnalytics()

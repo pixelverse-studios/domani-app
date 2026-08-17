@@ -601,7 +601,6 @@ describe('purchase access sync', () => {
       expect.objectContaining({
         userId: 'user-1',
         productId: 'domani_lifetime',
-        purchaseDate: '2026-05-20T12:00:00.000Z',
       }),
     )
     expect(mockLogMetaPurchase).not.toHaveBeenCalled()

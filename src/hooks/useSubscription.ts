@@ -814,8 +814,6 @@ export function useSubscription() {
           void logMetaPurchaseRestored({
             userId: user.id,
             productId: entitlement.productIdentifier,
-            purchaseDate:
-              entitlement.originalPurchaseDate ?? entitlement.latestPurchaseDate ?? null,
             store: entitlement.store ?? null,
           })
         }
@@ -945,8 +943,6 @@ export function useSubscription() {
           void logMetaPurchase({
             userId: user.id,
             productId: entitlement.productIdentifier,
-            purchaseDate:
-              entitlement.originalPurchaseDate ?? entitlement.latestPurchaseDate ?? null,
             amount: attemptContext?.price ?? null,
             currency: attemptContext?.currency ?? null,
             offer: offeringIdentifier ?? null,
@@ -959,8 +955,6 @@ export function useSubscription() {
           void logMetaPurchase({
             userId: user.id,
             productId: entitlement.productIdentifier,
-            purchaseDate:
-              entitlement.originalPurchaseDate ?? entitlement.latestPurchaseDate ?? null,
             amount: attemptContext.price ?? null,
             currency: attemptContext.currency ?? null,
             offer: offeringIdentifier ?? null,
@@ -975,8 +969,6 @@ export function useSubscription() {
           void logMetaPurchaseRestored({
             userId: user.id,
             productId: entitlement.productIdentifier,
-            purchaseDate:
-              entitlement.originalPurchaseDate ?? entitlement.latestPurchaseDate ?? null,
             store: entitlement.store ?? null,
           })
         }
