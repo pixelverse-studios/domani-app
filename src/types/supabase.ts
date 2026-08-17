@@ -483,6 +483,24 @@ export type Database = {
           },
         ]
       }
+      meta_app_event_claims: {
+        Row: {
+          claimed_at: string
+          event_key: string
+          user_id: string
+        }
+        Insert: {
+          claimed_at?: string
+          event_key: string
+          user_id: string
+        }
+        Update: {
+          claimed_at?: string
+          event_key?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           auto_sort_categories: boolean | null
@@ -1311,6 +1329,10 @@ export type Database = {
       }
     }
     Functions: {
+      claim_meta_app_event: {
+        Args: { p_event_key: string }
+        Returns: boolean
+      }
       cancel_account_deletion: {
         Args: { p_user_id: string }
         Returns: undefined

@@ -14,6 +14,11 @@ import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { getAnalyticsBaseProperties } from '~/lib/productAnalytics'
+import {
+  logMetaPurchase,
+  logMetaPurchaseRestored,
+  logMetaStartTrial,
+} from '~/lib/metaAcquisitionEvents'
 import { useAppConfig } from '~/stores/appConfigStore'
 import { isBetaPhase } from '~/types/appConfig'
 import type { Profile } from '~/types'
@@ -806,6 +811,13 @@ export function useSubscription() {
             product_id: entitlement.productIdentifier,
             store: entitlement.store ?? null,
           })
+          void logMetaPurchaseRestored({
+            userId: user.id,
+            productId: entitlement.productIdentifier,
+            purchaseDate:
+              entitlement.originalPurchaseDate ?? entitlement.latestPurchaseDate ?? null,
+            store: entitlement.store ?? null,
+          })
         }
         return result
       }
@@ -930,10 +942,41 @@ export function useSubscription() {
             campaign_slug: attemptContext?.campaignSlug ?? null,
             promo_outcome: attemptContext?.promoOutcome ?? null,
           })
+          void logMetaPurchase({
+            userId: user.id,
+            productId: entitlement.productIdentifier,
+            purchaseDate:
+              entitlement.originalPurchaseDate ?? entitlement.latestPurchaseDate ?? null,
+            amount: attemptContext?.price ?? null,
+            currency: attemptContext?.currency ?? null,
+            offer: offeringIdentifier ?? null,
+            store: entitlement.store ?? null,
+          })
+        } else if (
+          attemptContext?.promoOutcome === 'discounted' &&
+          (request.source === 'promo_redemption' || request.source === 'foreground')
+        ) {
+          void logMetaPurchase({
+            userId: user.id,
+            productId: entitlement.productIdentifier,
+            purchaseDate:
+              entitlement.originalPurchaseDate ?? entitlement.latestPurchaseDate ?? null,
+            amount: attemptContext.price ?? null,
+            currency: attemptContext.currency ?? null,
+            offer: offeringIdentifier ?? null,
+            store: entitlement.store ?? null,
+          })
         } else if (request.source === 'restore') {
           track('purchase_restored', {
             ...getAnalyticsBaseProperties(),
             product_id: entitlement.productIdentifier,
+            store: entitlement.store ?? null,
+          })
+          void logMetaPurchaseRestored({
+            userId: user.id,
+            productId: entitlement.productIdentifier,
+            purchaseDate:
+              entitlement.originalPurchaseDate ?? entitlement.latestPurchaseDate ?? null,
             store: entitlement.store ?? null,
           })
         }
@@ -1306,6 +1349,9 @@ export function useSubscription() {
         signup_cohort: profile?.signup_cohort ?? null,
         trial_expires_at: data.trial_ends_at!,
       })
+      if (user?.id) {
+        void logMetaStartTrial({ userId: user.id, offer: offeringIdentifier ?? null })
+      }
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
     },
     onSettled: () => {

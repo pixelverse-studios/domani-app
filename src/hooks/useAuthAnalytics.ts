@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useAuth } from '~/hooks/useAuth'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { getAnalyticsBaseProperties } from '~/lib/productAnalytics'
+import { logMetaCompletedRegistration } from '~/lib/metaAcquisitionEvents'
 
 const RECENT_AUTH_WINDOW_MS = 2 * 60 * 1000
 
@@ -43,6 +44,9 @@ export function useAuthAnalytics() {
           provider,
           is_new_registration: isNewRegistration,
         })
+        if (isNewRegistration) {
+          void logMetaCompletedRegistration({ userId: currentUserId, method: provider })
+        }
       }
     } else if (previousUserId.current && !currentUserId) {
       // User signed out - track the event

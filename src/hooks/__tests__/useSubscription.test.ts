@@ -13,6 +13,16 @@ jest.mock('~/lib/revenuecat', () => ({
   syncRevenueCatSubscriberAttributes: jest.fn(),
 }))
 
+const mockLogMetaPurchase = jest.fn()
+const mockLogMetaPurchaseRestored = jest.fn()
+const mockLogMetaStartTrial = jest.fn()
+
+jest.mock('~/lib/metaAcquisitionEvents', () => ({
+  logMetaPurchase: (...args: unknown[]) => mockLogMetaPurchase(...args),
+  logMetaPurchaseRestored: (...args: unknown[]) => mockLogMetaPurchaseRestored(...args),
+  logMetaStartTrial: (...args: unknown[]) => mockLogMetaStartTrial(...args),
+}))
+
 const mockUseAuth = jest.fn()
 const mockUseProfile = jest.fn()
 
@@ -302,6 +312,7 @@ describe('subscription product analytics', () => {
         trial_expires_at: '2026-08-30T12:00:00.000Z',
       }),
     )
+    expect(mockLogMetaStartTrial).toHaveBeenCalledWith({ userId: 'user-1', offer: 'default' })
 
     unmount()
   })
@@ -561,6 +572,8 @@ describe('purchase access sync', () => {
       profileSynced: false,
     })
     expect(result.current.accessSyncPhase).toBe('verification_failed')
+    expect(mockLogMetaPurchaseRestored).not.toHaveBeenCalled()
+    expect(mockLogMetaPurchase).not.toHaveBeenCalled()
     expect(
       mockSupabaseFrom.mock.results.some((result) => {
         const query = result.value as SupabaseQueryMock
@@ -570,6 +583,28 @@ describe('purchase access sync', () => {
         })
       }),
     ).toBe(false)
+
+    unmount()
+  })
+
+  it('logs a verified restore without logging Purchase', async () => {
+    mockRestorePurchases.mockResolvedValue(buildLifetimeCustomerInfo())
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await act(async () => {
+      await result.current.restore()
+    })
+
+    expect(mockLogMetaPurchaseRestored).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        productId: 'domani_lifetime',
+        purchaseDate: '2026-05-20T12:00:00.000Z',
+      }),
+    )
+    expect(mockLogMetaPurchase).not.toHaveBeenCalled()
 
     unmount()
   })
@@ -808,6 +843,7 @@ describe('purchase access sync', () => {
       }),
     )
     expect(mockTrack).not.toHaveBeenCalledWith('promo_redemption_completed', expect.any(Object))
+    expect(mockLogMetaPurchase).not.toHaveBeenCalled()
 
     unmount()
   })
@@ -888,6 +924,14 @@ describe('purchase access sync', () => {
         currency: 'USD',
         price: 9.99,
         product_id: 'domani_lifetime',
+      }),
+    )
+    expect(mockLogMetaPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        productId: 'domani_lifetime',
+        amount: 9.99,
+        currency: 'USD',
       }),
     )
 

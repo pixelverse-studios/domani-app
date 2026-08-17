@@ -7,6 +7,12 @@ import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useCreateTask, useDeleteTask, useTasks, useUpdateTask } from '../useTasks'
 
+const mockLogMetaPlanningActivated = jest.fn()
+
+jest.mock('~/lib/metaAcquisitionEvents', () => ({
+  logMetaPlanningActivated: (...args: unknown[]) => mockLogMetaPlanningActivated(...args),
+}))
+
 const mockIncrementUsageMutate = jest.fn()
 
 jest.mock('~/hooks/useCategories', () => ({
@@ -219,6 +225,10 @@ describe('task hooks', () => {
       'planning_activated',
       expect.objectContaining({ scheduled_for: 'today' }),
     )
+    expect(mockLogMetaPlanningActivated).toHaveBeenCalledWith({
+      userId: 'user-1',
+      scheduledFor: 'today',
+    })
 
     jest.useRealTimers()
   })
@@ -239,6 +249,7 @@ describe('task hooks', () => {
 
     expect(mockFrom).toHaveBeenCalledTimes(1)
     expect(mockTrack).not.toHaveBeenCalledWith('planning_activated', expect.any(Object))
+    expect(mockLogMetaPlanningActivated).not.toHaveBeenCalled()
 
     jest.useRealTimers()
   })
