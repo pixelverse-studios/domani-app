@@ -11,6 +11,7 @@ import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { getAnalyticsBaseProperties, getScheduledFor } from '~/lib/productAnalytics'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import type { TaskWithCategory, TaskPriority } from '~/types'
+import { logMetaPlanningActivated } from '~/lib/metaAcquisitionEvents'
 
 // 5 minutes - tasks change with user action but don't need real-time updates
 const TASKS_STALE_TIME = 1000 * 60 * 5
@@ -341,6 +342,7 @@ export function useCreateTask() {
               category_type: categoryType,
               scheduled_for: scheduledFor,
             })
+            void logMetaPlanningActivated({ userId, scheduledFor })
           }
         } catch (error) {
           if (__DEV__) console.warn('[Analytics] Failed to claim planning activation', error)
