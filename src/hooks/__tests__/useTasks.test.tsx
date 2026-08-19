@@ -7,6 +7,12 @@ import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { useCreateTask, useDeleteTask, useTasks, useUpdateTask } from '../useTasks'
 
+const mockLogMetaPlanningActivated = jest.fn()
+
+jest.mock('~/lib/metaAcquisitionEvents', () => ({
+  logMetaPlanningActivated: (...args: unknown[]) => mockLogMetaPlanningActivated(...args),
+}))
+
 const mockIncrementUsageMutate = jest.fn()
 
 jest.mock('~/hooks/useCategories', () => ({
@@ -204,7 +210,7 @@ describe('task hooks', () => {
     })
     mockFrom.mockReturnValueOnce(insertQuery).mockReturnValueOnce(activationQuery)
 
-    const { result } = trackQueryClient(renderHookWithProviders(() => useCreateTask()))
+    const { result, unmount } = trackQueryClient(renderHookWithProviders(() => useCreateTask()))
 
     await act(async () => {
       await result.current.mutateAsync({ scheduledDate: '2026-05-16', title: 'Start the day' })
@@ -219,7 +225,12 @@ describe('task hooks', () => {
       'planning_activated',
       expect.objectContaining({ scheduled_for: 'today' }),
     )
+    expect(mockLogMetaPlanningActivated).toHaveBeenCalledWith({
+      userId: 'user-1',
+      scheduledFor: 'today',
+    })
 
+    unmount()
     jest.useRealTimers()
   })
 
@@ -232,14 +243,16 @@ describe('task hooks', () => {
     })
     mockFrom.mockReturnValue(insertQuery)
 
-    const { result } = trackQueryClient(renderHookWithProviders(() => useCreateTask()))
+    const { result, unmount } = trackQueryClient(renderHookWithProviders(() => useCreateTask()))
     await act(async () => {
       await result.current.mutateAsync({ scheduledDate: '2026-05-16', title: 'Tutorial task' })
     })
 
     expect(mockFrom).toHaveBeenCalledTimes(1)
     expect(mockTrack).not.toHaveBeenCalledWith('planning_activated', expect.any(Object))
+    expect(mockLogMetaPlanningActivated).not.toHaveBeenCalled()
 
+    unmount()
     jest.useRealTimers()
   })
 

@@ -197,6 +197,30 @@ jest.doMock('posthog-react-native', () => {
   }
 })
 
+jest.doMock('expo-tracking-transparency', () => ({
+  getTrackingPermissionsAsync: jest.fn(),
+  isAvailable: jest.fn(() => true),
+  PermissionStatus: {
+    DENIED: 'denied',
+    GRANTED: 'granted',
+    UNDETERMINED: 'undetermined',
+  },
+  requestTrackingPermissionsAsync: jest.fn(),
+}))
+
+jest.doMock('react-native-fbsdk-next', () => {
+  const supportedMock = require('react-native-fbsdk-next/jest/mocks').default
+
+  return {
+    ...supportedMock,
+    Settings: {
+      ...supportedMock.Settings,
+      setAdvertiserIDCollectionEnabled: jest.fn(),
+      setAdvertiserTrackingEnabled: jest.fn(() => Promise.resolve(true)),
+    },
+  }
+})
+
 jest.doMock('~/providers/AnalyticsProvider', () => {
   const React = require('react')
   const analytics = {
