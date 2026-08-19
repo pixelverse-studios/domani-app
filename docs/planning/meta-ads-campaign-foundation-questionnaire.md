@@ -17,15 +17,15 @@ Possible goals include:
 
 **Primary objective:**
 
-> Add your answer here.
+> Lifetime customers profitably
 
 **Secondary objective, if any:**
 
-> Add your answer here.
+> Generate app installs and new users
 
 **What would make the first campaign feel successful to you?**
 
-> Add your answer here.
+> 1. getting at least 25 new users with a 50% lifetime purchase rate. 2. making sure we got enough paid users to be profitable after the ad spend
 
 ## 2. Current Pricing and Promotional Offer
 
@@ -33,15 +33,15 @@ What price will a new user acquired through Meta currently see?
 
 **Standard lifetime price:**
 
-> Add your answer here.
+> 34.99
 
 **Will Meta-acquired users receive a discount, promotional price, or promo code? If so, describe it:**
 
-> Add your answer here.
+> 9.99
 
 **Should the price or one-time-purchase model be mentioned directly in the ads? Why or why not?**
 
-> Add your answer here.
+> Sure. We are actively going against the grain of subscription based models, so i feel like making it clear we are not a subscription platform will help
 
 ## 3. Test Budget and Financial Tolerance
 
@@ -49,23 +49,23 @@ How much are you comfortable investing to determine whether Meta advertising has
 
 **Total initial test budget:**
 
-> Add your answer here.
+> I am not entirely sure. We have a somewhat low budget in general right now but im not sure how to identify these numbers. Can you provide assistance on how i can get to this number?
 
 **Preferred length of the initial test:**
 
-> Add your answer here.
+> Also unsure. Something that will give us a good enough sample size while also not running our budget dry. help me figure out how to identify this
 
 **Potential monthly budget if results are encouraging:**
 
-> Add your answer here.
+> TBD. We have some income starting to come in soon from other sources, so that might help us with our overall budget.
 
 **Are you comfortable with the first test losing money while we learn, provided we establish a firm spending limit and stopping rules?**
 
-> Add your answer here.
+> Yes, that is to be expected. I'd love to not lose money, but i understand it's likely we will at first
 
 **What is the maximum amount you are willing to lose during the learning phase?**
 
-> Add your answer here.
+> Unsure. will depend on the actual budget once we figure out how to make that number
 
 ## 4. App Availability and Store Readiness
 
@@ -73,27 +73,27 @@ Where is Domani currently available, and are its store listings ready to receive
 
 **Is Domani publicly available on the Apple App Store?**
 
-> Add your answer here.
+> Yes
 
 **Is Domani publicly available on Google Play?**
 
-> Add your answer here.
+> Yes
 
 **Which countries can currently install the app?**
 
-> Add your answer here.
+> Available to every country on both app stores that are supported. We likely want to start by focusing on America, canada, and maybe england or a handful of other tech savy countries. America is definitely the early priority
 
 **Are the current English store listings, screenshots, and descriptions polished enough for paid traffic?**
 
-> Add your answer here.
+> Yes
 
 **Which localized store listings and screenshot sets are currently live?**
 
-> Add your answer here.
+> I think we did 25 or so of them. This can be looked up in the code base
 
 **Are there any known store-listing problems that should be fixed before advertising?**
 
-> Add your answer here.
+> No
 
 ## 5. Initial Platform Scope
 
@@ -101,19 +101,19 @@ Should the first campaign promote the iOS app, Android app, or both?
 
 **Preferred initial platform:**
 
-> Add your answer here.
+> Unless there is a specific reason not to, i think we can go for both?
 
 **Why do you prefer this platform?**
 
-> Add your answer here.
+> -
 
 **Which platform currently has the stronger store listing and most reliable signup, trial, and purchase flow?**
 
-> Add your answer here.
+> Both have been tested and are proven to work reliably
 
 **Do you know of any meaningful differences in user quality or purchasing behavior between iOS and Android?**
 
-> Add your answer here.
+> Not entirely
 
 ## 6. Current Funnel and Performance Data
 
@@ -121,51 +121,51 @@ Provide the most recent numbers available. Estimates and `unknown` answers are a
 
 **Measurement period covered by these numbers:**
 
-> Add your answer here.
+> Unknown. Currently we have posthog set up, but we have almost no users using the app. some word of mouth users, friends and family but they do not use the app regularly unfortunately.
 
 **Installs:**
 
-> Add your answer here.
+> ~ 50 installs
 
 **Account creations or completed sign-ins:**
 
-> Add your answer here.
+> 50
 
 **Trial starts:**
 
-> Add your answer here.
+> unknown atm
 
 **Users who create their first plan:**
 
-> Add your answer here.
+> unknown atm
 
 **Day 1 retention:**
 
-> Add your answer here.
+> unknown and not tracking currently but will add
 
 **Day 7 retention:**
 
-> Add your answer here.
+> unknown and not tracking currently but will add
 
 **Trial-to-lifetime-purchase conversion rate:**
 
-> Add your answer here.
+> unknown and not tracking currently but will add
 
 **Number of lifetime purchases:**
 
-> Add your answer here.
+> unknown and not tracking currently but will add
 
 **Refund count or refund rate:**
 
-> Add your answer here.
+> 0
 
 **Known differences between iOS and Android:**
 
-> Add your answer here.
+> -
 
 **Where are these numbers currently measured?**
 
-> Add your answer here.
+> Posthog
 
 ## 7. First-Campaign Customer
 
@@ -175,35 +175,35 @@ The existing documents mention intentional professionals, anxious achievers, rem
 
 **Age or life stage:**
 
-> Add your answer here.
+> Probably looking for someone who is starting to care more about their habits, improving their day to day efficiency, likely between 25-45 years old? could expand on this probably
 
 **Work, school, or family situation:**
 
-> Add your answer here.
+>
 
 **What do their evenings currently feel like?**
 
-> Add your answer here.
+> Not planning for tomorrow at all, but anxious or thinking about what they need to do for tomorrow
 
 **What do their mornings currently feel like?**
 
-> Add your answer here.
+> Unplanned, not structured mornings and just going and hoping things get done
 
 **What planning or productivity tools have they already tried?**
 
-> Add your answer here.
+>
 
 **Why did those alternatives fail them?**
 
-> Add your answer here.
+> Hard to stick to potentially, not engaging or helpful, likely with feature bloat and unnecessary complexity
 
 **Why would they choose Domani?**
 
-> Add your answer here.
+> The nudge to plan tomorrow, tonight, that helps the user start building an actual habit or system. They know they will be alerted at the time of their choosing to start organizing tomorrows must do items, the night before. Helping to reduce stress and decisions, anxiety, and have a calm yet productive following day
 
 **What would make them willing to pay for lifetime access?**
 
-> Add your answer here.
+> The answer above + the customization and lifetime access to all new features added going forward, and never seeing a single advertisement
 
 ## 8. Lead Problem and Desired Transformation
 
@@ -220,23 +220,23 @@ Possible starting points include:
 
 **Primary problem:**
 
-> Add your answer here.
+>This one is tough, im not sure since all are strong. Can you help me decide the primary and secondary based on what would most likely lead to success in ads?
 
 **Secondary problem:**
 
-> Add your answer here.
+> see above
 
 **How should a user feel before discovering Domani?**
 
-> Add your answer here.
+> Unsure
 
 **How should a user feel after using Domani successfully?**
 
-> Add your answer here.
+> Calm, content and happy that they are able to stick to a system that enables them to go about their days better, with a structured and organized flow
 
 **Complete this sentence: Domani helps me ______ so that I can ______.**
 
-> Add your answer here.
+> Plan, get what matters most done
 
 ## 9. Existing Acquisition Activity
 
@@ -244,31 +244,31 @@ Are any other paid or partnership-based acquisition channels currently active?
 
 **Apple Search Ads:**
 
-> Add your answer here.
+> Not yet
 
 **Google App Campaigns:**
 
-> Add your answer here.
+> Not yet
 
 **TikTok advertising:**
 
-> Add your answer here.
+> No
 
 **Influencer or creator promotions:**
 
-> Add your answer here.
+> No
 
 **Boosted Instagram or Facebook posts:**
 
-> Add your answer here.
+> Not yet
 
 **Other paid or partnership channels:**
 
-> Add your answer here.
+> No
 
 **Do any of these channels provide performance benchmarks we can use?**
 
-> Add your answer here.
+> Dont have any
 
 ## 10. Initial Market
 
@@ -276,19 +276,19 @@ Which geographic market should receive the first campaign?
 
 **Preferred country or countries:**
 
-> Add your answer here.
+> America
 
 **Why these markets?**
 
-> Add your answer here.
+> Likely highest chance for success with the heavy subscription based apps out there + anxiety and general indecision
 
 **Should the first test be English-only?**
 
-> Add your answer here.
+> Yes
 
 **Are there markets you explicitly want to avoid during the first test?**
 
-> Add your answer here.
+>
 
 ## 11. Campaign Constraints and Non-Negotiables
 
@@ -320,4 +320,4 @@ Consider brand tone, privacy, claims, discounts, audience types, creative styles
 
 If the first campaign could prove only one thing, what is the most important thing you want it to prove?
 
-> Add your answer here.
+> That we built a product that people are interested in using. That brings real value to lives
