@@ -38,6 +38,8 @@ Never commit the connection URL or database password. The staging push wrapper r
 7. Commit and review the migration before considering production.
 8. Treat production as read-only until an explicit production-rollout approval is given. Repeat the dry run against production before any approved push.
 
+Record resolved and intentionally accepted advisor results in the [Supabase advisor baseline](supabase-advisor-baseline.md).
+
 ## Credential rotation
 
 If a staging database credential is exposed:
