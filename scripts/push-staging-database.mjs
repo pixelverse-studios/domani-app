@@ -1,31 +1,23 @@
 import { spawnSync } from 'node:child_process'
 
 const STAGING_PROJECT_REF = 'ftgltnzejaxasdvfkqut'
-const databaseUrl = process.env.SUPABASE_STAGING_DB_URL?.trim()
+const STAGING_POOLER_HOST = 'aws-1-us-west-2.pooler.supabase.com'
+const publicSupabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim()
+const databasePassword = process.env.SUPABASE_DB_PASSWORD
 
-if (!databaseUrl) {
-  console.error('SUPABASE_STAGING_DB_URL is required in the local environment.')
+if (!databasePassword) {
+  console.error('SUPABASE_DB_PASSWORD is required in the active local environment block.')
   process.exit(1)
 }
 
-let parsedUrl
-
-try {
-  parsedUrl = new URL(databaseUrl)
-} catch {
-  console.error('SUPABASE_STAGING_DB_URL must be a valid Postgres connection URL.')
+if (publicSupabaseUrl !== `https://${STAGING_PROJECT_REF}.supabase.co`) {
+  console.error('EXPO_PUBLIC_SUPABASE_URL must target Domani staging before a staging push.')
   process.exit(1)
 }
 
-const usesPostgresProtocol = ['postgres:', 'postgresql:'].includes(parsedUrl.protocol)
-const targetsStaging =
-  parsedUrl.hostname === `db.${STAGING_PROJECT_REF}.supabase.co` ||
-  parsedUrl.username === `postgres.${STAGING_PROJECT_REF}`
-
-if (!usesPostgresProtocol || !targetsStaging) {
-  console.error('SUPABASE_STAGING_DB_URL must target the Domani staging project.')
-  process.exit(1)
-}
+const databaseUrl =
+  `postgresql://postgres.${STAGING_PROJECT_REF}:` +
+  `${encodeURIComponent(databasePassword)}@${STAGING_POOLER_HOST}:5432/postgres`
 
 const result = spawnSync(
   'npx',
