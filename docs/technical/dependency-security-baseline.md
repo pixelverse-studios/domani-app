@@ -2,7 +2,7 @@
 
 ## Scope
 
-DEV-1139 establishes the dependency and CI release baseline for Domani 1.2. It applies non-breaking npm remediations, keeps the app on Expo SDK 54, and blocks new critical dependency findings in pull requests.
+DEV-1139 establishes the dependency and CI release baseline for Domani 1.2. It applies non-breaking npm remediations, keeps the app on Expo SDK 54, blocks newly introduced high-or-critical dependency findings, and preserves the accepted SDK 54 audit baseline.
 
 ## Remediated findings
 
@@ -35,11 +35,14 @@ Every pull request targeting `main`, `dev`, `dev-*`, `dev/**`, or `epic/**` runs
 - Jest tests;
 - ESLint;
 - npm audit with critical severity as the blocking threshold;
+- dependency review, blocking newly introduced high-or-critical vulnerable packages;
 - a full Supabase migration replay from an empty local database;
 - pgTAP authority-boundary regression tests; and
 - local database linting with errors as the blocking threshold.
 
 GitHub Actions are pinned to immutable commit SHAs. The clean database job uses the repository's exact Supabase CLI development dependency and the GitHub runner's container runtime; it does not connect to staging or production.
+
+GitHub repository security settings provide the secret and advisory controls that should not live in application code: secret scanning, push protection, Dependabot vulnerability alerts, and automated security updates. An active repository ruleset requires pull requests and the three PR validation checks for the 1.2 integration branches. A separate advisory workflow runs `npm audit` every Monday and can also be dispatched manually; scheduled execution begins when that workflow reaches the repository's default branch.
 
 ## DEV-1139 verification
 
@@ -50,5 +53,7 @@ Verified on 2026-08-20:
 - TypeScript, 181 Jest tests, and ESLint completed with no errors. ESLint continues to report 408 pre-existing warnings.
 - Expo dependency compatibility passed with the reviewed Sentry exclusion.
 - Production JavaScript bundles exported successfully for both iOS and Android.
+- CocoaPods synchronized the iOS lockfile to the npm dependency graph, including Expo Localization 17.0.9.
+- Unsigned iOS Simulator and signed local Android release builds completed successfully. Both builds reported only existing third-party compiler and deprecation warnings.
 - The empty-database replay is executed by GitHub Actions because the development workstation does not have Docker or Podman.
 - [GitHub Actions run 32414149874](https://github.com/pixelverse-studios/domani-app/actions/runs/32414149874) replayed the complete migration chain from an empty database, passed all 10 admin-RPC authority assertions, and completed error-level linting of the `extensions` and `public` schemas with no errors.
