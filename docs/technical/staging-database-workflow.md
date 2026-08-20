@@ -4,19 +4,19 @@ All new database work is applied and verified on the Domani staging Supabase pro
 
 ## Environment
 
-Keep the database password beside each environment's existing Supabase values in the ignored local `.env` file. Only the active environment block should be uncommented:
+Use the existing ignored local `.env` blocks. Only the active environment block should be uncommented:
 
 ```dotenv
 # Production block
 # EXPO_PUBLIC_SUPABASE_URL=https://<production-ref>.supabase.co
-# SUPABASE_DB_PASSWORD=<production-password>
+# EXPO_PUBLIC_SUPABASE_ANON_KEY=<production-anon-key>
 
 # Staging block
 EXPO_PUBLIC_SUPABASE_URL=https://ftgltnzejaxasdvfkqut.supabase.co
-SUPABASE_DB_PASSWORD=<staging-password>
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<staging-anon-key>
 ```
 
-Never commit a database password. The staging push wrapper constructs the connection URL internally, refuses to run unless the active public Supabase URL identifies the Domani staging project, and does not print the password or connection URL.
+The staging push wrapper targets staging by its project reference through the authenticated Supabase CLI. It refuses to run unless the active public Supabase URL also identifies the Domani staging project. No database password environment variable is required.
 
 ## Migration order
 
@@ -52,7 +52,6 @@ If a staging database credential is exposed:
 
 1. Remove it from tracked files.
 2. Rotate the staging database password in Supabase.
-3. Update only the staging block's ignored local `SUPABASE_DB_PASSWORD` value.
-4. Run the staging dry run to verify the replacement.
+3. Run the project-reference staging dry run to verify CLI access.
 
 Rotation invalidates the exposed value retained in Git history; do not rewrite shared history solely to remove an already-rotated password.
