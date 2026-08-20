@@ -35,7 +35,8 @@ Every pull request targeting `main`, `dev`, `dev-*`, `dev/**`, or `epic/**` runs
 - Jest tests;
 - ESLint;
 - npm audit with critical severity as the blocking threshold;
-- a full Supabase migration replay from an empty local database; and
+- a full Supabase migration replay from an empty local database;
+- pgTAP authority-boundary regression tests; and
 - local database linting with errors as the blocking threshold.
 
 GitHub Actions are pinned to immutable commit SHAs. The clean database job uses the repository's exact Supabase CLI development dependency and the GitHub runner's container runtime; it does not connect to staging or production.
@@ -50,3 +51,4 @@ Verified on 2026-08-20:
 - Expo dependency compatibility passed with the reviewed Sentry exclusion.
 - Production JavaScript bundles exported successfully for both iOS and Android.
 - The empty-database replay is executed by GitHub Actions because the development workstation does not have Docker or Podman.
+- [GitHub Actions run 32414149874](https://github.com/pixelverse-studios/domani-app/actions/runs/32414149874) replayed the complete migration chain from an empty database, passed all 10 admin-RPC authority assertions, and completed error-level linting of the `extensions` and `public` schemas with no errors.
