@@ -194,6 +194,8 @@ npm run db:staging:push
 npm run db:staging:types
 ```
 
+The staging push requires `SUPABASE_STAGING_DB_URL` in the ignored local `.env` file. Follow [the staging database workflow](docs/technical/staging-database-workflow.md); never place database credentials in tracked scripts.
+
 ## Build And Release Notes
 
 When the user is preparing a build, first clarify whether it is:

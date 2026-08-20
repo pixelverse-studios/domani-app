@@ -29,7 +29,7 @@
     "db:stop": "npx supabase stop",
     "db:reset": "npx supabase db reset",
     "db:push": "npx supabase db push --linked --include-all",
-    "db:staging:push": "npx supabase db push --db-url postgresql://postgres.ftgltnzejaxasdvfkqut:domani-staging1@aws-1-us-west-2.pooler.supabase.com:5432/postgres --include-all",
+    "db:staging:push": "node --env-file-if-exists=.env scripts/push-staging-database.mjs",
     "db:staging:types": "npx supabase gen types typescript --project-id ftgltnzejaxasdvfkqut > src/types/supabase.ts && npm run format"
   },
   "keywords": [],
