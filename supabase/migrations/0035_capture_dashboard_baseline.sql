@@ -376,6 +376,38 @@ BEGIN
     $function$;
   END IF;
 
+  IF to_regprocedure('public.delete_user_by_email(text)') IS NULL THEN
+    EXECUTE $function$
+      CREATE FUNCTION public.delete_user_by_email(target_email TEXT)
+      RETURNS TEXT
+      LANGUAGE plpgsql
+      SECURITY DEFINER
+      AS $body$
+      DECLARE
+        target_user_id UUID;
+        user_name TEXT;
+      BEGIN
+        SELECT id INTO target_user_id
+        FROM auth.users
+        WHERE email = target_email;
+
+        IF target_user_id IS NULL THEN
+          RETURN 'User not found: ' || target_email;
+        END IF;
+
+        SELECT full_name INTO user_name
+        FROM public.profiles
+        WHERE id = target_user_id;
+
+        DELETE FROM public.profiles WHERE id = target_user_id;
+        DELETE FROM auth.users WHERE id = target_user_id;
+
+        RETURN 'Deleted user: ' || target_email || ' (' || COALESCE(user_name, 'no name') || ')';
+      END;
+      $body$
+    $function$;
+  END IF;
+
   IF to_regprocedure('public.is_email_subscribed(character varying)') IS NULL THEN
     EXECUTE $function$
       CREATE FUNCTION public.is_email_subscribed(p_email VARCHAR)
