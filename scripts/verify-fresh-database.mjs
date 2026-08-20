@@ -28,6 +28,7 @@ try {
   run(['start'])
   started = true
   run(['db', 'reset', '--local'])
+  run(['test', 'db'])
   run(['db', 'lint', '--local', '--level', 'error', '--fail-on', 'error'])
 } finally {
   if (started) {
