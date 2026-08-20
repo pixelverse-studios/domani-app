@@ -194,6 +194,8 @@ npm run db:staging:push
 npm run db:staging:types
 ```
 
+The staging push uses the authenticated Supabase CLI with the staging project reference and verifies that the active `.env` block contains the staging `EXPO_PUBLIC_SUPABASE_URL`. Follow [the staging database workflow](docs/technical/staging-database-workflow.md); never place database credentials in tracked scripts.
+
 ## Build And Release Notes
 
 When the user is preparing a build, first clarify whether it is:

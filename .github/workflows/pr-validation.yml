@@ -3,7 +3,10 @@ name: PR validation
 on:
   pull_request:
     branches:
+      - main
+      - dev
       - dev/**
+      - dev-*
       - epic/**
 
 permissions:
@@ -14,17 +17,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Typecheck, Jest, and lint
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+
+  application:
+    name: Typecheck, Jest, lint, and dependency audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 24
           cache: npm
@@ -35,9 +55,36 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Verify Expo dependency compatibility
+        run: npx expo install --check
+
       - name: Run Jest
         run: npm run test:ci
         timeout-minutes: 5
 
       - name: Lint
         run: npm run lint
+
+      - name: Audit dependencies
+        run: npm run security:audit
+
+  database:
+    name: Replay and lint database migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Replay migrations from an empty database
+        run: npm run db:verify:fresh
