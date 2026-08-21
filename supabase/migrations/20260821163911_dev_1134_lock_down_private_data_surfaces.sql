@@ -86,7 +86,12 @@ ALTER POLICY "Anyone can view system categories" ON public.system_categories
 TO anon, authenticated
 USING (true);
 
-ALTER POLICY "Enable insert for all users" ON public.waitlist
+DROP POLICY IF EXISTS "Enable insert for all users"
+ON public.waitlist;
+
+CREATE POLICY "Enable insert for all users"
+ON public.waitlist
+FOR INSERT
 TO anon, authenticated
 WITH CHECK (true);
 
