@@ -47,6 +47,7 @@ VALUES
 -- structural suite records the replay grant gaps as ticket-owned TODOs.
 GRANT SELECT, UPDATE ON public.profiles TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_categories TO authenticated;
+GRANT SELECT ON public.tasks TO service_role;
 
 SELECT security_tests.authenticate_as('owner');
 SET LOCAL ROLE authenticated;
