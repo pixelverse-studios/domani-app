@@ -12,7 +12,7 @@ SELECT security_tests.authenticate_as('rpc_owner');
 SET LOCAL ROLE authenticated;
 
 SELECT lives_ok(
-  $$SELECT public.schedule_account_deletion(security_tests.user_id('rpc_owner'))$$,
+  $$SELECT public.schedule_current_user_account_deletion()$$,
   'an authenticated user can schedule their account deletion'
 );
 
@@ -28,7 +28,7 @@ SELECT ok(
 
 SET LOCAL ROLE authenticated;
 SELECT lives_ok(
-  $$SELECT public.cancel_account_deletion(security_tests.user_id('rpc_owner'))$$,
+  $$SELECT public.cancel_current_user_account_deletion()$$,
   'an authenticated user can cancel their account deletion'
 );
 

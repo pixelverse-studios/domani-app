@@ -47,9 +47,7 @@ export function useAccountDeletion() {
     mutationFn: async () => {
       if (!user?.id || !user?.email) throw new Error('Not authenticated')
 
-      const { error } = await supabase.rpc('schedule_account_deletion', {
-        p_user_id: user.id,
-      })
+      const { error } = await supabase.rpc('schedule_current_user_account_deletion')
 
       if (error) throw error
 
@@ -64,9 +62,10 @@ export function useAccountDeletion() {
       }
 
       // Calculate deletion date (30 days from now) for email
-      const scheduledDate = !profileError && updatedProfile?.deletion_scheduled_for
-        ? new Date(updatedProfile.deletion_scheduled_for)
-        : new Date()
+      const scheduledDate =
+        !profileError && updatedProfile?.deletion_scheduled_for
+          ? new Date(updatedProfile.deletion_scheduled_for)
+          : new Date()
 
       if (profileError || !updatedProfile?.deletion_scheduled_for) {
         scheduledDate.setDate(scheduledDate.getDate() + 30)
@@ -100,9 +99,7 @@ export function useAccountDeletion() {
     mutationFn: async () => {
       if (!user?.id || !user?.email) throw new Error('Not authenticated')
 
-      const { error } = await supabase.rpc('cancel_account_deletion', {
-        p_user_id: user.id,
-      })
+      const { error } = await supabase.rpc('cancel_current_user_account_deletion')
 
       if (error) throw error
 
