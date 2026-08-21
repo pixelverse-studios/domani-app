@@ -42,6 +42,12 @@ VALUES
     0
   );
 
+-- DEV-1134 owns explicit client-table grants. Apply transaction-local grants so
+-- this suite can independently exercise the existing ownership policies; the
+-- structural suite records the replay grant gaps as ticket-owned TODOs.
+GRANT SELECT, UPDATE ON public.profiles TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_categories TO authenticated;
+
 SELECT security_tests.authenticate_as('owner');
 SET LOCAL ROLE authenticated;
 

@@ -16,6 +16,7 @@ SELECT lives_ok(
   'an authenticated user can schedule their account deletion'
 );
 
+RESET ROLE;
 SELECT ok(
   (
     SELECT deletion_scheduled_for IS NOT NULL
@@ -25,11 +26,13 @@ SELECT ok(
   'account deletion scheduling updates only the current profile'
 );
 
+SET LOCAL ROLE authenticated;
 SELECT lives_ok(
   $$SELECT public.cancel_account_deletion(security_tests.user_id('rpc_owner'))$$,
   'an authenticated user can cancel their account deletion'
 );
 
+RESET ROLE;
 SELECT ok(
   (
     SELECT deleted_at IS NULL AND deletion_scheduled_for IS NULL
@@ -39,6 +42,7 @@ SELECT ok(
   'account deletion cancellation clears the current profile schedule'
 );
 
+SET LOCAL ROLE authenticated;
 SELECT throws_ok(
   $$SELECT public.schedule_account_deletion(security_tests.user_id('rpc_non_owner'))$$,
   '42501',
@@ -134,6 +138,7 @@ SELECT lives_ok(
   'the authenticated user can clear their refund state'
 );
 
+RESET ROLE;
 SELECT is(
   (
     SELECT count(*)

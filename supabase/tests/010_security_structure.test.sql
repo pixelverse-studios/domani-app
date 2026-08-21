@@ -3,7 +3,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(13);
+SELECT plan(15);
 
 SELECT is_empty(
   $$
@@ -191,6 +191,28 @@ SELECT is_empty(
   $$,
   'client roles have no privileges on private operational tables'
 );
+
+SELECT todo_start(
+  'DEV-1134 makes grants on every exposed application table explicit'
+);
+SELECT ok(
+  pg_catalog.has_table_privilege(
+    'authenticated',
+    'public.profiles',
+    'SELECT,UPDATE'
+  ),
+  'authenticated clients retain the profile access used by the app'
+);
+
+SELECT ok(
+  pg_catalog.has_table_privilege(
+    'authenticated',
+    'public.user_categories',
+    'SELECT,INSERT,UPDATE,DELETE'
+  ),
+  'authenticated clients retain the category access used by the app'
+);
+SELECT todo_end();
 
 SELECT * FROM finish();
 ROLLBACK;
