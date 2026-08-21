@@ -165,9 +165,6 @@ SELECT ok(
   'service role retains the RevenueCat webhook path'
 );
 
-SELECT todo_start(
-  'DEV-1134 removes client grants from all remaining private operational tables'
-);
 SELECT is_empty(
   $$
     SELECT role_name || ':' || relation_name || ':' || privilege_name
@@ -194,7 +191,6 @@ SELECT is_empty(
   $$,
   'client roles have no privileges on private operational tables'
 );
-SELECT todo_end();
 
 SELECT * FROM finish();
 ROLLBACK;

@@ -44,7 +44,7 @@ BEGIN
     created_email,
     '',
     pg_catalog.now(),
-    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{"provider":"google","providers":["google"]}'::jsonb,
     pg_catalog.jsonb_build_object('full_name', 'Security Test ' || user_alias),
     pg_catalog.now(),
     pg_catalog.now()
