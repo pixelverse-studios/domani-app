@@ -595,9 +595,12 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   REVOKE USAGE, SELECT, UPDATE ON SEQUENCES
   FROM anon, authenticated, service_role;
+-- PostgreSQL's built-in PUBLIC function grant is global. A per-schema default
+-- ACL can add privileges but cannot subtract that global default.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres
+  REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
-  REVOKE EXECUTE ON FUNCTIONS
-  FROM PUBLIC, anon, authenticated, service_role;
+  REVOKE EXECUTE ON FUNCTIONS FROM anon, authenticated, service_role;
 
 COMMENT ON FUNCTION public.schedule_current_user_account_deletion() IS
 'Schedules deletion for auth.uid(); clients cannot select a target account.';
