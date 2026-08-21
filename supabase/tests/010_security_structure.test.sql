@@ -3,7 +3,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(15);
+SELECT plan(20);
 
 SELECT is_empty(
   $$
@@ -58,6 +58,23 @@ SELECT is_empty(
   'anonymous clients cannot execute public security-definer functions'
 );
 
+SELECT is_empty(
+  $$
+    SELECT procedure.oid::regprocedure::text
+    FROM pg_catalog.pg_proc AS procedure
+    JOIN pg_catalog.pg_namespace AS namespace
+      ON namespace.oid = procedure.pronamespace
+    WHERE namespace.nspname = 'public'
+      AND procedure.prosecdef
+      AND NOT EXISTS (
+        SELECT 1
+        FROM unnest(COALESCE(procedure.proconfig, ARRAY[]::text[])) AS setting
+        WHERE setting LIKE 'search_path=%'
+      )
+  $$,
+  'every public security-definer function pins its search path'
+);
+
 SELECT is(
   pg_catalog.has_schema_privilege('anon', 'public', 'CREATE'),
   false,
@@ -97,12 +114,14 @@ SELECT is_empty(
     SELECT signature
     FROM (
       VALUES
-        ('public.cancel_account_deletion(uuid)'),
+        ('public.cancel_current_user_account_deletion()'),
         ('public.ensure_current_user_profile()'),
-        ('public.get_favorite_category_ids(uuid)'),
-        ('public.schedule_account_deletion(uuid)'),
-        ('public.update_category_positions(uuid,jsonb)'),
-        ('public.update_favorite_categories(uuid,jsonb)')
+        ('public.get_current_user_favorite_category_ids()'),
+        ('public.get_current_user_tier()'),
+        ('public.increment_current_user_category_usage(uuid,uuid)'),
+        ('public.schedule_current_user_account_deletion()'),
+        ('public.update_current_user_category_positions(jsonb)'),
+        ('public.update_current_user_favorite_categories(jsonb)')
     ) AS client_function(signature)
     WHERE NOT pg_catalog.has_function_privilege(
       'authenticated',
@@ -111,6 +130,90 @@ SELECT is_empty(
     )
   $$,
   'authenticated clients retain intended current-user RPC access'
+);
+
+SELECT is_empty(
+  $$
+    SELECT signature
+    FROM (
+      VALUES
+        ('public.cancel_account_deletion(uuid)'),
+        ('public.get_favorite_category_ids(uuid)'),
+        ('public.get_user_cohort(uuid)'),
+        ('public.get_user_tier(uuid)'),
+        ('public.increment_category_usage(uuid,uuid,uuid)'),
+        ('public.schedule_account_deletion(uuid)'),
+        ('public.update_category_positions(uuid,jsonb)'),
+        ('public.update_favorite_categories(uuid,jsonb)')
+    ) AS compatibility_function(signature)
+    WHERE NOT pg_catalog.has_function_privilege(
+      'authenticated',
+      signature,
+      'EXECUTE'
+    )
+  $$,
+  'authenticated clients retain validated legacy RPC adapters'
+);
+
+SELECT is_empty(
+  $$
+    SELECT procedure.oid::regprocedure::text
+    FROM pg_catalog.pg_proc AS procedure
+    JOIN pg_catalog.pg_namespace AS namespace
+      ON namespace.oid = procedure.pronamespace
+    WHERE namespace.nspname = 'public'
+      AND procedure.prosecdef
+      AND procedure.oid IN (
+        'public.cancel_account_deletion(uuid)'::regprocedure,
+        'public.get_favorite_category_ids(uuid)'::regprocedure,
+        'public.get_user_cohort(uuid)'::regprocedure,
+        'public.get_user_tier(uuid)'::regprocedure,
+        'public.increment_category_usage(uuid,uuid,uuid)'::regprocedure,
+        'public.schedule_account_deletion(uuid)'::regprocedure,
+        'public.update_category_positions(uuid,jsonb)'::regprocedure,
+        'public.update_favorite_categories(uuid,jsonb)'::regprocedure
+      )
+  $$,
+  'legacy user-id adapters do not execute with definer authority'
+);
+
+SELECT is_empty(
+  $$
+    SELECT signature
+    FROM (
+      VALUES
+        ('public.get_user_role_level(uuid)'),
+        ('public.has_permission(uuid,text,public.admin_action)'),
+        ('public.log_audit_event(uuid,public.audit_action,text,text,text,jsonb,jsonb,jsonb)')
+    ) AS admin_function(signature)
+    WHERE pg_catalog.has_function_privilege(
+      'authenticated',
+      signature,
+      'EXECUTE'
+    )
+  $$,
+  'authenticated clients cannot execute unconfigured admin RPCs'
+);
+
+SELECT is_empty(
+  $$
+    SELECT signature
+    FROM (
+      VALUES
+        ('public.cleanup_expired_sessions()'),
+        ('public.confirm_promo_redemption_for_user(uuid,uuid,uuid,uuid,text,text,text)'),
+        ('public.delete_expired_accounts()'),
+        ('public.delete_user_by_email(text)'),
+        ('public.ensure_profile_exists_for_auth_user(uuid)'),
+        ('public.sync_auth_user_to_profile(uuid)')
+    ) AS service_function(signature)
+    WHERE NOT pg_catalog.has_function_privilege(
+      'service_role',
+      signature,
+      'EXECUTE'
+    )
+  $$,
+  'service role retains intended maintenance and destructive entrypoints'
 );
 
 SELECT is(

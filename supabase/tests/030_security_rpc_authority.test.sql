@@ -12,7 +12,7 @@ SELECT security_tests.authenticate_as('rpc_owner');
 SET LOCAL ROLE authenticated;
 
 SELECT lives_ok(
-  $$SELECT public.schedule_account_deletion(security_tests.user_id('rpc_owner'))$$,
+  $$SELECT public.schedule_current_user_account_deletion()$$,
   'an authenticated user can schedule their account deletion'
 );
 
@@ -28,7 +28,7 @@ SELECT ok(
 
 SET LOCAL ROLE authenticated;
 SELECT lives_ok(
-  $$SELECT public.cancel_account_deletion(security_tests.user_id('rpc_owner'))$$,
+  $$SELECT public.cancel_current_user_account_deletion()$$,
   'an authenticated user can cancel their account deletion'
 );
 
@@ -74,7 +74,7 @@ SELECT throws_ok(
 SELECT throws_ok(
   $$SELECT public.get_user_role_level(security_tests.user_id('rpc_non_owner'))$$,
   '42501',
-  'Not authorized',
+  'permission denied for function get_user_role_level',
   'get_user_role_level rejects a spoofed user id'
 );
 
@@ -87,7 +87,7 @@ SELECT throws_ok(
     )
   $$,
   '42501',
-  'Not authorized',
+  'permission denied for function has_permission',
   'has_permission rejects a spoofed user id'
 );
 
