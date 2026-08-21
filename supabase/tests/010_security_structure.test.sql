@@ -3,7 +3,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(20);
+SELECT plan(21);
 
 SELECT is_empty(
   $$
@@ -16,6 +16,103 @@ SELECT is_empty(
       AND NOT relation.relrowsecurity
   $$,
   'every public table has row-level security enabled'
+);
+
+SELECT is_empty(
+  $$
+    WITH expected (
+      relation_name,
+      anon_privileges,
+      authenticated_privileges
+    ) AS (
+      VALUES
+        ('admin_audit_log', ARRAY[]::text[], ARRAY[]::text[]),
+        ('admin_sessions', ARRAY[]::text[], ARRAY[]::text[]),
+        ('app_config', ARRAY['SELECT']::text[], ARRAY['SELECT']::text[]),
+        ('beta_feedback', ARRAY[]::text[], ARRAY['SELECT', 'INSERT']::text[]),
+        ('campaign_recipients', ARRAY[]::text[], ARRAY[]::text[]),
+        ('email_campaigns', ARRAY[]::text[], ARRAY[]::text[]),
+        ('email_templates', ARRAY[]::text[], ARRAY[]::text[]),
+        ('email_unsubscribes', ARRAY[]::text[], ARRAY[]::text[]),
+        ('meta_app_event_claims', ARRAY[]::text[], ARRAY[]::text[]),
+        ('profiles', ARRAY[]::text[], ARRAY['SELECT', 'INSERT', 'UPDATE']::text[]),
+        ('promo_campaigns', ARRAY[]::text[], ARRAY[]::text[]),
+        ('promo_codes', ARRAY[]::text[], ARRAY[]::text[]),
+        ('promo_redemption_attempts', ARRAY[]::text[], ARRAY[]::text[]),
+        ('purchase_refund_states', ARRAY[]::text[], ARRAY['SELECT']::text[]),
+        ('release_audit_events', ARRAY[]::text[], ARRAY[]::text[]),
+        ('release_cache_invalidation_jobs', ARRAY[]::text[], ARRAY[]::text[]),
+        ('release_conversion_runs', ARRAY[]::text[], ARRAY[]::text[]),
+        ('release_notes', ARRAY[]::text[], ARRAY[]::text[]),
+        ('release_prds', ARRAY[]::text[], ARRAY[]::text[]),
+        ('releases', ARRAY[]::text[], ARRAY[]::text[]),
+        ('revenuecat_webhook_events', ARRAY[]::text[], ARRAY[]::text[]),
+        ('support_requests', ARRAY[]::text[], ARRAY['SELECT', 'INSERT']::text[]),
+        ('system_categories', ARRAY['SELECT']::text[], ARRAY['SELECT']::text[]),
+        ('task_time_blocks', ARRAY[]::text[], ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE']::text[]),
+        ('tasks', ARRAY[]::text[], ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE']::text[]),
+        ('user_categories', ARRAY[]::text[], ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE']::text[]),
+        ('user_category_preferences', ARRAY[]::text[], ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE']::text[]),
+        ('waitlist', ARRAY['INSERT']::text[], ARRAY['INSERT']::text[]),
+        ('profiles_dashboard', ARRAY[]::text[], ARRAY[]::text[])
+    ),
+    actual AS (
+      SELECT
+        relation.relname AS relation_name,
+        ARRAY(
+          SELECT privilege_name
+          FROM unnest(ARRAY[
+            'SELECT',
+            'INSERT',
+            'UPDATE',
+            'DELETE',
+            'TRUNCATE',
+            'REFERENCES',
+            'TRIGGER'
+          ]) AS privilege_name
+          WHERE pg_catalog.has_table_privilege(
+            'anon',
+            relation.oid,
+            privilege_name
+          )
+        ) AS anon_privileges,
+        ARRAY(
+          SELECT privilege_name
+          FROM unnest(ARRAY[
+            'SELECT',
+            'INSERT',
+            'UPDATE',
+            'DELETE',
+            'TRUNCATE',
+            'REFERENCES',
+            'TRIGGER'
+          ]) AS privilege_name
+          WHERE pg_catalog.has_table_privilege(
+            'authenticated',
+            relation.oid,
+            privilege_name
+          )
+        ) AS authenticated_privileges
+      FROM pg_catalog.pg_class AS relation
+      JOIN pg_catalog.pg_namespace AS namespace
+        ON namespace.oid = relation.relnamespace
+      WHERE namespace.nspname = 'public'
+        AND relation.relkind IN ('r', 'p', 'v', 'm')
+    )
+    SELECT
+      COALESCE(actual.relation_name, expected.relation_name) || ':' ||
+      COALESCE(actual.anon_privileges::text, '<missing>') || ':' ||
+      COALESCE(expected.anon_privileges::text, '<unmapped>') || ':' ||
+      COALESCE(actual.authenticated_privileges::text, '<missing>') || ':' ||
+      COALESCE(expected.authenticated_privileges::text, '<unmapped>')
+    FROM actual
+    FULL JOIN expected USING (relation_name)
+    WHERE actual.relation_name IS NULL
+      OR expected.relation_name IS NULL
+      OR actual.anon_privileges IS DISTINCT FROM expected.anon_privileges
+      OR actual.authenticated_privileges IS DISTINCT FROM expected.authenticated_privileges
+  $$,
+  'every public relation matches the explicit client grant matrix'
 );
 
 SELECT is_empty(
@@ -263,7 +360,7 @@ SELECT ok(
   pg_catalog.has_table_privilege(
     'service_role',
     'public.revenuecat_webhook_events',
-    'SELECT,INSERT,UPDATE'
+    'SELECT,INSERT,UPDATE,DELETE'
   ),
   'service role retains the RevenueCat webhook path'
 );
@@ -273,7 +370,6 @@ SELECT is_empty(
     SELECT role_name || ':' || relation_name || ':' || privilege_name
     FROM unnest(ARRAY['anon', 'authenticated']) AS role_name
     CROSS JOIN unnest(ARRAY[
-      'waitlist',
       'email_templates',
       'email_campaigns',
       'campaign_recipients',
@@ -295,9 +391,6 @@ SELECT is_empty(
   'client roles have no privileges on private operational tables'
 );
 
-SELECT todo_start(
-  'DEV-1134 makes grants on every exposed application table explicit'
-);
 SELECT ok(
   pg_catalog.has_table_privilege(
     'authenticated',
@@ -315,7 +408,6 @@ SELECT ok(
   ),
   'authenticated clients retain the category access used by the app'
 );
-SELECT todo_end();
 
 SELECT * FROM finish();
 ROLLBACK;
