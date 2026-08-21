@@ -8,6 +8,13 @@ SELECT plan(17);
 SELECT security_tests.create_supabase_user('owner');
 SELECT security_tests.create_supabase_user('non_owner');
 
+UPDATE public.profiles
+SET
+  tier = 'trialing'::public.tier,
+  trial_started_at = now(),
+  trial_ends_at = now() + interval '14 days'
+WHERE id = security_tests.user_id('owner');
+
 INSERT INTO public.tasks (id, user_id, title, position)
 VALUES
   (
@@ -203,10 +210,7 @@ RESET ROLE;
 SELECT security_tests.authenticate_as('owner');
 SET LOCAL ROLE authenticated;
 
-SELECT todo_start(
-  'DEV-1135 makes tier and purchase state server-authoritative'
-);
-SELECT is_empty(
+SELECT throws_ok(
   $$
     UPDATE public.profiles
     SET
@@ -215,11 +219,11 @@ SELECT is_empty(
       refunded_at = NULL,
       revenuecat_user_id = 'spoofed-client-value'
     WHERE id = security_tests.user_id('owner')
-    RETURNING id
   $$,
+  '42501',
+  'permission denied for table profiles',
   'an authenticated client cannot spoof entitlement state'
 );
-SELECT todo_end();
 
 SELECT * FROM finish();
 ROLLBACK;

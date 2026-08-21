@@ -129,6 +129,11 @@ jest.doMock('~/lib/supabase', () => ({
       signInWithOAuth: jest.fn(() => Promise.resolve({ data: null, error: null })),
       signOut: jest.fn(() => Promise.resolve({ error: null })),
     },
+    functions: {
+      invoke: jest.fn(() =>
+        Promise.resolve({ data: { status: 'synced', accessGranted: true }, error: null }),
+      ),
+    },
     from: jest.fn(() => createSupabaseQueryMock()),
     rpc: jest.fn(() => Promise.resolve({ data: null, error: null })),
   },

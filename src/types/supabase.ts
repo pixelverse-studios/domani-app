@@ -1417,6 +1417,10 @@ export type Database = {
         Args: never
         Returns: undefined
       }
+      start_current_user_trial: {
+        Args: never
+        Returns: Database['public']['Tables']['profiles']['Row']
+      }
       sync_auth_user_to_profile: {
         Args: { p_user_id: string }
         Returns: boolean

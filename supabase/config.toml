@@ -13,6 +13,11 @@ verify_jwt = false
 [functions.revenuecat-webhook]
 verify_jwt = false
 
+# Client purchase/restore sync requires a valid Supabase user JWT. The
+# function performs its own auth.getUser() check before any service-role work.
+[functions.sync-revenuecat-access]
+verify_jwt = true
+
 # App-originated team notifications require a valid Supabase user session.
 [functions.team-notification]
 verify_jwt = true
