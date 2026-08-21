@@ -50,8 +50,9 @@ GRANT SELECT, INSERT ON TABLE public.admin_audit_log TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.admin_sessions TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.revenuecat_webhook_events TO service_role;
 
--- Preserve the current RevenueCat Edge Function's direct service-role paths.
+-- Preserve current trusted server paths with the narrowest required grants.
 GRANT SELECT, UPDATE ON TABLE public.profiles TO service_role;
+GRANT SELECT ON TABLE public.tasks TO service_role;
 GRANT SELECT ON TABLE public.promo_redemption_attempts TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.purchase_refund_states TO service_role;
 
