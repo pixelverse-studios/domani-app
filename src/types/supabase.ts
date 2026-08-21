@@ -1308,6 +1308,10 @@ export type Database = {
       }
     }
     Functions: {
+      cancel_current_user_account_deletion: {
+        Args: never
+        Returns: undefined
+      }
       cancel_account_deletion: {
         Args: { p_user_id: string }
         Returns: undefined
@@ -1350,6 +1354,9 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: Database['public']['Tables']['profiles']['Row']
       }
+      get_current_user_cohort: { Args: never; Returns: string }
+      get_current_user_favorite_category_ids: { Args: never; Returns: Json }
+      get_current_user_tier: { Args: never; Returns: string }
       get_favorite_category_ids: { Args: { p_user_id: string }; Returns: Json }
       get_user_cohort: { Args: { p_user_id: string }; Returns: string }
       get_user_role_level: { Args: { p_user_id: string }; Returns: number }
@@ -1368,6 +1375,13 @@ export type Database = {
           p_system_category_id?: string
           p_user_category_id?: string
           p_user_id: string
+        }
+        Returns: undefined
+      }
+      increment_current_user_category_usage: {
+        Args: {
+          p_system_category_id?: string
+          p_user_category_id?: string
         }
         Returns: undefined
       }
@@ -1399,6 +1413,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      schedule_current_user_account_deletion: {
+        Args: never
+        Returns: undefined
+      }
       sync_auth_user_to_profile: {
         Args: { p_user_id: string }
         Returns: boolean
@@ -1424,6 +1442,14 @@ export type Database = {
       }
       update_category_positions: {
         Args: { p_category_positions: Json; p_user_id: string }
+        Returns: undefined
+      }
+      update_current_user_category_positions: {
+        Args: { p_category_positions: Json }
+        Returns: undefined
+      }
+      update_current_user_favorite_categories: {
+        Args: { p_favorite_category_ids: Json }
         Returns: undefined
       }
       update_favorite_categories: {

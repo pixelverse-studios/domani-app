@@ -262,8 +262,7 @@ export function useUpdateFavoriteCategories() {
         throw new Error('Maximum 4 favorite categories allowed')
       }
 
-      const { error } = await supabase.rpc('update_favorite_categories', {
-        p_user_id: user.id,
+      const { error } = await supabase.rpc('update_current_user_favorite_categories', {
         p_favorite_category_ids: categoryIds,
       })
 
@@ -288,8 +287,7 @@ export function useUpdateCategoryPositions() {
       if (!user?.id) throw new Error('Not authenticated')
 
       // Call the database function to batch update positions
-      const { error } = await supabase.rpc('update_category_positions', {
-        p_user_id: user.id,
+      const { error } = await supabase.rpc('update_current_user_category_positions', {
         p_category_positions: categories,
       })
 
@@ -322,8 +320,7 @@ export function useIncrementCategoryUsage() {
       // Only call if there's a category to update
       if (!systemCategoryId && !userCategoryId) return
 
-      const { error } = await supabase.rpc('increment_category_usage', {
-        p_user_id: user.id,
+      const { error } = await supabase.rpc('increment_current_user_category_usage', {
         p_system_category_id: systemCategoryId ?? undefined,
         p_user_category_id: userCategoryId ?? undefined,
       })

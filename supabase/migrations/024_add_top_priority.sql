@@ -47,17 +47,6 @@ CREATE TRIGGER enforce_single_top_priority_trigger
     FOR EACH ROW
     EXECUTE FUNCTION enforce_single_top_priority_and_sync_mit();
 
--- Migrate existing data: existing HIGH priority MIT tasks become TOP priority
--- This preserves the user's intent - their MIT should remain their MIT
-UPDATE public.tasks
-SET priority = 'top'
-WHERE priority = 'high' AND is_mit = TRUE;
-
--- Ensure all non-TOP tasks have is_mit = false (cleanup)
-UPDATE public.tasks
-SET is_mit = FALSE
-WHERE priority != 'top' AND is_mit = TRUE;
-
 -- Update column comment
 COMMENT ON COLUMN public.tasks.is_mit IS 'Most Important Task flag - automatically synced with TOP priority. TOP priority = is_mit TRUE, HIGH/MEDIUM/LOW = is_mit FALSE.';
 COMMENT ON COLUMN public.tasks.priority IS 'Task priority level. TOP = Most Important Task (limit 1 per plan), HIGH/MEDIUM/LOW = regular priority levels (unlimited).';

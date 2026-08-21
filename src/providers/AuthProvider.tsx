@@ -100,9 +100,9 @@ const checkPendingDeletion = async (
             text: t('auth.actions.reactivate'),
             onPress: async () => {
               // Cancel the deletion
-              const { error: cancelError } = await supabase.rpc('cancel_account_deletion', {
-                p_user_id: userId,
-              })
+              const { error: cancelError } = await supabase.rpc(
+                'cancel_current_user_account_deletion',
+              )
               if (cancelError) {
                 console.error('[AuthProvider] Failed to cancel deletion:', cancelError)
               } else {
