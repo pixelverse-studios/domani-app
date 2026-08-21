@@ -3,7 +3,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(27);
+SELECT plan(25);
 
 SELECT security_tests.create_supabase_user('entitlement_owner');
 SELECT security_tests.create_supabase_user('entitlement_other');

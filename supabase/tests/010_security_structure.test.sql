@@ -420,18 +420,15 @@ SELECT is_empty(
       'reminder_shortcuts',
       'timezone',
       'tutorial_completed_at'
-    ]) AS column_name
-    WHERE EXISTS (
-      SELECT 1
-      FROM pg_catalog.pg_attribute
-      WHERE attrelid = 'public.profiles'::regclass
-        AND attname = column_name
-        AND NOT attisdropped
-    )
-      AND NOT pg_catalog.has_column_privilege(
+    ]) AS editable_column(column_name)
+    JOIN pg_catalog.pg_attribute AS profile_column
+      ON profile_column.attrelid = 'public.profiles'::regclass
+      AND profile_column.attname = editable_column.column_name
+      AND NOT profile_column.attisdropped
+    WHERE NOT pg_catalog.has_column_privilege(
         'authenticated',
         'public.profiles',
-        column_name,
+        profile_column.attname,
         'UPDATE'
       )
   $$,
