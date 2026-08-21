@@ -3,7 +3,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(15);
+SELECT plan(17);
 
 SELECT security_tests.create_supabase_user('owner');
 SELECT security_tests.create_supabase_user('non_owner');
@@ -42,12 +42,13 @@ VALUES
     0
   );
 
--- DEV-1134 owns explicit client-table grants. Apply transaction-local grants so
--- this suite can independently exercise the existing ownership policies; the
--- structural suite records the replay grant gaps as ticket-owned TODOs.
-GRANT SELECT, UPDATE ON public.profiles TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_categories TO authenticated;
-GRANT SELECT ON public.tasks TO service_role;
+INSERT INTO public.task_time_blocks (id, task_id, start_time, end_time)
+VALUES (
+  '10000000-0000-0000-0000-000000000101'::uuid,
+  '10000000-0000-0000-0000-000000000001'::uuid,
+  '09:00'::time,
+  '10:00'::time
+);
 
 SELECT security_tests.authenticate_as('owner');
 SET LOCAL ROLE authenticated;
@@ -118,6 +119,28 @@ SELECT is_empty(
   'an authenticated owner cannot update another user category'
 );
 
+SELECT throws_ok(
+  $$
+    UPDATE public.user_categories
+    SET user_id = security_tests.user_id('non_owner')
+    WHERE id = '10000000-0000-0000-0000-000000000011'::uuid
+  $$,
+  '42501',
+  'new row violates row-level security policy for table "user_categories"',
+  'an authenticated owner cannot reassign their category'
+);
+
+SELECT throws_ok(
+  $$
+    UPDATE public.task_time_blocks
+    SET task_id = '20000000-0000-0000-0000-000000000002'::uuid
+    WHERE id = '10000000-0000-0000-0000-000000000101'::uuid
+  $$,
+  '42501',
+  'new row violates row-level security policy for table "task_time_blocks"',
+  'an authenticated owner cannot move a time block to another user task'
+);
+
 RESET ROLE;
 SELECT security_tests.authenticate_as('non_owner');
 SET LOCAL ROLE authenticated;
@@ -171,14 +194,10 @@ SELECT is(
   'service role can read both test tasks'
 );
 
-SELECT todo_start(
-  'DEV-1134 provides an executable least-privilege profile reporting path'
-);
 SELECT lives_ok(
   $$SELECT count(*) FROM public.profiles_dashboard$$,
   'service role can execute the private profiles dashboard query'
 );
-SELECT todo_end();
 
 RESET ROLE;
 SELECT security_tests.authenticate_as('owner');
