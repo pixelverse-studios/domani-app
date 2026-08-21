@@ -5,6 +5,8 @@ SET search_path = public, extensions;
 
 SELECT plan(3);
 
+SET LOCAL ROLE postgres;
+
 CREATE FUNCTION public.dev_1132_default_function_probe()
 RETURNS boolean
 LANGUAGE sql
@@ -16,6 +18,8 @@ CREATE TABLE public.dev_1132_default_table_probe (
 ALTER TABLE public.dev_1132_default_table_probe ENABLE ROW LEVEL SECURITY;
 
 CREATE SEQUENCE public.dev_1132_default_sequence_probe;
+
+RESET ROLE;
 
 SELECT is_empty(
   $$
