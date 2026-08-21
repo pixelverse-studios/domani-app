@@ -441,6 +441,7 @@ ALTER FUNCTION public.log_audit_event(
   jsonb,
   jsonb
 ) SET search_path = '';
+ALTER FUNCTION public.sync_auth_user_to_profile(uuid) SET search_path = '';
 
 REVOKE ALL ON FUNCTION public.get_user_role_level(uuid)
 FROM PUBLIC, anon, authenticated, service_role;

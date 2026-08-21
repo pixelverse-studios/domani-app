@@ -74,7 +74,7 @@ SELECT throws_ok(
 SELECT throws_ok(
   $$SELECT public.get_user_role_level(security_tests.user_id('rpc_non_owner'))$$,
   '42501',
-  'Not authorized',
+  'permission denied for function get_user_role_level',
   'get_user_role_level rejects a spoofed user id'
 );
 
@@ -87,7 +87,7 @@ SELECT throws_ok(
     )
   $$,
   '42501',
-  'Not authorized',
+  'permission denied for function has_permission',
   'has_permission rejects a spoofed user id'
 );
 

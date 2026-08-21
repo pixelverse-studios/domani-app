@@ -19,13 +19,26 @@ CREATE SEQUENCE public.dev_1132_default_sequence_probe;
 
 SELECT is_empty(
   $$
-    SELECT role_name
-    FROM unnest(ARRAY['PUBLIC', 'anon', 'authenticated', 'service_role']) AS role_name
-    WHERE pg_catalog.has_function_privilege(
-      role_name,
-      'public.dev_1132_default_function_probe()',
-      'EXECUTE'
-    )
+    SELECT
+      CASE privileges.grantee
+        WHEN 0 THEN 'PUBLIC'
+        ELSE pg_catalog.pg_get_userbyid(privileges.grantee)
+      END AS role_name
+    FROM pg_catalog.pg_proc AS procedure
+    CROSS JOIN LATERAL pg_catalog.aclexplode(
+      COALESCE(
+        procedure.proacl,
+        pg_catalog.acldefault('f', procedure.proowner)
+      )
+    ) AS privileges
+    WHERE procedure.oid = 'public.dev_1132_default_function_probe()'::regprocedure
+      AND privileges.privilege_type = 'EXECUTE'
+      AND (
+        privileges.grantee = 0
+        OR pg_catalog.pg_get_userbyid(privileges.grantee) = ANY (
+          ARRAY['anon', 'authenticated', 'service_role']
+        )
+      )
   $$,
   'new public functions receive no implicit Data API execute grants'
 );
