@@ -26,6 +26,7 @@ SELECT is_empty(
       authenticated_privileges
     ) AS (
       VALUES
+        ('account_email_events', ARRAY[]::text[], ARRAY[]::text[]),
         ('admin_audit_log', ARRAY[]::text[], ARRAY[]::text[]),
         ('admin_sessions', ARRAY[]::text[], ARRAY[]::text[]),
         ('app_config', ARRAY['SELECT']::text[], ARRAY['SELECT']::text[]),
@@ -374,6 +375,7 @@ SELECT is_empty(
     SELECT role_name || ':' || relation_name || ':' || privilege_name
     FROM unnest(ARRAY['anon', 'authenticated']) AS role_name
     CROSS JOIN unnest(ARRAY[
+      'account_email_events',
       'email_templates',
       'email_campaigns',
       'campaign_recipients',

@@ -8,6 +8,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_email_events: {
+        Row: {
+          claimed_at: string | null
+          created_at: string
+          deletion_scheduled_for: string | null
+          delivered_at: string | null
+          id: string
+          message_type: string
+          provider_message_id: string | null
+          user_id: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          created_at?: string
+          deletion_scheduled_for?: string | null
+          delivered_at?: string | null
+          id?: string
+          message_type: string
+          provider_message_id?: string | null
+          user_id: string
+        }
+        Update: {
+          claimed_at?: string | null
+          created_at?: string
+          deletion_scheduled_for?: string | null
+          delivered_at?: string | null
+          id?: string
+          message_type?: string
+          provider_message_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       admin_audit_log: {
         Row: {
           action: Database['public']['Enums']['audit_action']
@@ -1320,6 +1353,14 @@ export type Database = {
         Args: never
         Returns: undefined
       }
+      claim_account_email_delivery: {
+        Args: { p_message_type: string; p_user_id: string }
+        Returns: Json
+      }
+      complete_account_email_delivery: {
+        Args: { p_event_id: string; p_provider_message_id?: string | null }
+        Returns: undefined
+      }
       confirm_promo_redemption_for_user: {
         Args: {
           p_campaign_id: string
@@ -1395,6 +1436,10 @@ export type Database = {
       record_current_user_duplicate_refund_request_hint: {
         Args: { p_error?: string | null; p_platform?: string; p_source?: string | null }
         Returns: Database['public']['Tables']['purchase_refund_states']['Row']
+      }
+      release_account_email_delivery: {
+        Args: { p_event_id: string }
+        Returns: undefined
       }
       log_audit_event: {
         Args: {

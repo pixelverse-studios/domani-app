@@ -1,11 +1,10 @@
 # Supabase Function Configuration
 # See: https://supabase.com/docs/guides/functions/function-configuration
 
-# Disable JWT verification for account email function
-# This function is called from the app with a valid session token,
-# but JWT verification can fail during edge cases like account deletion
+# Account email delivery requires a valid user JWT and performs a second
+# auth.getUser check before claiming a server-recorded lifecycle event.
 [functions.send-account-email]
-verify_jwt = false
+verify_jwt = true
 
 # RevenueCat sends a shared-secret Authorization header, not a Supabase JWT.
 # The function performs its own Bearer token check against
