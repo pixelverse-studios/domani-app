@@ -67,7 +67,6 @@ const getDeviceTimezone = (): string => {
 const checkPendingDeletion = async (
   userId: string,
   userEmail: string,
-  userName: string | undefined,
   signOutFn: () => Promise<void>,
   onReactivated: () => void,
   locale: AppLocale,
@@ -76,7 +75,7 @@ const checkPendingDeletion = async (
   try {
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('deleted_at, deletion_scheduled_for, full_name')
+      .select('deleted_at, deletion_scheduled_for')
       .eq('id', userId)
       .single()
 
@@ -112,8 +111,6 @@ const checkPendingDeletion = async (
                 // Send reactivation email (don't block on failure)
                 sendAccountEmail({
                   type: 'account_reactivation',
-                  email: userEmail,
-                  name: profile.full_name || userName || undefined,
                 })
 
                 sendTeamNotification({
@@ -391,7 +388,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           checkPendingDeletion(
             session.user.id,
             session.user.email!,
-            fullName,
             async () => {
               const { error } = await supabase.auth.signOut()
               if (!error) {
