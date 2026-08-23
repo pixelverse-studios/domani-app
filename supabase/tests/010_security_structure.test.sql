@@ -3,7 +3,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(21);
+SELECT plan(23);
 
 SELECT is_empty(
   $$
@@ -35,7 +35,7 @@ SELECT is_empty(
         ('email_templates', ARRAY[]::text[], ARRAY[]::text[]),
         ('email_unsubscribes', ARRAY[]::text[], ARRAY[]::text[]),
         ('meta_app_event_claims', ARRAY[]::text[], ARRAY[]::text[]),
-        ('profiles', ARRAY[]::text[], ARRAY['SELECT', 'INSERT', 'UPDATE']::text[]),
+        ('profiles', ARRAY[]::text[], ARRAY['SELECT']::text[]),
         ('promo_campaigns', ARRAY[]::text[], ARRAY[]::text[]),
         ('promo_codes', ARRAY[]::text[], ARRAY[]::text[]),
         ('promo_redemption_attempts', ARRAY[]::text[], ARRAY[]::text[]),
@@ -193,6 +193,7 @@ SELECT is_empty(
         ('public.confirm_promo_redemption_for_user(uuid,uuid,uuid,uuid,text,text,text)'),
         ('public.delete_expired_accounts()'),
         ('public.delete_user_by_email(text)'),
+        ('public.apply_verified_revenuecat_lifetime_access(uuid,timestamp with time zone,text,uuid,uuid,uuid)'),
         ('public.ensure_profile_exists_for_auth_user(uuid)'),
         ('public.handle_new_user()'),
         ('public.sync_auth_user_to_profile(uuid)')
@@ -215,8 +216,10 @@ SELECT is_empty(
         ('public.ensure_current_user_profile()'),
         ('public.get_current_user_favorite_category_ids()'),
         ('public.get_current_user_tier()'),
+        ('public.has_current_user_access()'),
         ('public.increment_current_user_category_usage(uuid,uuid)'),
         ('public.schedule_current_user_account_deletion()'),
+        ('public.start_current_user_trial()'),
         ('public.update_current_user_category_positions(jsonb)'),
         ('public.update_current_user_favorite_categories(jsonb)')
     ) AS client_function(signature)
@@ -301,6 +304,7 @@ SELECT is_empty(
         ('public.confirm_promo_redemption_for_user(uuid,uuid,uuid,uuid,text,text,text)'),
         ('public.delete_expired_accounts()'),
         ('public.delete_user_by_email(text)'),
+        ('public.apply_verified_revenuecat_lifetime_access(uuid,timestamp with time zone,text,uuid,uuid,uuid)'),
         ('public.ensure_profile_exists_for_auth_user(uuid)'),
         ('public.sync_auth_user_to_profile(uuid)')
     ) AS service_function(signature)
@@ -395,9 +399,67 @@ SELECT ok(
   pg_catalog.has_table_privilege(
     'authenticated',
     'public.profiles',
-    'SELECT,UPDATE'
+    'SELECT'
   ),
-  'authenticated clients retain the profile access used by the app'
+  'authenticated clients retain profile reads used by the app'
+);
+
+SELECT is_empty(
+  $$
+    SELECT column_name
+    FROM unnest(ARRAY[
+      'auto_sort_categories',
+      'avatar_url',
+      'expo_push_token',
+      'full_name',
+      'last_active_at',
+      'notification_onboarding_completed',
+      'planning_reminder_enabled',
+      'planning_reminder_time',
+      'push_token_invalid_at',
+      'reminder_shortcuts',
+      'timezone',
+      'tutorial_completed_at'
+    ]) AS editable_column(column_name)
+    JOIN pg_catalog.pg_attribute AS profile_column
+      ON profile_column.attrelid = 'public.profiles'::regclass
+      AND profile_column.attname = editable_column.column_name
+      AND NOT profile_column.attisdropped
+    WHERE NOT pg_catalog.has_column_privilege(
+        'authenticated',
+        'public.profiles',
+        profile_column.attname,
+        'UPDATE'
+      )
+  $$,
+  'authenticated clients retain update access only for intended profile fields'
+);
+
+SELECT is_empty(
+  $$
+    SELECT column_name
+    FROM unnest(ARRAY[
+      'id',
+      'email',
+      'tier',
+      'trial_started_at',
+      'trial_ends_at',
+      'purchased_at',
+      'refunded_at',
+      'revenuecat_user_id',
+      'signup_cohort',
+      'signup_method',
+      'deletion_scheduled_for',
+      'deleted_at'
+    ]) AS column_name
+    WHERE pg_catalog.has_column_privilege(
+      'authenticated',
+      'public.profiles',
+      column_name,
+      'UPDATE'
+    )
+  $$,
+  'authenticated clients cannot update server-authoritative profile fields'
 );
 
 SELECT ok(

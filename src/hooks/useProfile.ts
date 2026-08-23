@@ -5,6 +5,22 @@ import { supabase } from '~/lib/supabase'
 import { useAuth } from '~/hooks/useAuth'
 import type { Profile, ProfileUpdate } from '~/types'
 
+type EditableProfileUpdate = Pick<
+  ProfileUpdate,
+  | 'auto_sort_categories'
+  | 'avatar_url'
+  | 'expo_push_token'
+  | 'full_name'
+  | 'last_active_at'
+  | 'notification_onboarding_completed'
+  | 'planning_reminder_enabled'
+  | 'planning_reminder_time'
+  | 'push_token_invalid_at'
+  | 'reminder_shortcuts'
+  | 'timezone'
+  | 'tutorial_completed_at'
+>
+
 export function useProfile() {
   const { user } = useAuth()
 
@@ -40,7 +56,7 @@ export function useUpdateProfile() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (updates: ProfileUpdate) => {
+    mutationFn: async (updates: EditableProfileUpdate) => {
       if (!user?.id) throw new Error('Not authenticated')
 
       const { data, error } = await supabase

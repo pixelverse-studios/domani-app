@@ -48,6 +48,9 @@ Before configuring anything, confirm the active values for each environment:
 - Google Play app
 - Supabase project ref
 - `REVENUECAT_WEBHOOK_SECRET`
+- `REVENUECAT_SECRET_API_KEY`
+- environment-specific `REVENUECAT_ENTITLEMENT_ID`
+- `APP_ENV` (`staging` or `production`)
 - RevenueCat webhook URL
 
 For Domani, the RevenueCat -> Supabase webhook URL format is:
@@ -154,6 +157,11 @@ Bearer <REVENUECAT_WEBHOOK_SECRET>
 ```
 
 - Supabase project secret `REVENUECAT_WEBHOOK_SECRET` matches exactly
+- Supabase project secret `REVENUECAT_SECRET_API_KEY` is a RevenueCat secret REST API key and is never exposed to the app
+- Supabase project secret `REVENUECAT_ENTITLEMENT_ID` matches the environment (`Domani Staging Lifetime` or `Domani Lifetime`)
+- `APP_ENV` matches the deployed Supabase project
+
+Production webhook handling rejects RevenueCat events marked `SANDBOX` by default. Keep `REVENUECAT_ALLOW_SANDBOX_EVENTS` unset/false in production. If an emergency test override is ever approved, make it time-bounded and remove it immediately after verification.
 
 ### Database Verification
 

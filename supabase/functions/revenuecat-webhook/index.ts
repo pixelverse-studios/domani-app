@@ -4,6 +4,10 @@ import {
   sendRevenueSlackAlert as sendRevenueSlackAlertBase,
   type RevenueSlackAlertInput,
 } from './revenueSlack.ts'
+import {
+  resolveRevenueCatRuntimeEnvironment,
+  shouldRejectRevenueCatSandboxEvent,
+} from './webhookSecurity.ts'
 
 /**
  * RevenueCat webhook handler.
@@ -112,6 +116,12 @@ interface RevenueSlackProfile {
 }
 
 const REVENUECAT_WEBHOOK_SECRET = Deno.env.get('REVENUECAT_WEBHOOK_SECRET')
+const REVENUECAT_RUNTIME_ENVIRONMENT = resolveRevenueCatRuntimeEnvironment(
+  Deno.env.get('APP_ENV') ?? Deno.env.get('ENVIRONMENT'),
+  Deno.env.get('SUPABASE_URL'),
+)
+const REVENUECAT_ALLOW_SANDBOX_EVENTS =
+  Deno.env.get('REVENUECAT_ALLOW_SANDBOX_EVENTS')?.trim().toLowerCase() === 'true'
 const LIFETIME_PRODUCT_IDS = new Set([
   'domani_lifetime',
   'domani_lifetime_early',
@@ -607,7 +617,9 @@ async function grantLifetimeAccess(
         userId,
         promoContext,
         error:
-          confirmationError instanceof Error ? confirmationError.message : String(confirmationError),
+          confirmationError instanceof Error
+            ? confirmationError.message
+            : String(confirmationError),
       })
       throw confirmationError
     }
@@ -856,6 +868,21 @@ Deno.serve(async (req) => {
       eventId: event?.id ?? null,
     })
     return jsonResponse({ error: 'Malformed event payload' }, 400)
+  }
+
+  if (
+    shouldRejectRevenueCatSandboxEvent(
+      event.environment,
+      REVENUECAT_RUNTIME_ENVIRONMENT,
+      REVENUECAT_ALLOW_SANDBOX_EVENTS,
+    )
+  ) {
+    console.warn('[revenuecat-webhook] sandbox event rejected for this environment', {
+      eventType: event.type,
+      eventId: event.id,
+      runtimeEnvironment: REVENUECAT_RUNTIME_ENVIRONMENT,
+    })
+    return jsonResponse({ received: true, ignored: 'sandbox_event_rejected' })
   }
 
   // --- Supabase client ---------------------------------------------------
