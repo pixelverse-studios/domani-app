@@ -4,11 +4,32 @@ import { waitFor } from '~/test/test-utils'
 import {
   completeOAuthCallback,
   parseOAuthCallback,
+  resolveOAuthRedirectUrl,
   runSingleFlight,
   waitForAuthSession,
 } from '../authSession'
 
 describe('authSession', () => {
+  describe('resolveOAuthRedirectUrl', () => {
+    it('uses the claimed HTTPS callback for supported release platforms', () => {
+      expect(
+        resolveOAuthRedirectUrl({ isDev: false, platform: 'android', platformVersion: 35 }),
+      ).toBe('https://www.domani-app.com/auth/callback')
+      expect(
+        resolveOAuthRedirectUrl({ isDev: false, platform: 'ios', platformVersion: '17.4' }),
+      ).toBe('https://www.domani-app.com/auth/callback')
+    })
+
+    it('retains the custom-scheme fallback for development and older iOS versions', () => {
+      expect(
+        resolveOAuthRedirectUrl({ isDev: true, platform: 'android', platformVersion: 35 }),
+      ).toBe('domani://auth/callback')
+      expect(
+        resolveOAuthRedirectUrl({ isDev: false, platform: 'ios', platformVersion: '17.3' }),
+      ).toBe('domani://auth/callback')
+    })
+  })
+
   describe('runSingleFlight', () => {
     it('reuses a pending operation instead of starting another one', async () => {
       let resolveOperation: (value: string) => void = () => {}

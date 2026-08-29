@@ -60,7 +60,10 @@ function RootLayoutContent() {
       queryClient.clear()
       useCelebrationStore.getState().dismiss()
       useTutorialStore.getState().clearSessionState()
-      useNotificationStore.getState().setEveningRolloverSource(null)
+      const notificationStore = useNotificationStore.getState()
+      notificationStore.setEveningRolloverSource(null)
+      notificationStore.setHasValidatedIds(false)
+      notificationStore.setPlanningReminderId(null)
       clearAccountReactivated()
     }
 

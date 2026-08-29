@@ -22,6 +22,22 @@ const ALLOWED_CALLBACKS = new Set([
 ])
 const ALLOWED_ERROR_PARAMS = new Set(['error', 'error_code', 'error_description'])
 const MAX_CODE_LENGTH = 4096
+export const NATIVE_OAUTH_CALLBACK = 'domani://auth/callback'
+export const CLAIMED_HTTPS_OAUTH_CALLBACK = 'https://www.domani-app.com/auth/callback'
+
+export const resolveOAuthRedirectUrl = (options: {
+  isDev: boolean
+  platform: string
+  platformVersion: string | number
+}): string => {
+  if (options.isDev) return NATIVE_OAUTH_CALLBACK
+  if (options.platform === 'android') return CLAIMED_HTTPS_OAUTH_CALLBACK
+
+  const iosVersion =
+    options.platform === 'ios' ? Number.parseFloat(String(options.platformVersion)) : Number.NaN
+
+  return iosVersion >= 17.4 ? CLAIMED_HTTPS_OAUTH_CALLBACK : NATIVE_OAUTH_CALLBACK
+}
 
 export const runSingleFlight = async <T>(
   pendingRef: PendingPromiseRef<T>,

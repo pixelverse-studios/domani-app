@@ -7,6 +7,7 @@ import { NotificationService } from '~/lib/notifications'
 import { useNotificationStore } from '~/stores/notificationStore'
 import { supabase } from '~/lib/supabase'
 import { getAllowedNotificationRoute } from '~/lib/navigationSecurity'
+import { useAuth } from '~/hooks/useAuth'
 
 // Check if notifications are supported (not in Expo Go on Android SDK 53+)
 const isExpoGo = Constants.appOwnership === 'expo'
@@ -86,6 +87,8 @@ async function registerPushTokenWithRetry(attempt: number = 1): Promise<boolean>
  * Should be called in the root layout to enable deep linking
  */
 export function useNotificationObserver() {
+  const { user } = useAuth()
+  const userId = user?.id ?? null
   const notificationListener = useRef<{ remove: () => void } | null>(null)
   const responseListener = useRef<{ remove: () => void } | null>(null)
   const appStateRef = useRef<AppStateStatus>(AppState.currentState)
@@ -107,8 +110,37 @@ export function useNotificationObserver() {
     // Skip if notifications aren't supported
     if (!Notifications) return
 
+    let cancelled = false
+    let foregroundRegistrationTimeout: ReturnType<typeof setTimeout> | null = null
+    const navigationTimeouts = new Set<ReturnType<typeof setTimeout>>()
+    const store = useNotificationStore.getState()
+
+    hasRegisteredToken.current = false
+    hasCheckedPermission.current = false
+    handledResponseIds.current.clear()
+    store.setHasValidatedIds(false)
+    store.setPlanningReminderId(null)
+    store.setEveningRolloverSource(null)
+
+    // Local notifications contain account-owned task titles and notes. Remove
+    // them before rebuilding notification state for a newly authenticated user.
+    const notificationReset = NotificationService.cancelAllReminders()
+
+    const belongsToCurrentUser = async () => {
+      if (cancelled) return false
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
+      return !cancelled && currentUser?.id === userId
+    }
+
+    if (!userId) {
+      void notificationReset
+      return
+    }
+
     // Initialize notification system on mount
-    NotificationService.initialize()
+    void NotificationService.initialize()
 
     // iOS only registers the app with the system (making it appear in
     // Settings → Notifications) after the first requestPermissionsAsync call.
@@ -146,8 +178,8 @@ export function useNotificationObserver() {
         // Reset flag to allow re-registration attempt
         hasRegisteredToken.current = false
         // Small delay for stability
-        setTimeout(() => {
-          registerPushTokenWithRetry()
+        foregroundRegistrationTimeout = setTimeout(() => {
+          if (!cancelled) void registerPushTokenWithRetry()
         }, 500)
       }
     })
@@ -156,7 +188,8 @@ export function useNotificationObserver() {
     // This also validates and cleans up any orphaned notifications from previous app versions
     const reschedulePlanningReminder = async () => {
       try {
-        const store = useNotificationStore.getState()
+        await notificationReset
+        if (cancelled) return
 
         // Check if we've already validated this session
         if (store.hasValidatedIds) {
@@ -182,7 +215,7 @@ export function useNotificationObserver() {
         const {
           data: { user },
         } = await supabase.auth.getUser()
-        if (!user) {
+        if (!user || user.id !== userId) {
           console.log('[Notifications] No user found, skipping reschedule')
           return
         }
@@ -194,6 +227,12 @@ export function useNotificationObserver() {
           .select('planning_reminder_time, planning_reminder_enabled')
           .eq('id', user.id)
           .single()
+
+        if (cancelled) return
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser()
+        if (currentUser?.id !== userId) return
 
         if (profileError) {
           console.error('[Notifications] Error fetching profile:', profileError)
@@ -258,6 +297,10 @@ export function useNotificationObserver() {
         // Schedule fresh notification with current text
         console.log(`[Notifications] Scheduling new reminder for ${hour}:${minute}`)
         const newId = await NotificationService.schedulePlanningReminder(hour, minute)
+        if (!(await belongsToCurrentUser())) {
+          if (newId) await NotificationService.cancelNotification(newId)
+          return
+        }
         console.log(`[Notifications] schedulePlanningReminder returned ID: ${newId || 'EMPTY'}`)
         store.setPlanningReminderId(newId)
 
@@ -303,10 +346,13 @@ export function useNotificationObserver() {
     // This ensures notifications survive app reinstalls or device restarts
     const rescheduleTaskReminders = async () => {
       try {
+        await notificationReset
+        if (cancelled) return
+
         const {
           data: { user },
         } = await supabase.auth.getUser()
-        if (!user) return
+        if (!user || user.id !== userId) return
 
         // Fetch tasks with pending reminders (reminder_at in the future, not completed)
         const { data: tasksWithReminders, error } = await supabase
@@ -326,6 +372,12 @@ export function useNotificationObserver() {
           return
         }
 
+        if (cancelled) return
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser()
+        if (currentUser?.id !== userId) return
+
         console.log(
           `[Notifications] Rescheduling ${tasksWithReminders.length} pending task reminders`,
         )
@@ -340,6 +392,7 @@ export function useNotificationObserver() {
             notes: t.notes,
             notification_id: t.notification_id,
           })),
+          belongsToCurrentUser,
         )
 
         // Update notification IDs in database
@@ -382,7 +435,11 @@ export function useNotificationObserver() {
       }
 
       handledResponseIds.current.add(request.identifier)
-      setTimeout(() => router.push(route), delayMs)
+      const timeout = setTimeout(() => {
+        navigationTimeouts.delete(timeout)
+        if (!cancelled) router.push(route)
+      }, delayMs)
+      navigationTimeouts.add(timeout)
     }
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
@@ -397,14 +454,17 @@ export function useNotificationObserver() {
     )
 
     return () => {
+      cancelled = true
       clearTimeout(tokenTimeout)
       clearTimeout(rescheduleTimeout)
       clearTimeout(taskReminderTimeout)
+      if (foregroundRegistrationTimeout) clearTimeout(foregroundRegistrationTimeout)
+      navigationTimeouts.forEach((timeout) => clearTimeout(timeout))
       appStateSubscription.remove()
       notificationListener.current?.remove()
       responseListener.current?.remove()
     }
-  }, [handleTokenRegistration])
+  }, [handleTokenRegistration, userId])
 }
 
 /**

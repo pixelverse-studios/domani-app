@@ -59,7 +59,7 @@ export default function TabLayout() {
   useTutorialLifecycle()
 
   // Do not mount user or paid screens until both identity and access are resolved.
-  if (loading || subscriptionLoading) {
+  if (loading || (user && subscriptionLoading)) {
     return (
       <View className="flex-1 items-center justify-center bg-surface-bg">
         <ActivityIndicator size="large" color={theme.colors.brand.primary} />

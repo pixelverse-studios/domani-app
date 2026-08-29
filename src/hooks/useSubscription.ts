@@ -322,7 +322,8 @@ export function useSubscription() {
   const { track } = useAnalytics()
   const { profile, isLoading: profileLoading } = useProfile()
   const queryClient = useQueryClient()
-  const [isInitialized, setIsInitialized] = useState(false)
+  const [initializedUserId, setInitializedUserId] = useState<string | null>(null)
+  const revenueCatTransitionRef = useRef<Promise<void>>(Promise.resolve())
   const [revenueCatAttributeSyncRetryToken, setRevenueCatAttributeSyncRetryToken] = useState(0)
   const previousUserId = useRef<string | undefined>(undefined)
   const previousRevenueCatAttributeSignatureRef = useRef<string | null>(null)
@@ -344,65 +345,75 @@ export function useSubscription() {
   // Check if we're in beta (skip RevenueCat entirely during beta)
   const isBeta = isBetaPhase(phase)
   const shouldBypassRevenueCat = isBeta
+  const isInitialized = !!user?.id && (shouldBypassRevenueCat || initializedUserId === user.id)
 
   // Initialize RevenueCat when user changes (skip during beta)
   useEffect(() => {
     let isMounted = true
+    const currentUserId = user?.id
+    const priorUserId = previousUserId.current
+    previousUserId.current = currentUserId
 
-    async function init() {
-      // During beta, skip RevenueCat entirely
-      if (shouldBypassRevenueCat) {
-        if (isMounted) {
-          setIsInitialized(true)
-        }
-        return
-      }
+    setInitializedUserId(null)
+    pendingExternalPurchaseSyncRef.current = null
+    previousConfirmedAccessSyncSignatureRef.current = null
+    isStartTrialPendingRef.current = false
+    setAccessSyncPhase('idle')
+    setAccessSyncResult(null)
+    setAccessSyncAttempt(null)
 
-      // Handle logout when user signs out (previous user existed, now gone)
-      if (previousUserId.current && !user?.id) {
-        logoutRevenueCat()
-        previousRevenueCatAttributeSignatureRef.current = null
-        previousAndroidMonetizationBreadcrumbRef.current = null
-        setRevenueCatAttributeSyncRetryToken(0)
-        if (revenueCatAttributeRetryTimeoutRef.current) {
-          clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
-          revenueCatAttributeRetryTimeoutRef.current = null
-        }
-        if (isMounted) {
-          setIsInitialized(false)
-        }
-      }
+    const transition = revenueCatTransitionRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        if (!isMounted) return
 
-      if (previousUserId.current && user?.id && previousUserId.current !== user.id) {
-        previousRevenueCatAttributeSignatureRef.current = null
-        previousAndroidMonetizationBreadcrumbRef.current = null
-        setRevenueCatAttributeSyncRetryToken(0)
-        if (revenueCatAttributeRetryTimeoutRef.current) {
-          clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
-          revenueCatAttributeRetryTimeoutRef.current = null
+        // During beta, skip RevenueCat entirely
+        if (shouldBypassRevenueCat) {
+          if (isMounted && currentUserId) setInitializedUserId(currentUserId)
+          return
         }
-      }
 
-      // Handle login when user signs in
-      if (user?.id) {
-        try {
-          await initializeRevenueCat(user.id)
-          await loginRevenueCat(user.id)
-        } catch (error) {
-          // RevenueCat failed to initialize - continue without it
-          // This can happen if Android API key is not configured
-          console.warn('[useSubscription] RevenueCat initialization failed:', error)
+        // Handle logout when user signs out (previous user existed, now gone)
+        if (priorUserId && !currentUserId) {
+          await logoutRevenueCat()
+          previousRevenueCatAttributeSignatureRef.current = null
+          previousAndroidMonetizationBreadcrumbRef.current = null
+          setRevenueCatAttributeSyncRetryToken(0)
+          if (revenueCatAttributeRetryTimeoutRef.current) {
+            clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
+            revenueCatAttributeRetryTimeoutRef.current = null
+          }
+          if (isMounted) {
+            setInitializedUserId(null)
+          }
         }
-        // Always mark as initialized so Settings doesn't hang
-        if (isMounted) {
-          setIsInitialized(true)
-        }
-      }
 
-      // Track the current user id for next comparison
-      previousUserId.current = user?.id
-    }
-    init()
+        if (priorUserId && currentUserId && priorUserId !== currentUserId) {
+          previousRevenueCatAttributeSignatureRef.current = null
+          previousAndroidMonetizationBreadcrumbRef.current = null
+          setRevenueCatAttributeSyncRetryToken(0)
+          if (revenueCatAttributeRetryTimeoutRef.current) {
+            clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
+            revenueCatAttributeRetryTimeoutRef.current = null
+          }
+        }
+
+        // Handle login when user signs in
+        if (currentUserId) {
+          try {
+            await initializeRevenueCat(currentUserId)
+            if (!isMounted) return
+            await loginRevenueCat(currentUserId)
+          } catch (error) {
+            // RevenueCat failed to initialize - continue without it
+            // This can happen if Android API key is not configured
+            console.warn('[useSubscription] RevenueCat initialization failed:', error)
+          }
+          // Always mark as initialized so Settings doesn't hang
+          if (isMounted) setInitializedUserId(currentUserId)
+        }
+      })
+    revenueCatTransitionRef.current = transition
 
     return () => {
       isMounted = false

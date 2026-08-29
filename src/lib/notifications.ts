@@ -537,10 +537,13 @@ export const NotificationService = {
       notes?: string | null
       notification_id: string | null
     }>,
+    shouldContinue?: () => boolean | Promise<boolean>,
   ): Promise<Map<string, string>> {
     const results = new Map<string, string>()
 
     for (const task of tasks) {
+      if (shouldContinue && !(await shouldContinue())) break
+
       // Cancel existing notification if any (might be stale)
       if (task.notification_id) {
         await this.cancelTaskReminder(task.notification_id)
@@ -549,6 +552,10 @@ export const NotificationService = {
       // Schedule new notification
       const newId = await this.scheduleTaskReminder(task)
       if (newId) {
+        if (shouldContinue && !(await shouldContinue())) {
+          await this.cancelTaskReminder(newId)
+          break
+        }
         results.set(task.id, newId)
       }
     }

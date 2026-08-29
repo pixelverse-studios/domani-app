@@ -119,6 +119,16 @@ describe('TabLayout access gating', () => {
     expect(queryByTestId('tabs')).toBeNull()
   })
 
+  it('redirects unauthenticated users without waiting for subscription state', () => {
+    mockUseAuth.mockReturnValue({ user: null, loading: false } as ReturnType<typeof useAuth>)
+    mockSubscription('pre_trial', true)
+
+    const { getByText, queryByTestId } = renderWithProviders(<TabLayout />)
+
+    expect(getByText('redirect:/welcome')).toBeTruthy()
+    expect(queryByTestId('tabs')).toBeNull()
+  })
+
   it('orders Feedback as the fourth tab after Progress', () => {
     mockSubscription('trialing')
 

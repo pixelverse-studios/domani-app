@@ -1,14 +1,13 @@
 import React, { createContext, useEffect, useRef, useState } from 'react'
 import { Alert, Platform, NativeModules } from 'react-native'
-import { Session, User } from '@supabase/supabase-js'
+import { AuthChangeEvent, Session, User } from '@supabase/supabase-js'
 import * as WebBrowser from 'expo-web-browser'
-import * as AuthSession from 'expo-auth-session'
 import * as AppleAuthentication from 'expo-apple-authentication'
 
 import { supabase, sendAccountEmail } from '~/lib/supabase'
 import { sendTeamNotification } from '~/lib/teamNotifications'
 import { captureException, addBreadcrumb } from '~/lib/sentry'
-import { completeOAuthCallback, runSingleFlight } from '~/lib/authSession'
+import { completeOAuthCallback, resolveOAuthRedirectUrl, runSingleFlight } from '~/lib/authSession'
 import { useTranslation } from '~/hooks/useTranslation'
 import { formatLocalizedDate } from '~/i18n/date'
 import type { AppLocale } from '~/i18n'
@@ -306,106 +305,116 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [accountReactivated, setAccountReactivated] = useState(false)
   const googleSignInPromiseRef = useRef<Promise<boolean> | null>(null)
 
-  // Configure OAuth redirect for mobile app
-  // Uses the native scheme defined in app.json: domani://
-  const redirectTo = AuthSession.makeRedirectUri({
-    scheme: 'domani',
-    path: 'auth/callback',
-    // For development builds, force native scheme instead of exp://
-    native: 'domani://auth/callback',
+  const redirectTo = resolveOAuthRedirectUrl({
+    isDev: __DEV__,
+    platform: Platform.OS,
+    platformVersion: Platform.Version,
   })
 
   useEffect(() => {
-    // Get initial session - just set state, don't call ensureProfileExists here
-    // Profile creation is handled by onAuthStateChange which has proper auth context
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('[AuthProvider] Initial session:', session ? 'Found' : 'None')
-      // State will be set by onAuthStateChange callback
-    })
+    let isMounted = true
+    let authTransitionId = 0
+    let initialValidationTimer: ReturnType<typeof setTimeout> | null = null
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[AuthProvider] Auth state changed:', event)
-      console.log('[AuthProvider] Session:', session ? 'Found' : 'None')
+    const applyAuthState = (event: AuthChangeEvent, nextSession: Session | null) => {
+      if (!isMounted) return
 
-      // For initial sessions (cached), validate that the user still exists
-      // This handles "orphaned sessions" where the user was deleted but the token is cached
-      if (event === 'INITIAL_SESSION' && session?.user) {
-        console.log('[AuthProvider] Validating cached session for user:', session.user.id)
-        const isValid = await validateUserExists(session.user.id)
-
-        if (!isValid) {
-          console.warn('[AuthProvider] Orphaned session detected - user no longer exists')
-          // Clear the invalid session
-          await supabase.auth.signOut()
-          setSession(null)
-          setUser(null)
-          setLoading(false)
-          return
-        }
-        console.log('[AuthProvider] Session validated successfully')
-      }
-
-      // Update state immediately - don't block on profile creation
-      setSession(session)
-      setUser(session?.user ?? null)
+      setSession(nextSession)
+      setUser(nextSession?.user ?? null)
       setLoading(false)
 
-      // Handle profile creation for both initial session and new sign-ins
-      // Run in background - don't await to avoid blocking the auth flow
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
-        // Check for multiple linked providers on sign-in
-        if (event === 'SIGNED_IN') {
-          const identities = session.user.identities || []
+      if ((event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') || !nextSession?.user) return
 
-          if (identities.length > 1) {
-            console.warn(
-              '[AuthProvider] Multiple providers detected:',
-              identities.map((i) => i.provider),
+      if (event === 'SIGNED_IN') {
+        const identities = nextSession.user.identities || []
+
+        if (identities.length > 1) {
+          console.warn(
+            '[AuthProvider] Multiple providers detected:',
+            identities.map((identity) => identity.provider),
+          )
+
+          void supabase.auth.signOut().then(() => {
+            if (!isMounted) return
+            Alert.alert(
+              t('auth.errors.accountExistsTitle'),
+              t('auth.errors.accountExistsMessage'),
+              [{ text: t('auth.actions.ok') }],
             )
+            setSession(null)
+            setUser(null)
+          })
+          return
+        }
+      }
 
-            // Sign out and alert the user (run async)
-            supabase.auth.signOut().then(() => {
-              Alert.alert(
-                t('auth.errors.accountExistsTitle'),
-                t('auth.errors.accountExistsMessage'),
-                [{ text: t('auth.actions.ok') }],
-              )
+      const fullName =
+        nextSession.user.user_metadata?.full_name || nextSession.user.user_metadata?.name
+
+      if (event === 'SIGNED_IN') {
+        void checkPendingDeletion(
+          nextSession.user.id,
+          nextSession.user.email!,
+          async () => {
+            const { error } = await supabase.auth.signOut()
+            if (!error && isMounted) {
               setSession(null)
               setUser(null)
-            })
+            }
+          },
+          () => setAccountReactivated(true),
+          locale,
+          t,
+        )
+      }
+
+      const signupMethod = nextSession.user.app_metadata?.provider
+      void ensureProfileExists(nextSession.user.id, nextSession.user.email!, fullName, signupMethod)
+    }
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      const transitionId = ++authTransitionId
+      console.log('[AuthProvider] Auth state changed:', event)
+      console.log('[AuthProvider] Session:', nextSession ? 'Found' : 'None')
+
+      if (event !== 'INITIAL_SESSION' || !nextSession?.user) {
+        applyAuthState(event, nextSession)
+        return
+      }
+
+      // Supabase invokes auth listeners while holding an exclusive auth lock.
+      // Defer any Supabase API calls until the listener has returned and released it.
+      setLoading(true)
+      initialValidationTimer = setTimeout(() => {
+        void (async () => {
+          console.log('[AuthProvider] Validating cached session for user:', nextSession.user.id)
+          const isValid = await validateUserExists(nextSession.user.id)
+          if (!isMounted || authTransitionId !== transitionId) return
+
+          if (!isValid) {
+            console.warn('[AuthProvider] Orphaned session detected - user no longer exists')
+            await supabase.auth.signOut()
+            if (!isMounted || authTransitionId !== transitionId) return
+            setSession(null)
+            setUser(null)
+            setLoading(false)
             return
           }
-        }
 
-        // Ensure profile exists and set timezone (run in background)
-        const fullName = session.user.user_metadata?.full_name || session.user.user_metadata?.name
-
-        // Check for pending deletion on sign-in
-        if (event === 'SIGNED_IN') {
-          checkPendingDeletion(
-            session.user.id,
-            session.user.email!,
-            async () => {
-              const { error } = await supabase.auth.signOut()
-              if (!error) {
-                setSession(null)
-                setUser(null)
-              }
-            },
-            () => setAccountReactivated(true),
-            locale,
-            t,
-          )
-        }
-        const signupMethod = session.user.app_metadata?.provider
-        ensureProfileExists(session.user.id, session.user.email!, fullName, signupMethod)
-      }
+          console.log('[AuthProvider] Session validated successfully')
+          applyAuthState(event, nextSession)
+        })()
+      }, 0)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      isMounted = false
+      authTransitionId += 1
+      if (initialValidationTimer) clearTimeout(initialValidationTimer)
+      subscription.unsubscribe()
+    }
   }, [locale, t])
 
   const signInWithGoogle = () =>

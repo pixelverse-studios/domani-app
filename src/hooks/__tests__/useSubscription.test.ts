@@ -25,6 +25,7 @@ jest.mock('~/hooks/useProfile', () => ({
 }))
 
 import { act, renderHookWithProviders, waitFor } from '~/test/test-utils'
+import Purchases from 'react-native-purchases'
 import { supabase } from '~/lib/supabase'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import {
@@ -64,6 +65,7 @@ const mockSetRevenueCatPromoRedemptionAttributes =
   setRevenueCatPromoRedemptionAttributes as jest.Mock
 const mockSyncPurchasesAndRefreshCustomerInfo = syncPurchasesAndRefreshCustomerInfo as jest.Mock
 const mockSyncRevenueCatSubscriberAttributes = syncRevenueCatSubscriberAttributes as jest.Mock
+const mockGetCustomerInfo = Purchases.getCustomerInfo as jest.Mock
 const revenueCatBlockingPhases = [
   'code_validated',
   'os_confirmation_attempted',
@@ -326,6 +328,60 @@ describe('trial authority', () => {
 })
 
 describe('purchase access sync', () => {
+  it('blocks RevenueCat reads and resets access state while switching accounts', async () => {
+    let resolveSecondLogin: (() => void) | null = null
+    mockLoginRevenueCat.mockImplementation((userId: string) => {
+      if (userId !== 'user-2') return Promise.resolve()
+      return new Promise<void>((resolve) => {
+        resolveSecondLogin = resolve
+      })
+    })
+    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())
+
+    const { result, rerender, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await act(async () => {
+      await result.current.syncAccess({ source: 'manual', forceStoreSync: true })
+    })
+    expect(result.current.accessSyncPhase).toBe('confirmed')
+    const firstUserCustomerInfoReads = mockGetCustomerInfo.mock.calls.length
+
+    mockUseAuth.mockReturnValue({ user: { id: 'user-2', email: 'two@example.com' } })
+    mockUseProfile.mockReturnValue({
+      isLoading: false,
+      profile: {
+        id: 'user-2',
+        tier: 'none',
+        purchased_at: null,
+        refunded_at: null,
+        trial_started_at: null,
+        trial_ends_at: null,
+        created_at: '2026-08-29T12:00:00.000Z',
+        email: 'two@example.com',
+        expo_push_token: null,
+        full_name: 'Second User',
+        signup_cohort: null,
+        signup_method: null,
+      },
+    })
+    rerender(undefined)
+
+    await waitFor(() => expect(mockLoginRevenueCat).toHaveBeenCalledWith('user-2'))
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.accessSyncPhase).toBe('idle')
+    expect(result.current.accessSyncResult).toBeNull()
+    expect(mockGetCustomerInfo).toHaveBeenCalledTimes(firstUserCustomerInfoReads)
+
+    await act(async () => {
+      resolveSecondLogin?.()
+    })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(mockGetCustomerInfo).toHaveBeenCalledTimes(firstUserCustomerInfoReads + 1)
+
+    unmount()
+  })
+
   it('reports refunded when a stale lifetime profile also has refunded_at', async () => {
     mockUseProfile.mockReturnValue({
       isLoading: false,
