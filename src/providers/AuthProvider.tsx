@@ -185,6 +185,17 @@ const validateUserExists = async (userId: string): Promise<boolean> => {
   }
 }
 
+const releasePushTokenAndSignOut = async () => {
+  const { error: releaseError } = await supabase.rpc('set_current_user_expo_push_token', {
+    p_token: null,
+  })
+  if (releaseError) {
+    console.warn('[AuthProvider] Failed to release push token before sign-out:', releaseError.code)
+  }
+
+  return supabase.auth.signOut()
+}
+
 // Ensure user has a profile row and set timezone if not already set
 const ensureProfileExists = async (
   userId: string,
@@ -334,7 +345,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             identities.map((identity) => identity.provider),
           )
 
-          void supabase.auth.signOut().then(() => {
+          void releasePushTokenAndSignOut().then(() => {
             if (!isMounted) return
             Alert.alert(
               t('auth.errors.accountExistsTitle'),
@@ -356,7 +367,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           nextSession.user.id,
           nextSession.user.email!,
           async () => {
-            const { error } = await supabase.auth.signOut()
+            const { error } = await releasePushTokenAndSignOut()
             if (!error && isMounted) {
               setSession(null)
               setUser(null)
@@ -395,7 +406,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
           if (!isValid) {
             console.warn('[AuthProvider] Orphaned session detected - user no longer exists')
-            await supabase.auth.signOut()
+            await releasePushTokenAndSignOut()
             if (!isMounted || authTransitionId !== transitionId) return
             setSession(null)
             setUser(null)
@@ -532,7 +543,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       addBreadcrumb('User signing out', 'auth')
-      const { error } = await supabase.auth.signOut()
+      const { error } = await releasePushTokenAndSignOut()
       if (error) throw error
     } catch (error) {
       console.error('[AuthProvider] Sign out error:', error)

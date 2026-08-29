@@ -160,6 +160,7 @@ jest.doMock('react-native-purchases', () => ({
     beginRefundRequestForActiveEntitlement: jest.fn(() => Promise.resolve(null)),
     collectDeviceIdentifiers: jest.fn(),
     configure: jest.fn(() => Promise.resolve()),
+    isConfigured: jest.fn(() => Promise.resolve(false)),
     getCustomerInfo: jest.fn(() => Promise.resolve({ entitlements: { active: {} } })),
     getOfferings: jest.fn(() => Promise.resolve({ current: null })),
     logIn: jest.fn(() => Promise.resolve({ customerInfo: { entitlements: { active: {} } } })),

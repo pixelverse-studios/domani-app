@@ -48,10 +48,15 @@ import {
   type SubscriptionStatus,
   useSubscription,
 } from '../useSubscription'
+import {
+  RevenueCatAccountChangedError,
+  resetRevenueCatCoordinatorForTests,
+} from '~/lib/revenuecatCoordinator'
 
 const mockSupabaseFrom = supabase.from as unknown as jest.Mock
 const mockSupabaseFunctionsInvoke = supabase.functions.invoke as unknown as jest.Mock
 const mockSupabaseRpc = supabase.rpc as unknown as jest.Mock
+const mockSupabaseGetUser = supabase.auth.getUser as jest.Mock
 const mockUseAnalytics = useAnalytics as jest.Mock
 const mockTrack = jest.fn()
 const mockGetOfferingForCohort = getOfferingForCohort as jest.Mock
@@ -156,7 +161,13 @@ function setupSubscriptionHookMocks() {
   })
   mockGetOfferingForCohort.mockReturnValue('default')
   mockGetOfferings.mockResolvedValue(null)
-  mockInitializeRevenueCat.mockResolvedValue(undefined)
+  let revenueCatConfigured = false
+  ;(Purchases.isConfigured as jest.Mock).mockImplementation(() =>
+    Promise.resolve(revenueCatConfigured),
+  )
+  mockInitializeRevenueCat.mockImplementation(async () => {
+    revenueCatConfigured = true
+  })
   mockLoginRevenueCat.mockResolvedValue(undefined)
   mockPresentCodeRedemptionSheet.mockResolvedValue(true)
   mockPurchasePackage.mockResolvedValue(null)
@@ -164,6 +175,9 @@ function setupSubscriptionHookMocks() {
   mockSetRevenueCatPromoRedemptionAttributes.mockResolvedValue(undefined)
   mockSyncRevenueCatSubscriberAttributes.mockResolvedValue(undefined)
   mockSupabaseFrom.mockImplementation(() => createSupabaseQueryMock())
+  mockSupabaseGetUser.mockImplementation(() =>
+    Promise.resolve({ data: { user: mockUseAuth()?.user ?? null }, error: null }),
+  )
   mockSupabaseFunctionsInvoke.mockResolvedValue({
     data: { status: 'synced', accessGranted: true },
     error: null,
@@ -179,6 +193,7 @@ function setupSubscriptionHookMocks() {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  resetRevenueCatCoordinatorForTests()
   setupSubscriptionHookMocks()
 })
 
@@ -382,6 +397,61 @@ describe('purchase access sync', () => {
     unmount()
   })
 
+  it('rejects an in-flight restore when the authenticated account changes', async () => {
+    let resolveRestore: ((info: ReturnType<typeof buildLifetimeCustomerInfo>) => void) | null = null
+    mockRestorePurchases.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRestore = resolve
+        }),
+    )
+
+    const { result, rerender, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    mockSupabaseFunctionsInvoke.mockClear()
+
+    let restoreError: unknown
+    const restorePromise = result.current.restore().catch((error) => {
+      restoreError = error
+    })
+    await waitFor(() => expect(mockRestorePurchases).toHaveBeenCalledTimes(1))
+
+    mockUseAuth.mockReturnValue({ user: { id: 'user-2', email: 'two@example.com' } })
+    mockUseProfile.mockReturnValue({
+      isLoading: false,
+      profile: {
+        id: 'user-2',
+        tier: 'none',
+        purchased_at: null,
+        refunded_at: null,
+        trial_started_at: null,
+        trial_ends_at: null,
+        created_at: '2026-08-29T12:00:00.000Z',
+        email: 'two@example.com',
+        expo_push_token: null,
+        full_name: 'Second User',
+        signup_cohort: null,
+        signup_method: null,
+      },
+    })
+    mockSupabaseGetUser.mockResolvedValue({
+      data: { user: { id: 'user-2' } },
+      error: null,
+    })
+    rerender(undefined)
+
+    await act(async () => {
+      resolveRestore?.(buildLifetimeCustomerInfo())
+      await restorePromise
+    })
+
+    expect(restoreError).toBeInstanceOf(RevenueCatAccountChangedError)
+    expect(mockSupabaseFunctionsInvoke).not.toHaveBeenCalled()
+
+    unmount()
+  })
+
   it('reports refunded when a stale lifetime profile also has refunded_at', async () => {
     mockUseProfile.mockReturnValue({
       isLoading: false,
@@ -459,7 +529,7 @@ describe('purchase access sync', () => {
       recoverable: false,
     })
     expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledWith('sync-revenuecat-access', {
-      body: { promoContext: null },
+      body: { promoContext: null, expectedUserId: 'user-1' },
     })
 
     unmount()
@@ -502,6 +572,7 @@ describe('purchase access sync', () => {
 
     expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledWith('sync-revenuecat-access', {
       body: {
+        expectedUserId: 'user-1',
         promoContext: {
           campaignId: 'campaign-1',
           codeId: 'code-1',
@@ -777,6 +848,7 @@ describe('purchase access sync', () => {
     )
     expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledWith('sync-revenuecat-access', {
       body: {
+        expectedUserId: 'user-1',
         promoContext: {
           campaignId: 'campaign-1',
           codeId: 'code-1',

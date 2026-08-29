@@ -30,6 +30,12 @@ import {
   setRevenueCatPromoRedemptionAttributes,
   ENTITLEMENT_ID,
 } from '~/lib/revenuecat'
+import {
+  RevenueCatAccountChangedError,
+  isRevenueCatAccountChangedError,
+  runRevenueCatUserOperation,
+  transitionRevenueCatIdentity,
+} from '~/lib/revenuecatCoordinator'
 
 /**
  * Exhaustive subscription status state machine.
@@ -274,6 +280,15 @@ function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+async function assertAuthenticatedUser(expectedUserId: string): Promise<void> {
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
+
+  if (error || user?.id !== expectedUserId) throw new RevenueCatAccountChangedError()
+}
+
 /**
  * Lightweight read-only subscription status hook.
  *
@@ -323,9 +338,7 @@ export function useSubscription() {
   const { profile, isLoading: profileLoading } = useProfile()
   const queryClient = useQueryClient()
   const [initializedUserId, setInitializedUserId] = useState<string | null>(null)
-  const revenueCatTransitionRef = useRef<Promise<void>>(Promise.resolve())
   const [revenueCatAttributeSyncRetryToken, setRevenueCatAttributeSyncRetryToken] = useState(0)
-  const previousUserId = useRef<string | undefined>(undefined)
   const previousRevenueCatAttributeSignatureRef = useRef<string | null>(null)
   const revenueCatAttributeRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const previousAndroidMonetizationBreadcrumbRef = useRef<string | null>(null)
@@ -351,8 +364,6 @@ export function useSubscription() {
   useEffect(() => {
     let isMounted = true
     const currentUserId = user?.id
-    const priorUserId = previousUserId.current
-    previousUserId.current = currentUserId
 
     setInitializedUserId(null)
     pendingExternalPurchaseSyncRef.current = null
@@ -362,58 +373,43 @@ export function useSubscription() {
     setAccessSyncResult(null)
     setAccessSyncAttempt(null)
 
-    const transition = revenueCatTransitionRef.current
-      .catch(() => undefined)
-      .then(async () => {
-        if (!isMounted) return
+    previousRevenueCatAttributeSignatureRef.current = null
+    previousAndroidMonetizationBreadcrumbRef.current = null
+    setRevenueCatAttributeSyncRetryToken(0)
+    if (revenueCatAttributeRetryTimeoutRef.current) {
+      clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
+      revenueCatAttributeRetryTimeoutRef.current = null
+    }
 
-        // During beta, skip RevenueCat entirely
-        if (shouldBypassRevenueCat) {
-          if (isMounted && currentUserId) setInitializedUserId(currentUserId)
-          return
-        }
+    // During beta, skip RevenueCat entirely.
+    if (shouldBypassRevenueCat) {
+      if (currentUserId) setInitializedUserId(currentUserId)
+      return () => {
+        isMounted = false
+      }
+    }
 
-        // Handle logout when user signs out (previous user existed, now gone)
-        if (priorUserId && !currentUserId) {
-          await logoutRevenueCat()
-          previousRevenueCatAttributeSignatureRef.current = null
-          previousAndroidMonetizationBreadcrumbRef.current = null
-          setRevenueCatAttributeSyncRetryToken(0)
-          if (revenueCatAttributeRetryTimeoutRef.current) {
-            clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
-            revenueCatAttributeRetryTimeoutRef.current = null
-          }
-          if (isMounted) {
-            setInitializedUserId(null)
-          }
-        }
+    void transitionRevenueCatIdentity(currentUserId ?? null, async () => {
+      if (!currentUserId) {
+        if (await Purchases.isConfigured()) await logoutRevenueCat()
+        return
+      }
 
-        if (priorUserId && currentUserId && priorUserId !== currentUserId) {
-          previousRevenueCatAttributeSignatureRef.current = null
-          previousAndroidMonetizationBreadcrumbRef.current = null
-          setRevenueCatAttributeSyncRetryToken(0)
-          if (revenueCatAttributeRetryTimeoutRef.current) {
-            clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
-            revenueCatAttributeRetryTimeoutRef.current = null
-          }
-        }
-
-        // Handle login when user signs in
-        if (currentUserId) {
-          try {
-            await initializeRevenueCat(currentUserId)
-            if (!isMounted) return
-            await loginRevenueCat(currentUserId)
-          } catch (error) {
-            // RevenueCat failed to initialize - continue without it
-            // This can happen if Android API key is not configured
-            console.warn('[useSubscription] RevenueCat initialization failed:', error)
-          }
-          // Always mark as initialized so Settings doesn't hang
-          if (isMounted) setInitializedUserId(currentUserId)
-        }
+      if (await Purchases.isConfigured()) {
+        await loginRevenueCat(currentUserId)
+      } else {
+        await initializeRevenueCat(currentUserId)
+      }
+    })
+      .then((applied) => {
+        if (applied && isMounted && currentUserId) setInitializedUserId(currentUserId)
       })
-    revenueCatTransitionRef.current = transition
+      .catch((error) => {
+        // Let the screen finish loading, but leave the coordinator without an
+        // active identity so every account-sensitive SDK operation fails closed.
+        console.warn('[useSubscription] RevenueCat identity transition failed:', error)
+        if (isMounted && currentUserId) setInitializedUserId(currentUserId)
+      })
 
     return () => {
       isMounted = false
@@ -444,13 +440,16 @@ export function useSubscription() {
 
     previousRevenueCatAttributeSignatureRef.current = attributeSignature
 
-    syncRevenueCatSubscriberAttributes({
-      email: user.email ?? null,
-      displayName: profile.full_name ?? null,
-      pushToken: profile.expo_push_token ?? null,
-      signupCohort: profile.signup_cohort ?? null,
-      signupMethod: profile.signup_method ?? null,
-    }).catch((error) => {
+    runRevenueCatUserOperation(user.id, () =>
+      syncRevenueCatSubscriberAttributes({
+        email: user.email ?? null,
+        displayName: profile.full_name ?? null,
+        pushToken: profile.expo_push_token ?? null,
+        signupCohort: profile.signup_cohort ?? null,
+        signupMethod: profile.signup_method ?? null,
+      }),
+    ).catch((error) => {
+      if (isRevenueCatAccountChangedError(error)) return
       previousRevenueCatAttributeSignatureRef.current = null
       console.warn('[useSubscription] Failed to sync RevenueCat subscriber attributes', {
         userId: user.id,
@@ -486,7 +485,7 @@ export function useSubscription() {
     queryFn: async () => {
       if (!isInitialized || shouldBypassRevenueCat) return null
       try {
-        const info = await Purchases.getCustomerInfo()
+        const info = await runRevenueCatUserOperation(user!.id, () => Purchases.getCustomerInfo())
         console.log('[useSubscription] Loaded RevenueCat customer info', {
           userId: user?.id ?? null,
           originalAppUserId: info.originalAppUserId,
@@ -519,7 +518,7 @@ export function useSubscription() {
   // Uses cohort-specific offering based on user's signup_cohort
   const { data: offerings, isLoading: isLoadingOfferings } = useQuery({
     queryKey: ['offerings', offeringIdentifier],
-    queryFn: () => getOfferings(offeringIdentifier),
+    queryFn: () => runRevenueCatUserOperation(user!.id, () => getOfferings(offeringIdentifier)),
     enabled: isInitialized && !shouldBypassRevenueCat && !!profile,
     retry: false, // Don't retry if RevenueCat is not configured
   })
@@ -606,19 +605,6 @@ export function useSubscription() {
   const syncExternalPurchaseAccess = useCallback(
     async (request: PurchaseAccessSyncRequest): Promise<PurchaseAccessSyncResult> => {
       const attemptContext = request.attemptContext ?? null
-      setAccessSyncAttempt(attemptContext)
-      setAccessSyncResult(null)
-      setAccessSyncPhase('syncing')
-
-      addBreadcrumb('Started purchase access sync', 'monetization.sync', {
-        userId: user?.id ?? null,
-        source: request.source,
-        forceStoreSync: request.forceStoreSync ?? null,
-        hasProvidedCustomerInfo: !!request.customerInfo,
-        campaignId: attemptContext?.campaignId ?? null,
-        promoOutcome: attemptContext?.promoOutcome ?? null,
-      })
-
       const baseResult = {
         source: request.source,
         customerInfo: null,
@@ -646,6 +632,22 @@ export function useSubscription() {
         return result
       }
 
+      const expectedUserId = user.id
+      await assertAuthenticatedUser(expectedUserId)
+
+      setAccessSyncAttempt(attemptContext)
+      setAccessSyncResult(null)
+      setAccessSyncPhase('syncing')
+
+      addBreadcrumb('Started purchase access sync', 'monetization.sync', {
+        userId: expectedUserId,
+        source: request.source,
+        forceStoreSync: request.forceStoreSync ?? null,
+        hasProvidedCustomerInfo: !!request.customerInfo,
+        campaignId: attemptContext?.campaignId ?? null,
+        promoOutcome: attemptContext?.promoOutcome ?? null,
+      })
+
       if (isPromoPurchaseAccessSync(request) && !hasPromoRedemptionAttemptContext(attemptContext)) {
         const result: PurchaseAccessSyncResult = {
           ...baseResult,
@@ -671,11 +673,15 @@ export function useSubscription() {
         if (request.customerInfo) {
           info = request.customerInfo
         } else if (request.forceStoreSync) {
-          info = await syncPurchasesAndRefreshCustomerInfo()
+          info = await runRevenueCatUserOperation(expectedUserId, () =>
+            syncPurchasesAndRefreshCustomerInfo(),
+          )
         } else {
-          info = await Purchases.getCustomerInfo()
+          info = await runRevenueCatUserOperation(expectedUserId, () => Purchases.getCustomerInfo())
         }
+        await assertAuthenticatedUser(expectedUserId)
       } catch (error) {
+        if (isRevenueCatAccountChangedError(error)) throw error
         const result: PurchaseAccessSyncResult = {
           ...baseResult,
           status: 'revenuecat_unavailable',
@@ -750,8 +756,11 @@ export function useSubscription() {
 
       let supabaseSyncStatus: SupabaseSubscriptionSyncStatus
       try {
-        supabaseSyncStatus = await syncSubscriptionToSupabase(user.id, attemptContext)
+        await assertAuthenticatedUser(expectedUserId)
+        supabaseSyncStatus = await syncSubscriptionToSupabase(expectedUserId, attemptContext)
+        await assertAuthenticatedUser(expectedUserId)
       } catch (error) {
+        if (isRevenueCatAccountChangedError(error)) throw error
         const result: PurchaseAccessSyncResult = {
           ...baseResult,
           status: 'supabase_sync_failed',
@@ -860,6 +869,8 @@ export function useSubscription() {
         })
       }
 
+      await assertAuthenticatedUser(expectedUserId)
+
       pendingExternalPurchaseSyncRef.current = null
       setAccessSyncResult(result)
       setAccessSyncPhase('confirmed')
@@ -893,16 +904,22 @@ export function useSubscription() {
 
   const redeemPromoCodeMutation = useMutation({
     mutationFn: async (context?: PurchaseAccessSyncAttemptContext) => {
+      if (!user?.id) throw new Error('Not authenticated')
+      const expectedUserId = user.id
+      await assertAuthenticatedUser(expectedUserId)
+
       const attemptContext = context ?? null
       markPromoCodeValidated(context)
 
       if (attemptContext?.promoOutcome === 'free') {
         try {
+          await assertAuthenticatedUser(expectedUserId)
           await confirmCurrentUserPromoRedemption({
             attemptContext,
             revenueCatAppUserId: null,
             storeProductId: null,
           })
+          await assertAuthenticatedUser(expectedUserId)
 
           const result: PurchaseAccessSyncResult = {
             status: 'confirmed',
@@ -922,6 +939,7 @@ export function useSubscription() {
           queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
           return result
         } catch (error) {
+          if (isRevenueCatAccountChangedError(error)) throw error
           const result: PurchaseAccessSyncResult = {
             status: 'supabase_sync_failed',
             source: 'promo_redemption',
@@ -947,12 +965,19 @@ export function useSubscription() {
         }
       }
 
-      await setRevenueCatPromoRedemptionAttributes(attemptContext)
+      await runRevenueCatUserOperation(expectedUserId, () =>
+        setRevenueCatPromoRedemptionAttributes(attemptContext),
+      )
+      await assertAuthenticatedUser(expectedUserId)
 
       let wasPresented = false
       try {
-        wasPresented = await presentCodeRedemptionSheet()
+        wasPresented = await runRevenueCatUserOperation(expectedUserId, () =>
+          presentCodeRedemptionSheet(),
+        )
+        await assertAuthenticatedUser(expectedUserId)
       } catch (error) {
+        if (isRevenueCatAccountChangedError(error)) throw error
         const result: PurchaseAccessSyncResult = {
           status: 'revenuecat_unavailable',
           source: 'promo_redemption',
@@ -995,6 +1020,7 @@ export function useSubscription() {
       let latestResult: PurchaseAccessSyncResult | null = null
       for (const delayMs of PROMO_REDEMPTION_SYNC_DELAYS_MS) {
         await wait(delayMs)
+        await assertAuthenticatedUser(expectedUserId)
         latestResult = await syncExternalPurchaseAccess({
           source: 'promo_redemption',
           forceStoreSync: true,
@@ -1220,6 +1246,10 @@ export function useSubscription() {
   // Purchase lifetime access
   const purchaseMutation = useMutation({
     mutationFn: async (input: PurchasesPackage | PurchaseRequest) => {
+      if (!user?.id) throw new Error('Not authenticated')
+      const expectedUserId = user.id
+      await assertAuthenticatedUser(expectedUserId)
+
       const pkg = 'pkg' in input ? input.pkg : input
       const attemptContext =
         'pkg' in input
@@ -1232,11 +1262,16 @@ export function useSubscription() {
             }
 
       if (attemptContext?.redemptionAttemptId) {
-        await setRevenueCatPromoRedemptionAttributes(attemptContext)
+        await runRevenueCatUserOperation(expectedUserId, () =>
+          setRevenueCatPromoRedemptionAttributes(attemptContext),
+        )
       } else {
         try {
-          await setRevenueCatPromoRedemptionAttributes(null)
+          await runRevenueCatUserOperation(expectedUserId, () =>
+            setRevenueCatPromoRedemptionAttributes(null),
+          )
         } catch (error) {
+          if (isRevenueCatAccountChangedError(error)) throw error
           console.warn('[useSubscription] Failed to clear promo RevenueCat attributes', {
             userId: user?.id ?? null,
             error,
@@ -1254,7 +1289,9 @@ export function useSubscription() {
         productIdentifier: pkg.product.identifier,
       })
 
-      const info = await purchasePackage(pkg)
+      await assertAuthenticatedUser(expectedUserId)
+      const info = await runRevenueCatUserOperation(expectedUserId, () => purchasePackage(pkg))
+      await assertAuthenticatedUser(expectedUserId)
       if (info) {
         const result = await syncExternalPurchaseAccess({
           source: 'purchase',
@@ -1283,10 +1320,15 @@ export function useSubscription() {
   // Restore purchases — returns null if no active entitlement found
   const restoreMutation = useMutation({
     mutationFn: async () => {
+      if (!user?.id) throw new Error('Not authenticated')
+      const expectedUserId = user.id
+      await assertAuthenticatedUser(expectedUserId)
+
       console.log('[useSubscription] Restore mutation started', {
         userId: user?.id ?? null,
       })
-      const info = await restorePurchases()
+      const info = await runRevenueCatUserOperation(expectedUserId, () => restorePurchases())
+      await assertAuthenticatedUser(expectedUserId)
       if (info) {
         const result = await syncExternalPurchaseAccess({
           source: 'restore',
@@ -1565,7 +1607,7 @@ async function syncSubscriptionToSupabase(
         }
       : null
   const { data, error } = await supabase.functions.invoke('sync-revenuecat-access', {
-    body: { promoContext },
+    body: { promoContext, expectedUserId: userId },
   })
 
   if (error) throw error

@@ -1462,6 +1462,10 @@ export type Database = {
         Args: never
         Returns: undefined
       }
+      set_current_user_expo_push_token: {
+        Args: { p_token: string | null }
+        Returns: undefined
+      }
       start_current_user_trial: {
         Args: never
         Returns: Database['public']['Tables']['profiles']['Row']

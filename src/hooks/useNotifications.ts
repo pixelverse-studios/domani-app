@@ -41,29 +41,15 @@ async function registerPushTokenWithRetry(attempt: number = 1): Promise<boolean>
       return false
     }
 
-    // Get current profile to check if token changed
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('expo_push_token, push_token_invalid_at')
-      .eq('id', user.id)
-      .single()
+    // The RPC atomically assigns this opaque device token to the current
+    // authenticated profile and removes it from any previous account owner.
+    const { error } = await supabase.rpc('set_current_user_expo_push_token', {
+      p_token: token,
+    })
 
-    // Only update if token is different or was previously invalid
-    if (profile?.expo_push_token !== token || profile?.push_token_invalid_at !== null) {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          expo_push_token: token,
-          push_token_invalid_at: null, // Clear invalid flag on re-registration
-        })
-        .eq('id', user.id)
+    if (error) throw error
 
-      if (error) {
-        throw error
-      }
-
-      console.log('[Notifications] Push token registered successfully')
-    }
+    console.log('[Notifications] Push token registered successfully')
 
     return true
   } catch (error) {
@@ -117,7 +103,6 @@ export function useNotificationObserver() {
 
     hasRegisteredToken.current = false
     hasCheckedPermission.current = false
-    handledResponseIds.current.clear()
     store.setHasValidatedIds(false)
     store.setPlanningReminderId(null)
     store.setEveningRolloverSource(null)
@@ -431,10 +416,16 @@ export function useNotificationObserver() {
       const route = getAllowedNotificationRoute(request.content.data?.url)
       if (!route) {
         console.warn('[Notifications] Rejected unapproved notification destination')
+        void Notifications.clearLastNotificationResponseAsync().catch((error: unknown) => {
+          console.warn('[Notifications] Failed to clear rejected notification response:', error)
+        })
         return
       }
 
       handledResponseIds.current.add(request.identifier)
+      void Notifications.clearLastNotificationResponseAsync().catch((error: unknown) => {
+        console.warn('[Notifications] Failed to clear handled notification response:', error)
+      })
       const timeout = setTimeout(() => {
         navigationTimeouts.delete(timeout)
         if (!cancelled) router.push(route)
