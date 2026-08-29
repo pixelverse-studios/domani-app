@@ -19,6 +19,20 @@ const Notifications = isNotificationsSupported ? require('expo-notifications') :
 // Retry configuration for push token registration
 const MAX_RETRY_ATTEMPTS = 3
 const INITIAL_RETRY_DELAY_MS = 1000
+const MAX_HANDLED_NOTIFICATION_RESPONSES = 100
+
+let notificationResetQueue: Promise<void> = Promise.resolve()
+
+function queueNotificationReset(): Promise<boolean> {
+  const resetAttempt = notificationResetQueue.then(() => NotificationService.cancelAllReminders())
+  const settledReset = resetAttempt.catch((error) => {
+    console.warn('[Notifications] Failed to reset account notifications:', error)
+    return false
+  })
+
+  notificationResetQueue = settledReset.then(() => undefined)
+  return settledReset
+}
 
 /**
  * Register push token with retry logic and exponential backoff
@@ -80,7 +94,8 @@ export function useNotificationObserver() {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState)
   const hasRegisteredToken = useRef(false)
   const hasCheckedPermission = useRef(false)
-  const handledResponseIds = useRef(new Set<string>())
+  const handledResponseKeys = useRef(new Set<string>())
+  const handledResponseOrder = useRef<string[]>([])
 
   // Memoized function to handle push token registration
   const handleTokenRegistration = useCallback(async () => {
@@ -109,7 +124,7 @@ export function useNotificationObserver() {
 
     // Local notifications contain account-owned task titles and notes. Remove
     // them before rebuilding notification state for a newly authenticated user.
-    const notificationReset = NotificationService.cancelAllReminders()
+    const notificationReset = queueNotificationReset()
 
     const belongsToCurrentUser = async () => {
       if (cancelled) return false
@@ -406,12 +421,21 @@ export function useNotificationObserver() {
 
     // Handle notification interactions (user taps notification)
     type NotificationResponse = {
-      notification: { request: { identifier: string; content: { data?: { url?: unknown } } } }
+      notification: {
+        date: number
+        request: { identifier: string; content: { data?: { url?: unknown } } }
+      }
     }
 
     const handleNotificationResponse = (response: NotificationResponse, delayMs: number) => {
       const request = response.notification.request
-      if (handledResponseIds.current.has(request.identifier)) return
+      const responseKey = `${request.identifier}:${response.notification.date}`
+      if (handledResponseKeys.current.has(responseKey)) {
+        void Notifications.clearLastNotificationResponseAsync().catch((error: unknown) => {
+          console.warn('[Notifications] Failed to clear duplicate notification response:', error)
+        })
+        return
+      }
 
       const route = getAllowedNotificationRoute(request.content.data?.url)
       if (!route) {
@@ -422,7 +446,12 @@ export function useNotificationObserver() {
         return
       }
 
-      handledResponseIds.current.add(request.identifier)
+      handledResponseKeys.current.add(responseKey)
+      handledResponseOrder.current.push(responseKey)
+      if (handledResponseOrder.current.length > MAX_HANDLED_NOTIFICATION_RESPONSES) {
+        const oldestResponseKey = handledResponseOrder.current.shift()
+        if (oldestResponseKey) handledResponseKeys.current.delete(oldestResponseKey)
+      }
       void Notifications.clearLastNotificationResponseAsync().catch((error: unknown) => {
         console.warn('[Notifications] Failed to clear handled notification response:', error)
       })

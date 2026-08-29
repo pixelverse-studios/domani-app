@@ -64,6 +64,32 @@ describe('useNotificationObserver account scoping', () => {
     unmount()
   })
 
+  it('serializes destructive notification resets across auth transitions', async () => {
+    let resolveFirstReset!: (value: boolean) => void
+    mockCancelAllReminders
+      .mockImplementationOnce(
+        () =>
+          new Promise<boolean>((resolve) => {
+            resolveFirstReset = resolve
+          }),
+      )
+      .mockResolvedValueOnce(true)
+    mockUseAuth.mockReturnValue({ user: null })
+
+    const { rerender, unmount } = renderHook(() => useNotificationObserver())
+    await waitFor(() => expect(mockCancelAllReminders).toHaveBeenCalledTimes(1))
+
+    mockUseAuth.mockReturnValue({ user: { id: 'user-1' } })
+    rerender(undefined)
+    await Promise.resolve()
+    expect(mockCancelAllReminders).toHaveBeenCalledTimes(1)
+
+    resolveFirstReset(true)
+    await waitFor(() => expect(mockCancelAllReminders).toHaveBeenCalledTimes(2))
+
+    unmount()
+  })
+
   it('claims the device push token through the current-user RPC', async () => {
     const { unmount } = renderHook(() => useNotificationObserver())
 
@@ -86,6 +112,7 @@ describe('useNotificationObserver account scoping', () => {
   it('consumes a cold-start notification response only once across account changes', async () => {
     const response = {
       notification: {
+        date: 1000,
         request: {
           identifier: 'response-1',
           content: { data: { url: '/(tabs)' } },
@@ -111,7 +138,38 @@ describe('useNotificationObserver account scoping', () => {
       jest.advanceTimersByTime(500)
     })
     expect(router.push).toHaveBeenCalledTimes(1)
-    expect(mockClearLastNotificationResponse).toHaveBeenCalledTimes(1)
+    expect(mockClearLastNotificationResponse).toHaveBeenCalledTimes(2)
+
+    unmount()
+  })
+
+  it('handles later deliveries from a repeating notification identifier', async () => {
+    const { unmount } = renderHook(() => useNotificationObserver())
+    const addResponseListener = Notifications.addNotificationResponseReceivedListener as jest.Mock
+    await waitFor(() => expect(addResponseListener).toHaveBeenCalled())
+    const listener = addResponseListener.mock.calls[0][0]
+    const buildResponse = (date: number) => ({
+      notification: {
+        date,
+        request: {
+          identifier: 'daily-planning-reminder',
+          content: { data: { url: '/(tabs)' } },
+        },
+      },
+    })
+
+    act(() => {
+      listener(buildResponse(1000))
+      listener(buildResponse(1000))
+      jest.advanceTimersByTime(100)
+    })
+    expect(router.push).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      listener(buildResponse(2000))
+      jest.advanceTimersByTime(100)
+    })
+    expect(router.push).toHaveBeenCalledTimes(2)
 
     unmount()
   })
