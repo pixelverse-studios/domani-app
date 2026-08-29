@@ -17,6 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.baitedz.domani-app",
       "usesAppleSignIn": true,
+      "associatedDomains": ["applinks:www.domani-app.com"],
       "infoPlist": {
         "UIBackgroundModes": ["remote-notification"]
       }
@@ -31,7 +32,21 @@
         "resizeMode": "contain",
         "backgroundColor": "#FAF8F5"
       },
-      "package": "com.baitedz.domaniapp"
+      "package": "com.baitedz.domaniapp",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "www.domani-app.com",
+              "pathPrefix": "/auth/callback"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",

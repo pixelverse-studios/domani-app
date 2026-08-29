@@ -31,6 +31,7 @@ import { useSubscription } from '~/hooks/useSubscription'
 import { useTranslation } from '~/hooks/useTranslation'
 import { beginRefundRequestForActiveEntitlement } from '~/lib/revenuecat'
 import { addBreadcrumb, captureException, captureMessage } from '~/lib/sentry'
+import { isAllowedExternalStoreUrl } from '~/lib/navigationSecurity'
 
 type PurchaseHelpSource = 'locked' | 'settings' | 'paywall'
 
@@ -127,9 +128,13 @@ export default function PurchaseHelpScreen() {
 
   const openExternalUrl = async (url: string) => {
     try {
+      if (!isAllowedExternalStoreUrl(url)) {
+        captureMessage('Rejected unapproved Android purchase help URL', 'warning')
+        return
+      }
+
       addBreadcrumb('Attempting Android external billing handoff', 'purchase_help.android', {
         source: source ?? 'purchase_help',
-        url,
         subscriptionStatus: subscription.status,
         canRequestAndroidRefund,
       })
@@ -147,13 +152,11 @@ export default function PurchaseHelpScreen() {
       await Linking.openURL(url)
       addBreadcrumb('Opened Android external billing handoff', 'purchase_help.android', {
         source: source ?? 'purchase_help',
-        url,
       })
     } catch (error) {
       captureException(error instanceof Error ? error : new Error(String(error)), {
         context: 'purchase_help_android_open_external_url',
         source: source ?? 'purchase_help',
-        url,
         subscriptionStatus: subscription.status,
         canRequestAndroidRefund,
       })

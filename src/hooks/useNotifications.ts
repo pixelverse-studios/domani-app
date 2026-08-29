@@ -6,6 +6,7 @@ import Constants from 'expo-constants'
 import { NotificationService } from '~/lib/notifications'
 import { useNotificationStore } from '~/stores/notificationStore'
 import { supabase } from '~/lib/supabase'
+import { getAllowedNotificationRoute } from '~/lib/navigationSecurity'
 
 // Check if notifications are supported (not in Expo Go on Android SDK 53+)
 const isExpoGo = Constants.appOwnership === 'expo'
@@ -90,6 +91,7 @@ export function useNotificationObserver() {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState)
   const hasRegisteredToken = useRef(false)
   const hasCheckedPermission = useRef(false)
+  const handledResponseIds = useRef(new Set<string>())
 
   // Memoized function to handle push token registration
   const handleTokenRegistration = useCallback(async () => {
@@ -365,36 +367,32 @@ export function useNotificationObserver() {
     )
 
     // Handle notification interactions (user taps notification)
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      (response: { notification: { request: { content: { data?: { url?: unknown } } } } }) => {
-        const url = response.notification.request.content.data?.url
-        console.log('[Notifications] User tapped notification, URL:', url)
+    type NotificationResponse = {
+      notification: { request: { identifier: string; content: { data?: { url?: unknown } } } }
+    }
 
-        if (typeof url === 'string') {
-          // Small delay to ensure app is ready
-          setTimeout(() => {
-            router.push(url as `/${string}`)
-          }, 100)
-        }
-      },
+    const handleNotificationResponse = (response: NotificationResponse, delayMs: number) => {
+      const request = response.notification.request
+      if (handledResponseIds.current.has(request.identifier)) return
+
+      const route = getAllowedNotificationRoute(request.content.data?.url)
+      if (!route) {
+        console.warn('[Notifications] Rejected unapproved notification destination')
+        return
+      }
+
+      handledResponseIds.current.add(request.identifier)
+      setTimeout(() => router.push(route), delayMs)
+    }
+
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(
+      (response: NotificationResponse) => handleNotificationResponse(response, 100),
     )
 
     // Check if app was opened from a notification
     Notifications.getLastNotificationResponseAsync().then(
-      (
-        response: { notification: { request: { content: { data?: { url?: unknown } } } } } | null,
-      ) => {
-        if (response?.notification) {
-          const url = response.notification.request.content.data?.url
-          console.log('[Notifications] App opened from notification, URL:', url)
-
-          if (typeof url === 'string') {
-            // Longer delay for cold start
-            setTimeout(() => {
-              router.push(url as `/${string}`)
-            }, 500)
-          }
-        }
+      (response: NotificationResponse | null) => {
+        if (response) handleNotificationResponse(response, 500)
       },
     )
 

@@ -50,17 +50,32 @@ function RootLayoutContent() {
   const queryClient = useQueryClient()
   const { locale } = useTranslation()
   const copy = getMainScreenCopy(locale)
+  const { accountReactivated, clearAccountReactivated, loading, user } = useAuth()
+  const previousUserIdRef = React.useRef<string | null>(user?.id ?? null)
 
   // Clear React Query cache on sign out to prevent stale data leaking into new accounts.
   // Note: queryClient is stable for the lifetime of the provider — [] is intentional.
   React.useEffect(() => {
+    const clearAuthScopedState = () => {
+      queryClient.clear()
+      useCelebrationStore.getState().dismiss()
+      useTutorialStore.getState().clearSessionState()
+      useNotificationStore.getState().setEveningRolloverSource(null)
+      clearAccountReactivated()
+    }
+
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      const nextUserId = session?.user.id ?? null
       if (event === 'SIGNED_OUT') {
         if (__DEV__) console.log('[RootLayout] Clearing React Query cache on SIGNED_OUT')
-        queryClient.clear()
+        clearAuthScopedState()
+      } else if (previousUserIdRef.current && nextUserId !== previousUserIdRef.current) {
+        if (__DEV__) console.log('[RootLayout] Clearing React Query cache on account switch')
+        clearAuthScopedState()
       }
+      previousUserIdRef.current = nextUserId
     })
     return () => subscription.unsubscribe()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,7 +102,6 @@ function RootLayoutContent() {
     fetchConfig()
   }, [fetchConfig])
 
-  const { accountReactivated, clearAccountReactivated, loading } = useAuth()
   const { status: subscriptionStatus, isLoading: subscriptionLoading } = useSubscription()
   const hasAppAccess = !subscriptionLoading && hasFullAccess(subscriptionStatus)
 
@@ -122,7 +136,7 @@ function RootLayoutContent() {
   // - Tutorial is not active (don't conflict with tutorial)
   // - Auth is complete
   // Celebration takes precedence over evening rollover
-  const showCelebration = celebrationVisible && !tutorialActive && !loading
+  const showCelebration = celebrationVisible && !tutorialActive && !loading && hasAppAccess
 
   // Evening rollover (app-open path)
   const showEveningAppOpenRollover =
@@ -294,9 +308,8 @@ function RootLayoutContent() {
     router,
   ])
 
-  // Wait for auth to initialize before rendering routes
-  // This prevents the race condition where (tabs) renders before auth check completes
-  if (loading) {
+  // Do not mount authenticated routes until both identity and access are resolved.
+  if (loading || (user && subscriptionLoading)) {
     return (
       <View className="flex-1 items-center justify-center" style={{ backgroundColor: '#FAF8F5' }}>
         <ActivityIndicator size="large" color="#7D9B8A" />

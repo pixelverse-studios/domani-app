@@ -112,16 +112,11 @@ describe('TabLayout access gating', () => {
     expect(getByText('analytics:hidden')).toBeTruthy()
   })
 
-  it('defaults unresolved subscription state to Today and Settings only', () => {
+  it('does not mount tabs while subscription access is unresolved', () => {
     mockSubscription('trialing', true)
 
-    const { getByText } = renderWithProviders(<TabLayout />)
-
-    expect(getByText('index:visible')).toBeTruthy()
-    expect(getByText('settings:visible')).toBeTruthy()
-    expect(getByText('planning:hidden')).toBeTruthy()
-    expect(getByText('feedback:hidden')).toBeTruthy()
-    expect(getByText('analytics:hidden')).toBeTruthy()
+    const { queryByTestId } = renderWithProviders(<TabLayout />)
+    expect(queryByTestId('tabs')).toBeNull()
   })
 
   it('orders Feedback as the fourth tab after Progress', () => {

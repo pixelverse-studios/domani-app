@@ -87,6 +87,7 @@ interface TutorialStore {
   skipTutorial: () => void
   completeTutorial: () => void
   resetTutorial: () => void
+  clearSessionState: () => void
 
   // Soft timeout actions
   pauseTutorial: () => void
@@ -132,8 +133,7 @@ async function clearTutorialCompletion(): Promise<void> {
   await supabase.from('profiles').update({ tutorial_completed_at: null }).eq('id', user.id)
 }
 
-// Guard to prevent race conditions during initialization
-const initState = { isInitializing: false }
+let initializingUserId: string | null = null
 
 export const useTutorialStore = create<TutorialStore>()((set, get) => ({
   // Initial state
@@ -154,8 +154,9 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
 
   // Initialize tutorial state from database
   initializeTutorialState: async (userId: string) => {
-    if (initState.isInitializing) return
-    initState.isInitializing = true
+    if (initializingUserId === userId) return
+    initializingUserId = userId
+    set({ isLoading: true })
 
     try {
       const { data, error } = await supabase
@@ -163,6 +164,8 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
         .select('tutorial_completed_at')
         .eq('id', userId)
         .single()
+
+      if (initializingUserId !== userId) return
 
       if (error) {
         console.error('Error fetching tutorial state:', error)
@@ -187,10 +190,11 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
         })
       }
     } catch (error) {
+      if (initializingUserId !== userId) return
       console.error('Error initializing tutorial state:', error)
       set({ isLoading: false })
     } finally {
-      initState.isInitializing = false
+      if (initializingUserId === userId) initializingUserId = null
     }
   },
 
@@ -287,6 +291,23 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
       isActive: true,
       currentStep: 'welcome',
       hasCompletedTutorial: false,
+      isOverlayHidden: false,
+      pausedAt: null,
+      pausedStep: null,
+      abandonCount: 0,
+      analyticsStartTime: null,
+      analyticsViewedSteps: new Set<TutorialStep>(),
+      targetMeasurements: createEmptyTargetMeasurements(),
+    })
+  },
+
+  clearSessionState: () => {
+    initializingUserId = null
+    set({
+      isActive: false,
+      currentStep: null,
+      hasCompletedTutorial: false,
+      isLoading: true,
       isOverlayHidden: false,
       pausedAt: null,
       pausedStep: null,

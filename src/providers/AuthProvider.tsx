@@ -8,7 +8,7 @@ import * as AppleAuthentication from 'expo-apple-authentication'
 import { supabase, sendAccountEmail } from '~/lib/supabase'
 import { sendTeamNotification } from '~/lib/teamNotifications'
 import { captureException, addBreadcrumb } from '~/lib/sentry'
-import { parseOAuthTokensFromUrl, runSingleFlight, waitForAuthSession } from '~/lib/authSession'
+import { completeOAuthCallback, runSingleFlight } from '~/lib/authSession'
 import { useTranslation } from '~/hooks/useTranslation'
 import { formatLocalizedDate } from '~/i18n/date'
 import type { AppLocale } from '~/i18n'
@@ -289,8 +289,8 @@ interface AuthContextValue {
   session: Session | null
   user: User | null
   loading: boolean
-  signInWithGoogle: () => Promise<void>
-  signInWithApple: () => Promise<void>
+  signInWithGoogle: () => Promise<boolean>
+  signInWithApple: () => Promise<boolean>
   signOut: () => Promise<void>
   accountReactivated: boolean
   clearAccountReactivated: () => void
@@ -304,7 +304,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [accountReactivated, setAccountReactivated] = useState(false)
-  const googleSignInPromiseRef = useRef<Promise<void> | null>(null)
+  const googleSignInPromiseRef = useRef<Promise<boolean> | null>(null)
 
   // Configure OAuth redirect for mobile app
   // Uses the native scheme defined in app.json: domani://
@@ -432,48 +432,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         console.log('[AuthProvider] Browser result type:', result.type)
 
-        if (result.type === 'success') {
-          // Note: Don't log result.url as it contains OAuth tokens
-          const tokens = parseOAuthTokensFromUrl(result.url)
+        if (result.type !== 'success') return false
 
-          console.log('[AuthProvider] Tokens received:', {
-            hasAccessToken: !!tokens?.access_token,
-            hasRefreshToken: !!tokens?.refresh_token,
-          })
-
-          if (tokens) {
-            // Set the session manually
-            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-              access_token: tokens.access_token,
-              refresh_token: tokens.refresh_token,
-            })
-
-            if (sessionError) {
-              console.error('[AuthProvider] Session error:', sessionError)
-              throw sessionError
-            }
-
-            console.log('[AuthProvider] Session set successfully!')
-            addBreadcrumb('Google sign in completed', 'auth', { provider: 'google' })
-            const persistedSession =
-              sessionData.session ??
-              (await waitForAuthSession(() => supabase.auth.getSession(), {
-                attempts: 8,
-                intervalMs: 150,
-              }))
-
-            if (!persistedSession) {
-              throw new Error('Google sign in completed, but no session was persisted.')
-            }
-            // Profile creation is handled by onAuthStateChange callback
-          } else {
-            console.error('[AuthProvider] No tokens in redirect URL')
-            throw new Error('Google sign in completed, but no session tokens were returned.')
-          }
-        } else {
-          console.log('[AuthProvider] OAuth was cancelled or failed')
-          throw new Error('Google sign in was cancelled.')
-        }
+        await completeOAuthCallback(result.url, (code) =>
+          supabase.auth.exchangeCodeForSession(code),
+        )
+        addBreadcrumb('Google sign in completed', 'auth', { provider: 'google' })
+        return true
       } else {
         throw new Error('Google sign in could not start.')
       }
@@ -538,6 +503,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       // Profile creation is handled by onAuthStateChange callback
+      return true
     } catch (error: unknown) {
       // Handle user cancellation
       if (
@@ -547,7 +513,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         error.code === 'ERR_REQUEST_CANCELED'
       ) {
         console.log('[AuthProvider] Apple Sign In cancelled by user')
-        return
+        return false
       }
       console.error('[AuthProvider] Apple sign in error:', error)
       throw error

@@ -32,6 +32,7 @@ import {
 } from '~/hooks/usePromoCode'
 import { useSubscription } from '~/hooks/useSubscription'
 import { useTranslation } from '~/hooks/useTranslation'
+import { isAllowedExternalStoreUrl } from '~/lib/navigationSecurity'
 
 function getPromoErrorKey(status: PromoCodeFailureStatus) {
   switch (status) {
@@ -240,7 +241,7 @@ export default function RedeemCodeScreen() {
   }
 
   const handleOpenFallback = async (offer: ValidPromoCodeResult) => {
-    if (!offer.routing.fallbackUrl) {
+    if (!isAllowedExternalStoreUrl(offer.routing.fallbackUrl)) {
       setActionError(t('subscription.redeemCode.errorPlatformUnavailable'))
       return
     }
