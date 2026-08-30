@@ -250,13 +250,16 @@ export function useCreateTask() {
 
       // Schedule reminder notification if set
       if (reminderAt) {
-        const notificationId = await NotificationService.scheduleTaskReminder({
-          id: data.id,
-          title: data.title,
-          is_mit: data.is_mit,
-          reminder_at: reminderAt,
-          notes: data.notes,
-        })
+        const notificationId = await NotificationService.scheduleTaskReminder(
+          {
+            id: data.id,
+            title: data.title,
+            is_mit: data.is_mit,
+            reminder_at: reminderAt,
+            notes: data.notes,
+          },
+          user.id,
+        )
 
         // Only persist reminder_at once the local notification is scheduled.
         if (notificationId) {
@@ -370,13 +373,16 @@ export function useUpdateTask() {
 
         // Schedule new notification if reminder is set
         if (data.reminder_at) {
-          const notificationId = await NotificationService.scheduleTaskReminder({
-            id: data.id,
-            title: data.title,
-            is_mit: data.is_mit,
-            reminder_at: data.reminder_at,
-            notes: data.notes,
-          })
+          const notificationId = await NotificationService.scheduleTaskReminder(
+            {
+              id: data.id,
+              title: data.title,
+              is_mit: data.is_mit,
+              reminder_at: data.reminder_at,
+              notes: data.notes,
+            },
+            user.id,
+          )
 
           // Update task with new notification ID
           if (notificationId) {

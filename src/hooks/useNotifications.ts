@@ -372,7 +372,7 @@ export function useNotificationObserver() {
 
         // Schedule fresh notification with current text
         console.log(`[Notifications] Scheduling new reminder for ${hour}:${minute}`)
-        const newId = await NotificationService.schedulePlanningReminder(hour, minute)
+        const newId = await NotificationService.schedulePlanningReminder(hour, minute, userId)
         if (!(await belongsToCurrentUser())) {
           if (newId) await NotificationService.cancelNotification(newId)
           return
@@ -468,6 +468,7 @@ export function useNotificationObserver() {
             notes: t.notes,
             notification_id: t.notification_id,
           })),
+          userId,
           belongsToCurrentUser,
         )
 
@@ -591,7 +592,16 @@ export function useNotifications() {
     console.log(`[Notifications] After cancel: ${afterCancel.length} planning reminders`)
 
     try {
-      const identifier = await NotificationService.schedulePlanningReminder(hour, minute)
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session?.user.id) throw new Error('Not authenticated')
+
+      const identifier = await NotificationService.schedulePlanningReminder(
+        hour,
+        minute,
+        session.user.id,
+      )
       store.setPlanningReminderId(identifier)
 
       // Verify schedule worked
@@ -634,7 +644,9 @@ export function useNotifications() {
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (user) void registerPushTokenWithRetry(user.id, () => true)
+      if (user) {
+        void registerPushTokenWithRetry(user.id, () => canRegisterPushTokenForUser(user.id))
+      }
     }
 
     return granted

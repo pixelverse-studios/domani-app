@@ -205,13 +205,16 @@ describe('task hooks', () => {
         reminder_at: null,
       }),
     )
-    expect(mockScheduleTaskReminder).toHaveBeenCalledWith({
-      id: 'task-created',
-      title: 'Draft launch notes',
-      is_mit: false,
-      reminder_at: reminderAt,
-      notes: null,
-    })
+    expect(mockScheduleTaskReminder).toHaveBeenCalledWith(
+      {
+        id: 'task-created',
+        title: 'Draft launch notes',
+        is_mit: false,
+        reminder_at: reminderAt,
+        notes: null,
+      },
+      'user-1',
+    )
     expect(updateQuery.update).toHaveBeenCalledWith({
       reminder_at: reminderAt,
       notification_id: 'notification-1',
@@ -324,13 +327,16 @@ describe('task hooks', () => {
     })
 
     expect(mockCancelTaskReminder).toHaveBeenCalledWith('old-notification')
-    expect(mockScheduleTaskReminder).toHaveBeenCalledWith({
-      id: 'task-update-reminder',
-      title: 'Draft launch notes',
-      is_mit: false,
-      reminder_at: reminderAt,
-      notes: null,
-    })
+    expect(mockScheduleTaskReminder).toHaveBeenCalledWith(
+      {
+        id: 'task-update-reminder',
+        title: 'Draft launch notes',
+        is_mit: false,
+        reminder_at: reminderAt,
+        notes: null,
+      },
+      'user-1',
+    )
     expect(clearReminderQuery.update).toHaveBeenCalledWith({
       reminder_at: null,
       notification_id: null,

@@ -5,6 +5,7 @@ import Constants from 'expo-constants'
 import { getTheme } from '~/theme/themes'
 import { supabase } from './supabase'
 import { captureException, addBreadcrumb } from './sentry'
+import { queueAccountNotificationOperation } from './accountNotificationCoordinator'
 
 // Check if notifications are supported (not in Expo Go on Android SDK 53+)
 const isExpoGo = Constants.appOwnership === 'expo'
@@ -174,41 +175,47 @@ export const NotificationService = {
    * @param minute - Minute (0-59)
    * @returns Notification identifier for cancellation
    */
-  async schedulePlanningReminder(hour: number, minute: number): Promise<string> {
+  async schedulePlanningReminder(
+    hour: number,
+    minute: number,
+    ownerUserId: string,
+  ): Promise<string> {
     if (!Notifications) return ''
 
-    try {
-      await this.initialize()
-      const identifier = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Plan Tomorrow',
-          body: 'A few minutes now sets you up for success tomorrow.',
-          sound: true,
-          priority: Notifications.AndroidNotificationPriority.HIGH,
-          data: {
-            url: '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true&trigger=planning_reminder',
-            type: 'planning_reminder',
+    return queueAccountNotificationOperation(ownerUserId, '', async () => {
+      try {
+        await this.initialize()
+        const identifier = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: 'Plan Tomorrow',
+            body: 'A few minutes now sets you up for success tomorrow.',
+            sound: true,
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+            data: {
+              url: '/(tabs)/planning?defaultPlanningFor=tomorrow&openForm=true&trigger=planning_reminder',
+              type: 'planning_reminder',
+            },
           },
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DAILY,
+            hour,
+            minute,
+            channelId: Platform.OS === 'android' ? PLANNING_CHANNEL_ID : undefined,
+          },
+        })
+
+        addBreadcrumb('Planning reminder scheduled', 'notifications', { hour, minute, identifier })
+        return identifier
+      } catch (error) {
+        console.error('[Notifications] Failed to schedule planning reminder:', error)
+        captureException(error instanceof Error ? error : new Error(String(error)), {
+          method: 'schedulePlanningReminder',
           hour,
           minute,
-          channelId: Platform.OS === 'android' ? PLANNING_CHANNEL_ID : undefined,
-        },
-      })
-
-      addBreadcrumb('Planning reminder scheduled', 'notifications', { hour, minute, identifier })
-      return identifier
-    } catch (error) {
-      console.error('[Notifications] Failed to schedule planning reminder:', error)
-      captureException(error instanceof Error ? error : new Error(String(error)), {
-        method: 'schedulePlanningReminder',
-        hour,
-        minute,
-      })
-      return ''
-    }
+        })
+        return ''
+      }
+    })
   },
 
   /**
@@ -402,105 +409,110 @@ export const NotificationService = {
    * @param task - Task object with id, title, is_mit, and reminder_at
    * @returns Notification identifier for cancellation, or null if scheduling failed
    */
-  async scheduleTaskReminder(task: {
-    id: string
-    title: string
-    is_mit: boolean
-    reminder_at: string
-    notes?: string | null
-  }): Promise<string | null> {
+  async scheduleTaskReminder(
+    task: {
+      id: string
+      title: string
+      is_mit: boolean
+      reminder_at: string
+      notes?: string | null
+    },
+    ownerUserId: string,
+  ): Promise<string | null> {
     if (!Notifications) return null
 
-    try {
-      await this.initialize()
+    return queueAccountNotificationOperation(ownerUserId, null, async () => {
+      try {
+        await this.initialize()
 
-      // Use parseISO to correctly handle Postgres timestamp format
-      // Postgres returns "2026-01-23 14:06:23.592+00" which iOS JavaScriptCore
-      // may misinterpret as local time. parseISO handles this correctly.
-      const reminderDate = parseISO(task.reminder_at)
+        // Use parseISO to correctly handle Postgres timestamp format
+        // Postgres returns "2026-01-23 14:06:23.592+00" which iOS JavaScriptCore
+        // may misinterpret as local time. parseISO handles this correctly.
+        const reminderDate = parseISO(task.reminder_at)
 
-      // Don't schedule if reminder is in the past
-      if (reminderDate <= new Date()) {
-        console.log(`[Notifications] Skipping past reminder for task ${task.id}`)
-        addBreadcrumb('Task reminder skipped because reminder is in the past', 'notifications', {
+        // Don't schedule if reminder is in the past
+        if (reminderDate <= new Date()) {
+          console.log(`[Notifications] Skipping past reminder for task ${task.id}`)
+          addBreadcrumb('Task reminder skipped because reminder is in the past', 'notifications', {
+            taskId: task.id,
+            reminderAt: task.reminder_at,
+          })
+          return null
+        }
+
+        const permissionStatus = await this.getPermissionStatus()
+        addBreadcrumb('Task reminder permission checked', 'notifications', {
+          taskId: task.id,
+          permissionStatus,
+        })
+
+        let canSchedule = permissionStatus === 'granted'
+        if (!canSchedule && permissionStatus === 'undetermined') {
+          canSchedule = await this.requestPermissions()
+          addBreadcrumb('Task reminder permission requested', 'notifications', {
+            taskId: task.id,
+            granted: canSchedule,
+          })
+        }
+
+        if (!canSchedule) {
+          console.warn(
+            `[Notifications] Cannot schedule task reminder without permission: ${permissionStatus}`,
+          )
+          addBreadcrumb(
+            'Task reminder not scheduled because permission is unavailable',
+            'notifications',
+            {
+              taskId: task.id,
+              permissionStatus,
+            },
+          )
+          return null
+        }
+
+        addBreadcrumb('Task reminder schedule attempted', 'notifications', {
           taskId: task.id,
           reminderAt: task.reminder_at,
-        })
-        return null
-      }
-
-      const permissionStatus = await this.getPermissionStatus()
-      addBreadcrumb('Task reminder permission checked', 'notifications', {
-        taskId: task.id,
-        permissionStatus,
-      })
-
-      let canSchedule = permissionStatus === 'granted'
-      if (!canSchedule && permissionStatus === 'undetermined') {
-        canSchedule = await this.requestPermissions()
-        addBreadcrumb('Task reminder permission requested', 'notifications', {
-          taskId: task.id,
-          granted: canSchedule,
-        })
-      }
-
-      if (!canSchedule) {
-        console.warn(
-          `[Notifications] Cannot schedule task reminder without permission: ${permissionStatus}`,
-        )
-        addBreadcrumb(
-          'Task reminder not scheduled because permission is unavailable',
-          'notifications',
-          {
-            taskId: task.id,
-            permissionStatus,
-          },
-        )
-        return null
-      }
-
-      addBreadcrumb('Task reminder schedule attempted', 'notifications', {
-        taskId: task.id,
-        reminderAt: task.reminder_at,
-        channelId: Platform.OS === 'android' ? TASK_CHANNEL_ID : undefined,
-      })
-
-      const identifier = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: task.title,
-          body: task.notes || '',
-          sound: true,
-          priority: Notifications.AndroidNotificationPriority.HIGH,
-          data: {
-            taskId: task.id,
-            url: '/(tabs)',
-            type: 'task_reminder',
-          },
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: reminderDate,
           channelId: Platform.OS === 'android' ? TASK_CHANNEL_ID : undefined,
-        },
-      })
+        })
 
-      console.log(`[Notifications] Scheduled reminder for task ${task.id} at ${reminderDate}`)
-      addBreadcrumb('Task reminder scheduled', 'notifications', {
-        taskId: task.id,
-        reminderAt: task.reminder_at,
-        identifier,
-      })
-      return identifier
-    } catch (error) {
-      console.error(`[Notifications] Failed to schedule task reminder:`, error)
-      captureException(error instanceof Error ? error : new Error(String(error)), {
-        method: 'scheduleTaskReminder',
-        taskId: task.id,
-        reminderAt: task.reminder_at,
-        isMit: task.is_mit,
-      })
-      return null
-    }
+        const identifier = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: task.title,
+            body: task.notes || '',
+            sound: true,
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+            data: {
+              taskId: task.id,
+              url: '/(tabs)',
+              type: 'task_reminder',
+            },
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: reminderDate,
+            channelId: Platform.OS === 'android' ? TASK_CHANNEL_ID : undefined,
+          },
+        })
+
+        console.log(`[Notifications] Scheduled reminder for task ${task.id} at ${reminderDate}`)
+        addBreadcrumb('Task reminder scheduled', 'notifications', {
+          taskId: task.id,
+          reminderAt: task.reminder_at,
+          identifier,
+        })
+        return identifier
+      } catch (error) {
+        console.error(`[Notifications] Failed to schedule task reminder:`, error)
+        captureException(error instanceof Error ? error : new Error(String(error)), {
+          method: 'scheduleTaskReminder',
+          taskId: task.id,
+          reminderAt: task.reminder_at,
+          isMit: task.is_mit,
+        })
+        return null
+      }
+    })
   },
 
   /**
@@ -537,6 +549,7 @@ export const NotificationService = {
       notes?: string | null
       notification_id: string | null
     }>,
+    ownerUserId: string,
     shouldContinue?: () => boolean | Promise<boolean>,
   ): Promise<Map<string, string>> {
     const results = new Map<string, string>()
@@ -550,7 +563,7 @@ export const NotificationService = {
       }
 
       // Schedule new notification
-      const newId = await this.scheduleTaskReminder(task)
+      const newId = await this.scheduleTaskReminder(task, ownerUserId)
       if (newId) {
         if (shouldContinue && !(await shouldContinue())) {
           await this.cancelTaskReminder(newId)

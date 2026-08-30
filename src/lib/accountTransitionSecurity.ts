@@ -1,4 +1,10 @@
 import { NotificationService } from './notifications'
+import {
+  blockAccountNotificationOperations,
+  queueAccountNotificationPurge,
+  resetAccountNotificationCoordinatorForTests,
+  unblockAccountNotificationOperations,
+} from './accountNotificationCoordinator'
 import { queuePushTokenOperation } from './pushTokenCoordinator'
 import { supabase } from './supabase'
 
@@ -6,20 +12,18 @@ const NOTIFICATION_PURGE_ATTEMPTS = 3
 const NOTIFICATION_PURGE_RETRY_DELAY_MS = 250
 const PUSH_TOKEN_RELEASE_ATTEMPTS = 3
 
-let notificationResetQueue: Promise<void> = Promise.resolve()
 let accountTransitionQueue: Promise<void> = Promise.resolve()
 const blockedPushTokenUsers = new Map<string, number>()
 
 const wait = (delayMs: number) => new Promise<void>((resolve) => setTimeout(resolve, delayMs))
 
 export function queueAccountNotificationReset(): Promise<boolean> {
-  const resetAttempt = notificationResetQueue.then(() => NotificationService.cancelAllReminders())
+  const resetAttempt = queueAccountNotificationPurge(() => NotificationService.cancelAllReminders())
   const settledReset = resetAttempt.catch((error) => {
     console.warn('[AccountTransition] Failed to reset account notifications:', error)
     return false
   })
 
-  notificationResetQueue = settledReset.then(() => undefined)
   return settledReset
 }
 
@@ -43,6 +47,16 @@ const blockPushTokenRegistration = (userId: string | null) => {
   blockedPushTokenUsers.set(userId, (blockedPushTokenUsers.get(userId) ?? 0) + 1)
 }
 
+const blockAccountNativeState = (userId: string | null) => {
+  blockPushTokenRegistration(userId)
+  blockAccountNotificationOperations(userId)
+}
+
+const unblockAccountNativeState = (userId: string | null) => {
+  unblockPushTokenRegistration(userId)
+  unblockAccountNotificationOperations(userId)
+}
+
 const unblockPushTokenRegistration = (userId: string | null) => {
   if (!userId) return
   const remainingBlocks = (blockedPushTokenUsers.get(userId) ?? 1) - 1
@@ -53,18 +67,13 @@ const unblockPushTokenRegistration = (userId: string | null) => {
 export const canRegisterPushTokenForUser = (userId: string): boolean =>
   !blockedPushTokenUsers.has(userId)
 
-const queueAccountTransition = <T>(
-  userId: string | null,
-  operation: () => Promise<T>,
-): Promise<T> => {
-  blockPushTokenRegistration(userId)
+const queueAccountTransition = <T>(operation: () => Promise<T>): Promise<T> => {
   const queuedOperation = accountTransitionQueue.catch(() => undefined).then(operation)
   accountTransitionQueue = queuedOperation.then(
     () => undefined,
     () => undefined,
   )
-
-  return queuedOperation.finally(() => unblockPushTokenRegistration(userId))
+  return queuedOperation
 }
 
 async function releaseCurrentPushToken(
@@ -129,33 +138,36 @@ async function releaseCurrentPushToken(
 }
 
 export async function securelyReplaceSession<T>(operation: () => Promise<T>): Promise<T> {
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession()
-  if (sessionError) throw new Error('Unable to inspect the current session before sign-in.')
+  return queueAccountTransition(async () => {
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession()
+    if (sessionError) throw new Error('Unable to inspect the current session before sign-in.')
 
-  if (!session?.user) {
-    return queueAccountTransition(null, async () => {
+    if (!session?.user) {
       await requireAccountNotificationReset('change accounts')
       return operation()
-    })
-  }
-
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-  if (error || user?.id !== session.user.id) {
-    throw new Error('Unable to verify the current account before sign-in.')
-  }
-
-  return queueAccountTransition(user.id, async () => {
-    await requireAccountNotificationReset('change accounts')
-    if (!(await releaseCurrentPushToken(user.id, { action: 'change accounts' }))) {
-      throw new Error('The authenticated account changed before secure cleanup completed.')
     }
-    return operation()
+
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
+    if (error || user?.id !== session.user.id) {
+      throw new Error('Unable to verify the current account before sign-in.')
+    }
+
+    blockAccountNativeState(user.id)
+    try {
+      await requireAccountNotificationReset('change accounts')
+      if (!(await releaseCurrentPushToken(user.id, { action: 'change accounts' }))) {
+        throw new Error('The authenticated account changed before secure cleanup completed.')
+      }
+      return operation()
+    } finally {
+      unblockAccountNativeState(user.id)
+    }
   })
 }
 
@@ -163,34 +175,41 @@ export async function securelySignOut(
   expectedUserId: string | null,
   options: { allowReleaseFailure?: boolean } = {},
 ): Promise<boolean> {
-  let resolvedUserId = expectedUserId
-  if (!resolvedUserId) {
+  return queueAccountTransition(async () => {
     const {
       data: { session },
       error,
     } = await supabase.auth.getSession()
     if (error) throw new Error('Unable to inspect the current session before sign-out.')
-    resolvedUserId = session?.user.id ?? null
-  }
 
-  return queueAccountTransition(resolvedUserId, async () => {
-    await requireAccountNotificationReset('sign out')
-    if (resolvedUserId) {
-      const released = await releaseCurrentPushToken(resolvedUserId, {
-        ...options,
-        action: 'sign out',
-      })
-      if (!released) return false
+    const resolvedUserId = session?.user.id ?? null
+    if (expectedUserId && resolvedUserId && expectedUserId !== resolvedUserId) {
+      if (options.allowReleaseFailure) return false
+      throw new Error('The authenticated account changed before secure cleanup completed.')
     }
 
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
-    return true
+    blockAccountNativeState(resolvedUserId)
+    try {
+      await requireAccountNotificationReset('sign out')
+      if (resolvedUserId) {
+        const released = await releaseCurrentPushToken(resolvedUserId, {
+          ...options,
+          action: 'sign out',
+        })
+        if (!released) return false
+      }
+
+      const { error: signOutError } = await supabase.auth.signOut()
+      if (signOutError) throw signOutError
+      return true
+    } finally {
+      unblockAccountNativeState(resolvedUserId)
+    }
   })
 }
 
 export function resetAccountTransitionSecurityForTests() {
-  notificationResetQueue = Promise.resolve()
   accountTransitionQueue = Promise.resolve()
   blockedPushTokenUsers.clear()
+  resetAccountNotificationCoordinatorForTests()
 }

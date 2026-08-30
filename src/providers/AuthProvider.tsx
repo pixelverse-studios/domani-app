@@ -168,9 +168,11 @@ const checkPendingDeletion = async (
   }
 }
 
-// Validate that the user actually exists in the database
-// Returns true if valid, false if orphaned session (user deleted)
-const validateUserExists = async (userId: string): Promise<boolean> => {
+type UserValidationResult = 'valid' | 'invalid' | 'unavailable'
+
+// Validate that the cached user still exists without treating a transient
+// network/profile failure as proof that the account was deleted.
+const validateUserExists = async (userId: string): Promise<UserValidationResult> => {
   try {
     // Try to fetch the profile - if it fails with 23503 on insert or user doesn't exist,
     // we have an orphaned session
@@ -181,15 +183,12 @@ const validateUserExists = async (userId: string): Promise<boolean> => {
       .maybeSingle()
 
     if (error) {
-      // If we get a permission error, the user likely doesn't exist in auth.users
-      // (RLS policies reference auth.uid() which would be invalid)
       console.warn('[AuthProvider] Error checking user existence:', error.code, error.message)
-      return false
     }
 
     // If profile exists, user is valid
     if (profile) {
-      return true
+      return 'valid'
     }
 
     // Profile doesn't exist - try to verify the user exists in auth by attempting
@@ -198,15 +197,15 @@ const validateUserExists = async (userId: string): Promise<boolean> => {
 
     if (authError || !authData.user) {
       console.warn('[AuthProvider] User does not exist on server:', authError?.message)
-      return false
+      return authError ? 'unavailable' : 'invalid'
     }
 
     // User exists in auth but no profile yet - this is valid (profile will be created)
-    return true
+    return authData.user.id === userId ? 'valid' : 'invalid'
   } catch (error) {
     console.error('[AuthProvider] Failed to validate user:', error)
     captureException(error as Error, { context: 'validateUserExists', userId })
-    return false
+    return 'unavailable'
   }
 }
 
@@ -447,15 +446,50 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       initialValidationTimer = setTimeout(() => {
         void (async () => {
           console.log('[AuthProvider] Validating cached session for user:', nextSession.user.id)
-          const isValid = await validateUserExists(nextSession.user.id)
+          const validationResult = await validateUserExists(nextSession.user.id)
           if (!isMounted || authTransitionId !== transitionId) return
 
-          if (!isValid) {
+          if (validationResult === 'unavailable') {
+            console.warn(
+              '[AuthProvider] Cached session could not be verified; retaining it for offline use',
+            )
+            applyAuthState(event, nextSession, transitionId)
+            return
+          }
+
+          if (validationResult === 'invalid') {
             console.warn('[AuthProvider] Orphaned session detected - user no longer exists')
-            const didSignOut = await releasePushTokenAndSignOut(nextSession.user.id, {
-              allowReleaseFailure: true,
-            })
-            if (!didSignOut) return
+            let didSignOut = false
+            try {
+              didSignOut = await releasePushTokenAndSignOut(nextSession.user.id, {
+                allowReleaseFailure: true,
+              })
+            } catch (error) {
+              if (!isMounted || authTransitionId !== transitionId) return
+              console.error('[AuthProvider] Failed to clean up invalid cached session:', error)
+              captureException(error as Error, {
+                context: 'cleanupInvalidCachedSession',
+                userId: nextSession.user.id,
+              })
+              applyAuthState(event, nextSession, transitionId)
+              Alert.alert(
+                t('auth.errors.signInTitle'),
+                error instanceof Error
+                  ? error.message
+                  : 'Unable to securely clear the saved session. Please try signing out again.',
+                [{ text: t('auth.actions.ok') }],
+              )
+              return
+            }
+            if (!didSignOut) {
+              applyAuthState(event, nextSession, transitionId)
+              Alert.alert(
+                t('auth.errors.signInTitle'),
+                'Unable to securely clear the saved session. Please try signing out again.',
+                [{ text: t('auth.actions.ok') }],
+              )
+              return
+            }
             if (!isMounted || authTransitionId !== transitionId) return
             setSession(null)
             setUser(null)
@@ -465,7 +499,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
           console.log('[AuthProvider] Session validated successfully')
           applyAuthState(event, nextSession, transitionId)
-        })()
+        })().catch((error) => {
+          if (!isMounted || authTransitionId !== transitionId) return
+          console.error('[AuthProvider] Cached session validation failed unexpectedly:', error)
+          captureException(error as Error, {
+            context: 'validateCachedSession',
+            userId: nextSession.user.id,
+          })
+          applyAuthState(event, nextSession, transitionId)
+        })
       }, 0)
     })
 

@@ -1,11 +1,15 @@
 import { act, renderHook, waitFor } from '~/test/test-utils'
 import * as Notifications from 'expo-notifications'
 import { router } from 'expo-router'
-import { useNotificationObserver } from '../useNotifications'
+import { useNotificationObserver, useNotifications } from '../useNotifications'
 import { NotificationService } from '~/lib/notifications'
 import { supabase } from '~/lib/supabase'
 import { resetPushTokenCoordinatorForTests } from '~/lib/pushTokenCoordinator'
-import { resetAccountTransitionSecurityForTests } from '~/lib/accountTransitionSecurity'
+import {
+  canRegisterPushTokenForUser,
+  resetAccountTransitionSecurityForTests,
+  securelySignOut,
+} from '~/lib/accountTransitionSecurity'
 
 const mockUseAuth = jest.fn()
 
@@ -25,6 +29,7 @@ jest.mock('~/lib/notifications', () => ({
     cancelAllReminders: jest.fn(() => Promise.resolve(true)),
     getExpoPushToken: jest.fn(() => Promise.resolve('ExponentPushToken[test-device]')),
     getPermissionStatus: jest.fn(() => Promise.resolve('granted')),
+    requestPermissions: jest.fn(() => Promise.resolve(true)),
     initialize: jest.fn(() => Promise.resolve()),
   },
 }))
@@ -35,7 +40,9 @@ const mockGetLastNotificationResponse = Notifications.getLastNotificationRespons
 const mockClearLastNotificationResponse =
   Notifications.clearLastNotificationResponseAsync as jest.Mock
 const mockGetUser = supabase.auth.getUser as jest.Mock
+const mockGetSession = supabase.auth.getSession as jest.Mock
 const mockRpc = supabase.rpc as unknown as jest.Mock
+const mockSignOut = supabase.auth.signOut as jest.Mock
 const mockFrom = supabase.from as unknown as jest.Mock
 
 describe('useNotificationObserver account scoping', () => {
@@ -47,7 +54,12 @@ describe('useNotificationObserver account scoping', () => {
     mockUseAuth.mockReturnValue({ user: { id: 'user-1' } })
     mockGetLastNotificationResponse.mockResolvedValue(null)
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
+    mockGetSession.mockResolvedValue({
+      data: { session: { user: { id: 'user-1' } } },
+      error: null,
+    })
     mockRpc.mockResolvedValue({ data: null, error: null })
+    mockSignOut.mockResolvedValue({ error: null })
   })
 
   afterEach(() => {
@@ -145,6 +157,30 @@ describe('useNotificationObserver account scoping', () => {
     )
 
     unmount()
+  })
+
+  it('does not reclaim the outgoing token through the permission action', async () => {
+    let finishPurge!: (value: boolean) => void
+    mockCancelAllReminders.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finishPurge = resolve
+        }),
+    )
+    const signOut = securelySignOut('user-1')
+    await waitFor(() => expect(canRegisterPushTokenForUser('user-1')).toBe(false))
+
+    const { result } = renderHook(() => useNotifications())
+    await act(async () => {
+      await result.current.requestPermissions()
+    })
+
+    expect(mockGetExpoPushToken).not.toHaveBeenCalled()
+
+    finishPurge(true)
+    await signOut
+    expect(mockRpc).toHaveBeenCalledTimes(1)
+    expect(mockRpc).toHaveBeenCalledWith('set_current_user_expo_push_token', { p_token: null })
   })
 
   it('transfers a stale completed token claim to the replacement account', async () => {

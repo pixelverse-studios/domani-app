@@ -100,6 +100,167 @@ describe('AuthProvider', () => {
     expect(mockFrom).toHaveBeenCalledWith('profiles')
   })
 
+  it('settles loading with the cached session when server validation is unavailable', async () => {
+    let authListener:
+      | ((event: AuthChangeEvent, session: Session | null) => void | Promise<void>)
+      | null = null
+    let authContext: React.ContextType<typeof AuthContext> | undefined
+    mockOnAuthStateChange.mockImplementation((listener) => {
+      authListener = listener
+      return { data: { subscription: { unsubscribe: jest.fn() } } }
+    })
+    mockFrom.mockReturnValue(
+      createProfileQuery({ data: null, error: { code: 'NETWORK_ERROR', message: 'offline' } }),
+    )
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: new Error('offline') })
+    const session = {
+      user: {
+        id: 'user-1',
+        email: 'one@example.com',
+        identities: [],
+        user_metadata: {},
+        app_metadata: {},
+      },
+    } as unknown as Session
+
+    function Consumer() {
+      const value = useContext(AuthContext)
+      useEffect(() => {
+        authContext = value
+      }, [value])
+      return null
+    }
+
+    render(
+      <LocalizationProvider>
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      </LocalizationProvider>,
+    )
+
+    await act(async () => {
+      authListener?.('INITIAL_SESSION', session)
+      jest.runOnlyPendingTimers()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(authContext?.loading).toBe(false)
+    expect(authContext?.user?.id).toBe('user-1')
+    expect(mockSignOut).not.toHaveBeenCalled()
+  })
+
+  it('settles loading when invalid-session cleanup fails', async () => {
+    let authListener:
+      | ((event: AuthChangeEvent, session: Session | null) => void | Promise<void>)
+      | null = null
+    let authContext: React.ContextType<typeof AuthContext> | undefined
+    mockOnAuthStateChange.mockImplementation((listener) => {
+      authListener = listener
+      return { data: { subscription: { unsubscribe: jest.fn() } } }
+    })
+    mockFrom.mockReturnValue(createProfileQuery({ data: null, error: null }))
+    const session = {
+      user: {
+        id: 'user-1',
+        email: 'one@example.com',
+        identities: [],
+        user_metadata: {},
+        app_metadata: {},
+      },
+    } as unknown as Session
+    mockGetUser
+      .mockResolvedValueOnce({ data: { user: null }, error: null })
+      .mockResolvedValue({ data: { user: session.user }, error: null })
+    mockSignOut.mockResolvedValue({ error: new Error('sign out unavailable') })
+
+    function Consumer() {
+      const value = useContext(AuthContext)
+      useEffect(() => {
+        authContext = value
+      }, [value])
+      return null
+    }
+
+    render(
+      <LocalizationProvider>
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      </LocalizationProvider>,
+    )
+
+    await act(async () => {
+      authListener?.('INITIAL_SESSION', session)
+      jest.runOnlyPendingTimers()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(authContext?.loading).toBe(false)
+    expect(authContext?.user?.id).toBe('user-1')
+    expect(alertSpy).toHaveBeenCalled()
+  })
+
+  it('settles loading when invalid-session cleanup declines to sign out', async () => {
+    let authListener:
+      | ((event: AuthChangeEvent, session: Session | null) => void | Promise<void>)
+      | null = null
+    let authContext: React.ContextType<typeof AuthContext> | undefined
+    mockOnAuthStateChange.mockImplementation((listener) => {
+      authListener = listener
+      return { data: { subscription: { unsubscribe: jest.fn() } } }
+    })
+    mockFrom.mockReturnValue(createProfileQuery({ data: null, error: null }))
+    const session = {
+      user: {
+        id: 'user-1',
+        email: 'one@example.com',
+        identities: [],
+        user_metadata: {},
+        app_metadata: {},
+      },
+    } as unknown as Session
+    mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: null })
+    mockGetSession.mockResolvedValue({
+      data: { session: { user: { id: 'replacement-user' } } },
+      error: null,
+    })
+
+    function Consumer() {
+      const value = useContext(AuthContext)
+      useEffect(() => {
+        authContext = value
+      }, [value])
+      return null
+    }
+
+    render(
+      <LocalizationProvider>
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      </LocalizationProvider>,
+    )
+
+    await act(async () => {
+      authListener?.('INITIAL_SESSION', session)
+      jest.runOnlyPendingTimers()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(authContext?.loading).toBe(false)
+    expect(authContext?.user?.id).toBe('user-1')
+    expect(mockSignOut).not.toHaveBeenCalled()
+    expect(alertSpy).toHaveBeenCalled()
+  })
+
   it('ignores pending-deletion actions from an account after a direct switch', async () => {
     let authListener:
       | ((event: AuthChangeEvent, session: Session | null) => void | Promise<void>)
@@ -211,6 +372,7 @@ describe('AuthProvider', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
+    mockGetSession.mockResolvedValue({ data: { session }, error: null })
     mockGetUser.mockResolvedValue({ data: { user: session.user }, error: null })
     mockRpc.mockResolvedValue({ data: null, error: { code: 'NETWORK_ERROR' } })
 
@@ -241,6 +403,10 @@ describe('AuthProvider', () => {
         },
       }) as unknown as Session
     const userTwoSession = buildSession('user-2')
+    mockGetSession.mockResolvedValue({
+      data: { session: buildSession('user-1') },
+      error: null,
+    })
 
     mockFrom
       .mockReturnValueOnce(
