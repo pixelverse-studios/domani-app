@@ -21,6 +21,8 @@ const Notifications = isNotificationsSupported ? require('expo-notifications') :
 const MAX_RETRY_ATTEMPTS = 3
 const INITIAL_RETRY_DELAY_MS = 1000
 const MAX_HANDLED_NOTIFICATION_RESPONSES = 100
+const INITIAL_NOTIFICATION_RESET_RETRY_DELAY_MS = 1000
+const MAX_NOTIFICATION_RESET_RETRY_DELAY_MS = 30_000
 
 let notificationResetQueue: Promise<void> = Promise.resolve()
 
@@ -33,6 +35,29 @@ function queueNotificationReset(): Promise<boolean> {
 
   notificationResetQueue = settledReset.then(() => undefined)
   return settledReset
+}
+
+async function reconcilePushTokenOwnership(token: string): Promise<void> {
+  for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt += 1) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
+
+    const expectedUserId = user.id
+    const { error } = await supabase.rpc('set_current_user_expo_push_token', {
+      p_token: token,
+    })
+    if (error) {
+      if (attempt === MAX_RETRY_ATTEMPTS) throw error
+      continue
+    }
+
+    const {
+      data: { user: userAfterClaim },
+    } = await supabase.auth.getUser()
+    if (!userAfterClaim || userAfterClaim.id === expectedUserId) return
+  }
 }
 
 /**
@@ -76,7 +101,12 @@ async function registerPushTokenWithRetry(
       const {
         data: { user: currentUser },
       } = await supabase.auth.getUser()
-      if (currentUser?.id !== expectedUserId || !shouldContinue()) return false
+      if (currentUser?.id !== expectedUserId || !shouldContinue()) {
+        if (currentUser) {
+          await reconcilePushTokenOwnership(token)
+        }
+        return false
+      }
 
       console.log('[Notifications] Push token registered successfully')
       return true
@@ -119,6 +149,10 @@ export function useNotificationObserver() {
     let cancelled = false
     let foregroundRegistrationTimeout: ReturnType<typeof setTimeout> | null = null
     const navigationTimeouts = new Set<ReturnType<typeof setTimeout>>()
+    const resetRetryWaiters = new Map<
+      ReturnType<typeof setTimeout>,
+      (shouldRetry: boolean) => void
+    >()
     const store = useNotificationStore.getState()
 
     hasRegisteredToken.current = false
@@ -129,7 +163,40 @@ export function useNotificationObserver() {
 
     // Local notifications contain account-owned task titles and notes. Remove
     // them before rebuilding notification state for a newly authenticated user.
-    const notificationReset = queueNotificationReset()
+    const waitForResetRetry = (delayMs: number) =>
+      new Promise<boolean>((resolve) => {
+        if (cancelled) {
+          resolve(false)
+          return
+        }
+
+        const timeout = setTimeout(() => {
+          resetRetryWaiters.delete(timeout)
+          resolve(!cancelled)
+        }, delayMs)
+        resetRetryWaiters.set(timeout, resolve)
+      })
+
+    const cancelResetRetries = () => {
+      resetRetryWaiters.forEach((resolve, timeout) => {
+        clearTimeout(timeout)
+        resolve(false)
+      })
+      resetRetryWaiters.clear()
+    }
+
+    const notificationReset = (async () => {
+      let retryDelayMs = INITIAL_NOTIFICATION_RESET_RETRY_DELAY_MS
+
+      while (!cancelled) {
+        if (await queueNotificationReset()) return true
+        console.warn('[Notifications] Account notification reset was not verified; retrying')
+        if (!(await waitForResetRetry(retryDelayMs))) return false
+        retryDelayMs = Math.min(retryDelayMs * 2, MAX_NOTIFICATION_RESET_RETRY_DELAY_MS)
+      }
+
+      return false
+    })()
 
     const belongsToCurrentUser = async () => {
       if (cancelled) return false
@@ -141,7 +208,10 @@ export function useNotificationObserver() {
 
     if (!userId) {
       void notificationReset
-      return
+      return () => {
+        cancelled = true
+        cancelResetRetries()
+      }
     }
 
     const handleTokenRegistration = async () => {
@@ -200,8 +270,8 @@ export function useNotificationObserver() {
     // This also validates and cleans up any orphaned notifications from previous app versions
     const reschedulePlanningReminder = async () => {
       try {
-        await notificationReset
-        if (cancelled) return
+        const resetSucceeded = await notificationReset
+        if (!resetSucceeded || cancelled) return
 
         // Check if we've already validated this session
         if (store.hasValidatedIds) {
@@ -358,8 +428,8 @@ export function useNotificationObserver() {
     // This ensures notifications survive app reinstalls or device restarts
     const rescheduleTaskReminders = async () => {
       try {
-        await notificationReset
-        if (cancelled) return
+        const resetSucceeded = await notificationReset
+        if (!resetSucceeded || cancelled) return
 
         const {
           data: { user },
@@ -492,6 +562,7 @@ export function useNotificationObserver() {
       clearTimeout(taskReminderTimeout)
       if (foregroundRegistrationTimeout) clearTimeout(foregroundRegistrationTimeout)
       navigationTimeouts.forEach((timeout) => clearTimeout(timeout))
+      cancelResetRetries()
       appStateSubscription.remove()
       notificationListener.current?.remove()
       responseListener.current?.remove()

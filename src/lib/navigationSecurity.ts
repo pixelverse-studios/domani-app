@@ -1,4 +1,11 @@
+import { parseOAuthCallback } from './authSession'
+
 const PLAY_STORE_HOST = 'play.google.com'
+
+export const getAllowedIncomingSystemPath = (value: string): string => {
+  if (value === '/') return '/'
+  return parseOAuthCallback(value).type === 'invalid' ? '/' : value
+}
 
 export const getAllowedNotificationRoute = (value: unknown): `/${string}` | null => {
   if (value === '/(tabs)') return value
