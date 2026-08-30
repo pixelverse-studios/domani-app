@@ -1,22 +1,48 @@
-import React from 'react'
+import React, { useContext, useEffect } from 'react'
+import { Alert } from 'react-native'
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 
 import { act, render } from '~/test/test-utils'
 import { LocalizationProvider } from '~/providers/LocalizationProvider'
-import { AuthProvider } from '../AuthProvider'
+import { AuthContext, AuthProvider } from '../AuthProvider'
 import { supabase } from '~/lib/supabase'
+import { resetPushTokenCoordinatorForTests } from '~/lib/pushTokenCoordinator'
 
 const mockOnAuthStateChange = supabase.auth.onAuthStateChange as jest.Mock
 const mockGetUser = supabase.auth.getUser as jest.Mock
 const mockFrom = supabase.from as unknown as jest.Mock
+const mockRpc = supabase.rpc as unknown as jest.Mock
+const mockSignOut = supabase.auth.signOut as jest.Mock
+
+function createProfileQuery(result: Promise<unknown> | unknown) {
+  const query = {} as {
+    select: jest.Mock
+    eq: jest.Mock
+    update: jest.Mock
+    single: jest.Mock
+  }
+  query.select = jest.fn(() => query)
+  query.eq = jest.fn(() => query)
+  query.update = jest.fn(() => query)
+  query.single = jest.fn(() => Promise.resolve(result))
+  return query
+}
 
 describe('AuthProvider', () => {
+  let alertSpy: jest.SpyInstance
+
   beforeEach(() => {
     jest.useFakeTimers()
     jest.clearAllMocks()
+    alertSpy = jest.spyOn(Alert, 'alert').mockImplementation()
+    resetPushTokenCoordinatorForTests()
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    mockRpc.mockResolvedValue({ data: null, error: null })
+    mockSignOut.mockResolvedValue({ error: null })
   })
 
   afterEach(() => {
+    alertSpy.mockRestore()
     jest.useRealTimers()
   })
 
@@ -63,5 +89,125 @@ describe('AuthProvider', () => {
     })
 
     expect(mockFrom).toHaveBeenCalledWith('profiles')
+  })
+
+  it('ignores pending-deletion actions from an account after a direct switch', async () => {
+    let authListener:
+      | ((event: AuthChangeEvent, session: Session | null) => void | Promise<void>)
+      | null = null
+    mockOnAuthStateChange.mockImplementation((listener) => {
+      authListener = listener
+      return { data: { subscription: { unsubscribe: jest.fn() } } }
+    })
+
+    const pendingDeletionResult = {
+      data: {
+        deleted_at: '2026-08-29T00:00:00.000Z',
+        deletion_scheduled_for: '2026-09-05T00:00:00.000Z',
+      },
+      error: null,
+    }
+    const noPendingDeletionResult = { data: { deleted_at: null }, error: null }
+    const existingProfileResult = {
+      data: {
+        id: 'profile',
+        timezone: 'America/New_York',
+        created_at: '2025-01-01T00:00:00.000Z',
+      },
+      error: null,
+    }
+    mockFrom
+      .mockReturnValueOnce(createProfileQuery(pendingDeletionResult))
+      .mockReturnValueOnce(createProfileQuery(existingProfileResult))
+      .mockReturnValueOnce(createProfileQuery(noPendingDeletionResult))
+      .mockReturnValueOnce(createProfileQuery(existingProfileResult))
+
+    render(
+      <LocalizationProvider>
+        <AuthProvider>
+          <></>
+        </AuthProvider>
+      </LocalizationProvider>,
+    )
+
+    const buildSession = (id: string) =>
+      ({
+        user: {
+          id,
+          email: `${id}@example.com`,
+          identities: [],
+          user_metadata: {},
+          app_metadata: {},
+        },
+      }) as unknown as Session
+
+    await act(async () => {
+      authListener?.('SIGNED_IN', buildSession('user-1'))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(alertSpy).toHaveBeenCalledTimes(1)
+    const reactivationAction = alertSpy.mock.calls[0][2][0]
+
+    await act(async () => {
+      authListener?.('SIGNED_IN', buildSession('user-2'))
+      await Promise.resolve()
+      await Promise.resolve()
+      await reactivationAction.onPress()
+    })
+
+    expect(mockRpc).not.toHaveBeenCalledWith('cancel_current_user_account_deletion')
+    expect(mockSignOut).not.toHaveBeenCalled()
+  })
+
+  it('keeps the authenticated session when push-token release repeatedly fails', async () => {
+    let authListener:
+      | ((event: AuthChangeEvent, session: Session | null) => void | Promise<void>)
+      | null = null
+    let authContext: React.ContextType<typeof AuthContext> | undefined
+    mockOnAuthStateChange.mockImplementation((listener) => {
+      authListener = listener
+      return { data: { subscription: { unsubscribe: jest.fn() } } }
+    })
+    mockFrom.mockReturnValue(createProfileQuery({ data: null, error: null }))
+
+    const session = {
+      user: {
+        id: 'user-1',
+        email: 'one@example.com',
+        identities: [],
+        user_metadata: {},
+        app_metadata: {},
+      },
+    } as unknown as Session
+
+    function Consumer() {
+      const value = useContext(AuthContext)
+      useEffect(() => {
+        authContext = value
+      }, [value])
+      return null
+    }
+
+    render(
+      <LocalizationProvider>
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      </LocalizationProvider>,
+    )
+
+    await act(async () => {
+      authListener?.('SIGNED_IN', session)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    mockGetUser.mockResolvedValue({ data: { user: session.user }, error: null })
+    mockRpc.mockResolvedValue({ data: null, error: { code: 'NETWORK_ERROR' } })
+
+    await expect(authContext!.signOut()).rejects.toThrow('Unable to securely sign out')
+    expect(mockRpc).toHaveBeenCalledTimes(3)
+    expect(mockSignOut).not.toHaveBeenCalled()
+    expect(authContext!.user?.id).toBe('user-1')
   })
 })

@@ -12,6 +12,7 @@ import { useTranslation } from '~/hooks/useTranslation'
 import { formatLocalizedDate } from '~/i18n/date'
 import type { AppLocale } from '~/i18n'
 import type { TranslationKey, TranslationValues } from '~/i18n/types'
+import { queuePushTokenOperation } from '~/lib/pushTokenCoordinator'
 
 // Configure web browser for OAuth
 WebBrowser.maybeCompleteAuthSession()
@@ -68,6 +69,7 @@ const checkPendingDeletion = async (
   userEmail: string,
   signOutFn: () => Promise<void>,
   onReactivated: () => void,
+  isCurrentTransition: () => boolean,
   locale: AppLocale,
   t: (key: TranslationKey, values?: TranslationValues) => string,
 ): Promise<boolean> => {
@@ -78,7 +80,7 @@ const checkPendingDeletion = async (
       .eq('id', userId)
       .single()
 
-    if (error || !profile?.deleted_at) {
+    if (!isCurrentTransition() || error || !profile?.deleted_at) {
       return false // No pending deletion
     }
 
@@ -97,11 +99,19 @@ const checkPendingDeletion = async (
           {
             text: t('auth.actions.reactivate'),
             onPress: async () => {
+              if (!isCurrentTransition()) {
+                resolve(true)
+                return
+              }
+
               // Cancel the deletion
               const { error: cancelError } = await supabase.rpc(
                 'cancel_current_user_account_deletion',
               )
-              if (cancelError) {
+              if (!isCurrentTransition()) {
+                resolve(true)
+                return
+              } else if (cancelError) {
                 console.error('[AuthProvider] Failed to cancel deletion:', cancelError)
               } else {
                 // Signal that account was reactivated for celebration
@@ -128,8 +138,23 @@ const checkPendingDeletion = async (
             text: t('auth.actions.keepDeletion'),
             style: 'destructive',
             onPress: async () => {
-              await signOutFn()
-              resolve(true) // Block login
+              if (!isCurrentTransition()) {
+                resolve(true)
+                return
+              }
+              try {
+                await signOutFn()
+                resolve(true) // Block login
+              } catch (error) {
+                Alert.alert(
+                  t('auth.pendingDeletion.title'),
+                  error instanceof Error
+                    ? error.message
+                    : 'Unable to securely sign out. Please try again.',
+                  [{ text: t('auth.actions.ok') }],
+                )
+                resolve(false)
+              }
             },
           },
         ],
@@ -185,16 +210,52 @@ const validateUserExists = async (userId: string): Promise<boolean> => {
   }
 }
 
-const releasePushTokenAndSignOut = async () => {
-  const { error: releaseError } = await supabase.rpc('set_current_user_expo_push_token', {
-    p_token: null,
-  })
-  if (releaseError) {
-    console.warn('[AuthProvider] Failed to release push token before sign-out:', releaseError.code)
-  }
+const PUSH_TOKEN_RELEASE_ATTEMPTS = 3
 
-  return supabase.auth.signOut()
-}
+const releasePushTokenAndSignOut = async (
+  expectedUserId: string,
+  options: { allowReleaseFailure?: boolean } = {},
+) =>
+  queuePushTokenOperation(async () => {
+    const {
+      data: { user: currentUser },
+      error: currentUserError,
+    } = await supabase.auth.getUser()
+
+    if (currentUserError || currentUser?.id !== expectedUserId) {
+      if (!options.allowReleaseFailure) {
+        throw new Error('The authenticated account changed before sign-out completed.')
+      }
+      return supabase.auth.signOut()
+    }
+
+    let releaseError: { code?: string; message?: string } | null = null
+    for (let attempt = 1; attempt <= PUSH_TOKEN_RELEASE_ATTEMPTS; attempt += 1) {
+      const result = await supabase.rpc('set_current_user_expo_push_token', {
+        p_token: null,
+      })
+      releaseError = result.error
+      if (!releaseError) break
+      console.warn('[AuthProvider] Failed to release push token before sign-out:', {
+        attempt,
+        code: releaseError.code,
+      })
+    }
+
+    if (releaseError && !options.allowReleaseFailure) {
+      throw new Error('Unable to securely sign out. Please check your connection and try again.')
+    }
+
+    const {
+      data: { user: userBeforeSignOut },
+    } = await supabase.auth.getUser()
+    if (userBeforeSignOut?.id !== expectedUserId) {
+      if (options.allowReleaseFailure && !userBeforeSignOut) return supabase.auth.signOut()
+      throw new Error('The authenticated account changed before sign-out completed.')
+    }
+
+    return supabase.auth.signOut()
+  })
 
 // Ensure user has a profile row and set timezone if not already set
 const ensureProfileExists = async (
@@ -327,7 +388,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let authTransitionId = 0
     let initialValidationTimer: ReturnType<typeof setTimeout> | null = null
 
-    const applyAuthState = (event: AuthChangeEvent, nextSession: Session | null) => {
+    const applyAuthState = (
+      event: AuthChangeEvent,
+      nextSession: Session | null,
+      transitionId: number,
+    ) => {
       if (!isMounted) return
 
       setSession(nextSession)
@@ -345,16 +410,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             identities.map((identity) => identity.provider),
           )
 
-          void releasePushTokenAndSignOut().then(() => {
-            if (!isMounted) return
-            Alert.alert(
-              t('auth.errors.accountExistsTitle'),
-              t('auth.errors.accountExistsMessage'),
-              [{ text: t('auth.actions.ok') }],
-            )
-            setSession(null)
-            setUser(null)
-          })
+          void releasePushTokenAndSignOut(nextSession.user.id)
+            .then(() => {
+              if (!isMounted || authTransitionId !== transitionId) return
+              Alert.alert(
+                t('auth.errors.accountExistsTitle'),
+                t('auth.errors.accountExistsMessage'),
+                [{ text: t('auth.actions.ok') }],
+              )
+              setSession(null)
+              setUser(null)
+            })
+            .catch((error) => {
+              console.error('[AuthProvider] Failed to securely sign out linked account:', error)
+            })
           return
         }
       }
@@ -367,13 +436,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           nextSession.user.id,
           nextSession.user.email!,
           async () => {
-            const { error } = await releasePushTokenAndSignOut()
-            if (!error && isMounted) {
+            const { error } = await releasePushTokenAndSignOut(nextSession.user.id)
+            if (!error && isMounted && authTransitionId === transitionId) {
               setSession(null)
               setUser(null)
             }
           },
-          () => setAccountReactivated(true),
+          () => {
+            if (isMounted && authTransitionId === transitionId) setAccountReactivated(true)
+          },
+          () => isMounted && authTransitionId === transitionId,
           locale,
           t,
         )
@@ -391,7 +463,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('[AuthProvider] Session:', nextSession ? 'Found' : 'None')
 
       if (event !== 'INITIAL_SESSION' || !nextSession?.user) {
-        applyAuthState(event, nextSession)
+        applyAuthState(event, nextSession, transitionId)
         return
       }
 
@@ -406,7 +478,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
           if (!isValid) {
             console.warn('[AuthProvider] Orphaned session detected - user no longer exists')
-            await releasePushTokenAndSignOut()
+            await releasePushTokenAndSignOut(nextSession.user.id, { allowReleaseFailure: true })
             if (!isMounted || authTransitionId !== transitionId) return
             setSession(null)
             setUser(null)
@@ -415,7 +487,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
 
           console.log('[AuthProvider] Session validated successfully')
-          applyAuthState(event, nextSession)
+          applyAuthState(event, nextSession, transitionId)
         })()
       }, 0)
     })
@@ -543,7 +615,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       addBreadcrumb('User signing out', 'auth')
-      const { error } = await releasePushTokenAndSignOut()
+      if (!user?.id) {
+        const { error } = await supabase.auth.signOut()
+        if (error) throw error
+        return
+      }
+
+      const { error } = await releasePushTokenAndSignOut(user.id)
       if (error) throw error
     } catch (error) {
       console.error('[AuthProvider] Sign out error:', error)

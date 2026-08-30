@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
 import { Platform, AppState, type AppStateStatus } from 'react-native'
 import { router } from 'expo-router'
 import Constants from 'expo-constants'
@@ -8,6 +8,7 @@ import { useNotificationStore } from '~/stores/notificationStore'
 import { supabase } from '~/lib/supabase'
 import { getAllowedNotificationRoute } from '~/lib/navigationSecurity'
 import { useAuth } from '~/hooks/useAuth'
+import { queuePushTokenOperation } from '~/lib/pushTokenCoordinator'
 
 // Check if notifications are supported (not in Expo Go on Android SDK 53+)
 const isExpoGo = Constants.appOwnership === 'expo'
@@ -39,33 +40,47 @@ function queueNotificationReset(): Promise<boolean> {
  * @param attempt Current attempt number (1-based)
  * @returns True if registration succeeded, false otherwise
  */
-async function registerPushTokenWithRetry(attempt: number = 1): Promise<boolean> {
+async function registerPushTokenWithRetry(
+  expectedUserId: string,
+  shouldContinue: () => boolean,
+  attempt: number = 1,
+): Promise<boolean> {
   try {
+    if (!shouldContinue()) return false
+
     const token = await NotificationService.getExpoPushToken()
-    if (!token) {
+    if (!token || !shouldContinue()) {
       console.log(`[Notifications] No push token available (attempt ${attempt})`)
       return false
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      console.log('[Notifications] No authenticated user')
-      return false
-    }
+    return await queuePushTokenOperation(async () => {
+      if (!shouldContinue()) return false
 
-    // The RPC atomically assigns this opaque device token to the current
-    // authenticated profile and removes it from any previous account owner.
-    const { error } = await supabase.rpc('set_current_user_expo_push_token', {
-      p_token: token,
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (user?.id !== expectedUserId || !shouldContinue()) {
+        console.log('[Notifications] Authenticated account changed before token registration')
+        return false
+      }
+
+      // The RPC atomically assigns this opaque device token to the current
+      // authenticated profile and removes it from any previous account owner.
+      const { error } = await supabase.rpc('set_current_user_expo_push_token', {
+        p_token: token,
+      })
+
+      if (error) throw error
+
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
+      if (currentUser?.id !== expectedUserId || !shouldContinue()) return false
+
+      console.log('[Notifications] Push token registered successfully')
+      return true
     })
-
-    if (error) throw error
-
-    console.log('[Notifications] Push token registered successfully')
-
-    return true
   } catch (error) {
     console.error(`[Notifications] Push token registration failed (attempt ${attempt}):`, error)
 
@@ -74,7 +89,7 @@ async function registerPushTokenWithRetry(attempt: number = 1): Promise<boolean>
       const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1)
       console.log(`[Notifications] Retrying in ${delay}ms...`)
       await new Promise((resolve) => setTimeout(resolve, delay))
-      return registerPushTokenWithRetry(attempt + 1)
+      return registerPushTokenWithRetry(expectedUserId, shouldContinue, attempt + 1)
     }
 
     console.error('[Notifications] Max retry attempts reached')
@@ -96,16 +111,6 @@ export function useNotificationObserver() {
   const hasCheckedPermission = useRef(false)
   const handledResponseKeys = useRef(new Set<string>())
   const handledResponseOrder = useRef<string[]>([])
-
-  // Memoized function to handle push token registration
-  const handleTokenRegistration = useCallback(async () => {
-    if (hasRegisteredToken.current) return
-
-    const success = await registerPushTokenWithRetry()
-    if (success) {
-      hasRegisteredToken.current = true
-    }
-  }, [])
 
   useEffect(() => {
     // Skip if notifications aren't supported
@@ -137,6 +142,13 @@ export function useNotificationObserver() {
     if (!userId) {
       void notificationReset
       return
+    }
+
+    const handleTokenRegistration = async () => {
+      if (hasRegisteredToken.current || cancelled) return
+
+      const success = await registerPushTokenWithRetry(userId, () => !cancelled)
+      if (success && !cancelled) hasRegisteredToken.current = true
     }
 
     // Initialize notification system on mount
@@ -179,7 +191,7 @@ export function useNotificationObserver() {
         hasRegisteredToken.current = false
         // Small delay for stability
         foregroundRegistrationTimeout = setTimeout(() => {
-          if (!cancelled) void registerPushTokenWithRetry()
+          if (!cancelled) void handleTokenRegistration()
         }, 500)
       }
     })
@@ -484,7 +496,7 @@ export function useNotificationObserver() {
       notificationListener.current?.remove()
       responseListener.current?.remove()
     }
-  }, [handleTokenRegistration, userId])
+  }, [userId])
 }
 
 /**
@@ -554,8 +566,10 @@ export function useNotifications() {
 
     // If permissions granted, trigger token registration
     if (granted) {
-      // Register token with retry
-      registerPushTokenWithRetry()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (user) void registerPushTokenWithRetry(user.id, () => true)
     }
 
     return granted

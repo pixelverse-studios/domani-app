@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import { useNotificationObserver } from '../useNotifications'
 import { NotificationService } from '~/lib/notifications'
 import { supabase } from '~/lib/supabase'
+import { resetPushTokenCoordinatorForTests } from '~/lib/pushTokenCoordinator'
 
 const mockUseAuth = jest.fn()
 
@@ -28,6 +29,7 @@ jest.mock('~/lib/notifications', () => ({
 }))
 
 const mockCancelAllReminders = NotificationService.cancelAllReminders as jest.Mock
+const mockGetExpoPushToken = NotificationService.getExpoPushToken as jest.Mock
 const mockGetLastNotificationResponse = Notifications.getLastNotificationResponseAsync as jest.Mock
 const mockClearLastNotificationResponse =
   Notifications.clearLastNotificationResponseAsync as jest.Mock
@@ -38,6 +40,7 @@ describe('useNotificationObserver account scoping', () => {
   beforeEach(() => {
     jest.useFakeTimers()
     jest.clearAllMocks()
+    resetPushTokenCoordinatorForTests()
     mockUseAuth.mockReturnValue({ user: { id: 'user-1' } })
     mockGetLastNotificationResponse.mockResolvedValue(null)
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
@@ -105,6 +108,48 @@ describe('useNotificationObserver account scoping', () => {
         p_token: 'ExponentPushToken[test-device]',
       }),
     )
+
+    unmount()
+  })
+
+  it('does not let a stale account registration suppress the next account claim', async () => {
+    let resolveFirstClaim!: (value: { data: null; error: null }) => void
+    mockRpc
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirstClaim = resolve
+          }),
+      )
+      .mockResolvedValueOnce({ data: null, error: null })
+    mockGetExpoPushToken.mockResolvedValue('ExponentPushToken[shared-device]')
+
+    const { rerender, unmount } = renderHook(() => useNotificationObserver())
+
+    await act(async () => {
+      jest.advanceTimersByTime(2000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(mockRpc).toHaveBeenCalledTimes(1))
+
+    mockUseAuth.mockReturnValue({ user: { id: 'user-2' } })
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-2' } }, error: null })
+    rerender(undefined)
+
+    resolveFirstClaim({ data: null, error: null })
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+      jest.advanceTimersByTime(2000)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    await waitFor(() => expect(mockRpc).toHaveBeenCalledTimes(2))
+    expect(mockRpc).toHaveBeenLastCalledWith('set_current_user_expo_push_token', {
+      p_token: 'ExponentPushToken[shared-device]',
+    })
 
     unmount()
   })
