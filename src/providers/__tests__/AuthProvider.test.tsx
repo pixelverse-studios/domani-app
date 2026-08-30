@@ -10,6 +10,7 @@ import {
   queuePushTokenOperation,
   resetPushTokenCoordinatorForTests,
 } from '~/lib/pushTokenCoordinator'
+import { resetAccountTransitionSecurityForTests } from '~/lib/accountTransitionSecurity'
 
 const mockOnAuthStateChange = supabase.auth.onAuthStateChange as jest.Mock
 const mockGetUser = supabase.auth.getUser as jest.Mock
@@ -42,6 +43,7 @@ describe('AuthProvider', () => {
     jest.clearAllMocks()
     alertSpy = jest.spyOn(Alert, 'alert').mockImplementation()
     resetPushTokenCoordinatorForTests()
+    resetAccountTransitionSecurityForTests()
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
     mockGetSession.mockResolvedValue({ data: { session: null }, error: null })
     mockRpc.mockResolvedValue({ data: null, error: null })

@@ -5,6 +5,7 @@ import { useNotificationObserver } from '../useNotifications'
 import { NotificationService } from '~/lib/notifications'
 import { supabase } from '~/lib/supabase'
 import { resetPushTokenCoordinatorForTests } from '~/lib/pushTokenCoordinator'
+import { resetAccountTransitionSecurityForTests } from '~/lib/accountTransitionSecurity'
 
 const mockUseAuth = jest.fn()
 
@@ -42,6 +43,7 @@ describe('useNotificationObserver account scoping', () => {
     jest.useFakeTimers()
     jest.clearAllMocks()
     resetPushTokenCoordinatorForTests()
+    resetAccountTransitionSecurityForTests()
     mockUseAuth.mockReturnValue({ user: { id: 'user-1' } })
     mockGetLastNotificationResponse.mockResolvedValue(null)
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })

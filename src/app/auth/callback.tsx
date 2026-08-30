@@ -5,6 +5,7 @@ import * as Linking from 'expo-linking'
 
 import { Text } from '~/components/ui'
 import { completeOAuthCallback, waitForAuthSession } from '~/lib/authSession'
+import { securelyReplaceSession } from '~/lib/accountTransitionSecurity'
 import { supabase } from '~/lib/supabase'
 
 export default function AuthCallbackScreen() {
@@ -17,7 +18,9 @@ export default function AuthCallbackScreen() {
     hasCompletedRef.current = true
 
     try {
-      await completeOAuthCallback(callbackUrl, (code) => supabase.auth.exchangeCodeForSession(code))
+      await completeOAuthCallback(callbackUrl, (code) =>
+        securelyReplaceSession(() => supabase.auth.exchangeCodeForSession(code)),
+      )
       router.replace('/')
     } catch {
       const session = await waitForAuthSession(() => supabase.auth.getSession(), {

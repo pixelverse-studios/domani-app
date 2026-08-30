@@ -12,7 +12,7 @@ import { useTranslation } from '~/hooks/useTranslation'
 import { formatLocalizedDate } from '~/i18n/date'
 import type { AppLocale } from '~/i18n'
 import type { TranslationKey, TranslationValues } from '~/i18n/types'
-import { queuePushTokenOperation } from '~/lib/pushTokenCoordinator'
+import { securelyReplaceSession, securelySignOut } from '~/lib/accountTransitionSecurity'
 
 // Configure web browser for OAuth
 WebBrowser.maybeCompleteAuthSession()
@@ -210,78 +210,10 @@ const validateUserExists = async (userId: string): Promise<boolean> => {
   }
 }
 
-const PUSH_TOKEN_RELEASE_ATTEMPTS = 3
-
 const releasePushTokenAndSignOut = async (
   expectedUserId: string,
   options: { allowReleaseFailure?: boolean } = {},
-) =>
-  queuePushTokenOperation(async () => {
-    const {
-      data: { user: currentUser },
-      error: currentUserError,
-    } = await supabase.auth.getUser()
-
-    if (currentUserError) {
-      const {
-        data: { session: localSession },
-      } = await supabase.auth.getSession()
-      if (localSession?.user.id && localSession.user.id !== expectedUserId) {
-        if (options.allowReleaseFailure) return false
-        throw new Error('The authenticated account changed before sign-out completed.')
-      }
-      if (!options.allowReleaseFailure) {
-        throw new Error('Unable to verify the authenticated account before sign-out.')
-      }
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-      return true
-    }
-
-    if (currentUser?.id !== expectedUserId) {
-      if (options.allowReleaseFailure && currentUser) return false
-      if (!options.allowReleaseFailure) {
-        throw new Error('The authenticated account changed before sign-out completed.')
-      }
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-      return true
-    }
-
-    let releaseError: { code?: string; message?: string } | null = null
-    for (let attempt = 1; attempt <= PUSH_TOKEN_RELEASE_ATTEMPTS; attempt += 1) {
-      const result = await supabase.rpc('set_current_user_expo_push_token', {
-        p_token: null,
-      })
-      releaseError = result.error
-      if (!releaseError) break
-      console.warn('[AuthProvider] Failed to release push token before sign-out:', {
-        attempt,
-        code: releaseError.code,
-      })
-    }
-
-    if (releaseError && !options.allowReleaseFailure) {
-      throw new Error('Unable to securely sign out. Please check your connection and try again.')
-    }
-
-    const {
-      data: { user: userBeforeSignOut },
-    } = await supabase.auth.getUser()
-    if (userBeforeSignOut?.id !== expectedUserId) {
-      if (options.allowReleaseFailure && userBeforeSignOut) return false
-      if (options.allowReleaseFailure && !userBeforeSignOut) {
-        const { error } = await supabase.auth.signOut()
-        if (error) throw error
-        return true
-      }
-      throw new Error('The authenticated account changed before sign-out completed.')
-    }
-
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
-    return true
-  })
+) => securelySignOut(expectedUserId, options)
 
 // Ensure user has a profile row and set timezone if not already set
 const ensureProfileExists = async (
@@ -572,7 +504,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (result.type !== 'success') return false
 
         await completeOAuthCallback(result.url, (code) =>
-          supabase.auth.exchangeCodeForSession(code),
+          securelyReplaceSession(() => supabase.auth.exchangeCodeForSession(code)),
         )
         addBreadcrumb('Google sign in completed', 'auth', { provider: 'google' })
         return true
@@ -606,10 +538,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       // Sign in to Supabase with the Apple identity token
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'apple',
-        token: credential.identityToken,
-      })
+      const { data, error } = await securelyReplaceSession(() =>
+        supabase.auth.signInWithIdToken({
+          provider: 'apple',
+          token: credential.identityToken!,
+        }),
+      )
 
       if (error) {
         console.error('[AuthProvider] Supabase Apple auth error:', error)
@@ -660,13 +594,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       addBreadcrumb('User signing out', 'auth')
-      if (!user?.id) {
-        const { error } = await supabase.auth.signOut()
-        if (error) throw error
-        return
-      }
-
-      await releasePushTokenAndSignOut(user.id)
+      await securelySignOut(user?.id ?? null)
     } catch (error) {
       console.error('[AuthProvider] Sign out error:', error)
       throw error

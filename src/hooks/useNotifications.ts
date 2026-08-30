@@ -9,6 +9,10 @@ import { supabase } from '~/lib/supabase'
 import { getAllowedNotificationRoute } from '~/lib/navigationSecurity'
 import { useAuth } from '~/hooks/useAuth'
 import { queuePushTokenOperation } from '~/lib/pushTokenCoordinator'
+import {
+  canRegisterPushTokenForUser,
+  queueAccountNotificationReset,
+} from '~/lib/accountTransitionSecurity'
 
 // Check if notifications are supported (not in Expo Go on Android SDK 53+)
 const isExpoGo = Constants.appOwnership === 'expo'
@@ -23,19 +27,6 @@ const INITIAL_RETRY_DELAY_MS = 1000
 const MAX_HANDLED_NOTIFICATION_RESPONSES = 100
 const INITIAL_NOTIFICATION_RESET_RETRY_DELAY_MS = 1000
 const MAX_NOTIFICATION_RESET_RETRY_DELAY_MS = 30_000
-
-let notificationResetQueue: Promise<void> = Promise.resolve()
-
-function queueNotificationReset(): Promise<boolean> {
-  const resetAttempt = notificationResetQueue.then(() => NotificationService.cancelAllReminders())
-  const settledReset = resetAttempt.catch((error) => {
-    console.warn('[Notifications] Failed to reset account notifications:', error)
-    return false
-  })
-
-  notificationResetQueue = settledReset.then(() => undefined)
-  return settledReset
-}
 
 async function reconcilePushTokenOwnership(token: string): Promise<void> {
   for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt += 1) {
@@ -189,7 +180,7 @@ export function useNotificationObserver() {
       let retryDelayMs = INITIAL_NOTIFICATION_RESET_RETRY_DELAY_MS
 
       while (!cancelled) {
-        if (await queueNotificationReset()) return true
+        if (await queueAccountNotificationReset()) return true
         console.warn('[Notifications] Account notification reset was not verified; retrying')
         if (!(await waitForResetRetry(retryDelayMs))) return false
         retryDelayMs = Math.min(retryDelayMs * 2, MAX_NOTIFICATION_RESET_RETRY_DELAY_MS)
@@ -217,7 +208,10 @@ export function useNotificationObserver() {
     const handleTokenRegistration = async () => {
       if (hasRegisteredToken.current || cancelled) return
 
-      const success = await registerPushTokenWithRetry(userId, () => !cancelled)
+      const success = await registerPushTokenWithRetry(
+        userId,
+        () => !cancelled && canRegisterPushTokenForUser(userId),
+      )
       if (success && !cancelled) hasRegisteredToken.current = true
     }
 
