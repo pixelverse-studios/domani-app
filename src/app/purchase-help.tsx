@@ -29,7 +29,6 @@ import { usePurchaseRefundState } from '~/hooks/usePurchaseRefundState'
 import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useSubscription } from '~/hooks/useSubscription'
 import { useTranslation } from '~/hooks/useTranslation'
-import { beginRefundRequestForActiveEntitlement } from '~/lib/revenuecat'
 import { addBreadcrumb, captureException, captureMessage } from '~/lib/sentry'
 import { isAllowedExternalStoreUrl } from '~/lib/navigationSecurity'
 
@@ -191,7 +190,7 @@ export default function PurchaseHelpScreen() {
   const handleRequestRefund = async () => {
     try {
       setIsRequestingRefund(true)
-      const status = await beginRefundRequestForActiveEntitlement()
+      const status = await subscription.requestRefundForActiveEntitlement()
 
       if (status === REFUND_REQUEST_STATUS.SUCCESS) {
         try {

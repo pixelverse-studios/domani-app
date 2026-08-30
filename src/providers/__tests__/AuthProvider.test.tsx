@@ -6,10 +6,14 @@ import { act, render } from '~/test/test-utils'
 import { LocalizationProvider } from '~/providers/LocalizationProvider'
 import { AuthContext, AuthProvider } from '../AuthProvider'
 import { supabase } from '~/lib/supabase'
-import { resetPushTokenCoordinatorForTests } from '~/lib/pushTokenCoordinator'
+import {
+  queuePushTokenOperation,
+  resetPushTokenCoordinatorForTests,
+} from '~/lib/pushTokenCoordinator'
 
 const mockOnAuthStateChange = supabase.auth.onAuthStateChange as jest.Mock
 const mockGetUser = supabase.auth.getUser as jest.Mock
+const mockGetSession = supabase.auth.getSession as jest.Mock
 const mockFrom = supabase.from as unknown as jest.Mock
 const mockRpc = supabase.rpc as unknown as jest.Mock
 const mockSignOut = supabase.auth.signOut as jest.Mock
@@ -20,11 +24,13 @@ function createProfileQuery(result: Promise<unknown> | unknown) {
     eq: jest.Mock
     update: jest.Mock
     single: jest.Mock
+    maybeSingle: jest.Mock
   }
   query.select = jest.fn(() => query)
   query.eq = jest.fn(() => query)
   query.update = jest.fn(() => query)
   query.single = jest.fn(() => Promise.resolve(result))
+  query.maybeSingle = jest.fn(() => Promise.resolve(result))
   return query
 }
 
@@ -37,6 +43,7 @@ describe('AuthProvider', () => {
     alertSpy = jest.spyOn(Alert, 'alert').mockImplementation()
     resetPushTokenCoordinatorForTests()
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    mockGetSession.mockResolvedValue({ data: { session: null }, error: null })
     mockRpc.mockResolvedValue({ data: null, error: null })
     mockSignOut.mockResolvedValue({ error: null })
   })
@@ -209,5 +216,135 @@ describe('AuthProvider', () => {
     expect(mockRpc).toHaveBeenCalledTimes(3)
     expect(mockSignOut).not.toHaveBeenCalled()
     expect(authContext!.user?.id).toBe('user-1')
+  })
+
+  it('does not sign out a replacement account when orphan cleanup was already queued', async () => {
+    let authListener:
+      | ((event: AuthChangeEvent, session: Session | null) => void | Promise<void>)
+      | null = null
+    let releaseQueue!: () => void
+    mockOnAuthStateChange.mockImplementation((listener) => {
+      authListener = listener
+      return { data: { subscription: { unsubscribe: jest.fn() } } }
+    })
+
+    const buildSession = (id: string) =>
+      ({
+        user: {
+          id,
+          email: `${id}@example.com`,
+          identities: [],
+          user_metadata: {},
+          app_metadata: {},
+        },
+      }) as unknown as Session
+    const userTwoSession = buildSession('user-2')
+
+    mockFrom
+      .mockReturnValueOnce(
+        createProfileQuery({ data: null, error: { code: 'NETWORK_ERROR', message: 'offline' } }),
+      )
+      .mockReturnValueOnce(createProfileQuery({ data: { deleted_at: null }, error: null }))
+      .mockReturnValueOnce(
+        createProfileQuery({
+          data: {
+            id: 'user-2',
+            timezone: 'America/New_York',
+            created_at: '2025-01-01T00:00:00.000Z',
+          },
+          error: null,
+        }),
+      )
+
+    render(
+      <LocalizationProvider>
+        <AuthProvider>
+          <></>
+        </AuthProvider>
+      </LocalizationProvider>,
+    )
+
+    void queuePushTokenOperation(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseQueue = resolve
+        }),
+    )
+
+    await act(async () => {
+      authListener?.('INITIAL_SESSION', buildSession('user-1'))
+      jest.runOnlyPendingTimers()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    mockGetUser.mockResolvedValue({ data: { user: userTwoSession.user }, error: null })
+    await act(async () => {
+      authListener?.('SIGNED_IN', userTwoSession)
+      releaseQueue()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockSignOut).not.toHaveBeenCalled()
+  })
+
+  it('abandons stale profile recovery after a direct account switch', async () => {
+    let authListener:
+      | ((event: AuthChangeEvent, session: Session | null) => void | Promise<void>)
+      | null = null
+    let resolveFirstProfile!: (value: unknown) => void
+    mockOnAuthStateChange.mockImplementation((listener) => {
+      authListener = listener
+      return { data: { subscription: { unsubscribe: jest.fn() } } }
+    })
+
+    const firstProfileResult = new Promise((resolve) => {
+      resolveFirstProfile = resolve
+    })
+    const existingSecondProfile = {
+      data: {
+        id: 'user-2',
+        timezone: 'America/New_York',
+        created_at: '2025-01-01T00:00:00.000Z',
+      },
+      error: null,
+    }
+    mockFrom
+      .mockReturnValueOnce(createProfileQuery({ data: { deleted_at: null }, error: null }))
+      .mockReturnValueOnce(createProfileQuery(firstProfileResult))
+      .mockReturnValueOnce(createProfileQuery({ data: { deleted_at: null }, error: null }))
+      .mockReturnValueOnce(createProfileQuery(existingSecondProfile))
+
+    const buildSession = (id: string) =>
+      ({
+        user: {
+          id,
+          email: `${id}@example.com`,
+          identities: [],
+          user_metadata: {},
+          app_metadata: {},
+        },
+      }) as unknown as Session
+
+    render(
+      <LocalizationProvider>
+        <AuthProvider>
+          <></>
+        </AuthProvider>
+      </LocalizationProvider>,
+    )
+
+    await act(async () => {
+      authListener?.('SIGNED_IN', buildSession('user-1'))
+      await Promise.resolve()
+      authListener?.('SIGNED_IN', buildSession('user-2'))
+      resolveFirstProfile({ data: null, error: { code: 'PGRST116', message: 'no rows' } })
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockRpc).not.toHaveBeenCalledWith('ensure_current_user_profile')
   })
 })

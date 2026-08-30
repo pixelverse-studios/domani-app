@@ -28,6 +28,7 @@ import {
   syncPurchasesAndRefreshCustomerInfo,
   presentCodeRedemptionSheet,
   setRevenueCatPromoRedemptionAttributes,
+  beginRefundRequestForActiveEntitlement,
   ENTITLEMENT_ID,
 } from '~/lib/revenuecat'
 import {
@@ -537,6 +538,39 @@ export function useSubscription() {
   const canRequestAndroidRefund =
     Platform.OS === 'android' && activeRevenueCatEntitlement?.store === 'PLAY_STORE'
   const canRedeemPromoCode = Platform.OS === 'ios' || Platform.OS === 'android'
+
+  const runCurrentUserRevenueCatOperation = useCallback(
+    async <T>(operation: () => Promise<T>): Promise<T> => {
+      if (!user?.id || shouldBypassRevenueCat || !isInitialized) {
+        throw new RevenueCatAccountChangedError()
+      }
+
+      const expectedUserId = user.id
+      await assertAuthenticatedUser(expectedUserId)
+      const result = await runRevenueCatUserOperation(expectedUserId, operation)
+      await assertAuthenticatedUser(expectedUserId)
+      return result
+    },
+    [isInitialized, shouldBypassRevenueCat, user?.id],
+  )
+
+  const loadOffering = useCallback(
+    (identifier?: string) => runCurrentUserRevenueCatOperation(() => getOfferings(identifier)),
+    [runCurrentUserRevenueCatOperation],
+  )
+
+  const syncPromoRedemptionAttributes = useCallback(
+    (attemptContext: PurchaseAccessSyncAttemptContext | null) =>
+      runCurrentUserRevenueCatOperation(() =>
+        setRevenueCatPromoRedemptionAttributes(attemptContext),
+      ),
+    [runCurrentUserRevenueCatOperation],
+  )
+
+  const requestRefundForActiveEntitlement = useCallback(
+    () => runCurrentUserRevenueCatOperation(() => beginRefundRequestForActiveEntitlement()),
+    [runCurrentUserRevenueCatOperation],
+  )
 
   const markPromoCodeValidated = useCallback((context?: PurchaseAccessSyncAttemptContext) => {
     const nextContext = context ?? null
@@ -1380,6 +1414,9 @@ export function useSubscription() {
     canRequestIosRefund,
     canRequestAndroidRefund,
     canRedeemPromoCode,
+    loadOffering,
+    syncPromoRedemptionAttributes,
+    requestRefundForActiveEntitlement,
     refetch: refetchCustomerInfo,
   }
 }

@@ -9,6 +9,7 @@ jest.mock('~/lib/revenuecat', () => ({
   purchasePackage: jest.fn(),
   restorePurchases: jest.fn(),
   setRevenueCatPromoRedemptionAttributes: jest.fn(),
+  beginRefundRequestForActiveEntitlement: jest.fn(),
   syncPurchasesAndRefreshCustomerInfo: jest.fn(),
   syncRevenueCatSubscriberAttributes: jest.fn(),
 }))
@@ -37,6 +38,7 @@ import {
   purchasePackage,
   restorePurchases,
   setRevenueCatPromoRedemptionAttributes,
+  beginRefundRequestForActiveEntitlement,
   syncPurchasesAndRefreshCustomerInfo,
   syncRevenueCatSubscriberAttributes,
 } from '~/lib/revenuecat'
@@ -68,6 +70,8 @@ const mockPurchasePackage = purchasePackage as jest.Mock
 const mockRestorePurchases = restorePurchases as jest.Mock
 const mockSetRevenueCatPromoRedemptionAttributes =
   setRevenueCatPromoRedemptionAttributes as jest.Mock
+const mockBeginRefundRequestForActiveEntitlement =
+  beginRefundRequestForActiveEntitlement as jest.Mock
 const mockSyncPurchasesAndRefreshCustomerInfo = syncPurchasesAndRefreshCustomerInfo as jest.Mock
 const mockSyncRevenueCatSubscriberAttributes = syncRevenueCatSubscriberAttributes as jest.Mock
 const mockGetCustomerInfo = Purchases.getCustomerInfo as jest.Mock
@@ -173,6 +177,7 @@ function setupSubscriptionHookMocks() {
   mockPurchasePackage.mockResolvedValue(null)
   mockRestorePurchases.mockResolvedValue(null)
   mockSetRevenueCatPromoRedemptionAttributes.mockResolvedValue(undefined)
+  mockBeginRefundRequestForActiveEntitlement.mockResolvedValue('SUCCESS')
   mockSyncRevenueCatSubscriberAttributes.mockResolvedValue(undefined)
   mockSupabaseFrom.mockImplementation(() => createSupabaseQueryMock())
   mockSupabaseGetUser.mockImplementation(() =>
@@ -448,6 +453,59 @@ describe('purchase access sync', () => {
 
     expect(restoreError).toBeInstanceOf(RevenueCatAccountChangedError)
     expect(mockSupabaseFunctionsInvoke).not.toHaveBeenCalled()
+
+    unmount()
+  })
+
+  it('serializes an in-flight refund request against account transitions', async () => {
+    let resolveRefund: ((status: string) => void) | null = null
+    mockBeginRefundRequestForActiveEntitlement.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRefund = resolve
+        }),
+    )
+
+    const { result, rerender, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    let refundError: unknown
+    const refundPromise = result.current.requestRefundForActiveEntitlement().catch((error) => {
+      refundError = error
+    })
+    await waitFor(() => expect(mockBeginRefundRequestForActiveEntitlement).toHaveBeenCalledTimes(1))
+
+    mockUseAuth.mockReturnValue({ user: { id: 'user-2', email: 'two@example.com' } })
+    mockUseProfile.mockReturnValue({
+      isLoading: false,
+      profile: {
+        id: 'user-2',
+        tier: 'none',
+        purchased_at: null,
+        refunded_at: null,
+        trial_started_at: null,
+        trial_ends_at: null,
+        created_at: '2026-08-29T12:00:00.000Z',
+        email: 'two@example.com',
+        expo_push_token: null,
+        full_name: 'Second User',
+        signup_cohort: null,
+        signup_method: null,
+      },
+    })
+    mockSupabaseGetUser.mockResolvedValue({
+      data: { user: { id: 'user-2' } },
+      error: null,
+    })
+    rerender(undefined)
+
+    await act(async () => {
+      resolveRefund?.('SUCCESS')
+      await refundPromise
+    })
+
+    expect(refundError).toBeInstanceOf(RevenueCatAccountChangedError)
 
     unmount()
   })

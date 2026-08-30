@@ -4,7 +4,6 @@ import { Linking, Platform } from 'react-native'
 import { fireEvent, renderWithProviders, screen, waitFor } from '~/test/test-utils'
 import RedeemCodeScreen from '../redeem-code'
 import { supabase } from '~/lib/supabase'
-import { getOfferings, setRevenueCatPromoRedemptionAttributes } from '~/lib/revenuecat'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { useSubscription } from '~/hooks/useSubscription'
 
@@ -16,6 +15,8 @@ const mockRestore = jest.fn()
 const mockPurchase = jest.fn()
 const mockMarkPromoCodeValidated = jest.fn()
 const mockMarkExternalPurchaseAttempted = jest.fn()
+const mockLoadOffering = jest.fn()
+const mockSyncPromoRedemptionAttributes = jest.fn()
 
 jest.mock('expo-router', () => ({
   useRouter: jest.fn(() => ({
@@ -43,6 +44,8 @@ jest.mock('~/hooks/useSubscription', () => ({
     },
     markExternalPurchaseAttempted: mockMarkExternalPurchaseAttempted,
     markPromoCodeValidated: mockMarkPromoCodeValidated,
+    loadOffering: mockLoadOffering,
+    syncPromoRedemptionAttributes: mockSyncPromoRedemptionAttributes,
     purchase: mockPurchase,
     redeemPromoCode: mockRedeemPromoCode,
     restore: mockRestore,
@@ -56,14 +59,9 @@ jest.mock('~/lib/revenuecat', () => ({
     FRIENDS_FAMILY: 'friends_family',
     GENERAL: 'general',
   },
-  getOfferings: jest.fn(),
-  setRevenueCatPromoRedemptionAttributes: jest.fn(() => Promise.resolve()),
 }))
 
 const mockSupabaseRpc = supabase.rpc as unknown as jest.Mock
-const mockGetOfferings = getOfferings as jest.Mock
-const mockSetRevenueCatPromoRedemptionAttributes =
-  setRevenueCatPromoRedemptionAttributes as jest.Mock
 const mockUseAnalytics = useAnalytics as jest.Mock
 const mockUseSubscription = useSubscription as jest.Mock
 const mockTrack = jest.fn()
@@ -83,6 +81,8 @@ function buildMockSubscription(overrides = {}) {
     offeringIdentifier: 'general',
     markExternalPurchaseAttempted: mockMarkExternalPurchaseAttempted,
     markPromoCodeValidated: mockMarkPromoCodeValidated,
+    loadOffering: mockLoadOffering,
+    syncPromoRedemptionAttributes: mockSyncPromoRedemptionAttributes,
     purchase: mockPurchase,
     redeemPromoCode: mockRedeemPromoCode,
     restore: mockRestore,
@@ -233,8 +233,8 @@ describe('RedeemCodeScreen iOS promo recovery', () => {
     })
     mockRestore.mockResolvedValue(null)
     mockPurchase.mockResolvedValue(null)
-    mockGetOfferings.mockResolvedValue(null)
-    mockSetRevenueCatPromoRedemptionAttributes.mockResolvedValue(undefined)
+    mockLoadOffering.mockResolvedValue(null)
+    mockSyncPromoRedemptionAttributes.mockResolvedValue(undefined)
     jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined)
     mockUseSubscription.mockImplementation(() => buildMockSubscription())
   })
@@ -259,11 +259,11 @@ describe('RedeemCodeScreen iOS promo recovery', () => {
   })
 
   it('does not depend on RevenueCat promo attributes for free lifetime codes', async () => {
-    mockSetRevenueCatPromoRedemptionAttributes.mockRejectedValue(new Error('attribute sync failed'))
+    mockSyncPromoRedemptionAttributes.mockRejectedValue(new Error('attribute sync failed'))
 
     await validateAndFailFreeGrant()
 
-    expect(mockSetRevenueCatPromoRedemptionAttributes).not.toHaveBeenCalled()
+    expect(mockSyncPromoRedemptionAttributes).not.toHaveBeenCalled()
     expect(Linking.openURL).not.toHaveBeenCalled()
   })
 })
@@ -286,7 +286,7 @@ describe('RedeemCodeScreen Android promo routing', () => {
     })
     mockRestore.mockResolvedValue(null)
     mockPurchase.mockResolvedValue({ entitlements: { active: {} } })
-    mockSetRevenueCatPromoRedemptionAttributes.mockResolvedValue(undefined)
+    mockSyncPromoRedemptionAttributes.mockResolvedValue(undefined)
     jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined)
     mockUseSubscription.mockImplementation(() => buildMockSubscription())
   })
@@ -335,7 +335,7 @@ describe('RedeemCodeScreen Android promo routing', () => {
         redemption_attempt_id: 'attempt-android-free',
       }),
     )
-    expect(mockGetOfferings).not.toHaveBeenCalledWith('android_promos')
+    expect(mockLoadOffering).not.toHaveBeenCalledWith('android_promos')
     expect(mockPurchase).not.toHaveBeenCalled()
     expect(Linking.openURL).not.toHaveBeenCalled()
   })
@@ -369,7 +369,7 @@ describe('RedeemCodeScreen Android promo routing', () => {
       packageType: 'LIFETIME',
       product: { identifier: 'domani_lifetime_discount_50', priceString: '$17.49' },
     }
-    mockGetOfferings.mockResolvedValue({
+    mockLoadOffering.mockResolvedValue({
       availablePackages: [promoPackage],
     })
 
@@ -400,7 +400,7 @@ describe('RedeemCodeScreen Android promo routing', () => {
     fireEvent.press(screen.getByText('Continue to Purchase - $17.49'))
 
     await waitFor(() => {
-      expect(mockGetOfferings).toHaveBeenCalledWith('android_promos')
+      expect(mockLoadOffering).toHaveBeenCalledWith('android_promos')
       expect(mockPurchase).toHaveBeenCalledWith({
         pkg: promoPackage,
         attemptContext: expect.objectContaining({
@@ -459,7 +459,7 @@ describe('RedeemCodeScreen Android promo routing', () => {
         },
       }),
     )
-    mockGetOfferings.mockResolvedValue({
+    mockLoadOffering.mockResolvedValue({
       availablePackages: [
         {
           packageType: 'LIFETIME',
@@ -479,11 +479,11 @@ describe('RedeemCodeScreen Android promo routing', () => {
     expect(screen.getByText('Current price')).toBeTruthy()
     expect(screen.getByText('Promo price')).toBeTruthy()
     expect(screen.getAllByText('$17.49').length).toBeGreaterThan(0)
-    expect(mockGetOfferings).toHaveBeenCalledWith('general')
+    expect(mockLoadOffering).toHaveBeenCalledWith('general')
   })
 
   it('does not show the Play Store fallback when a free Android grant is not confirmed', async () => {
-    mockGetOfferings.mockResolvedValue({
+    mockLoadOffering.mockResolvedValue({
       availablePackages: [
         {
           identifier: 'other_lifetime',
@@ -510,7 +510,7 @@ describe('RedeemCodeScreen Android promo routing', () => {
 
   it('shows the Play Store fallback when a discounted Android promo package is unavailable', async () => {
     mockValidAndroidDiscountCode()
-    mockGetOfferings.mockResolvedValue({
+    mockLoadOffering.mockResolvedValue({
       availablePackages: [
         {
           identifier: 'other_lifetime',
@@ -544,7 +544,7 @@ describe('RedeemCodeScreen Android promo routing', () => {
 
   it('shows the Play Store fallback when a discounted Android promo purchase fails', async () => {
     mockValidAndroidDiscountCode()
-    mockGetOfferings.mockResolvedValue({
+    mockLoadOffering.mockResolvedValue({
       availablePackages: [
         {
           identifier: 'discount_50_lifetime',

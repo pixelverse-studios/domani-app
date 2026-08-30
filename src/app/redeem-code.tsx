@@ -19,7 +19,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Text } from '~/components/ui'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { addBreadcrumb } from '~/lib/sentry'
-import { getOfferings, OFFERINGS, setRevenueCatPromoRedemptionAttributes } from '~/lib/revenuecat'
+import { OFFERINGS } from '~/lib/revenuecat'
 import { findPromoPackage } from '~/lib/promoPackages'
 import { buildPromoAnalyticsProps, recordPromoRedemptionAttemptEvent } from '~/lib/promoAnalytics'
 import { useAppTheme } from '~/hooks/useAppTheme'
@@ -102,7 +102,7 @@ export default function RedeemCodeScreen() {
     !!validOffer && subscription.offeringIdentifier !== OFFERINGS.GENERAL
   const { data: generalOffering } = useQuery({
     queryKey: ['offerings', OFFERINGS.GENERAL],
-    queryFn: () => getOfferings(OFFERINGS.GENERAL),
+    queryFn: () => subscription.loadOffering(OFFERINGS.GENERAL),
     enabled: shouldLoadGeneralOfferingPrice,
     retry: false,
   })
@@ -268,7 +268,7 @@ export default function RedeemCodeScreen() {
       platform: Platform.OS,
     })
     try {
-      await setRevenueCatPromoRedemptionAttributes(offerContext)
+      await subscription.syncPromoRedemptionAttributes(offerContext)
     } catch {
       // The fallback is the recovery path; do not block it on support metadata.
     }
@@ -333,7 +333,9 @@ export default function RedeemCodeScreen() {
   }
 
   const purchasePromoPackage = async (offer: ValidPromoCodeResult) => {
-    const offering = await getOfferings(offer.routing.revenueCatOfferingId ?? undefined)
+    const offering = await subscription.loadOffering(
+      offer.routing.revenueCatOfferingId ?? undefined,
+    )
     const promoPackage = findPromoPackage(offering?.availablePackages, offer)
 
     if (!promoPackage) {

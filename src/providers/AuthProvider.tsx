@@ -222,11 +222,30 @@ const releasePushTokenAndSignOut = async (
       error: currentUserError,
     } = await supabase.auth.getUser()
 
-    if (currentUserError || currentUser?.id !== expectedUserId) {
+    if (currentUserError) {
+      const {
+        data: { session: localSession },
+      } = await supabase.auth.getSession()
+      if (localSession?.user.id && localSession.user.id !== expectedUserId) {
+        if (options.allowReleaseFailure) return false
+        throw new Error('The authenticated account changed before sign-out completed.')
+      }
+      if (!options.allowReleaseFailure) {
+        throw new Error('Unable to verify the authenticated account before sign-out.')
+      }
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      return true
+    }
+
+    if (currentUser?.id !== expectedUserId) {
+      if (options.allowReleaseFailure && currentUser) return false
       if (!options.allowReleaseFailure) {
         throw new Error('The authenticated account changed before sign-out completed.')
       }
-      return supabase.auth.signOut()
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      return true
     }
 
     let releaseError: { code?: string; message?: string } | null = null
@@ -250,11 +269,18 @@ const releasePushTokenAndSignOut = async (
       data: { user: userBeforeSignOut },
     } = await supabase.auth.getUser()
     if (userBeforeSignOut?.id !== expectedUserId) {
-      if (options.allowReleaseFailure && !userBeforeSignOut) return supabase.auth.signOut()
+      if (options.allowReleaseFailure && userBeforeSignOut) return false
+      if (options.allowReleaseFailure && !userBeforeSignOut) {
+        const { error } = await supabase.auth.signOut()
+        if (error) throw error
+        return true
+      }
       throw new Error('The authenticated account changed before sign-out completed.')
     }
 
-    return supabase.auth.signOut()
+    const { error } = await supabase.auth.signOut()
+    if (error) throw error
+    return true
   })
 
 // Ensure user has a profile row and set timezone if not already set
@@ -263,8 +289,10 @@ const ensureProfileExists = async (
   email: string,
   fullName?: string | null,
   signupMethod?: string,
+  isCurrentTransition: () => boolean = () => true,
 ) => {
   try {
+    if (!isCurrentTransition()) return
     console.log('[AuthProvider] Checking profile for user:', userId)
     const { data: profile, error } = await supabase
       .from('profiles')
@@ -272,12 +300,16 @@ const ensureProfileExists = async (
       .eq('id', userId)
       .single()
 
+    if (!isCurrentTransition()) return
+
     if (error) {
       if (error.code === 'PGRST116') {
         console.log('[AuthProvider] Profile not found, recovering for user:', userId)
         const { data: recoveredProfile, error: recoverError } = await supabase.rpc(
           'ensure_current_user_profile',
         )
+
+        if (!isCurrentTransition()) return
 
         if (recoverError) {
           console.warn(
@@ -293,7 +325,7 @@ const ensureProfileExists = async (
         const createdAt = recoveredProfile?.created_at
           ? new Date(recoveredProfile.created_at).getTime()
           : 0
-        if (createdAt && Date.now() - createdAt < 60_000) {
+        if (createdAt && Date.now() - createdAt < 60_000 && isCurrentTransition()) {
           sendTeamNotification({
             type: 'new_signup',
             email,
@@ -303,7 +335,10 @@ const ensureProfileExists = async (
           })
         }
 
-        if (!recoveredProfile?.timezone || recoveredProfile.timezone === 'UTC') {
+        if (
+          (!recoveredProfile?.timezone || recoveredProfile.timezone === 'UTC') &&
+          isCurrentTransition()
+        ) {
           const deviceTimezone = getDeviceTimezone()
           const { error: updateError } = await supabase
             .from('profiles')
@@ -324,7 +359,7 @@ const ensureProfileExists = async (
       // Check if this is a brand new signup (created within the last 60 seconds)
       const createdAt = new Date(profile.created_at).getTime()
       const isNewSignup = Date.now() - createdAt < 60_000
-      if (isNewSignup) {
+      if (isNewSignup && isCurrentTransition()) {
         sendTeamNotification({
           type: 'new_signup',
           email,
@@ -336,7 +371,7 @@ const ensureProfileExists = async (
 
       // Profile exists - check if timezone needs to be set
       // Treat null, undefined, or 'UTC' as "not set" since UTC is the old default
-      if (!profile.timezone || profile.timezone === 'UTC') {
+      if ((!profile.timezone || profile.timezone === 'UTC') && isCurrentTransition()) {
         const deviceTimezone = getDeviceTimezone()
         console.log('[AuthProvider] Setting device timezone:', deviceTimezone)
         const { error: updateError } = await supabase
@@ -411,7 +446,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           )
 
           void releasePushTokenAndSignOut(nextSession.user.id)
-            .then(() => {
+            .then((didSignOut) => {
+              if (!didSignOut) return
               if (!isMounted || authTransitionId !== transitionId) return
               Alert.alert(
                 t('auth.errors.accountExistsTitle'),
@@ -436,8 +472,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           nextSession.user.id,
           nextSession.user.email!,
           async () => {
-            const { error } = await releasePushTokenAndSignOut(nextSession.user.id)
-            if (!error && isMounted && authTransitionId === transitionId) {
+            const didSignOut = await releasePushTokenAndSignOut(nextSession.user.id)
+            if (didSignOut && isMounted && authTransitionId === transitionId) {
               setSession(null)
               setUser(null)
             }
@@ -452,7 +488,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       const signupMethod = nextSession.user.app_metadata?.provider
-      void ensureProfileExists(nextSession.user.id, nextSession.user.email!, fullName, signupMethod)
+      void ensureProfileExists(
+        nextSession.user.id,
+        nextSession.user.email!,
+        fullName,
+        signupMethod,
+        () => isMounted && authTransitionId === transitionId,
+      )
     }
 
     const {
@@ -478,7 +520,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
           if (!isValid) {
             console.warn('[AuthProvider] Orphaned session detected - user no longer exists')
-            await releasePushTokenAndSignOut(nextSession.user.id, { allowReleaseFailure: true })
+            const didSignOut = await releasePushTokenAndSignOut(nextSession.user.id, {
+              allowReleaseFailure: true,
+            })
+            if (!didSignOut) return
             if (!isMounted || authTransitionId !== transitionId) return
             setSession(null)
             setUser(null)
@@ -621,8 +666,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return
       }
 
-      const { error } = await releasePushTokenAndSignOut(user.id)
-      if (error) throw error
+      await releasePushTokenAndSignOut(user.id)
     } catch (error) {
       console.error('[AuthProvider] Sign out error:', error)
       throw error
