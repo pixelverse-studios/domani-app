@@ -6,6 +6,10 @@ import RedeemCodeScreen from '../redeem-code'
 import { supabase } from '~/lib/supabase'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { useSubscription } from '~/hooks/useSubscription'
+import {
+  resetAccountLifecycleCoordinatorForTests,
+  setActiveAccount,
+} from '~/lib/accountLifecycleCoordinator'
 
 const mockBack = jest.fn()
 const mockReplace = jest.fn()
@@ -92,6 +96,11 @@ function buildMockSubscription(overrides = {}) {
 }
 
 const originalPlatform = Platform.OS
+
+beforeEach(() => {
+  resetAccountLifecycleCoordinatorForTests()
+  setActiveAccount('user-1')
+})
 
 function setPlatform(os: typeof Platform.OS) {
   Object.defineProperty(Platform, 'OS', {

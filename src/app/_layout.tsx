@@ -115,7 +115,12 @@ function RootLayoutContent() {
     fetchConfig()
   }, [fetchConfig])
 
-  const { status: subscriptionStatus, isLoading: subscriptionLoading } = useSubscription()
+  const {
+    status: subscriptionStatus,
+    isLoading: subscriptionLoading,
+    revenueCatIdentityError,
+    retryRevenueCatIdentity,
+  } = useSubscription()
   const hasAppAccess = !subscriptionLoading && hasFullAccess(subscriptionStatus)
 
   // Real-time celebration — triggered immediately when the last task is completed
@@ -323,7 +328,9 @@ function RootLayoutContent() {
 
   // Recovery failures remain fail-closed, but provide a path to restore the
   // retained account instead of leaving the app on an indefinite spinner.
-  if (accountRecoveryError) {
+  const recoveryError = accountRecoveryError ?? revenueCatIdentityError
+
+  if (recoveryError) {
     return (
       <View
         className="flex-1 items-center justify-center px-8"
@@ -336,14 +343,19 @@ function RootLayoutContent() {
           {t('common.errors.title')}
         </Text>
         <Text className="mb-6 text-center text-base" style={{ color: theme.colors.text.secondary }}>
-          {accountRecoveryError}
+          {recoveryError}
         </Text>
         <Pressable
           accessibilityRole="button"
           disabled={recoveryRetrying}
           onPress={() => {
             setRecoveryRetrying(true)
-            void retryAccountRecovery().finally(() => setRecoveryRetrying(false))
+            if (accountRecoveryError) {
+              void retryAccountRecovery().finally(() => setRecoveryRetrying(false))
+            } else {
+              retryRevenueCatIdentity()
+              setRecoveryRetrying(false)
+            }
           }}
           className="min-w-40 items-center rounded-2xl px-6 py-4"
           style={{ backgroundColor: theme.colors.brand.primary }}

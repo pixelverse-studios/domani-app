@@ -18,6 +18,8 @@ export interface AccountOperationToken {
   generation: number
 }
 
+export type AccountOperationDisposition = 'current' | 'retained' | 'changed'
+
 interface PendingRecovery {
   transitionId: number
   outgoingUserId: string | null
@@ -77,6 +79,33 @@ export const isAccountOperationTokenCurrent = (
   snapshot.activeUserId === token.userId &&
   snapshot.generation === token.generation
 
+export const reconcileAccountOperation = (
+  token: AccountOperationToken | null | undefined,
+  callback: (disposition: AccountOperationDisposition) => void,
+): (() => void) => {
+  if (!token) return () => undefined
+
+  const getDisposition = (): AccountOperationDisposition | null => {
+    if (snapshot.phase !== 'stable') return null
+    if (snapshot.activeUserId !== token.userId) return 'changed'
+    return snapshot.generation === token.generation ? 'current' : 'retained'
+  }
+
+  const immediateDisposition = getDisposition()
+  if (immediateDisposition) {
+    callback(immediateDisposition)
+    return () => undefined
+  }
+
+  const unsubscribe = subscribeToAccountLifecycle(() => {
+    const disposition = getDisposition()
+    if (!disposition) return
+    unsubscribe()
+    callback(disposition)
+  })
+  return unsubscribe
+}
+
 export const runAccountOwnedOperation = <T>(
   userId: string | null,
   blockedValue: T,
@@ -90,6 +119,18 @@ export const runAccountOwnedOperation = <T>(
 
   if (!isCurrent()) return Promise.resolve(blockedValue)
   return enqueue(() => (isCurrent() ? operation(isCurrent) : Promise.resolve(blockedValue)))
+}
+
+export const requireAccountOwnedOperation = async <T>(
+  userId: string,
+  operation: (isCurrent: () => boolean) => Promise<T>,
+): Promise<T> => {
+  const blocked = Symbol('account-operation-blocked')
+  const result = await runAccountOwnedOperation<T | typeof blocked>(userId, blocked, operation)
+  if (result === blocked) {
+    throw new Error('The operation was cancelled because the authenticated account changed.')
+  }
+  return result
 }
 
 export const runAccountTransition = <T>(

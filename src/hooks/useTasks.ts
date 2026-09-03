@@ -12,6 +12,7 @@ import type { TaskWithCategory, TaskPriority } from '~/types'
 import {
   captureAccountOperationToken,
   isAccountOperationTokenCurrent,
+  reconcileAccountOperation,
   runAccountOwnedOperation,
 } from '~/lib/accountLifecycleCoordinator'
 
@@ -179,41 +180,45 @@ export function useToggleTask() {
     },
     onError: (_err, _variables, context) => {
       // Rollback on error
-      if (context?.previousTasks && isAccountOperationTokenCurrent(context.accountToken)) {
-        context.previousTasks.forEach(([queryKey, data]) => {
+      if (!context?.previousTasks || !context.accountToken) return
+      reconcileAccountOperation(context.accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        context.previousTasks?.forEach(([queryKey, data]) => {
           queryClient.setQueryData(queryKey, data)
         })
-      }
+      })
     },
     onSettled: (_data, _error, variables, context) => {
-      if (!isAccountOperationTokenCurrent(context?.accountToken)) return
-      if (user?.id) {
-        queryClient.invalidateQueries({ queryKey: ['tasks', user.id] })
-      }
-      addBreadcrumb('Task toggled', 'task', {
-        taskId: variables.taskId,
-        completed: variables.completed,
-      })
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        queryClient.invalidateQueries({ queryKey: ['tasks', accountToken.userId] })
+        addBreadcrumb('Task toggled', 'task', {
+          taskId: variables.taskId,
+          completed: variables.completed,
+        })
 
-      // Track completion/uncompletion event
-      const task = context?.taskForAnalytics
-      if (task) {
-        if (variables.completed) {
-          // Calculate time to complete in hours
-          const createdAt = new Date(task.created_at)
-          const timeToCompleteHours = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60)
+        // Track completion/uncompletion event
+        const task = context?.taskForAnalytics
+        if (task) {
+          if (variables.completed) {
+            // Calculate time to complete in hours
+            const createdAt = new Date(task.created_at)
+            const timeToCompleteHours = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60)
 
-          track('task_completed', {
-            is_mit: task.is_mit ?? false,
-            priority: task.priority ?? 'medium',
-            time_to_complete_hours: Math.round(timeToCompleteHours * 10) / 10,
-          })
-        } else {
-          track('task_uncompleted', {
-            is_mit: task.is_mit ?? false,
-          })
+            track('task_completed', {
+              is_mit: task.is_mit ?? false,
+              priority: task.priority ?? 'medium',
+              time_to_complete_hours: Math.round(timeToCompleteHours * 10) / 10,
+            })
+          } else {
+            track('task_uncompleted', {
+              is_mit: task.is_mit ?? false,
+            })
+          }
         }
-      }
+      })
     },
   })
 }
@@ -321,33 +326,36 @@ export function useCreateTask() {
     },
     onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
     onSuccess: (data, _variables, context) => {
-      if (!isAccountOperationTokenCurrent(context?.accountToken)) return
-      const userId = user?.id ?? data.user_id
-      if (userId) {
-        queryClient.invalidateQueries({ queryKey: ['tasks', userId, data.scheduled_date] })
-      }
-      addBreadcrumb('Task created', 'task', {
-        taskId: data.id,
-        priority: data.priority,
-        isMit: data.is_mit,
-      })
-
-      // Track task creation
-      const categoryName = data.system_category?.name || data.user_category?.name
-      track('task_created', {
-        priority: data.priority ?? 'medium',
-        has_duration: !!data.estimated_duration_minutes,
-        has_notes: !!data.notes,
-        ...(categoryName && { category: categoryName }),
-      })
-
-      // Increment category usage count for smart sorting
-      if (data.system_category_id || data.user_category_id) {
-        incrementUsage.mutate({
-          systemCategoryId: data.system_category_id,
-          userCategoryId: data.user_category_id,
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        queryClient.invalidateQueries({
+          queryKey: ['tasks', accountToken.userId, data.scheduled_date],
         })
-      }
+        addBreadcrumb('Task created', 'task', {
+          taskId: data.id,
+          priority: data.priority,
+          isMit: data.is_mit,
+        })
+
+        // Track task creation
+        const categoryName = data.system_category?.name || data.user_category?.name
+        track('task_created', {
+          priority: data.priority ?? 'medium',
+          has_duration: !!data.estimated_duration_minutes,
+          has_notes: !!data.notes,
+          ...(categoryName && { category: categoryName }),
+        })
+
+        // Increment category usage count for smart sorting
+        if (data.system_category_id || data.user_category_id) {
+          incrementUsage.mutate({
+            systemCategoryId: data.system_category_id,
+            userCategoryId: data.user_category_id,
+          })
+        }
+      })
     },
   })
 }
@@ -513,27 +521,46 @@ export function useUpdateTask() {
       return { previousOriginal, previousTarget, accountToken }
     },
     onError: (_err, { updates, originalDate }, context) => {
-      if (!user?.id || !isAccountOperationTokenCurrent(context?.accountToken)) return
+      const accountToken = context?.accountToken
+      if (!accountToken) return
 
-      // Rollback on error
-      if (context?.previousOriginal && originalDate) {
-        queryClient.setQueryData(['tasks', user.id, originalDate], context.previousOriginal)
-      }
-      if (context?.previousTarget && updates.scheduled_date) {
-        queryClient.setQueryData(['tasks', user.id, updates.scheduled_date], context.previousTarget)
-      }
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        // Roll back the optimistic move for either the original generation or
+        // a failed transition that retained the same account.
+        if (context?.previousOriginal && originalDate) {
+          queryClient.setQueryData(
+            ['tasks', accountToken.userId, originalDate],
+            context.previousOriginal,
+          )
+        }
+        if (updates.scheduled_date) {
+          const targetKey = ['tasks', accountToken.userId, updates.scheduled_date] as const
+          if (context?.previousTarget !== undefined) {
+            queryClient.setQueryData(targetKey, context.previousTarget)
+          } else {
+            queryClient.removeQueries({ queryKey: targetKey, exact: true })
+          }
+        }
+      })
     },
     onSuccess: ({ data, originalDate }, _variables, context) => {
-      if (!isAccountOperationTokenCurrent(context?.accountToken)) return
-      const userId = user?.id ?? data.user_id
-      if (!userId) return
+      const accountToken = context?.accountToken
+      if (!accountToken) return
 
-      // Invalidate the new day's tasks
-      queryClient.invalidateQueries({ queryKey: ['tasks', userId, data.scheduled_date] })
-      // If task moved to different day, also invalidate the original day's tasks
-      if (originalDate && originalDate !== data.scheduled_date) {
-        queryClient.invalidateQueries({ queryKey: ['tasks', userId, originalDate] })
-      }
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        // Invalidate the new day's tasks
+        queryClient.invalidateQueries({
+          queryKey: ['tasks', accountToken.userId, data.scheduled_date],
+        })
+        // If task moved to different day, also invalidate the original day's tasks
+        if (originalDate && originalDate !== data.scheduled_date) {
+          queryClient.invalidateQueries({
+            queryKey: ['tasks', accountToken.userId, originalDate],
+          })
+        }
+      })
     },
   })
 }
@@ -584,14 +611,16 @@ export function useDeleteTask() {
     },
     onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
     onSuccess: ({ taskId, wasCompleted }, _taskId, context) => {
-      if (!isAccountOperationTokenCurrent(context?.accountToken)) return
-      if (user?.id) {
-        queryClient.invalidateQueries({ queryKey: ['tasks', user.id] })
-      }
-      addBreadcrumb('Task deleted', 'task', { taskId })
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        queryClient.invalidateQueries({ queryKey: ['tasks', accountToken.userId] })
+        addBreadcrumb('Task deleted', 'task', { taskId })
 
-      // Track task deletion
-      track('task_deleted', { was_completed: wasCompleted })
+        // Track task deletion
+        track('task_deleted', { was_completed: wasCompleted })
+      })
     },
   })
 }

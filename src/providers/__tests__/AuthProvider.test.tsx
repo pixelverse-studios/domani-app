@@ -8,6 +8,7 @@ import { act, render } from '~/test/test-utils'
 import { LocalizationProvider } from '~/providers/LocalizationProvider'
 import { AuthContext, AuthProvider } from '../AuthProvider'
 import { supabase } from '~/lib/supabase'
+import { NotificationService } from '~/lib/notifications'
 import {
   getAccountLifecycleSnapshot,
   resetAccountLifecycleCoordinatorForTests,
@@ -38,6 +39,7 @@ const mockSignInWithIdToken = supabase.auth.signInWithIdToken as jest.Mock
 const mockExchangeCodeForSession = supabase.auth.exchangeCodeForSession as jest.Mock
 const mockOpenAuthSession = WebBrowser.openAuthSessionAsync as jest.Mock
 const mockAppleSignIn = AppleAuthentication.signInAsync as jest.Mock
+const mockCancelAllReminders = jest.spyOn(NotificationService, 'cancelAllReminders')
 
 function createProfileQuery(result: Promise<unknown> | unknown) {
   const query = {} as {
@@ -69,6 +71,7 @@ describe('AuthProvider', () => {
     mockGetSession.mockResolvedValue({ data: { session: null }, error: null })
     mockRpc.mockResolvedValue({ data: null, error: null })
     mockSignOut.mockResolvedValue({ error: null })
+    mockCancelAllReminders.mockResolvedValue(true)
   })
 
   afterEach(() => {
@@ -207,6 +210,72 @@ describe('AuthProvider', () => {
     })
 
     expect(mockFrom).toHaveBeenCalledWith('profiles')
+  })
+
+  it('purges account reminders before applying an external SIGNED_OUT event', async () => {
+    let authListener:
+      | ((event: AuthChangeEvent, session: Session | null) => void | Promise<void>)
+      | null = null
+    let authContext: React.ContextType<typeof AuthContext> | undefined
+    mockOnAuthStateChange.mockImplementation((listener) => {
+      authListener = listener
+      return { data: { subscription: { unsubscribe: jest.fn() } } }
+    })
+    const session = {
+      user: {
+        id: 'user-1',
+        email: 'one@example.com',
+        identities: [],
+        user_metadata: {},
+        app_metadata: {},
+      },
+    } as unknown as Session
+
+    function Consumer() {
+      const value = useContext(AuthContext)
+      useEffect(() => {
+        authContext = value
+      }, [value])
+      return null
+    }
+
+    render(
+      <LocalizationProvider>
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      </LocalizationProvider>,
+    )
+
+    await act(async () => {
+      authListener?.('TOKEN_REFRESHED', session)
+      await Promise.resolve()
+    })
+    expect(authContext?.user?.id).toBe('user-1')
+
+    let listenerResult: void | Promise<void> | undefined
+    act(() => {
+      listenerResult = authListener?.('SIGNED_OUT', null)
+      authListener?.('SIGNED_OUT', null)
+    })
+    expect(listenerResult).toBeUndefined()
+    expect(authContext?.loading).toBe(true)
+    expect(mockCancelAllReminders).not.toHaveBeenCalled()
+
+    await act(async () => {
+      jest.runOnlyPendingTimers()
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockCancelAllReminders).toHaveBeenCalledTimes(1)
+    expect(authContext?.loading).toBe(false)
+    expect(authContext?.user).toBeNull()
+    expect(getAccountLifecycleSnapshot()).toMatchObject({
+      phase: 'stable',
+      activeUserId: null,
+    })
   })
 
   it('settles loading with the cached session when server validation is unavailable', async () => {

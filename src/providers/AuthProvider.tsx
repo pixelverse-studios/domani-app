@@ -18,7 +18,11 @@ import { useTranslation } from '~/hooks/useTranslation'
 import { formatLocalizedDate } from '~/i18n/date'
 import type { AppLocale } from '~/i18n'
 import type { TranslationKey, TranslationValues } from '~/i18n/types'
-import { securelyReplaceSession, securelySignOut } from '~/lib/accountTransitionSecurity'
+import {
+  securelyHandleExternalSessionLoss,
+  securelyReplaceSession,
+  securelySignOut,
+} from '~/lib/accountTransitionSecurity'
 import {
   getAccountLifecycleSnapshot,
   retryAccountTransitionRecovery,
@@ -385,6 +389,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let isMounted = true
     let authTransitionId = 0
     let initialValidationTimer: ReturnType<typeof setTimeout> | null = null
+    let externalSessionLossTimer: ReturnType<typeof setTimeout> | null = null
+    let externalSessionLossInProgress = false
+    let appliedUserId = getAccountLifecycleSnapshot().activeUserId
 
     const applyAuthState = (
       event: AuthChangeEvent,
@@ -396,6 +403,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(nextSession)
       setUser(nextSession?.user ?? null)
       setActiveAccount(nextSession?.user.id ?? null)
+      appliedUserId = nextSession?.user.id ?? null
       setLoading(false)
 
       if ((event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') || !nextSession?.user) return
@@ -464,9 +472,51 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === 'SIGNED_OUT' && !nextSession && externalSessionLossInProgress) {
+        setLoading(true)
+        return
+      }
+
       const transitionId = ++authTransitionId
       console.log('[AuthProvider] Auth state changed:', event)
       console.log('[AuthProvider] Session:', nextSession ? 'Found' : 'None')
+
+      if (event === 'SIGNED_OUT' && !nextSession) {
+        const lifecycle = getAccountLifecycleSnapshot()
+        const externallyLostUserId = appliedUserId ?? lifecycle.activeUserId
+
+        if (
+          externallyLostUserId &&
+          lifecycle.phase === 'stable' &&
+          lifecycle.activeUserId === externallyLostUserId
+        ) {
+          setLoading(true)
+          externalSessionLossInProgress = true
+          externalSessionLossTimer = setTimeout(() => {
+            externalSessionLossTimer = null
+            void securelyHandleExternalSessionLoss(externallyLostUserId)
+              .then(() => {
+                if (!isMounted || authTransitionId !== transitionId) return
+                applyAuthState(event, null, transitionId)
+              })
+              .catch((error) => {
+                if (!isMounted || authTransitionId !== transitionId) return
+                console.error(
+                  '[AuthProvider] Failed to clean up an externally lost session:',
+                  error,
+                )
+                setSession(null)
+                setUser(null)
+                appliedUserId = null
+                setLoading(false)
+              })
+              .finally(() => {
+                externalSessionLossInProgress = false
+              })
+          }, 0)
+          return
+        }
+      }
 
       if (event !== 'INITIAL_SESSION' || !nextSession?.user) {
         applyAuthState(event, nextSession, transitionId)
@@ -549,6 +599,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       isMounted = false
       authTransitionId += 1
       if (initialValidationTimer) clearTimeout(initialValidationTimer)
+      if (externalSessionLossTimer) clearTimeout(externalSessionLossTimer)
       subscription.unsubscribe()
     }
   }, [locale, t])

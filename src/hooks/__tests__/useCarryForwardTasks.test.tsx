@@ -3,6 +3,10 @@ import type { QueryClient } from '@tanstack/react-query'
 import { act, renderHookWithProviders, waitFor, buildTaskWithCategory } from '~/test/test-utils'
 import { useCarryForwardTasks } from '../useCarryForwardTasks'
 import { carryForwardTasks } from '~/lib/rollover'
+import {
+  resetAccountLifecycleCoordinatorForTests,
+  setActiveAccount,
+} from '~/lib/accountLifecycleCoordinator'
 
 jest.mock('~/lib/rollover', () => ({
   carryForwardTasks: jest.fn(),
@@ -25,6 +29,8 @@ describe('useCarryForwardTasks', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    resetAccountLifecycleCoordinatorForTests()
+    setActiveAccount('user-1')
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined)
   })
 

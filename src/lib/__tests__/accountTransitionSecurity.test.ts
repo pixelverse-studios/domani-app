@@ -11,6 +11,7 @@ import { supabase } from '../supabase'
 import {
   canRegisterPushTokenForUser,
   resetAccountTransitionSecurityForTests,
+  securelyHandleExternalSessionLoss,
   securelyReplaceSession,
   securelySignOut,
 } from '../accountTransitionSecurity'
@@ -84,6 +85,33 @@ describe('accountTransitionSecurity', () => {
     await signOut
     expect(mockRpc).not.toHaveBeenCalled()
     expect(mockSignOut).not.toHaveBeenCalled()
+  })
+
+  it('keeps external session loss gated until reminder cleanup can be retried', async () => {
+    mockCancelAllReminders.mockResolvedValue(false)
+
+    const cleanup = expect(securelyHandleExternalSessionLoss('user-1')).rejects.toThrow(
+      'Unable to securely sign out because existing reminders could not be removed',
+    )
+    await waitFor(() => expect(mockCancelAllReminders).toHaveBeenCalledTimes(1))
+    await jest.advanceTimersByTimeAsync(1000)
+    await cleanup
+
+    expect(getAccountLifecycleSnapshot()).toMatchObject({
+      phase: 'recovering',
+      activeUserId: 'user-1',
+      outgoingUserId: 'user-1',
+    })
+    expect(mockGetUser).not.toHaveBeenCalled()
+    expect(mockRpc).not.toHaveBeenCalled()
+
+    mockCancelAllReminders.mockResolvedValue(true)
+    await expect(retryAccountTransitionRecovery()).resolves.toBe(true)
+    expect(getAccountLifecycleSnapshot()).toMatchObject({
+      phase: 'stable',
+      activeUserId: null,
+      recoveryError: null,
+    })
   })
 
   it('does not replace account A when notification purge cannot be verified', async () => {

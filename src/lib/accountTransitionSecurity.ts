@@ -308,6 +308,24 @@ export async function securelySignOut(
   })
 }
 
+export async function securelyHandleExternalSessionLoss(expectedUserId: string): Promise<void> {
+  await runAccountTransition(expectedUserId, async (transitionId) => {
+    setTransitionOutgoingUser(transitionId, expectedUserId)
+
+    const finishCleanup = async () => {
+      await requireAccountNotificationReset('sign out')
+      setActiveAccount(null)
+    }
+
+    try {
+      await finishCleanup()
+    } catch (error) {
+      registerAccountTransitionRecovery(transitionId, expectedUserId, finishCleanup, error)
+      throw error
+    }
+  })
+}
+
 export function resetAccountTransitionSecurityForTests() {
   resetAccountLifecycleCoordinatorForTests()
 }

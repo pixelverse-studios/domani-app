@@ -476,4 +476,44 @@ describe('task hooks', () => {
     expect(queryClient.getQueryData(['tasks', 'user-1', '2026-05-16'])).toBeUndefined()
     expect(queryClient.getQueryData(['tasks', 'user-1', '2026-05-17'])).toBeUndefined()
   })
+
+  it('restores an optimistic move when a failed transition retains the same account', async () => {
+    const originalTask = buildTaskWithCategory({
+      id: 'task-retained-rollback',
+      scheduled_date: '2026-05-16',
+    })
+    const existingQuery = createQueryMock({ data: { notification_id: null }, error: null })
+    const updateQuery = createQueryMock()
+    let finishUpdate!: () => void
+    updateQuery.single.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishUpdate = () => resolve({ data: null, error: new Error('update failed') })
+        }),
+    )
+    mockFrom.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery)
+
+    const { result, queryClient } = trackQueryClient(renderHookWithProviders(() => useUpdateTask()))
+    queryClient.setQueryData(['tasks', 'user-1', '2026-05-16'], [originalTask])
+    queryClient.setQueryData(['tasks', 'user-1', '2026-05-17'], [])
+
+    const mutation = result.current.mutateAsync({
+      taskId: 'task-retained-rollback',
+      originalDate: '2026-05-16',
+      updates: { scheduled_date: '2026-05-17' },
+    })
+    await waitFor(() => expect(updateQuery.update).toHaveBeenCalled())
+
+    const transition = runAccountTransition('user-1', async () => {
+      throw new Error('replacement failed')
+    }).catch((error) => error)
+    finishUpdate()
+
+    await expect(mutation).rejects.toThrow('update failed')
+    await expect(transition).resolves.toEqual(expect.any(Error))
+    await waitFor(() => {
+      expect(queryClient.getQueryData(['tasks', 'user-1', '2026-05-16'])).toEqual([originalTask])
+      expect(queryClient.getQueryData(['tasks', 'user-1', '2026-05-17'])).toEqual([])
+    })
+  })
 })

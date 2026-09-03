@@ -354,6 +354,32 @@ describe('trial authority', () => {
 })
 
 describe('purchase access sync', () => {
+  it('stays fail-closed and retries a failed RevenueCat identity initialization', async () => {
+    mockInitializeRevenueCat
+      .mockRejectedValueOnce(new Error('identity unavailable'))
+      .mockResolvedValueOnce(undefined)
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => {
+      expect(result.current.revenueCatIdentityError).toBe(
+        'Unable to connect purchase services. Please try again.',
+      )
+    })
+    expect(result.current.isLoading).toBe(true)
+    expect(mockGetCustomerInfo).not.toHaveBeenCalled()
+
+    act(() => {
+      result.current.retryRevenueCatIdentity()
+    })
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.revenueCatIdentityError).toBeNull()
+    expect(mockInitializeRevenueCat).toHaveBeenCalledTimes(2)
+
+    unmount()
+  })
+
   it('blocks RevenueCat reads and resets access state while switching accounts', async () => {
     let resolveSecondLogin: (() => void) | null = null
     mockLoginRevenueCat.mockImplementation((userId: string) => {

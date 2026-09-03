@@ -41,6 +41,7 @@ import {
   captureAccountOperationToken,
   getAccountLifecycleSnapshot,
   isAccountOperationTokenCurrent,
+  reconcileAccountOperation,
   runAccountOwnedOperation,
   subscribeToAccountLifecycle,
 } from '~/lib/accountLifecycleCoordinator'
@@ -388,6 +389,8 @@ export function useSubscription() {
   const { profile, isLoading: profileLoading } = useProfile()
   const queryClient = useQueryClient()
   const [initializedUserId, setInitializedUserId] = useState<string | null>(null)
+  const [revenueCatIdentityError, setRevenueCatIdentityError] = useState<string | null>(null)
+  const [revenueCatIdentityRetryToken, setRevenueCatIdentityRetryToken] = useState(0)
   const accountLifecycle = useSyncExternalStore(
     subscribeToAccountLifecycle,
     getAccountLifecycleSnapshot,
@@ -421,6 +424,7 @@ export function useSubscription() {
     const currentUserId = user?.id
 
     setInitializedUserId(null)
+    setRevenueCatIdentityError(null)
     pendingExternalPurchaseSyncRef.current = null
     previousConfirmedAccessSyncSignatureRef.current = null
     isStartTrialPendingRef.current = false
@@ -463,19 +467,35 @@ export function useSubscription() {
       }
     })
       .then((applied) => {
-        if (applied && isMounted && currentUserId) setInitializedUserId(currentUserId)
+        if (applied && isMounted && currentUserId) {
+          setInitializedUserId(currentUserId)
+          setRevenueCatIdentityError(null)
+        }
       })
       .catch((error) => {
-        // Let the screen finish loading, but leave the coordinator without an
-        // active identity so every account-sensitive SDK operation fails closed.
+        // Keep initialization fail-closed. The root recovery screen exposes a
+        // retry instead of allowing purchase operations under an unknown identity.
         console.warn('[useSubscription] RevenueCat identity transition failed:', error)
-        if (isMounted && currentUserId) setInitializedUserId(currentUserId)
+        if (isMounted && currentUserId) {
+          setRevenueCatIdentityError('Unable to connect purchase services. Please try again.')
+        }
       })
 
     return () => {
       isMounted = false
     }
-  }, [user?.id, shouldBypassRevenueCat, accountLifecycle.phase, accountLifecycle.generation])
+  }, [
+    user?.id,
+    shouldBypassRevenueCat,
+    accountLifecycle.phase,
+    accountLifecycle.generation,
+    revenueCatIdentityRetryToken,
+  ])
+
+  const retryRevenueCatIdentity = useCallback(() => {
+    setRevenueCatIdentityError(null)
+    setRevenueCatIdentityRetryToken((value) => value + 1)
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -1331,17 +1351,20 @@ export function useSubscription() {
     },
     onError: (_err, _vars, context) => {
       // Roll back the optimistic update if the mutation failed.
-      if (
-        user?.id &&
-        context?.previousProfile !== undefined &&
-        isAccountOperationTokenCurrent(context.accountToken)
-      ) {
-        queryClient.setQueryData<Profile>(['profile', user.id], context.previousProfile)
-      }
+      if (context?.previousProfile === undefined || !context.accountToken) return
+      const { accountToken, previousProfile } = context
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        queryClient.setQueryData<Profile>(['profile', accountToken.userId], previousProfile)
+      })
     },
     onSuccess: (_data, _variables, context) => {
-      if (!isAccountOperationTokenCurrent(context?.accountToken)) return
-      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        queryClient.invalidateQueries({ queryKey: ['profile', accountToken.userId] })
+      })
     },
     onSettled: () => {
       // Always clear the in-flight flag so the AppState listener resumes
@@ -1469,6 +1492,8 @@ export function useSubscription() {
     offerings,
     offeringIdentifier, // Which pricing tier the user qualifies for
     isLoading: isLoadingCustomerInfo || isLoadingOfferings || !isInitialized || profileLoading,
+    revenueCatIdentityError,
+    retryRevenueCatIdentity,
     startTrial: startTrialMutation.mutateAsync,
     isStartingTrial: startTrialMutation.isPending,
     purchase: purchaseMutation.mutateAsync,

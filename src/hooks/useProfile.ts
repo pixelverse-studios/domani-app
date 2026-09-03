@@ -6,7 +6,7 @@ import { useAuth } from '~/hooks/useAuth'
 import type { Profile, ProfileUpdate } from '~/types'
 import {
   captureAccountOperationToken,
-  isAccountOperationTokenCurrent,
+  reconcileAccountOperation,
   runAccountOwnedOperation,
 } from '~/lib/accountLifecycleCoordinator'
 
@@ -107,11 +107,15 @@ export function useUpdateProfile() {
     },
     onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
     onSuccess: (data, _updates, context) => {
-      if (!isAccountOperationTokenCurrent(context?.accountToken)) return
-      queryClient.setQueryData(['profile', user?.id], data)
-      if (user?.id) {
-        queryClient.invalidateQueries({ queryKey: ['planningReminderTime', user.id] })
-      }
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        queryClient.setQueryData(['profile', accountToken.userId], data)
+        queryClient.invalidateQueries({
+          queryKey: ['planningReminderTime', accountToken.userId],
+        })
+      })
     },
   })
 }

@@ -4,6 +4,7 @@ import {
   captureAccountOperationToken,
   getAccountLifecycleSnapshot,
   isAccountOperationTokenCurrent,
+  reconcileAccountOperation,
   registerAccountTransitionRecovery,
   resetAccountLifecycleCoordinatorForTests,
   retryAccountTransitionRecovery,
@@ -162,6 +163,41 @@ describe('accountLifecycleCoordinator', () => {
     expect(isAccountOperationTokenCurrent(token)).toBe(false)
     await transition
     expect(isAccountOperationTokenCurrent(token)).toBe(false)
+  })
+
+  it('reconciles a stale generation when a failed transition retains the same account', async () => {
+    const token = captureAccountOperationToken('user-1')
+    const callback = jest.fn()
+    let failTransition!: () => void
+
+    const transition = runAccountTransition(
+      'user-1',
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          failTransition = () => reject(new Error('replacement failed'))
+        }),
+    )
+
+    reconcileAccountOperation(token, callback)
+    expect(callback).not.toHaveBeenCalled()
+
+    await waitFor(() => expect(failTransition).toEqual(expect.any(Function)))
+    failTransition()
+    await expect(transition).rejects.toThrow('replacement failed')
+    expect(callback).toHaveBeenCalledTimes(1)
+    expect(callback).toHaveBeenCalledWith('retained')
+  })
+
+  it('discards a stale operation after a different account becomes active', async () => {
+    const token = captureAccountOperationToken('user-1')
+    const callback = jest.fn()
+    const transition = runAccountTransition('user-1', async () => setActiveAccount('user-2'))
+
+    reconcileAccountOperation(token, callback)
+    await transition
+
+    expect(callback).toHaveBeenCalledTimes(1)
+    expect(callback).toHaveBeenCalledWith('changed')
   })
 
   it('serializes overlapping account replacements in request order', async () => {

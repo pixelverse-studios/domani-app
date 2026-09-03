@@ -16,6 +16,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { carryForwardTasks, type CarryForwardInput } from '~/lib/rollover'
 import { useAuth } from '~/hooks/useAuth'
 import type { TaskWithCategory } from '~/types'
+import {
+  captureAccountOperationToken,
+  reconcileAccountOperation,
+  type AccountOperationToken,
+} from '~/lib/accountLifecycleCoordinator'
 
 /**
  * Hook to carry forward tasks from yesterday to today
@@ -38,21 +43,31 @@ export function useCarryForwardTasks() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
 
-  return useMutation<TaskWithCategory[], Error, CarryForwardInput>({
+  return useMutation<
+    TaskWithCategory[],
+    Error,
+    CarryForwardInput,
+    { accountToken: AccountOperationToken | null }
+  >({
     mutationFn: carryForwardTasks,
 
-    onSuccess: (createdTasks) => {
-      if (!user?.id) return
+    onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
+    onSuccess: (createdTasks, _variables, context) => {
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
 
-      // Broad invalidation: refreshes both source plan (rolled-over tasks disappear)
-      // and target plan (new tasks appear). Matches useDeleteTask/useToggleTask pattern.
-      queryClient.invalidateQueries({ queryKey: ['tasks', user.id] })
+        // Broad invalidation: refreshes both source plan (rolled-over tasks disappear)
+        // and target plan (new tasks appear). Matches useDeleteTask/useToggleTask pattern.
+        queryClient.invalidateQueries({ queryKey: ['tasks', accountToken.userId] })
 
-      // Invalidate rollover tasks query (no longer show carried tasks)
-      queryClient.invalidateQueries({ queryKey: ['rolloverTasks', user.id] })
+        // Invalidate rollover tasks query (no longer show carried tasks)
+        queryClient.invalidateQueries({ queryKey: ['rolloverTasks', accountToken.userId] })
 
-      // TODO: Add analytics tracking for tasks_carried_forward event
-      console.log(`[useCarryForwardTasks] Carried forward ${createdTasks.length} tasks`)
+        // TODO: Add analytics tracking for tasks_carried_forward event
+        console.log(`[useCarryForwardTasks] Carried forward ${createdTasks.length} tasks`)
+      })
     },
 
     onError: (error) => {
