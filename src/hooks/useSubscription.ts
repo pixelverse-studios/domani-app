@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef, useSyncExternalStore } from 'react'
 import { AppState, Platform } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Purchases, { CustomerInfo, PurchasesPackage } from 'react-native-purchases'
@@ -37,6 +37,11 @@ import {
   runRevenueCatUserOperation,
   transitionRevenueCatIdentity,
 } from '~/lib/revenuecatCoordinator'
+import {
+  getAccountLifecycleSnapshot,
+  runAccountOwnedOperation,
+  subscribeToAccountLifecycle,
+} from '~/lib/accountLifecycleCoordinator'
 
 /**
  * Exhaustive subscription status state machine.
@@ -168,6 +173,7 @@ function hasPromoRedemptionAttemptContext(attemptContext: PurchaseAccessSyncAtte
 }
 
 async function confirmCurrentUserPromoRedemption(input: {
+  expectedUserId: string
   attemptContext: PurchaseAccessSyncAttemptContext | null
   revenueCatAppUserId?: string | null
   storeProductId?: string | null
@@ -181,14 +187,20 @@ async function confirmCurrentUserPromoRedemption(input: {
     return
   }
 
-  const { data, error } = await supabase.rpc('confirm_current_user_promo_redemption', {
-    p_redemption_attempt_id: attemptContext.redemptionAttemptId,
-    p_code_id: attemptContext.codeId,
-    p_campaign_id: attemptContext.campaignId,
-    p_revenuecat_app_user_id: input.revenueCatAppUserId ?? null,
-    p_store_product_id: input.storeProductId ?? null,
-    p_store_transaction_id: null,
-  })
+  const redemptionAttemptId = attemptContext.redemptionAttemptId
+  const codeId = attemptContext.codeId
+  const campaignId = attemptContext.campaignId
+
+  const { data, error } = await runAuthenticatedUserOperation(input.expectedUserId, () =>
+    supabase.rpc('confirm_current_user_promo_redemption', {
+      p_redemption_attempt_id: redemptionAttemptId,
+      p_code_id: codeId,
+      p_campaign_id: campaignId,
+      p_revenuecat_app_user_id: input.revenueCatAppUserId ?? null,
+      p_store_product_id: input.storeProductId ?? null,
+      p_store_transaction_id: null,
+    }),
+  )
 
   if (error) throw error
 
@@ -282,12 +294,47 @@ function wait(ms: number) {
 }
 
 async function assertAuthenticatedUser(expectedUserId: string): Promise<void> {
+  const before = getAccountLifecycleSnapshot()
+  if (before.phase !== 'stable' || before.activeUserId !== expectedUserId) {
+    throw new RevenueCatAccountChangedError()
+  }
+
   const {
     data: { user },
     error,
   } = await supabase.auth.getUser()
 
-  if (error || user?.id !== expectedUserId) throw new RevenueCatAccountChangedError()
+  const after = getAccountLifecycleSnapshot()
+  if (
+    error ||
+    user?.id !== expectedUserId ||
+    after.phase !== 'stable' ||
+    after.activeUserId !== expectedUserId ||
+    after.generation !== before.generation
+  ) {
+    throw new RevenueCatAccountChangedError()
+  }
+}
+
+async function runAuthenticatedUserOperation<T>(
+  expectedUserId: string,
+  operation: () => PromiseLike<T>,
+): Promise<T> {
+  const blocked = Symbol('authenticated-account-changed')
+  const result = await runAccountOwnedOperation<T | typeof blocked>(
+    expectedUserId,
+    blocked,
+    async (isCurrent) => {
+      await assertAuthenticatedUser(expectedUserId)
+      if (!isCurrent()) throw new RevenueCatAccountChangedError()
+      const value = await operation()
+      if (!isCurrent()) throw new RevenueCatAccountChangedError()
+      await assertAuthenticatedUser(expectedUserId)
+      return value
+    },
+  )
+  if (result === blocked) throw new RevenueCatAccountChangedError()
+  return result
 }
 
 /**
@@ -339,6 +386,11 @@ export function useSubscription() {
   const { profile, isLoading: profileLoading } = useProfile()
   const queryClient = useQueryClient()
   const [initializedUserId, setInitializedUserId] = useState<string | null>(null)
+  const accountLifecycle = useSyncExternalStore(
+    subscribeToAccountLifecycle,
+    getAccountLifecycleSnapshot,
+    getAccountLifecycleSnapshot,
+  )
   const [revenueCatAttributeSyncRetryToken, setRevenueCatAttributeSyncRetryToken] = useState(0)
   const previousRevenueCatAttributeSignatureRef = useRef<string | null>(null)
   const revenueCatAttributeRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -390,6 +442,12 @@ export function useSubscription() {
       }
     }
 
+    if (accountLifecycle.phase !== 'stable') {
+      return () => {
+        isMounted = false
+      }
+    }
+
     void transitionRevenueCatIdentity(currentUserId ?? null, async () => {
       if (!currentUserId) {
         if (await Purchases.isConfigured()) await logoutRevenueCat()
@@ -415,7 +473,7 @@ export function useSubscription() {
     return () => {
       isMounted = false
     }
-  }, [user?.id, shouldBypassRevenueCat])
+  }, [user?.id, shouldBypassRevenueCat, accountLifecycle.phase, accountLifecycle.generation])
 
   useEffect(() => {
     return () => {
@@ -949,6 +1007,7 @@ export function useSubscription() {
         try {
           await assertAuthenticatedUser(expectedUserId)
           await confirmCurrentUserPromoRedemption({
+            expectedUserId,
             attemptContext,
             revenueCatAppUserId: null,
             storeProductId: null,
@@ -1227,7 +1286,10 @@ export function useSubscription() {
         throw new Error('Trial cannot be started from current state')
       }
 
-      const { data, error } = await supabase.rpc('start_current_user_trial')
+      const expectedUserId = user.id
+      const { data, error } = await runAuthenticatedUserOperation(expectedUserId, () =>
+        supabase.rpc('start_current_user_trial'),
+      )
 
       if (error) throw error
       return data
@@ -1643,9 +1705,11 @@ async function syncSubscriptionToSupabase(
           campaignId: attemptContext.campaignId!,
         }
       : null
-  const { data, error } = await supabase.functions.invoke('sync-revenuecat-access', {
-    body: { promoContext, expectedUserId: userId },
-  })
+  const { data, error } = await runAuthenticatedUserOperation(userId, () =>
+    supabase.functions.invoke('sync-revenuecat-access', {
+      body: { promoContext, expectedUserId: userId },
+    }),
+  )
 
   if (error) throw error
 

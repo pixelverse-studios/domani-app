@@ -1,16 +1,31 @@
 import React, { useContext, useEffect } from 'react'
 import { Alert } from 'react-native'
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
+import * as WebBrowser from 'expo-web-browser'
+import * as AppleAuthentication from 'expo-apple-authentication'
 
 import { act, render } from '~/test/test-utils'
 import { LocalizationProvider } from '~/providers/LocalizationProvider'
 import { AuthContext, AuthProvider } from '../AuthProvider'
 import { supabase } from '~/lib/supabase'
 import {
-  queuePushTokenOperation,
-  resetPushTokenCoordinatorForTests,
-} from '~/lib/pushTokenCoordinator'
+  getAccountLifecycleSnapshot,
+  resetAccountLifecycleCoordinatorForTests,
+  runAccountOwnedOperation,
+  setActiveAccount,
+} from '~/lib/accountLifecycleCoordinator'
 import { resetAccountTransitionSecurityForTests } from '~/lib/accountTransitionSecurity'
+import { resetOAuthCallbackStateForTests } from '~/lib/authSession'
+
+jest.mock('expo-web-browser', () => ({
+  maybeCompleteAuthSession: jest.fn(),
+  openAuthSessionAsync: jest.fn(),
+}))
+
+jest.mock('expo-apple-authentication', () => ({
+  AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
+  signInAsync: jest.fn(),
+}))
 
 const mockOnAuthStateChange = supabase.auth.onAuthStateChange as jest.Mock
 const mockGetUser = supabase.auth.getUser as jest.Mock
@@ -18,6 +33,11 @@ const mockGetSession = supabase.auth.getSession as jest.Mock
 const mockFrom = supabase.from as unknown as jest.Mock
 const mockRpc = supabase.rpc as unknown as jest.Mock
 const mockSignOut = supabase.auth.signOut as jest.Mock
+const mockSignInWithOAuth = supabase.auth.signInWithOAuth as jest.Mock
+const mockSignInWithIdToken = supabase.auth.signInWithIdToken as jest.Mock
+const mockExchangeCodeForSession = supabase.auth.exchangeCodeForSession as jest.Mock
+const mockOpenAuthSession = WebBrowser.openAuthSessionAsync as jest.Mock
+const mockAppleSignIn = AppleAuthentication.signInAsync as jest.Mock
 
 function createProfileQuery(result: Promise<unknown> | unknown) {
   const query = {} as {
@@ -42,8 +62,9 @@ describe('AuthProvider', () => {
     jest.useFakeTimers()
     jest.clearAllMocks()
     alertSpy = jest.spyOn(Alert, 'alert').mockImplementation()
-    resetPushTokenCoordinatorForTests()
+    resetAccountLifecycleCoordinatorForTests()
     resetAccountTransitionSecurityForTests()
+    resetOAuthCallbackStateForTests()
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
     mockGetSession.mockResolvedValue({ data: { session: null }, error: null })
     mockRpc.mockResolvedValue({ data: null, error: null })
@@ -53,6 +74,94 @@ describe('AuthProvider', () => {
   afterEach(() => {
     alertSpy.mockRestore()
     jest.useRealTimers()
+  })
+
+  it('replaces account A with Google under the account lifecycle', async () => {
+    let authContext: React.ContextType<typeof AuthContext> | undefined
+    const accountA = { user: { id: 'user-1' } } as unknown as Session
+    const accountB = { user: { id: 'user-2' } } as unknown as Session
+    setActiveAccount('user-1')
+    mockGetSession.mockResolvedValue({ data: { session: accountA }, error: null })
+    mockGetUser.mockResolvedValue({ data: { user: accountA.user }, error: null })
+    mockFrom.mockReturnValue(createProfileQuery({ data: { expo_push_token: null }, error: null }))
+    mockSignInWithOAuth.mockResolvedValue({
+      data: { url: 'https://provider.example/login' },
+      error: null,
+    })
+    mockOpenAuthSession.mockResolvedValue({
+      type: 'success',
+      url: 'domani://auth/callback?code=google-code',
+    })
+    mockExchangeCodeForSession.mockResolvedValue({ data: { session: accountB }, error: null })
+
+    function Consumer() {
+      const value = useContext(AuthContext)
+      useEffect(() => {
+        authContext = value
+      }, [value])
+      return null
+    }
+
+    render(
+      <LocalizationProvider>
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      </LocalizationProvider>,
+    )
+
+    await act(async () => {
+      await expect(authContext!.signInWithGoogle()).resolves.toBe(true)
+    })
+
+    expect(mockExchangeCodeForSession).toHaveBeenCalledTimes(1)
+    expect(mockRpc).toHaveBeenCalledWith('set_current_user_expo_push_token', { p_token: null })
+    expect(getAccountLifecycleSnapshot()).toMatchObject({
+      phase: 'stable',
+      activeUserId: 'user-2',
+    })
+  })
+
+  it('replaces account A with Apple under the account lifecycle', async () => {
+    let authContext: React.ContextType<typeof AuthContext> | undefined
+    const accountA = { user: { id: 'user-1' } } as unknown as Session
+    const accountB = { user: { id: 'user-2' } } as unknown as Session
+    setActiveAccount('user-1')
+    mockGetSession.mockResolvedValue({ data: { session: accountA }, error: null })
+    mockGetUser.mockResolvedValue({ data: { user: accountA.user }, error: null })
+    mockFrom.mockReturnValue(createProfileQuery({ data: { expo_push_token: null }, error: null }))
+    mockAppleSignIn.mockResolvedValue({
+      identityToken: 'opaque-apple-token',
+      fullName: null,
+    })
+    mockSignInWithIdToken.mockResolvedValue({ data: { session: accountB }, error: null })
+
+    function Consumer() {
+      const value = useContext(AuthContext)
+      useEffect(() => {
+        authContext = value
+      }, [value])
+      return null
+    }
+
+    render(
+      <LocalizationProvider>
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      </LocalizationProvider>,
+    )
+
+    await act(async () => {
+      await expect(authContext!.signInWithApple()).resolves.toBe(true)
+    })
+
+    expect(mockSignInWithIdToken).toHaveBeenCalledTimes(1)
+    expect(mockRpc).toHaveBeenCalledWith('set_current_user_expo_push_token', { p_token: null })
+    expect(getAccountLifecycleSnapshot()).toMatchObject({
+      phase: 'stable',
+      activeUserId: 'user-2',
+    })
   })
 
   it('returns from the auth listener before validating a cached session', async () => {
@@ -376,7 +485,9 @@ describe('AuthProvider', () => {
     mockGetUser.mockResolvedValue({ data: { user: session.user }, error: null })
     mockRpc.mockResolvedValue({ data: null, error: { code: 'NETWORK_ERROR' } })
 
-    await expect(authContext!.signOut()).rejects.toThrow('Unable to securely sign out')
+    await act(async () => {
+      await expect(authContext!.signOut()).rejects.toThrow('Unable to securely sign out')
+    })
     expect(mockRpc).toHaveBeenCalledTimes(3)
     expect(mockSignOut).not.toHaveBeenCalled()
     expect(authContext!.user?.id).toBe('user-1')
@@ -432,12 +543,17 @@ describe('AuthProvider', () => {
       </LocalizationProvider>,
     )
 
-    void queuePushTokenOperation(
-      () =>
-        new Promise<void>((resolve) => {
-          releaseQueue = resolve
-        }),
-    )
+    act(() => {
+      setActiveAccount('user-1')
+      void runAccountOwnedOperation(
+        'user-1',
+        undefined,
+        () =>
+          new Promise<void>((resolve) => {
+            releaseQueue = resolve
+          }),
+      )
+    })
 
     await act(async () => {
       authListener?.('INITIAL_SESSION', buildSession('user-1'))

@@ -8,11 +8,8 @@ import { useNotificationStore } from '~/stores/notificationStore'
 import { supabase } from '~/lib/supabase'
 import { getAllowedNotificationRoute } from '~/lib/navigationSecurity'
 import { useAuth } from '~/hooks/useAuth'
-import { queuePushTokenOperation } from '~/lib/pushTokenCoordinator'
-import {
-  canRegisterPushTokenForUser,
-  queueAccountNotificationReset,
-} from '~/lib/accountTransitionSecurity'
+import { canRunAccountOperation, runAccountOwnedOperation } from '~/lib/accountLifecycleCoordinator'
+import { canRegisterPushTokenForUser } from '~/lib/accountTransitionSecurity'
 
 // Check if notifications are supported (not in Expo Go on Android SDK 53+)
 const isExpoGo = Constants.appOwnership === 'expo'
@@ -25,31 +22,6 @@ const Notifications = isNotificationsSupported ? require('expo-notifications') :
 const MAX_RETRY_ATTEMPTS = 3
 const INITIAL_RETRY_DELAY_MS = 1000
 const MAX_HANDLED_NOTIFICATION_RESPONSES = 100
-const INITIAL_NOTIFICATION_RESET_RETRY_DELAY_MS = 1000
-const MAX_NOTIFICATION_RESET_RETRY_DELAY_MS = 30_000
-
-async function reconcilePushTokenOwnership(token: string): Promise<void> {
-  for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt += 1) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return
-
-    const expectedUserId = user.id
-    const { error } = await supabase.rpc('set_current_user_expo_push_token', {
-      p_token: token,
-    })
-    if (error) {
-      if (attempt === MAX_RETRY_ATTEMPTS) throw error
-      continue
-    }
-
-    const {
-      data: { user: userAfterClaim },
-    } = await supabase.auth.getUser()
-    if (!userAfterClaim || userAfterClaim.id === expectedUserId) return
-  }
-}
 
 /**
  * Register push token with retry logic and exponential backoff
@@ -70,7 +42,7 @@ async function registerPushTokenWithRetry(
       return false
     }
 
-    return await queuePushTokenOperation(async () => {
+    return await runAccountOwnedOperation(expectedUserId, false, async () => {
       if (!shouldContinue()) return false
 
       const {
@@ -93,9 +65,6 @@ async function registerPushTokenWithRetry(
         data: { user: currentUser },
       } = await supabase.auth.getUser()
       if (currentUser?.id !== expectedUserId || !shouldContinue()) {
-        if (currentUser) {
-          await reconcilePushTokenOwnership(token)
-        }
         return false
       }
 
@@ -140,10 +109,6 @@ export function useNotificationObserver() {
     let cancelled = false
     let foregroundRegistrationTimeout: ReturnType<typeof setTimeout> | null = null
     const navigationTimeouts = new Set<ReturnType<typeof setTimeout>>()
-    const resetRetryWaiters = new Map<
-      ReturnType<typeof setTimeout>,
-      (shouldRetry: boolean) => void
-    >()
     const store = useNotificationStore.getState()
 
     hasRegisteredToken.current = false
@@ -151,43 +116,6 @@ export function useNotificationObserver() {
     store.setHasValidatedIds(false)
     store.setPlanningReminderId(null)
     store.setEveningRolloverSource(null)
-
-    // Local notifications contain account-owned task titles and notes. Remove
-    // them before rebuilding notification state for a newly authenticated user.
-    const waitForResetRetry = (delayMs: number) =>
-      new Promise<boolean>((resolve) => {
-        if (cancelled) {
-          resolve(false)
-          return
-        }
-
-        const timeout = setTimeout(() => {
-          resetRetryWaiters.delete(timeout)
-          resolve(!cancelled)
-        }, delayMs)
-        resetRetryWaiters.set(timeout, resolve)
-      })
-
-    const cancelResetRetries = () => {
-      resetRetryWaiters.forEach((resolve, timeout) => {
-        clearTimeout(timeout)
-        resolve(false)
-      })
-      resetRetryWaiters.clear()
-    }
-
-    const notificationReset = (async () => {
-      let retryDelayMs = INITIAL_NOTIFICATION_RESET_RETRY_DELAY_MS
-
-      while (!cancelled) {
-        if (await queueAccountNotificationReset()) return true
-        console.warn('[Notifications] Account notification reset was not verified; retrying')
-        if (!(await waitForResetRetry(retryDelayMs))) return false
-        retryDelayMs = Math.min(retryDelayMs * 2, MAX_NOTIFICATION_RESET_RETRY_DELAY_MS)
-      }
-
-      return false
-    })()
 
     const belongsToCurrentUser = async () => {
       if (cancelled) return false
@@ -198,10 +126,8 @@ export function useNotificationObserver() {
     }
 
     if (!userId) {
-      void notificationReset
       return () => {
         cancelled = true
-        cancelResetRetries()
       }
     }
 
@@ -264,8 +190,7 @@ export function useNotificationObserver() {
     // This also validates and cleans up any orphaned notifications from previous app versions
     const reschedulePlanningReminder = async () => {
       try {
-        const resetSucceeded = await notificationReset
-        if (!resetSucceeded || cancelled) return
+        if (cancelled) return
 
         // Check if we've already validated this session
         if (store.hasValidatedIds) {
@@ -340,21 +265,6 @@ export function useNotificationObserver() {
           ),
         )
 
-        // Cancel existing planning reminders only; task reminders are managed separately.
-        console.log('[Notifications] Cancelling existing planning reminders...')
-        const cancelSuccess = await NotificationService.cancelPlanningReminders()
-
-        // Verify cancellation worked
-        const planningAfterCancel =
-          await NotificationService.getScheduledNotificationsByType('planning_reminder')
-        console.log(
-          `[Notifications] After cancel: ${planningAfterCancel.length} planning reminders remaining`,
-        )
-
-        if (!cancelSuccess || planningAfterCancel.length > 0) {
-          console.warn('[Notifications] WARNING: Some planning reminders could not be cancelled!')
-        }
-
         // Only schedule new notification if user has a reminder time configured and
         // has opted in to planning reminder notifications
         if (!profile?.planning_reminder_time || !profile?.planning_reminder_enabled) {
@@ -367,16 +277,25 @@ export function useNotificationObserver() {
           return
         }
 
-        // Parse the time and reschedule
+        // Parse the time and replace the reminder as one account-bound operation.
         const { hour, minute } = NotificationService.parseTimeString(profile.planning_reminder_time)
-
-        // Schedule fresh notification with current text
-        console.log(`[Notifications] Scheduling new reminder for ${hour}:${minute}`)
-        const newId = await NotificationService.schedulePlanningReminder(hour, minute, userId)
-        if (!(await belongsToCurrentUser())) {
-          if (newId) await NotificationService.cancelNotification(newId)
-          return
-        }
+        const newId = await runAccountOwnedOperation(userId, '', async (isCurrent) => {
+          if (!isCurrent() || !(await belongsToCurrentUser())) return ''
+          const cancelSuccess = await NotificationService.cancelPlanningReminders(userId, false)
+          if (!cancelSuccess || !isCurrent()) return ''
+          const identifier = await NotificationService.schedulePlanningReminder(
+            hour,
+            minute,
+            userId,
+            false,
+          )
+          if (!isCurrent() || !(await belongsToCurrentUser())) {
+            if (identifier) await NotificationService.cancelNotification(identifier)
+            return ''
+          }
+          return identifier
+        })
+        if (!newId) return
         console.log(`[Notifications] schedulePlanningReminder returned ID: ${newId || 'EMPTY'}`)
         store.setPlanningReminderId(newId)
 
@@ -422,8 +341,7 @@ export function useNotificationObserver() {
     // This ensures notifications survive app reinstalls or device restarts
     const rescheduleTaskReminders = async () => {
       try {
-        const resetSucceeded = await notificationReset
-        if (!resetSucceeded || cancelled) return
+        if (cancelled) return
 
         const {
           data: { user },
@@ -471,11 +389,6 @@ export function useNotificationObserver() {
           userId,
           belongsToCurrentUser,
         )
-
-        // Update notification IDs in database
-        for (const [taskId, notificationId] of results) {
-          await supabase.from('tasks').update({ notification_id: notificationId }).eq('id', taskId)
-        }
 
         console.log(`[Notifications] Successfully rescheduled ${results.size} task reminders`)
       } catch (error) {
@@ -557,7 +470,6 @@ export function useNotificationObserver() {
       clearTimeout(taskReminderTimeout)
       if (foregroundRegistrationTimeout) clearTimeout(foregroundRegistrationTimeout)
       navigationTimeouts.forEach((timeout) => clearTimeout(timeout))
-      cancelResetRetries()
       appStateSubscription.remove()
       notificationListener.current?.remove()
       responseListener.current?.remove()
@@ -570,66 +482,84 @@ export function useNotificationObserver() {
  */
 export function useNotifications() {
   const store = useNotificationStore()
+  const { user } = useAuth()
 
   const schedulePlanningReminder = async (hour: number, minute: number) => {
-    console.log(`[Notifications] schedulePlanningReminder called for ${hour}:${minute}`)
+    const expectedUserId = user?.id
+    if (!expectedUserId) throw new Error('Not authenticated')
+    return runAccountOwnedOperation(expectedUserId, '', async (isCurrent) => {
+      console.log(`[Notifications] schedulePlanningReminder called for ${hour}:${minute}`)
 
-    // Log existing notifications before cancel
-    const before = await NotificationService.getScheduledNotificationsByType('planning_reminder')
-    console.log(`[Notifications] Before cancel: ${before.length} planning reminders`)
+      // Log existing notifications before cancel
+      const before = await NotificationService.getScheduledNotificationsByType('planning_reminder')
+      console.log(`[Notifications] Before cancel: ${before.length} planning reminders`)
 
-    // Cancel planning reminders before scheduling new one to prevent duplicates.
-    const cancelOk = await NotificationService.cancelPlanningReminders()
-    if (!cancelOk) {
-      console.warn(
-        '[Notifications] cancelPlanningReminders returned false — orphaned planning reminders may remain',
-      )
-    }
+      // Cancel planning reminders before scheduling new one to prevent duplicates.
+      const cancelOk = await NotificationService.cancelPlanningReminders(expectedUserId, false)
+      if (!cancelOk) {
+        console.warn(
+          '[Notifications] cancelPlanningReminders returned false — orphaned planning reminders may remain',
+        )
+      }
 
-    // Verify cancel worked
-    const afterCancel =
-      await NotificationService.getScheduledNotificationsByType('planning_reminder')
-    console.log(`[Notifications] After cancel: ${afterCancel.length} planning reminders`)
-
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session?.user.id) throw new Error('Not authenticated')
-
-      const identifier = await NotificationService.schedulePlanningReminder(
-        hour,
-        minute,
-        session.user.id,
-      )
-      store.setPlanningReminderId(identifier)
-
-      // Verify schedule worked
-      const afterSchedule =
+      // Verify cancel worked
+      const afterCancel =
         await NotificationService.getScheduledNotificationsByType('planning_reminder')
-      console.log(
-        `[Notifications] After schedule: ${afterSchedule.length} planning reminders, ID: ${identifier}`,
-      )
+      console.log(`[Notifications] After cancel: ${afterCancel.length} planning reminders`)
 
-      return identifier
-    } catch (error) {
-      // Clear store ID since we know no notification is scheduled
-      store.setPlanningReminderId(null)
-      console.error('[Notifications] Failed to schedule planning reminder:', error)
-      throw error
-    }
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        if (session?.user.id !== expectedUserId || !isCurrent()) {
+          throw new Error('The authenticated account changed while updating reminders.')
+        }
+
+        const identifier = await NotificationService.schedulePlanningReminder(
+          hour,
+          minute,
+          expectedUserId,
+          false,
+        )
+        if (!isCurrent()) {
+          if (identifier) await NotificationService.cancelNotification(identifier)
+          throw new Error('The authenticated account changed while updating reminders.')
+        }
+        store.setPlanningReminderId(identifier)
+
+        // Verify schedule worked
+        const afterSchedule =
+          await NotificationService.getScheduledNotificationsByType('planning_reminder')
+        console.log(
+          `[Notifications] After schedule: ${afterSchedule.length} planning reminders, ID: ${identifier}`,
+        )
+
+        return identifier
+      } catch (error) {
+        // Clear store ID since we know no notification is scheduled
+        if (canRunAccountOperation(expectedUserId)) store.setPlanningReminderId(null)
+        console.error('[Notifications] Failed to schedule planning reminder:', error)
+        throw error
+      }
+    })
   }
 
   const cancelPlanningReminder = async () => {
-    // Cancel planning reminders only; disabling the daily planning reminder should
-    // not remove per-task reminders.
-    const success = await NotificationService.cancelPlanningReminders()
-    if (!success) {
-      console.warn(
-        '[Notifications] cancelPlanningReminders returned false — some planning reminders may remain',
-      )
-    }
-    store.setPlanningReminderId(null)
+    const expectedUserId = user?.id
+    if (!expectedUserId) return
+    await runAccountOwnedOperation(expectedUserId, undefined, async (isCurrent) => {
+      // Cancel planning reminders only; disabling the daily planning reminder should
+      // not remove per-task reminders.
+      const success = await NotificationService.cancelPlanningReminders(expectedUserId, false)
+      if (!success) {
+        console.warn(
+          '[Notifications] cancelPlanningReminders returned false — some planning reminders may remain',
+        )
+      }
+      if (!isCurrent())
+        throw new Error('The authenticated account changed while updating reminders.')
+      store.setPlanningReminderId(null)
+    })
   }
 
   // Note: Execution reminders are now handled server-side via Edge Function

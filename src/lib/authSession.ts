@@ -16,6 +16,9 @@ type OAuthCodeExchanger = (code: string) => Promise<{
 
 const callbackPromiseRef: PendingPromiseRef<Session> = { current: null }
 let pendingCallbackCode: string | null = null
+const completedCallbackCodes = new Map<string, number>()
+const COMPLETED_CALLBACK_TTL_MS = 10 * 60 * 1000
+const MAX_COMPLETED_CALLBACKS = 16
 const ALLOWED_CALLBACKS = new Set([
   'domani://auth/callback',
   'https://www.domani-app.com/auth/callback',
@@ -92,10 +95,21 @@ export const parseOAuthCallback = (value: string): OAuthCallbackResult => {
 export const completeOAuthCallback = async (
   callbackUrl: string,
   exchangeCodeForSession: OAuthCodeExchanger,
+  getSession?: () => Promise<{ data: { session: Session | null }; error?: unknown }>,
 ): Promise<Session> => {
   const callback = parseOAuthCallback(callbackUrl)
   if (callback.type === 'error') throw new Error('OAuth sign in was not completed.')
   if (callback.type !== 'code') throw new Error('OAuth callback was rejected.')
+
+  const now = Date.now()
+  for (const [code, completedAt] of completedCallbackCodes) {
+    if (now - completedAt > COMPLETED_CALLBACK_TTL_MS) completedCallbackCodes.delete(code)
+  }
+  if (completedCallbackCodes.has(callback.code)) {
+    const establishedSession = getSession ? (await getSession()).data.session : null
+    if (establishedSession) return establishedSession
+    throw new Error('OAuth callback was already processed.')
+  }
 
   if (callbackPromiseRef.current) {
     if (pendingCallbackCode !== callback.code) {
@@ -109,13 +123,25 @@ export const completeOAuthCallback = async (
   try {
     return await runSingleFlight(callbackPromiseRef, async () => {
       const { data, error } = await exchangeCodeForSession(callback.code)
-      if (error) throw error
+      if (error) throw new Error('OAuth sign in could not be completed. Please try again.')
       if (!data.session) throw new Error('OAuth sign in completed without a session.')
+      completedCallbackCodes.set(callback.code, Date.now())
+      while (completedCallbackCodes.size > MAX_COMPLETED_CALLBACKS) {
+        const oldest = completedCallbackCodes.keys().next().value
+        if (oldest) completedCallbackCodes.delete(oldest)
+        else break
+      }
       return data.session
     })
   } finally {
     pendingCallbackCode = null
   }
+}
+
+export const resetOAuthCallbackStateForTests = () => {
+  callbackPromiseRef.current = null
+  pendingCallbackCode = null
+  completedCallbackCodes.clear()
 }
 
 export const delay = (milliseconds: number) =>

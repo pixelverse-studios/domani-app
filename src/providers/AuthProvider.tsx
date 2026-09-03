@@ -1,6 +1,12 @@
-import React, { createContext, useEffect, useRef, useState } from 'react'
+import React, { createContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Alert, Platform, NativeModules } from 'react-native'
-import { AuthChangeEvent, Session, User } from '@supabase/supabase-js'
+import {
+  AuthChangeEvent,
+  Session,
+  User,
+  isAuthRetryableFetchError,
+  isAuthSessionMissingError,
+} from '@supabase/supabase-js'
 import * as WebBrowser from 'expo-web-browser'
 import * as AppleAuthentication from 'expo-apple-authentication'
 
@@ -13,6 +19,11 @@ import { formatLocalizedDate } from '~/i18n/date'
 import type { AppLocale } from '~/i18n'
 import type { TranslationKey, TranslationValues } from '~/i18n/types'
 import { securelyReplaceSession, securelySignOut } from '~/lib/accountTransitionSecurity'
+import {
+  getAccountLifecycleSnapshot,
+  setActiveAccount,
+  subscribeToAccountLifecycle,
+} from '~/lib/accountLifecycleCoordinator'
 
 // Configure web browser for OAuth
 WebBrowser.maybeCompleteAuthSession()
@@ -195,10 +206,23 @@ const validateUserExists = async (userId: string): Promise<UserValidationResult>
     // to get the current user from the server (not cache)
     const { data: authData, error: authError } = await supabase.auth.getUser()
 
-    if (authError || !authData.user) {
+    if (authError) {
       console.warn('[AuthProvider] User does not exist on server:', authError?.message)
-      return authError ? 'unavailable' : 'invalid'
+      if (isAuthSessionMissingError(authError)) return 'invalid'
+      if (isAuthRetryableFetchError(authError)) return 'unavailable'
+      const status = 'status' in authError ? authError.status : undefined
+      const code = 'code' in authError ? authError.code : undefined
+      if (
+        status === 401 ||
+        status === 403 ||
+        code === 'invalid_jwt' ||
+        code === 'session_not_found'
+      ) {
+        return 'invalid'
+      }
+      return 'unavailable'
     }
+    if (!authData.user) return 'invalid'
 
     // User exists in auth but no profile yet - this is valid (profile will be created)
     return authData.user.id === userId ? 'valid' : 'invalid'
@@ -340,6 +364,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const accountLifecycle = useSyncExternalStore(
+    subscribeToAccountLifecycle,
+    getAccountLifecycleSnapshot,
+    getAccountLifecycleSnapshot,
+  )
   const [accountReactivated, setAccountReactivated] = useState(false)
   const googleSignInPromiseRef = useRef<Promise<boolean> | null>(null)
 
@@ -363,6 +392,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       setSession(nextSession)
       setUser(nextSession?.user ?? null)
+      setActiveAccount(nextSession?.user.id ?? null)
       setLoading(false)
 
       if ((event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') || !nextSession?.user) return
@@ -493,6 +523,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (!isMounted || authTransitionId !== transitionId) return
             setSession(null)
             setUser(null)
+            setActiveAccount(null)
             setLoading(false)
             return
           }
@@ -545,8 +576,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (result.type !== 'success') return false
 
-        await completeOAuthCallback(result.url, (code) =>
-          securelyReplaceSession(() => supabase.auth.exchangeCodeForSession(code)),
+        await completeOAuthCallback(
+          result.url,
+          (code) =>
+            securelyReplaceSession(async () => {
+              const exchange = await supabase.auth.exchangeCodeForSession(code)
+              if (exchange.error || !exchange.data.session) {
+                throw new Error('OAuth sign in could not be completed. Please try again.')
+              }
+              return exchange
+            }),
+          () => supabase.auth.getSession(),
         )
         addBreadcrumb('Google sign in completed', 'auth', { provider: 'google' })
         return true
@@ -580,17 +620,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       // Sign in to Supabase with the Apple identity token
-      const { data, error } = await securelyReplaceSession(() =>
-        supabase.auth.signInWithIdToken({
+      const { data } = await securelyReplaceSession(async () => {
+        const result = await supabase.auth.signInWithIdToken({
           provider: 'apple',
           token: credential.identityToken!,
-        }),
-      )
-
-      if (error) {
-        console.error('[AuthProvider] Supabase Apple auth error:', error)
-        throw error
-      }
+        })
+        if (result.error || !result.data.session) {
+          throw new Error('Apple sign in could not be completed. Please try again.')
+        }
+        return result
+      })
 
       console.log('[AuthProvider] Apple sign in successful!')
       addBreadcrumb('Apple sign in completed', 'auth', { provider: 'apple' })
@@ -648,7 +687,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const value = {
     session,
     user,
-    loading,
+    loading: loading || accountLifecycle.phase !== 'stable',
     signInWithGoogle,
     signInWithApple,
     signOut,

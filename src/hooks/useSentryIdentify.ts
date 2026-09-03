@@ -7,10 +7,11 @@ import { setSentryUser } from '~/lib/sentry'
  * Should be used once at the app root level.
  */
 export function useSentryIdentify() {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
   const previousUserId = useRef<string | null>(null)
 
   useEffect(() => {
+    if (loading) return
     const currentUserId = user?.id ?? null
 
     // Skip if user hasn't changed
@@ -33,5 +34,5 @@ export function useSentryIdentify() {
     }
 
     previousUserId.current = currentUserId
-  }, [user])
+  }, [user, loading])
 }

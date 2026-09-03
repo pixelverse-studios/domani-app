@@ -4,9 +4,16 @@ import {
   runRevenueCatUserOperation,
   transitionRevenueCatIdentity,
 } from '../revenuecatCoordinator'
+import {
+  resetAccountLifecycleCoordinatorForTests,
+  runAccountTransition,
+  setActiveAccount,
+} from '../accountLifecycleCoordinator'
 
 describe('RevenueCat account coordinator', () => {
   beforeEach(() => {
+    resetAccountLifecycleCoordinatorForTests()
+    setActiveAccount('user-1')
     resetRevenueCatCoordinatorForTests()
   })
 
@@ -43,6 +50,7 @@ describe('RevenueCat account coordinator', () => {
     )
     await operationStarted
 
+    setActiveAccount('user-2')
     const transition = transitionRevenueCatIdentity('user-2', async () => {
       events.push('login-2')
     })
@@ -56,9 +64,11 @@ describe('RevenueCat account coordinator', () => {
 
   it('skips an obsolete queued transition', async () => {
     const blocker = transitionRevenueCatIdentity('user-1', async () => undefined)
+    setActiveAccount('user-2')
     const obsolete = transitionRevenueCatIdentity('user-2', async () => {
       throw new Error('obsolete transition should not run')
     })
+    setActiveAccount('user-3')
     const latest = transitionRevenueCatIdentity('user-3', async () => undefined)
 
     await blocker
@@ -68,6 +78,7 @@ describe('RevenueCat account coordinator', () => {
 
   it('fails closed and allows retry when an identity transition fails', async () => {
     await transitionRevenueCatIdentity('user-1', async () => undefined)
+    setActiveAccount('user-2')
     await expect(
       transitionRevenueCatIdentity('user-2', async () => {
         throw new Error('login failed')
@@ -84,5 +95,36 @@ describe('RevenueCat account coordinator', () => {
       'safe result',
     )
     expect(retry).toHaveBeenCalledTimes(1)
+  })
+
+  it('drains a purchase before account replacement mutates auth identity', async () => {
+    await transitionRevenueCatIdentity('user-1', async () => undefined)
+    let finishPurchase!: () => void
+    let markPurchaseStarted!: () => void
+    const purchaseStarted = new Promise<void>((resolve) => {
+      markPurchaseStarted = resolve
+    })
+    const purchase = runRevenueCatUserOperation(
+      'user-1',
+      () =>
+        new Promise<string>((resolve) => {
+          finishPurchase = () => resolve('customer-info-for-user-1')
+          markPurchaseStarted()
+        }),
+    )
+    await purchaseStarted
+
+    let transitionStarted = false
+    const transition = runAccountTransition('user-1', async () => {
+      transitionStarted = true
+      setActiveAccount('user-2')
+    })
+    await Promise.resolve()
+    expect(transitionStarted).toBe(false)
+    finishPurchase()
+
+    await expect(purchase).rejects.toBeInstanceOf(RevenueCatAccountChangedError)
+    await transition
+    expect(transitionStarted).toBe(true)
   })
 })

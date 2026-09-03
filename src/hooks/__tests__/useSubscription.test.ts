@@ -54,6 +54,10 @@ import {
   RevenueCatAccountChangedError,
   resetRevenueCatCoordinatorForTests,
 } from '~/lib/revenuecatCoordinator'
+import {
+  resetAccountLifecycleCoordinatorForTests,
+  setActiveAccount,
+} from '~/lib/accountLifecycleCoordinator'
 
 const mockSupabaseFrom = supabase.from as unknown as jest.Mock
 const mockSupabaseFunctionsInvoke = supabase.functions.invoke as unknown as jest.Mock
@@ -198,6 +202,8 @@ function setupSubscriptionHookMocks() {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  resetAccountLifecycleCoordinatorForTests()
+  setActiveAccount('user-1')
   resetRevenueCatCoordinatorForTests()
   setupSubscriptionHookMocks()
 })
@@ -385,7 +391,10 @@ describe('purchase access sync', () => {
         signup_method: null,
       },
     })
-    rerender(undefined)
+    act(() => {
+      setActiveAccount('user-2')
+      rerender(undefined)
+    })
 
     await waitFor(() => expect(mockLoginRevenueCat).toHaveBeenCalledWith('user-2'))
     expect(result.current.isLoading).toBe(true)
@@ -444,7 +453,10 @@ describe('purchase access sync', () => {
       data: { user: { id: 'user-2' } },
       error: null,
     })
-    rerender(undefined)
+    act(() => {
+      setActiveAccount('user-2')
+      rerender(undefined)
+    })
 
     await act(async () => {
       resolveRestore?.(buildLifetimeCustomerInfo())
@@ -498,7 +510,10 @@ describe('purchase access sync', () => {
       data: { user: { id: 'user-2' } },
       error: null,
     })
-    rerender(undefined)
+    act(() => {
+      setActiveAccount('user-2')
+      rerender(undefined)
+    })
 
     await act(async () => {
       resolveRefund?.('SUCCESS')

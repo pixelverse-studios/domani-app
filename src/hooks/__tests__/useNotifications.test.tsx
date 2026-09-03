@@ -4,7 +4,11 @@ import { router } from 'expo-router'
 import { useNotificationObserver, useNotifications } from '../useNotifications'
 import { NotificationService } from '~/lib/notifications'
 import { supabase } from '~/lib/supabase'
-import { resetPushTokenCoordinatorForTests } from '~/lib/pushTokenCoordinator'
+import {
+  resetAccountLifecycleCoordinatorForTests,
+  runAccountTransition,
+  setActiveAccount,
+} from '~/lib/accountLifecycleCoordinator'
 import {
   canRegisterPushTokenForUser,
   resetAccountTransitionSecurityForTests,
@@ -27,6 +31,11 @@ jest.mock('~/hooks/useAuth', () => ({
 jest.mock('~/lib/notifications', () => ({
   NotificationService: {
     cancelAllReminders: jest.fn(() => Promise.resolve(true)),
+    getScheduledNotifications: jest.fn(() => Promise.resolve([])),
+    restoreScheduledNotifications: jest.fn(() => Promise.resolve(true)),
+    cancelPlanningReminders: jest.fn(() => Promise.resolve(true)),
+    getScheduledNotificationsByType: jest.fn(() => Promise.resolve([])),
+    schedulePlanningReminder: jest.fn(() => Promise.resolve('planning-1')),
     getExpoPushToken: jest.fn(() => Promise.resolve('ExponentPushToken[test-device]')),
     getPermissionStatus: jest.fn(() => Promise.resolve('granted')),
     requestPermissions: jest.fn(() => Promise.resolve(true)),
@@ -35,6 +44,8 @@ jest.mock('~/lib/notifications', () => ({
 }))
 
 const mockCancelAllReminders = NotificationService.cancelAllReminders as jest.Mock
+const mockCancelPlanningReminders = NotificationService.cancelPlanningReminders as jest.Mock
+const mockSchedulePlanningReminder = NotificationService.schedulePlanningReminder as jest.Mock
 const mockGetExpoPushToken = NotificationService.getExpoPushToken as jest.Mock
 const mockGetLastNotificationResponse = Notifications.getLastNotificationResponseAsync as jest.Mock
 const mockClearLastNotificationResponse =
@@ -49,8 +60,9 @@ describe('useNotificationObserver account scoping', () => {
   beforeEach(() => {
     jest.useFakeTimers()
     jest.clearAllMocks()
-    resetPushTokenCoordinatorForTests()
+    resetAccountLifecycleCoordinatorForTests()
     resetAccountTransitionSecurityForTests()
+    setActiveAccount('user-1')
     mockUseAuth.mockReturnValue({ user: { id: 'user-1' } })
     mockGetLastNotificationResponse.mockResolvedValue(null)
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
@@ -66,67 +78,22 @@ describe('useNotificationObserver account scoping', () => {
     jest.useRealTimers()
   })
 
-  it('clears scheduled account notifications on switch and logout', async () => {
+  it('does not destructively purge notifications when the observer mounts or rerenders', async () => {
     const { rerender, unmount } = renderHook(() => useNotificationObserver())
-
-    await waitFor(() => expect(mockCancelAllReminders).toHaveBeenCalledTimes(1))
 
     mockUseAuth.mockReturnValue({ user: { id: 'user-2' } })
     rerender(undefined)
-    await waitFor(() => expect(mockCancelAllReminders).toHaveBeenCalledTimes(2))
 
     mockUseAuth.mockReturnValue({ user: null })
     rerender(undefined)
-    await waitFor(() => expect(mockCancelAllReminders).toHaveBeenCalledTimes(3))
+
+    expect(mockCancelAllReminders).not.toHaveBeenCalled()
 
     unmount()
   })
 
-  it('serializes destructive notification resets across auth transitions', async () => {
-    let resolveFirstReset!: (value: boolean) => void
-    mockCancelAllReminders
-      .mockImplementationOnce(
-        () =>
-          new Promise<boolean>((resolve) => {
-            resolveFirstReset = resolve
-          }),
-      )
-      .mockResolvedValueOnce(true)
-    mockUseAuth.mockReturnValue({ user: null })
-
-    const { rerender, unmount } = renderHook(() => useNotificationObserver())
-    await waitFor(() => expect(mockCancelAllReminders).toHaveBeenCalledTimes(1))
-
-    mockUseAuth.mockReturnValue({ user: { id: 'user-1' } })
-    rerender(undefined)
-    await Promise.resolve()
-    expect(mockCancelAllReminders).toHaveBeenCalledTimes(1)
-
-    resolveFirstReset(true)
-    await waitFor(() => expect(mockCancelAllReminders).toHaveBeenCalledTimes(2))
-
-    unmount()
-  })
-
-  it('retries a failed notification purge while signed out', async () => {
-    mockUseAuth.mockReturnValue({ user: null })
-    mockCancelAllReminders.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
-
-    const { unmount } = renderHook(() => useNotificationObserver())
-    await waitFor(() => expect(mockCancelAllReminders).toHaveBeenCalledTimes(1))
-
-    await act(async () => {
-      jest.advanceTimersByTime(1000)
-      await Promise.resolve()
-      await Promise.resolve()
-    })
-
-    await waitFor(() => expect(mockCancelAllReminders).toHaveBeenCalledTimes(2))
-    unmount()
-  })
-
-  it('does not rebuild account reminders until notification cleanup is verified', async () => {
-    mockCancelAllReminders.mockResolvedValue(false)
+  it('preserves scheduled reminders on a same-account offline cold launch', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: new Error('offline') })
 
     const { unmount } = renderHook(() => useNotificationObserver())
 
@@ -136,7 +103,7 @@ describe('useNotificationObserver account scoping', () => {
       await Promise.resolve()
     })
 
-    expect(mockFrom).not.toHaveBeenCalled()
+    expect(mockCancelAllReminders).not.toHaveBeenCalled()
     unmount()
   })
 
@@ -175,12 +142,75 @@ describe('useNotificationObserver account scoping', () => {
       await result.current.requestPermissions()
     })
 
+    // Push ownership rollback snapshots the server-side claim; the blocked
+    // permission action must not start a device-token registration attempt.
     expect(mockGetExpoPushToken).not.toHaveBeenCalled()
 
     finishPurge(true)
     await signOut
     expect(mockRpc).toHaveBeenCalledTimes(1)
     expect(mockRpc).toHaveBeenCalledWith('set_current_user_expo_push_token', { p_token: null })
+  })
+
+  it('does not schedule account A planning state after an account transition begins', async () => {
+    let finishCancellation!: (value: boolean) => void
+    mockCancelPlanningReminders.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finishCancellation = resolve
+        }),
+    )
+    const { result } = renderHook(() => useNotifications())
+
+    let reminderUpdate!: Promise<string>
+    act(() => {
+      reminderUpdate = result.current.schedulePlanningReminder(21, 0)
+    })
+    await waitFor(() => expect(mockCancelPlanningReminders).toHaveBeenCalledTimes(1))
+
+    const transition = runAccountTransition('user-1', async () => undefined)
+    finishCancellation(true)
+
+    await expect(reminderUpdate).rejects.toThrow(
+      'The authenticated account changed while updating reminders.',
+    )
+    await transition
+    expect(mockSchedulePlanningReminder).not.toHaveBeenCalled()
+  })
+
+  it('finishes account A cancellation before an account replacement can proceed', async () => {
+    const events: string[] = []
+    let finishCancellation!: (value: boolean) => void
+    mockCancelPlanningReminders.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          events.push('cancel-started')
+          finishCancellation = (value) => {
+            events.push('cancel-finished')
+            resolve(value)
+          }
+        }),
+    )
+    const { result } = renderHook(() => useNotifications())
+
+    let cancellation!: Promise<void>
+    act(() => {
+      cancellation = result.current.cancelPlanningReminder()
+    })
+    await waitFor(() => expect(events).toEqual(['cancel-started']))
+
+    const transition = runAccountTransition('user-1', async () => {
+      events.push('transition')
+      setActiveAccount('user-2')
+    })
+    expect(events).toEqual(['cancel-started'])
+
+    finishCancellation(true)
+    await expect(cancellation).rejects.toThrow(
+      'The authenticated account changed while updating reminders.',
+    )
+    await transition
+    expect(events).toEqual(['cancel-started', 'cancel-finished', 'transition'])
   })
 
   it('transfers a stale completed token claim to the replacement account', async () => {
@@ -193,9 +223,7 @@ describe('useNotificationObserver account scoping', () => {
           }),
       )
       .mockResolvedValueOnce({ data: null, error: null })
-    mockGetExpoPushToken
-      .mockResolvedValueOnce('ExponentPushToken[shared-device]')
-      .mockResolvedValueOnce(null)
+    mockGetExpoPushToken.mockResolvedValue('ExponentPushToken[shared-device]')
 
     const { rerender, unmount } = renderHook(() => useNotificationObserver())
 
@@ -207,6 +235,7 @@ describe('useNotificationObserver account scoping', () => {
     await waitFor(() => expect(mockRpc).toHaveBeenCalledTimes(1))
 
     mockUseAuth.mockReturnValue({ user: { id: 'user-2' } })
+    setActiveAccount('user-2')
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-2' } }, error: null })
     rerender(undefined)
 

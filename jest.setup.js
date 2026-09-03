@@ -121,6 +121,9 @@ jest.doMock('~/lib/supabase', () => ({
     auth: {
       getSession: jest.fn(() => Promise.resolve({ data: { session: null }, error: null })),
       getUser: jest.fn(() => Promise.resolve({ data: { user: null }, error: null })),
+      exchangeCodeForSession: jest.fn(() =>
+        Promise.resolve({ data: { session: null }, error: null }),
+      ),
       onAuthStateChange: jest.fn(() => ({
         data: { subscription: { unsubscribe: jest.fn() } },
       })),
@@ -142,6 +145,7 @@ jest.doMock('~/lib/supabase', () => ({
 
 jest.doMock('expo-notifications', () => ({
   AndroidImportance: { DEFAULT: 'default', HIGH: 'high' },
+  SchedulableTriggerInputTypes: { CALENDAR: 'calendar', DAILY: 'daily', DATE: 'date' },
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
   addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
   cancelAllScheduledNotificationsAsync: jest.fn(() => Promise.resolve()),

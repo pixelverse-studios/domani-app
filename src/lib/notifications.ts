@@ -1,11 +1,11 @@
 import { Platform, Linking } from 'react-native'
-import { addDays, format, parseISO } from 'date-fns'
+import { parseISO } from 'date-fns'
 import Constants from 'expo-constants'
 
 import { getTheme } from '~/theme/themes'
 import { supabase } from './supabase'
 import { captureException, addBreadcrumb } from './sentry'
-import { queueAccountNotificationOperation } from './accountNotificationCoordinator'
+import { runAccountOwnedOperation } from './accountLifecycleCoordinator'
 
 // Check if notifications are supported (not in Expo Go on Android SDK 53+)
 const isExpoGo = Constants.appOwnership === 'expo'
@@ -179,10 +179,11 @@ export const NotificationService = {
     hour: number,
     minute: number,
     ownerUserId: string,
+    coordinate: boolean = true,
   ): Promise<string> {
     if (!Notifications) return ''
 
-    return queueAccountNotificationOperation(ownerUserId, '', async () => {
+    const schedule = async () => {
       try {
         await this.initialize()
         const identifier = await Notifications.scheduleNotificationAsync({
@@ -215,7 +216,9 @@ export const NotificationService = {
         })
         return ''
       }
-    })
+    }
+
+    return coordinate ? runAccountOwnedOperation(ownerUserId, '', schedule) : schedule()
   },
 
   /**
@@ -260,8 +263,9 @@ export const NotificationService = {
     return remainingCount === 0
   },
 
-  async cancelPlanningReminders(): Promise<boolean> {
-    return this.cancelRemindersByType('planning_reminder')
+  async cancelPlanningReminders(ownerUserId: string, coordinate: boolean = true): Promise<boolean> {
+    const cancel = () => this.cancelRemindersByType('planning_reminder')
+    return coordinate ? runAccountOwnedOperation(ownerUserId, false, cancel) : cancel()
   },
 
   /**
@@ -333,6 +337,71 @@ export const NotificationService = {
   async getScheduledNotifications(): Promise<unknown[]> {
     if (!Notifications) return []
     return await Notifications.getAllScheduledNotificationsAsync()
+  },
+
+  async restoreScheduledNotifications(scheduledNotifications: unknown[]): Promise<boolean> {
+    if (!Notifications) return true
+
+    try {
+      await Notifications.cancelAllScheduledNotificationsAsync()
+      for (const notification of scheduledNotifications) {
+        const request = notification as {
+          content: import('expo-notifications').NotificationContent
+          trigger: import('expo-notifications').NotificationTrigger
+        }
+        const trigger = request.trigger as unknown as {
+          type?: string
+          timestamp?: number
+          dateComponents?: Record<string, unknown> & { timeZone?: string }
+        }
+        let restorableTrigger: import('expo-notifications').NotificationTriggerInput
+        if (trigger.type === 'calendar' && trigger.dateComponents) {
+          const {
+            timeZone,
+            isLeapMonth: _isLeapMonth,
+            calendar: _calendar,
+            ...dateComponents
+          } = trigger.dateComponents
+          restorableTrigger = {
+            type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
+            repeats: Boolean((request.trigger as { repeats?: boolean }).repeats),
+            ...(timeZone ? { timezone: timeZone } : {}),
+            ...dateComponents,
+          } as import('expo-notifications').CalendarTriggerInput
+        } else if (trigger.type === 'date' && typeof trigger.timestamp === 'number') {
+          restorableTrigger = {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: trigger.timestamp * 1000,
+          }
+        } else {
+          restorableTrigger =
+            request.trigger as import('expo-notifications').NotificationTriggerInput
+        }
+        const identifier = await Notifications.scheduleNotificationAsync({
+          content:
+            request.content as unknown as import('expo-notifications').NotificationContentInput,
+          trigger: restorableTrigger,
+        })
+        const taskId = request.content.data?.taskId
+        if (typeof taskId === 'string') {
+          const { error } = await supabase
+            .from('tasks')
+            .update({ notification_id: identifier })
+            .eq('id', taskId)
+          if (error) {
+            console.warn('[Notifications] Restored task reminder but could not refresh its ID')
+          }
+        }
+      }
+      return true
+    } catch (error) {
+      console.error('[Notifications] Failed to restore scheduled reminders:', error)
+      captureException(error instanceof Error ? error : new Error(String(error)), {
+        method: 'restoreScheduledNotifications',
+        reminderCount: scheduledNotifications.length,
+      })
+      return false
+    }
   },
 
   async getScheduledNotificationsByType(type: NotificationType): Promise<unknown[]> {
@@ -418,10 +487,11 @@ export const NotificationService = {
       notes?: string | null
     },
     ownerUserId: string,
+    coordinate: boolean = true,
   ): Promise<string | null> {
     if (!Notifications) return null
 
-    return queueAccountNotificationOperation(ownerUserId, null, async () => {
+    const schedule = async () => {
       try {
         await this.initialize()
 
@@ -512,26 +582,36 @@ export const NotificationService = {
         })
         return null
       }
-    })
+    }
+
+    return coordinate ? runAccountOwnedOperation(ownerUserId, null, schedule) : schedule()
   },
 
   /**
    * Cancel a task's scheduled reminder notification
    * @param notificationId - The notification identifier to cancel
    */
-  async cancelTaskReminder(notificationId: string | null): Promise<void> {
+  async cancelTaskReminder(
+    notificationId: string | null,
+    ownerUserId: string,
+    coordinate: boolean = true,
+  ): Promise<void> {
     if (!Notifications || !notificationId) return
 
-    try {
-      await Notifications.cancelScheduledNotificationAsync(notificationId)
-      console.log(`[Notifications] Cancelled task reminder: ${notificationId}`)
-    } catch (error) {
-      console.error(`[Notifications] Failed to cancel task reminder:`, error)
-      captureException(error instanceof Error ? error : new Error(String(error)), {
-        method: 'cancelTaskReminder',
-        notificationId,
-      })
+    const cancel = async () => {
+      try {
+        await Notifications.cancelScheduledNotificationAsync(notificationId)
+        console.log(`[Notifications] Cancelled task reminder: ${notificationId}`)
+      } catch (error) {
+        console.error(`[Notifications] Failed to cancel task reminder:`, error)
+        captureException(error instanceof Error ? error : new Error(String(error)), {
+          method: 'cancelTaskReminder',
+          notificationId,
+        })
+      }
     }
+
+    return coordinate ? runAccountOwnedOperation(ownerUserId, undefined, cancel) : cancel()
   },
 
   /**
@@ -552,33 +632,49 @@ export const NotificationService = {
     ownerUserId: string,
     shouldContinue?: () => boolean | Promise<boolean>,
   ): Promise<Map<string, string>> {
-    const results = new Map<string, string>()
+    return runAccountOwnedOperation(ownerUserId, new Map<string, string>(), async (isCurrent) => {
+      const results = new Map<string, string>()
 
-    for (const task of tasks) {
-      if (shouldContinue && !(await shouldContinue())) break
+      for (const task of tasks) {
+        if (!isCurrent() || (shouldContinue && !(await shouldContinue()))) break
 
-      // Cancel existing notification if any (might be stale)
-      if (task.notification_id) {
-        await this.cancelTaskReminder(task.notification_id)
-      }
-
-      // Schedule new notification
-      const newId = await this.scheduleTaskReminder(task, ownerUserId)
-      if (newId) {
-        if (shouldContinue && !(await shouldContinue())) {
-          await this.cancelTaskReminder(newId)
-          break
+        // Cancel existing notification if any (might be stale)
+        if (task.notification_id) {
+          await this.cancelTaskReminder(task.notification_id, ownerUserId, false)
         }
-        results.set(task.id, newId)
-      }
-    }
 
-    console.log(`[Notifications] Rescheduled ${results.size} task reminders`)
-    addBreadcrumb('Task reminders rescheduled', 'notifications', {
-      total: tasks.length,
-      scheduled: results.size,
-      failed: tasks.length - results.size,
+        // Schedule new notification
+        const newId = await this.scheduleTaskReminder(task, ownerUserId, false)
+        if (newId) {
+          if (!isCurrent() || (shouldContinue && !(await shouldContinue()))) {
+            await this.cancelTaskReminder(newId, ownerUserId, false)
+            break
+          }
+
+          const { error } = await supabase
+            .from('tasks')
+            .update({ notification_id: newId })
+            .eq('id', task.id)
+            .eq('user_id', ownerUserId)
+
+          if (error) {
+            await this.cancelTaskReminder(newId, ownerUserId, false)
+            console.warn('[Notifications] Could not persist rescheduled task reminder ID:', error)
+            continue
+          }
+
+          if (!isCurrent() || (shouldContinue && !(await shouldContinue()))) break
+          results.set(task.id, newId)
+        }
+      }
+
+      console.log(`[Notifications] Rescheduled ${results.size} task reminders`)
+      addBreadcrumb('Task reminders rescheduled', 'notifications', {
+        total: tasks.length,
+        scheduled: results.size,
+        failed: tasks.length - results.size,
+      })
+      return results
     })
-    return results
   },
 }

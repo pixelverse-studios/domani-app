@@ -18,8 +18,17 @@ export default function AuthCallbackScreen() {
     hasCompletedRef.current = true
 
     try {
-      await completeOAuthCallback(callbackUrl, (code) =>
-        securelyReplaceSession(() => supabase.auth.exchangeCodeForSession(code)),
+      await completeOAuthCallback(
+        callbackUrl,
+        (code) =>
+          securelyReplaceSession(async () => {
+            const result = await supabase.auth.exchangeCodeForSession(code)
+            if (result.error || !result.data.session) {
+              throw new Error('OAuth sign in could not be completed. Please try again.')
+            }
+            return result
+          }),
+        () => supabase.auth.getSession(),
       )
       router.replace('/')
     } catch {

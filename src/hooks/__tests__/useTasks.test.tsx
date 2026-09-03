@@ -326,7 +326,7 @@ describe('task hooks', () => {
       updates: { reminder_at: reminderAt },
     })
 
-    expect(mockCancelTaskReminder).toHaveBeenCalledWith('old-notification')
+    expect(mockCancelTaskReminder).toHaveBeenCalledWith('old-notification', 'user-1')
     expect(mockScheduleTaskReminder).toHaveBeenCalledWith(
       {
         id: 'task-update-reminder',

@@ -1,3 +1,8 @@
+import {
+  getAccountLifecycleSnapshot,
+  runAccountOwnedOperation,
+} from './accountLifecycleCoordinator'
+
 export class RevenueCatAccountChangedError extends Error {
   constructor() {
     super('RevenueCat operation was cancelled because the authenticated account changed.')
@@ -23,6 +28,12 @@ export const transitionRevenueCatIdentity = (
   userId: RevenueCatUserId,
   operation: () => Promise<void>,
 ): Promise<boolean> => {
+  const lifecycleGeneration = getAccountLifecycleSnapshot().generation
+  if (
+    getAccountLifecycleSnapshot().phase !== 'stable' ||
+    getAccountLifecycleSnapshot().activeUserId !== userId
+  )
+    return Promise.resolve(false)
   if (requestedUserId === userId && pendingTransition) return pendingTransition
   if (requestedUserId === userId && activeUserId === userId) return Promise.resolve(true)
 
@@ -30,9 +41,21 @@ export const transitionRevenueCatIdentity = (
   const generation = ++transitionGeneration
 
   const transition = enqueue(async () => {
-    if (generation !== transitionGeneration) return false
+    if (
+      generation !== transitionGeneration ||
+      getAccountLifecycleSnapshot().phase !== 'stable' ||
+      getAccountLifecycleSnapshot().activeUserId !== userId ||
+      getAccountLifecycleSnapshot().generation !== lifecycleGeneration
+    )
+      return false
 
     await operation()
+    if (
+      getAccountLifecycleSnapshot().phase !== 'stable' ||
+      getAccountLifecycleSnapshot().activeUserId !== userId ||
+      getAccountLifecycleSnapshot().generation !== lifecycleGeneration
+    )
+      return false
     activeUserId = userId
 
     return generation === transitionGeneration
@@ -50,20 +73,40 @@ export const transitionRevenueCatIdentity = (
 export const runRevenueCatUserOperation = <T>(
   userId: string,
   operation: () => Promise<T>,
-): Promise<T> =>
-  enqueue(async () => {
-    if (requestedUserId !== userId || activeUserId !== userId) {
-      throw new RevenueCatAccountChangedError()
-    }
+): Promise<T> => {
+  const blocked = Symbol('revenue-cat-account-changed')
+  return runAccountOwnedOperation<T | typeof blocked>(userId, blocked, () =>
+    enqueue(async () => {
+      const lifecycleGeneration = getAccountLifecycleSnapshot().generation
+      if (requestedUserId !== userId || activeUserId !== userId) {
+        throw new RevenueCatAccountChangedError()
+      }
+      if (getAccountLifecycleSnapshot().phase !== 'stable') {
+        throw new RevenueCatAccountChangedError()
+      }
+      if (getAccountLifecycleSnapshot().activeUserId !== userId) {
+        throw new RevenueCatAccountChangedError()
+      }
 
-    const result = await operation()
+      const result = await operation()
 
-    if (requestedUserId !== userId || activeUserId !== userId) {
-      throw new RevenueCatAccountChangedError()
-    }
+      if (
+        requestedUserId !== userId ||
+        activeUserId !== userId ||
+        getAccountLifecycleSnapshot().phase !== 'stable' ||
+        getAccountLifecycleSnapshot().activeUserId !== userId ||
+        getAccountLifecycleSnapshot().generation !== lifecycleGeneration
+      ) {
+        throw new RevenueCatAccountChangedError()
+      }
 
+      return result
+    }),
+  ).then((result) => {
+    if (result === blocked) throw new RevenueCatAccountChangedError()
     return result
   })
+}
 
 export const isRevenueCatAccountChangedError = (
   error: unknown,

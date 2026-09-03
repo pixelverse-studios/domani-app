@@ -74,7 +74,7 @@ export function useToggleTask() {
 
       // Cancel notification if task is being completed
       if (completed && existingTask?.notification_id) {
-        await NotificationService.cancelTaskReminder(existingTask.notification_id)
+        await NotificationService.cancelTaskReminder(existingTask.notification_id, user.id)
       }
 
       return data
@@ -269,7 +269,7 @@ export function useCreateTask() {
             .eq('id', data.id)
 
           if (reminderUpdateError) {
-            await NotificationService.cancelTaskReminder(notificationId)
+            await NotificationService.cancelTaskReminder(notificationId, user.id)
             data.reminder_at = null
             data.notification_id = null
           } else {
@@ -368,7 +368,7 @@ export function useUpdateTask() {
       if (reminderChanged || titleChanged) {
         // Cancel existing notification if any
         if (existingTask?.notification_id) {
-          await NotificationService.cancelTaskReminder(existingTask.notification_id)
+          await NotificationService.cancelTaskReminder(existingTask.notification_id, user.id)
         }
 
         // Schedule new notification if reminder is set
@@ -392,7 +392,7 @@ export function useUpdateTask() {
               .eq('id', taskId)
 
             if (notificationUpdateError) {
-              await NotificationService.cancelTaskReminder(notificationId)
+              await NotificationService.cancelTaskReminder(notificationId, user.id)
               await supabase
                 .from('tasks')
                 .update({ reminder_at: null, notification_id: null })
@@ -508,7 +508,7 @@ export function useDeleteTask() {
 
       // Cancel notification if task had one scheduled
       if (existingTask?.notification_id) {
-        await NotificationService.cancelTaskReminder(existingTask.notification_id)
+        await NotificationService.cancelTaskReminder(existingTask.notification_id, user.id)
       }
 
       // Look up task from cache before deleting for analytics

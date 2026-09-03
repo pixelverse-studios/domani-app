@@ -4,12 +4,16 @@ import { waitFor } from '~/test/test-utils'
 import {
   completeOAuthCallback,
   parseOAuthCallback,
+  resetOAuthCallbackStateForTests,
   resolveOAuthRedirectUrl,
   runSingleFlight,
   waitForAuthSession,
 } from '../authSession'
 
 describe('authSession', () => {
+  beforeEach(() => {
+    resetOAuthCallbackStateForTests()
+  })
   describe('resolveOAuthRedirectUrl', () => {
     it('uses the claimed HTTPS callback for supported release platforms', () => {
       expect(
@@ -116,6 +120,17 @@ describe('authSession', () => {
     expect(exchange).not.toHaveBeenCalled()
   })
 
+  it('does not expose provider or callback secrets when code exchange fails', async () => {
+    const exchange = jest.fn().mockResolvedValue({
+      data: { session: null },
+      error: new Error('provider rejected secret-code-value'),
+    })
+
+    await expect(
+      completeOAuthCallback('domani://auth/callback?code=secret-code-value', exchange),
+    ).rejects.toThrow('OAuth sign in could not be completed. Please try again.')
+  })
+
   it('reuses a pending callback exchange instead of exchanging the code twice', async () => {
     const session = { access_token: 'access' } as Session
     let resolveExchange: (value: {
@@ -135,6 +150,21 @@ describe('authSession', () => {
 
     await expect(first).resolves.toBe(session)
     await expect(second).resolves.toBe(session)
+  })
+
+  it('reuses the established session for a sequential duplicate callback', async () => {
+    const session = { access_token: 'access', user: { id: 'user-1' } } as Session
+    const exchange = jest.fn().mockResolvedValue({ data: { session }, error: null })
+    const getSession = jest.fn().mockResolvedValue({ data: { session }, error: null })
+
+    await expect(
+      completeOAuthCallback('domani://auth/callback?code=sequential-code', exchange, getSession),
+    ).resolves.toBe(session)
+    await expect(
+      completeOAuthCallback('domani://auth/callback?code=sequential-code', exchange, getSession),
+    ).resolves.toBe(session)
+
+    expect(exchange).toHaveBeenCalledTimes(1)
   })
 
   it('rejects a different callback while another code exchange is in progress', async () => {
