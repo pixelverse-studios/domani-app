@@ -17,8 +17,9 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from '@expo-google-fonts/inter'
-import { View, ActivityIndicator, Alert } from 'react-native'
+import { View, ActivityIndicator, Alert, Pressable, Text } from 'react-native'
 import { useCurrentDate } from '~/hooks/useCurrentDate'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 import { supabase } from '~/lib/supabase'
 import { LocalizationProvider } from '~/providers/LocalizationProvider'
@@ -48,9 +49,18 @@ const queryClient = new QueryClient()
 function RootLayoutContent() {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { locale } = useTranslation()
+  const theme = useAppTheme()
+  const { locale, t } = useTranslation()
   const copy = getMainScreenCopy(locale)
-  const { accountReactivated, clearAccountReactivated, loading, user } = useAuth()
+  const {
+    accountReactivated,
+    clearAccountReactivated,
+    loading,
+    user,
+    accountRecoveryError,
+    retryAccountRecovery,
+  } = useAuth()
+  const [recoveryRetrying, setRecoveryRetrying] = React.useState(false)
   const previousUserIdRef = React.useRef<string | null>(user?.id ?? null)
 
   // Clear React Query cache on sign out to prevent stale data leaking into new accounts.
@@ -310,6 +320,43 @@ function RootLayoutContent() {
     eveningIsBeforeReminderTime,
     router,
   ])
+
+  // Recovery failures remain fail-closed, but provide a path to restore the
+  // retained account instead of leaving the app on an indefinite spinner.
+  if (accountRecoveryError) {
+    return (
+      <View
+        className="flex-1 items-center justify-center px-8"
+        style={{ backgroundColor: theme.colors.background }}
+      >
+        <Text
+          className="mb-3 text-center text-xl font-semibold"
+          style={{ color: theme.colors.text.primary }}
+        >
+          {t('common.errors.title')}
+        </Text>
+        <Text className="mb-6 text-center text-base" style={{ color: theme.colors.text.secondary }}>
+          {accountRecoveryError}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          disabled={recoveryRetrying}
+          onPress={() => {
+            setRecoveryRetrying(true)
+            void retryAccountRecovery().finally(() => setRecoveryRetrying(false))
+          }}
+          className="min-w-40 items-center rounded-2xl px-6 py-4"
+          style={{ backgroundColor: theme.colors.brand.primary }}
+        >
+          {recoveryRetrying ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text className="font-semibold text-white">{t('common.errors.tryAgain')}</Text>
+          )}
+        </Pressable>
+      </View>
+    )
+  }
 
   // Do not mount authenticated routes until both identity and access are resolved.
   if (loading || (user && subscriptionLoading)) {

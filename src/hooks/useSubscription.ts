@@ -38,7 +38,9 @@ import {
   transitionRevenueCatIdentity,
 } from '~/lib/revenuecatCoordinator'
 import {
+  captureAccountOperationToken,
   getAccountLifecycleSnapshot,
+  isAccountOperationTokenCurrent,
   runAccountOwnedOperation,
   subscribeToAccountLifecycle,
 } from '~/lib/accountLifecycleCoordinator'
@@ -1300,11 +1302,15 @@ export function useSubscription() {
       // onSettled regardless of success or failure.
       isStartTrialPendingRef.current = true
 
-      if (!user?.id) return { previousProfile: undefined }
+      if (!user?.id) return { previousProfile: undefined, accountToken: null }
+      const accountToken = captureAccountOperationToken(user.id)
 
       // Cancel any in-flight profile refetches so they don't overwrite our
       // optimistic value.
       await queryClient.cancelQueries({ queryKey: ['profile', user.id] })
+      if (!isAccountOperationTokenCurrent(accountToken)) {
+        return { previousProfile: undefined, accountToken }
+      }
 
       const previousProfile = queryClient.getQueryData<Profile>(['profile', user.id])
       const now = new Date()
@@ -1321,15 +1327,20 @@ export function useSubscription() {
           : old,
       )
 
-      return { previousProfile }
+      return { previousProfile, accountToken }
     },
     onError: (_err, _vars, context) => {
       // Roll back the optimistic update if the mutation failed.
-      if (user?.id && context?.previousProfile !== undefined) {
+      if (
+        user?.id &&
+        context?.previousProfile !== undefined &&
+        isAccountOperationTokenCurrent(context.accountToken)
+      ) {
         queryClient.setQueryData<Profile>(['profile', user.id], context.previousProfile)
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data, _variables, context) => {
+      if (!isAccountOperationTokenCurrent(context?.accountToken)) return
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
     },
     onSettled: () => {

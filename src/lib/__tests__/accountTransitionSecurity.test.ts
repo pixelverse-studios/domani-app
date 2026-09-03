@@ -4,6 +4,7 @@ import {
   getAccountLifecycleSnapshot,
   resetAccountLifecycleCoordinatorForTests,
   runAccountOwnedOperation,
+  retryAccountTransitionRecovery,
   setActiveAccount,
 } from '../accountLifecycleCoordinator'
 import { supabase } from '../supabase'
@@ -114,6 +115,31 @@ describe('accountTransitionSecurity', () => {
     await expect(securelySignOut('user-1')).rejects.toThrow('network unavailable')
 
     expect(mockRestoreScheduledNotifications).toHaveBeenCalledWith(reminders)
+  })
+
+  it('stays fail-closed and retries when reminder restoration initially fails', async () => {
+    const reminders = [{ identifier: 'planning-1', content: {}, trigger: {} }]
+    mockGetScheduledNotifications.mockResolvedValue(reminders)
+    mockSignOut.mockResolvedValue({ error: new Error('network unavailable') })
+    mockRestoreScheduledNotifications.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+
+    await expect(securelySignOut('user-1')).rejects.toThrow(
+      'existing reminders could not be restored',
+    )
+    expect(getAccountLifecycleSnapshot()).toMatchObject({
+      phase: 'recovering',
+      activeUserId: 'user-1',
+      recoveryError: expect.stringContaining('existing reminders could not be restored'),
+    })
+    expect(canRegisterPushTokenForUser('user-1')).toBe(false)
+
+    await expect(retryAccountTransitionRecovery()).resolves.toBe(true)
+    expect(mockRestoreScheduledNotifications).toHaveBeenCalledTimes(2)
+    expect(getAccountLifecycleSnapshot()).toMatchObject({
+      phase: 'stable',
+      activeUserId: 'user-1',
+      recoveryError: null,
+    })
   })
 
   it('reclaims the outgoing push token when sign-out fails', async () => {

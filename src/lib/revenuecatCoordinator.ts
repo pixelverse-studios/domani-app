@@ -39,27 +39,28 @@ export const transitionRevenueCatIdentity = (
 
   requestedUserId = userId
   const generation = ++transitionGeneration
+  const blocked = Symbol('revenue-cat-identity-transition-blocked')
 
-  const transition = enqueue(async () => {
-    if (
-      generation !== transitionGeneration ||
-      getAccountLifecycleSnapshot().phase !== 'stable' ||
-      getAccountLifecycleSnapshot().activeUserId !== userId ||
-      getAccountLifecycleSnapshot().generation !== lifecycleGeneration
-    )
-      return false
+  const transition = runAccountOwnedOperation<boolean | typeof blocked>(userId, blocked, () =>
+    enqueue(async () => {
+      if (
+        generation !== transitionGeneration ||
+        getAccountLifecycleSnapshot().generation !== lifecycleGeneration
+      )
+        return false
 
-    await operation()
-    if (
-      getAccountLifecycleSnapshot().phase !== 'stable' ||
-      getAccountLifecycleSnapshot().activeUserId !== userId ||
-      getAccountLifecycleSnapshot().generation !== lifecycleGeneration
-    )
-      return false
-    activeUserId = userId
+      await operation()
+      if (
+        getAccountLifecycleSnapshot().phase !== 'stable' ||
+        getAccountLifecycleSnapshot().activeUserId !== userId ||
+        getAccountLifecycleSnapshot().generation !== lifecycleGeneration
+      )
+        return false
+      activeUserId = userId
 
-    return generation === transitionGeneration
-  })
+      return generation === transitionGeneration
+    }),
+  ).then((result) => result !== blocked && result)
 
   pendingTransition = transition
   void transition

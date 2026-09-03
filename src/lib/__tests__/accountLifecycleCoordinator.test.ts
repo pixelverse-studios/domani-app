@@ -1,8 +1,12 @@
 import { waitFor } from '~/test/test-utils'
 import {
   canRunAccountOperation,
+  captureAccountOperationToken,
   getAccountLifecycleSnapshot,
+  isAccountOperationTokenCurrent,
+  registerAccountTransitionRecovery,
   resetAccountLifecycleCoordinatorForTests,
+  retryAccountTransitionRecovery,
   runAccountOwnedOperation,
   runAccountTransition,
   setActiveAccount,
@@ -46,6 +50,7 @@ describe('accountLifecycleCoordinator', () => {
       generation: 1,
       activeUserId: 'user-1',
       outgoingUserId: null,
+      recoveryError: null,
     })
   })
 
@@ -91,6 +96,7 @@ describe('accountLifecycleCoordinator', () => {
       generation: 1,
       activeUserId: 'user-1',
       outgoingUserId: null,
+      recoveryError: null,
     })
     expect(canRunAccountOperation('user-1')).toBe(true)
   })
@@ -106,6 +112,56 @@ describe('accountLifecycleCoordinator', () => {
     )
     expect(staleOperation).not.toHaveBeenCalled()
     expect(canRunAccountOperation('user-2')).toBe(true)
+  })
+
+  it('keeps failed rollback gated until its registered recovery succeeds', async () => {
+    let recoveryShouldFail = true
+    const recovery = jest.fn(async () => {
+      if (recoveryShouldFail) throw new Error('reminders unavailable')
+      setActiveAccount('user-1')
+    })
+
+    await expect(
+      runAccountTransition('user-1', async (transitionId) => {
+        registerAccountTransitionRecovery(
+          transitionId,
+          'user-1',
+          recovery,
+          new Error('reminders unavailable'),
+        )
+        throw new Error('logout failed')
+      }),
+    ).rejects.toThrow('logout failed')
+
+    expect(getAccountLifecycleSnapshot()).toMatchObject({
+      phase: 'recovering',
+      activeUserId: 'user-1',
+      outgoingUserId: 'user-1',
+      recoveryError: 'reminders unavailable',
+    })
+    expect(canRunAccountOperation('user-1')).toBe(false)
+    await expect(retryAccountTransitionRecovery()).resolves.toBe(false)
+
+    recoveryShouldFail = false
+    await expect(retryAccountTransitionRecovery()).resolves.toBe(true)
+    expect(getAccountLifecycleSnapshot()).toMatchObject({
+      phase: 'stable',
+      activeUserId: 'user-1',
+      outgoingUserId: null,
+      recoveryError: null,
+    })
+  })
+
+  it('invalidates callback tokens as soon as a transition is requested', async () => {
+    const token = captureAccountOperationToken('user-1')
+    expect(isAccountOperationTokenCurrent(token)).toBe(true)
+
+    const transition = runAccountTransition('user-1', async () => {
+      setActiveAccount('user-2')
+    })
+    expect(isAccountOperationTokenCurrent(token)).toBe(false)
+    await transition
+    expect(isAccountOperationTokenCurrent(token)).toBe(false)
   })
 
   it('serializes overlapping account replacements in request order', async () => {

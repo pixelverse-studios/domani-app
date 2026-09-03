@@ -10,17 +10,31 @@ export interface AccountLifecycleSnapshot {
   generation: number
   activeUserId: string | null
   outgoingUserId: string | null
+  recoveryError: string | null
+}
+
+export interface AccountOperationToken {
+  userId: string | null
+  generation: number
+}
+
+interface PendingRecovery {
+  transitionId: number
+  outgoingUserId: string | null
+  retry: () => Promise<void>
 }
 
 let operationQueue: Promise<void> = Promise.resolve()
 let transitionSequence = 0
 let activeTransitionId: number | null = null
 let pendingTransitionCount = 0
+let pendingRecovery: PendingRecovery | null = null
 let snapshot: AccountLifecycleSnapshot = {
   phase: 'stable',
   generation: 0,
   activeUserId: null,
   outgoingUserId: null,
+  recoveryError: null,
 }
 const listeners = new Set<() => void>()
 
@@ -47,11 +61,24 @@ export const subscribeToAccountLifecycle = (listener: () => void) => {
   return () => listeners.delete(listener)
 }
 
-export const canRunAccountOperation = (userId: string): boolean =>
+export const canRunAccountOperation = (userId: string | null): boolean =>
   snapshot.phase === 'stable' && snapshot.activeUserId === userId
 
+export const captureAccountOperationToken = (
+  userId: string | null,
+): AccountOperationToken | null =>
+  canRunAccountOperation(userId) ? { userId, generation: snapshot.generation } : null
+
+export const isAccountOperationTokenCurrent = (
+  token: AccountOperationToken | null | undefined,
+): token is AccountOperationToken =>
+  !!token &&
+  snapshot.phase === 'stable' &&
+  snapshot.activeUserId === token.userId &&
+  snapshot.generation === token.generation
+
 export const runAccountOwnedOperation = <T>(
-  userId: string,
+  userId: string | null,
   blockedValue: T,
   operation: (isCurrent: () => boolean) => Promise<T>,
 ): Promise<T> => {
@@ -69,6 +96,9 @@ export const runAccountTransition = <T>(
   outgoingUserId: string | null,
   operation: (transitionId: number) => Promise<T>,
 ): Promise<T> => {
+  if (pendingRecovery || snapshot.phase === 'recovering') {
+    return Promise.reject(new Error('Account recovery must complete before trying again.'))
+  }
   const transitionId = ++transitionSequence
   const generation = snapshot.generation + 1
   pendingTransitionCount += 1
@@ -77,28 +107,94 @@ export const runAccountTransition = <T>(
     generation,
     activeUserId: snapshot.activeUserId,
     outgoingUserId: pendingTransitionCount === 1 ? outgoingUserId : snapshot.outgoingUserId,
+    recoveryError: null,
   })
 
   return enqueue(async () => {
+    if (pendingRecovery && pendingRecovery.transitionId !== transitionId) {
+      pendingTransitionCount -= 1
+      updateSnapshot({
+        ...snapshot,
+        phase: 'recovering',
+        outgoingUserId: pendingRecovery.outgoingUserId,
+      })
+      throw new Error('Account recovery must complete before trying again.')
+    }
     activeTransitionId = transitionId
     updateSnapshot({
       ...snapshot,
       phase: 'transitioning',
       outgoingUserId,
+      recoveryError: null,
     })
     try {
       return await operation(transitionId)
     } catch (error) {
-      updateSnapshot({ ...snapshot, phase: 'recovering', outgoingUserId })
+      updateSnapshot({
+        ...snapshot,
+        phase: pendingRecovery?.transitionId === transitionId ? 'recovering' : 'transitioning',
+        outgoingUserId,
+      })
       throw error
     } finally {
       pendingTransitionCount -= 1
       activeTransitionId = null
+      const recovery = pendingRecovery?.transitionId === transitionId ? pendingRecovery : null
+      updateSnapshot({
+        ...snapshot,
+        phase: recovery ? 'recovering' : pendingTransitionCount === 0 ? 'stable' : 'transitioning',
+        outgoingUserId: recovery ? recovery.outgoingUserId : null,
+      })
+    }
+  })
+}
+
+export const registerAccountTransitionRecovery = (
+  transitionId: number,
+  outgoingUserId: string | null,
+  retry: () => Promise<void>,
+  error: unknown,
+) => {
+  if (activeTransitionId !== transitionId) return
+  pendingRecovery = { transitionId, outgoingUserId, retry }
+  updateSnapshot({
+    ...snapshot,
+    phase: 'recovering',
+    outgoingUserId,
+    recoveryError:
+      error instanceof Error
+        ? error.message
+        : 'Account recovery could not be completed. Please try again.',
+  })
+}
+
+export const retryAccountTransitionRecovery = (): Promise<boolean> => {
+  const recovery = pendingRecovery
+  if (!recovery) return Promise.resolve(snapshot.phase === 'stable')
+
+  return enqueue(async () => {
+    if (pendingRecovery !== recovery) return snapshot.phase === 'stable'
+    try {
+      await recovery.retry()
+      if (pendingRecovery === recovery) pendingRecovery = null
       updateSnapshot({
         ...snapshot,
         phase: pendingTransitionCount === 0 ? 'stable' : 'transitioning',
         outgoingUserId: null,
+        recoveryError: null,
       })
+      return true
+    } catch (error) {
+      updateSnapshot({
+        ...snapshot,
+        phase: 'recovering',
+        outgoingUserId: recovery.outgoingUserId,
+        recoveryError:
+          error instanceof Error
+            ? error.message
+            : 'Account recovery could not be completed. Please try again.',
+      })
+      return false
     }
   })
 }
@@ -118,6 +214,13 @@ export const resetAccountLifecycleCoordinatorForTests = () => {
   transitionSequence = 0
   activeTransitionId = null
   pendingTransitionCount = 0
-  snapshot = { phase: 'stable', generation: 0, activeUserId: null, outgoingUserId: null }
+  pendingRecovery = null
+  snapshot = {
+    phase: 'stable',
+    generation: 0,
+    activeUserId: null,
+    outgoingUserId: null,
+    recoveryError: null,
+  }
   listeners.clear()
 }

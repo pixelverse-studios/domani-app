@@ -21,6 +21,7 @@ import type { TranslationKey, TranslationValues } from '~/i18n/types'
 import { securelyReplaceSession, securelySignOut } from '~/lib/accountTransitionSecurity'
 import {
   getAccountLifecycleSnapshot,
+  retryAccountTransitionRecovery,
   setActiveAccount,
   subscribeToAccountLifecycle,
 } from '~/lib/accountLifecycleCoordinator'
@@ -350,6 +351,8 @@ interface AuthContextValue {
   session: Session | null
   user: User | null
   loading: boolean
+  accountRecoveryError: string | null
+  retryAccountRecovery: () => Promise<boolean>
   signInWithGoogle: () => Promise<boolean>
   signInWithApple: () => Promise<boolean>
   signOut: () => Promise<void>
@@ -688,6 +691,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     session,
     user,
     loading: loading || accountLifecycle.phase !== 'stable',
+    accountRecoveryError: accountLifecycle.recoveryError,
+    retryAccountRecovery: retryAccountTransitionRecovery,
     signInWithGoogle,
     signInWithApple,
     signOut,

@@ -127,4 +127,33 @@ describe('RevenueCat account coordinator', () => {
     await transition
     expect(transitionStarted).toBe(true)
   })
+
+  it('drains an in-flight identity change before auth replacement begins', async () => {
+    let finishIdentity!: () => void
+    let markIdentityStarted!: () => void
+    const identityStarted = new Promise<void>((resolve) => {
+      markIdentityStarted = resolve
+    })
+    const identity = transitionRevenueCatIdentity(
+      'user-1',
+      () =>
+        new Promise<void>((resolve) => {
+          markIdentityStarted()
+          finishIdentity = resolve
+        }),
+    )
+    await identityStarted
+
+    let authTransitionStarted = false
+    const authTransition = runAccountTransition('user-1', async () => {
+      authTransitionStarted = true
+      setActiveAccount('user-2')
+    })
+    expect(authTransitionStarted).toBe(false)
+
+    finishIdentity()
+    await expect(identity).resolves.toBe(false)
+    await authTransition
+    expect(authTransitionStarted).toBe(true)
+  })
 })

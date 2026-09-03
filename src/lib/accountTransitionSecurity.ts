@@ -2,6 +2,7 @@ import { NotificationService } from './notifications'
 import type { Session } from '@supabase/supabase-js'
 import {
   canRunAccountOperation,
+  registerAccountTransitionRecovery,
   resetAccountLifecycleCoordinatorForTests,
   runAccountTransition,
   setActiveAccount,
@@ -179,14 +180,45 @@ async function restoreOutgoingSessionIfNeeded(session: Session): Promise<boolean
   return true
 }
 
+async function restoreOutgoingAccount(
+  session: Session,
+  notificationSnapshot: unknown[],
+  pushTokenSnapshot: string | null,
+): Promise<void> {
+  const restored = await restoreOutgoingSessionIfNeeded(session)
+  if (!restored) {
+    throw new Error(
+      'The account transition failed and the previous session could not be restored. Please sign in again.',
+    )
+  }
+  setActiveAccount(session.user.id)
+  await restoreNotificationsAfterFailure(notificationSnapshot)
+  await restorePushTokenAfterFailure(pushTokenSnapshot)
+}
+
+async function recoverOutgoingAccountOrRequireRetry(
+  transitionId: number,
+  session: Session,
+  notificationSnapshot: unknown[],
+  pushTokenSnapshot: string | null,
+): Promise<void> {
+  const retry = () => restoreOutgoingAccount(session, notificationSnapshot, pushTokenSnapshot)
+  try {
+    await retry()
+  } catch (recoveryError) {
+    registerAccountTransitionRecovery(transitionId, session.user.id, retry, recoveryError)
+    throw recoveryError
+  }
+}
+
 export async function securelyReplaceSession<T>(operation: () => Promise<T>): Promise<T> {
-  return runAccountTransition(null, async (generation) => {
+  return runAccountTransition(null, async (transitionId) => {
     const {
       data: { session },
       error: sessionError,
     } = await supabase.auth.getSession()
     if (sessionError) throw new Error('Unable to inspect the current session before sign-in.')
-    setTransitionOutgoingUser(generation, session?.user.id ?? null)
+    setTransitionOutgoingUser(transitionId, session?.user.id ?? null)
 
     if (!session?.user) {
       await requireAccountNotificationReset('change accounts')
@@ -214,11 +246,12 @@ export async function securelyReplaceSession<T>(operation: () => Promise<T>): Pr
       await activateReplacementResult(result)
       return result
     } catch (error) {
-      if (await restoreOutgoingSessionIfNeeded(session)) {
-        setActiveAccount(user.id)
-        await restoreNotificationsAfterFailure(notificationSnapshot)
-        await restorePushTokenAfterFailure(pushTokenSnapshot)
-      }
+      await recoverOutgoingAccountOrRequireRetry(
+        transitionId,
+        session,
+        notificationSnapshot,
+        pushTokenSnapshot,
+      )
       throw error
     }
   })
@@ -228,7 +261,7 @@ export async function securelySignOut(
   expectedUserId: string | null,
   options: { allowReleaseFailure?: boolean } = {},
 ): Promise<boolean> {
-  return runAccountTransition(expectedUserId, async () => {
+  return runAccountTransition(expectedUserId, async (transitionId) => {
     const {
       data: { session },
       error,
@@ -262,10 +295,13 @@ export async function securelySignOut(
       setActiveAccount(null)
       return true
     } catch (transitionError) {
-      if (resolvedUserId && session && (await restoreOutgoingSessionIfNeeded(session))) {
-        setActiveAccount(resolvedUserId)
-        await restoreNotificationsAfterFailure(notificationSnapshot)
-        await restorePushTokenAfterFailure(pushTokenSnapshot)
+      if (resolvedUserId && session) {
+        await recoverOutgoingAccountOrRequireRetry(
+          transitionId,
+          session,
+          notificationSnapshot,
+          pushTokenSnapshot,
+        )
       }
       throw transitionError
     }

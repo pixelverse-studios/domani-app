@@ -4,6 +4,11 @@ import { act, renderHookWithProviders, waitFor, buildTaskWithCategory } from '~/
 import { supabase } from '~/lib/supabase'
 import { NotificationService } from '~/lib/notifications'
 import { useCreateTask, useDeleteTask, useTasks, useUpdateTask } from '../useTasks'
+import {
+  resetAccountLifecycleCoordinatorForTests,
+  runAccountTransition,
+  setActiveAccount,
+} from '~/lib/accountLifecycleCoordinator'
 
 const mockIncrementUsageMutate = jest.fn()
 
@@ -68,6 +73,8 @@ function trackQueryClient<T extends { queryClient: QueryClient; unmount: () => v
 describe('task hooks', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    resetAccountLifecycleCoordinatorForTests()
+    setActiveAccount('user-1')
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
   })
 
@@ -214,6 +221,7 @@ describe('task hooks', () => {
         notes: null,
       },
       'user-1',
+      false,
     )
     expect(updateQuery.update).toHaveBeenCalledWith({
       reminder_at: reminderAt,
@@ -326,7 +334,7 @@ describe('task hooks', () => {
       updates: { reminder_at: reminderAt },
     })
 
-    expect(mockCancelTaskReminder).toHaveBeenCalledWith('old-notification', 'user-1')
+    expect(mockCancelTaskReminder).toHaveBeenCalledWith('old-notification', 'user-1', false)
     expect(mockScheduleTaskReminder).toHaveBeenCalledWith(
       {
         id: 'task-update-reminder',
@@ -336,6 +344,7 @@ describe('task hooks', () => {
         notes: null,
       },
       'user-1',
+      false,
     )
     expect(clearReminderQuery.update).toHaveBeenCalledWith({
       reminder_at: null,
@@ -365,5 +374,106 @@ describe('task hooks', () => {
     expect(deleteQuery.delete).toHaveBeenCalledTimes(1)
     expect(deleteQuery.eq).toHaveBeenCalledWith('id', 'task-delete')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'user-1'] })
+  })
+
+  it('finishes reminder replacement before an account transition can purge notifications', async () => {
+    const reminderAt = '2026-05-16T14:30:00.000Z'
+    const updatedTask = buildTaskWithCategory({
+      id: 'task-reminder-race',
+      scheduled_date: '2026-05-16',
+      title: 'Updated task',
+      reminder_at: reminderAt,
+      notification_id: null,
+    })
+    const existingQuery = createQueryMock({
+      data: {
+        notification_id: 'old-notification',
+        reminder_at: '2026-05-16T13:00:00.000Z',
+        title: 'Old task',
+        is_mit: false,
+      },
+      error: null,
+    })
+    const updateQuery = createQueryMock({ data: updatedTask, error: null })
+    const notificationUpdateQuery = createQueryMock({ data: null, error: null })
+    mockFrom
+      .mockReturnValueOnce(existingQuery)
+      .mockReturnValueOnce(updateQuery)
+      .mockReturnValueOnce(notificationUpdateQuery)
+    mockScheduleTaskReminder.mockResolvedValue('new-notification')
+
+    let finishCancellation!: () => void
+    mockCancelTaskReminder.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishCancellation = resolve
+        }),
+    )
+
+    const { result } = trackQueryClient(renderHookWithProviders(() => useUpdateTask()))
+    const mutation = result.current.mutateAsync({
+      taskId: 'task-reminder-race',
+      updates: { title: 'Updated task', reminder_at: reminderAt },
+    })
+    await waitFor(() => expect(mockCancelTaskReminder).toHaveBeenCalledTimes(1))
+
+    let transitionStarted = false
+    const transition = runAccountTransition('user-1', async () => {
+      transitionStarted = true
+      setActiveAccount('user-2')
+    })
+    expect(transitionStarted).toBe(false)
+    expect(mockScheduleTaskReminder).not.toHaveBeenCalled()
+
+    finishCancellation()
+    await mutation
+    await transition
+
+    expect(mockScheduleTaskReminder).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'task-reminder-race', reminder_at: reminderAt }),
+      'user-1',
+      false,
+    )
+    expect(notificationUpdateQuery.update).toHaveBeenCalledWith({
+      notification_id: 'new-notification',
+    })
+    expect(transitionStarted).toBe(true)
+  })
+
+  it('does not restore an optimistic account cache after its generation is invalidated', async () => {
+    const originalTask = buildTaskWithCategory({
+      id: 'task-stale-rollback',
+      scheduled_date: '2026-05-16',
+    })
+    const existingQuery = createQueryMock({ data: { notification_id: null }, error: null })
+    const updateQuery = createQueryMock()
+    let finishUpdate!: () => void
+    updateQuery.single.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishUpdate = () => resolve({ data: null, error: new Error('update failed') })
+        }),
+    )
+    mockFrom.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery)
+
+    const { result, queryClient } = trackQueryClient(renderHookWithProviders(() => useUpdateTask()))
+    queryClient.setQueryData(['tasks', 'user-1', '2026-05-16'], [originalTask])
+    queryClient.setQueryData(['tasks', 'user-1', '2026-05-17'], [])
+
+    const mutation = result.current.mutateAsync({
+      taskId: 'task-stale-rollback',
+      originalDate: '2026-05-16',
+      updates: { scheduled_date: '2026-05-17' },
+    })
+    await waitFor(() => expect(updateQuery.update).toHaveBeenCalled())
+
+    const transition = runAccountTransition('user-1', async () => setActiveAccount('user-2'))
+    queryClient.clear()
+    finishUpdate()
+
+    await expect(mutation).rejects.toThrow('update failed')
+    await transition
+    expect(queryClient.getQueryData(['tasks', 'user-1', '2026-05-16'])).toBeUndefined()
+    expect(queryClient.getQueryData(['tasks', 'user-1', '2026-05-17'])).toBeUndefined()
   })
 })

@@ -5,6 +5,10 @@ import { useProfile } from '~/hooks/useProfile'
 import { supabase } from '~/lib/supabase'
 import { sendTeamNotification } from '~/lib/teamNotifications'
 import type { PurchaseRefundState } from '~/types'
+import {
+  captureAccountOperationToken,
+  isAccountOperationTokenCurrent,
+} from '~/lib/accountLifecycleCoordinator'
 
 interface MarkRefundPendingInput {
   platform: 'ios'
@@ -117,7 +121,9 @@ export function usePurchaseRefundState() {
 
       return refundState
     },
-    onSuccess: (data) => {
+    onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
+    onSuccess: (data, _variables, context) => {
+      if (!isAccountOperationTokenCurrent(context?.accountToken)) return
       queryClient.setQueryData(['purchaseRefundState', user?.id], data)
     },
   })
@@ -163,7 +169,9 @@ export function usePurchaseRefundState() {
 
       return refundState
     },
-    onSuccess: (data) => {
+    onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
+    onSuccess: (data, _variables, context) => {
+      if (!isAccountOperationTokenCurrent(context?.accountToken)) return
       queryClient.setQueryData(['purchaseRefundState', user?.id], data)
     },
   })
@@ -172,7 +180,9 @@ export function usePurchaseRefundState() {
     mutationFn: async () => {
       await clearCurrentUserPurchaseRefundState()
     },
-    onSuccess: () => {
+    onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
+    onSuccess: (_data, _variables, context) => {
+      if (!isAccountOperationTokenCurrent(context?.accountToken)) return
       queryClient.setQueryData(['purchaseRefundState', user?.id], null)
     },
   })
