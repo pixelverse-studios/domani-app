@@ -47,6 +47,7 @@ const mockCancelAllReminders = NotificationService.cancelAllReminders as jest.Mo
 const mockCancelPlanningReminders = NotificationService.cancelPlanningReminders as jest.Mock
 const mockSchedulePlanningReminder = NotificationService.schedulePlanningReminder as jest.Mock
 const mockGetExpoPushToken = NotificationService.getExpoPushToken as jest.Mock
+const mockRequestPermissions = NotificationService.requestPermissions as jest.Mock
 const mockGetLastNotificationResponse = Notifications.getLastNotificationResponseAsync as jest.Mock
 const mockClearLastNotificationResponse =
   Notifications.clearLastNotificationResponseAsync as jest.Mock
@@ -118,7 +119,8 @@ describe('useNotificationObserver account scoping', () => {
     })
 
     await waitFor(() =>
-      expect(mockRpc).toHaveBeenCalledWith('set_current_user_expo_push_token', {
+      expect(mockRpc).toHaveBeenCalledWith('set_expected_user_expo_push_token', {
+        p_expected_user_id: 'user-1',
         p_token: 'ExponentPushToken[test-device]',
       }),
     )
@@ -149,7 +151,36 @@ describe('useNotificationObserver account scoping', () => {
     finishPurge(true)
     await signOut
     expect(mockRpc).toHaveBeenCalledTimes(1)
-    expect(mockRpc).toHaveBeenCalledWith('set_current_user_expo_push_token', { p_token: null })
+    expect(mockRpc).toHaveBeenCalledWith('set_expected_user_expo_push_token', {
+      p_expected_user_id: 'user-1',
+      p_token: null,
+    })
+  })
+
+  it('does not register account B from a permission prompt opened by account A', async () => {
+    let resolvePermission!: (granted: boolean) => void
+    mockRequestPermissions.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolvePermission = resolve
+        }),
+    )
+    const { result, rerender } = renderHook(() => useNotifications())
+
+    let permissionRequest!: Promise<boolean>
+    act(() => {
+      permissionRequest = result.current.requestPermissions()
+    })
+
+    await act(async () => {
+      mockUseAuth.mockReturnValue({ user: { id: 'user-2' } })
+      setActiveAccount('user-2')
+      rerender(undefined)
+      resolvePermission(true)
+      await expect(permissionRequest).resolves.toBe(true)
+    })
+    expect(mockGetExpoPushToken).not.toHaveBeenCalled()
+    expect(mockRpc).not.toHaveBeenCalled()
   })
 
   it('does not schedule account A planning state after an account transition begins', async () => {
@@ -249,7 +280,8 @@ describe('useNotificationObserver account scoping', () => {
     })
 
     await waitFor(() => expect(mockRpc).toHaveBeenCalledTimes(2))
-    expect(mockRpc).toHaveBeenLastCalledWith('set_current_user_expo_push_token', {
+    expect(mockRpc).toHaveBeenLastCalledWith('set_expected_user_expo_push_token', {
+      p_expected_user_id: 'user-2',
       p_token: 'ExponentPushToken[shared-device]',
     })
 

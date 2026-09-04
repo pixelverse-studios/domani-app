@@ -1,6 +1,12 @@
 import { create } from 'zustand'
 
 import { supabase } from '~/lib/supabase'
+import {
+  captureAccountOperationToken,
+  getAccountLifecycleSnapshot,
+  isAccountOperationTokenCurrent,
+  requireAccountOwnedOperation,
+} from '~/lib/accountLifecycleCoordinator'
 
 /**
  * Tutorial steps in order of progression
@@ -84,9 +90,9 @@ interface TutorialStore {
   startTutorial: () => void
   nextStep: (step?: TutorialStep) => void
   previousStep: () => void
-  skipTutorial: () => void
-  completeTutorial: () => void
-  resetTutorial: () => void
+  skipTutorial: (expectedUserId?: string) => void
+  completeTutorial: (expectedUserId?: string) => void
+  resetTutorial: (expectedUserId?: string) => void
   clearSessionState: () => void
 
   // Soft timeout actions
@@ -109,29 +115,25 @@ interface TutorialStore {
 /**
  * Helper to mark tutorial as completed in the database
  */
-async function markTutorialCompleted(): Promise<void> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return
+async function persistTutorialCompletion(
+  expectedUserId: string,
+  completedAt: string | null,
+): Promise<void> {
+  await requireAccountOwnedOperation(expectedUserId, async (isCurrent) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ tutorial_completed_at: completedAt })
+      .eq('id', expectedUserId)
 
-  await supabase
-    .from('profiles')
-    .update({ tutorial_completed_at: new Date().toISOString() })
-    .eq('id', user.id)
+    if (error) throw error
+    if (!isCurrent()) {
+      throw new Error('Tutorial update was cancelled because the authenticated account changed.')
+    }
+  })
 }
 
-/**
- * Helper to clear tutorial completion in the database (for replay)
- */
-async function clearTutorialCompletion(): Promise<void> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return
-
-  await supabase.from('profiles').update({ tutorial_completed_at: null }).eq('id', user.id)
-}
+const resolveTutorialOwner = (expectedUserId?: string) =>
+  expectedUserId ?? getAccountLifecycleSnapshot().activeUserId ?? undefined
 
 let initializingUserId: string | null = null
 
@@ -257,8 +259,12 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
     }),
 
   // Skip the tutorial entirely
-  skipTutorial: () => {
-    markTutorialCompleted().catch((err) =>
+  skipTutorial: (expectedUserId) => {
+    const ownerId = resolveTutorialOwner(expectedUserId)
+    const accountToken = ownerId ? captureAccountOperationToken(ownerId) : null
+    if (!ownerId || !isAccountOperationTokenCurrent(accountToken)) return
+
+    persistTutorialCompletion(ownerId, new Date().toISOString()).catch((err) =>
       console.error('Failed to save tutorial completion:', err),
     )
     set({
@@ -270,8 +276,12 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
   },
 
   // Complete the tutorial successfully
-  completeTutorial: () => {
-    markTutorialCompleted().catch((err) =>
+  completeTutorial: (expectedUserId) => {
+    const ownerId = resolveTutorialOwner(expectedUserId)
+    const accountToken = ownerId ? captureAccountOperationToken(ownerId) : null
+    if (!ownerId || !isAccountOperationTokenCurrent(accountToken)) return
+
+    persistTutorialCompletion(ownerId, new Date().toISOString()).catch((err) =>
       console.error('Failed to save tutorial completion:', err),
     )
     set({
@@ -283,8 +293,12 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
   },
 
   // Reset tutorial state and start it (for "Replay Tutorial" in Settings)
-  resetTutorial: () => {
-    clearTutorialCompletion().catch((err) =>
+  resetTutorial: (expectedUserId) => {
+    const ownerId = resolveTutorialOwner(expectedUserId)
+    const accountToken = ownerId ? captureAccountOperationToken(ownerId) : null
+    if (!ownerId || !isAccountOperationTokenCurrent(accountToken)) return
+
+    persistTutorialCompletion(ownerId, null).catch((err) =>
       console.error('Failed to clear tutorial completion:', err),
     )
     set({

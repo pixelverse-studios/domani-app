@@ -8,7 +8,12 @@ import { useNotificationStore } from '~/stores/notificationStore'
 import { supabase } from '~/lib/supabase'
 import { getAllowedNotificationRoute } from '~/lib/navigationSecurity'
 import { useAuth } from '~/hooks/useAuth'
-import { canRunAccountOperation, runAccountOwnedOperation } from '~/lib/accountLifecycleCoordinator'
+import {
+  canRunAccountOperation,
+  captureAccountOperationToken,
+  isAccountOperationTokenCurrent,
+  runAccountOwnedOperation,
+} from '~/lib/accountLifecycleCoordinator'
 import { canRegisterPushTokenForUser } from '~/lib/accountTransitionSecurity'
 
 // Check if notifications are supported (not in Expo Go on Android SDK 53+)
@@ -55,7 +60,8 @@ async function registerPushTokenWithRetry(
 
       // The RPC atomically assigns this opaque device token to the current
       // authenticated profile and removes it from any previous account owner.
-      const { error } = await supabase.rpc('set_current_user_expo_push_token', {
+      const { error } = await supabase.rpc('set_expected_user_expo_push_token', {
+        p_expected_user_id: expectedUserId,
         p_token: token,
       })
 
@@ -566,17 +572,20 @@ export function useNotifications() {
   // No local scheduling methods needed
 
   const requestPermissions = async () => {
+    const expectedUserId = user?.id ?? null
+    const accountToken = captureAccountOperationToken(expectedUserId)
     const granted = await NotificationService.requestPermissions()
     store.setPermissionStatus(granted ? 'granted' : 'denied')
 
-    // If permissions granted, trigger token registration
-    if (granted) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (user) {
-        void registerPushTokenWithRetry(user.id, () => canRegisterPushTokenForUser(user.id))
-      }
+    // The OS permission prompt may outlive the account that opened it. Only
+    // continue registration for the synchronously captured lifecycle owner.
+    if (granted && expectedUserId && isAccountOperationTokenCurrent(accountToken)) {
+      await registerPushTokenWithRetry(
+        expectedUserId,
+        () =>
+          isAccountOperationTokenCurrent(accountToken) &&
+          canRegisterPushTokenForUser(expectedUserId),
+      )
     }
 
     return granted

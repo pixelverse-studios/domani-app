@@ -55,7 +55,9 @@ export function useAccountDeletion() {
       const expectedEmail = user.email
 
       return requireAccountOwnedOperation(expectedUserId, async () => {
-        const { error } = await supabase.rpc('schedule_current_user_account_deletion')
+        const { error } = await supabase.rpc('schedule_account_deletion', {
+          p_user_id: expectedUserId,
+        })
 
         if (error) throw error
 
@@ -84,7 +86,7 @@ export function useAccountDeletion() {
           type: 'account_deletion',
         })
 
-        void sendTeamNotification({
+        await sendTeamNotification({
           type: 'account_lifecycle',
           email: expectedEmail,
           userId: expectedUserId,
@@ -117,7 +119,9 @@ export function useAccountDeletion() {
       const scheduledFor = profile?.deletion_scheduled_for ?? null
 
       return requireAccountOwnedOperation(expectedUserId, async () => {
-        const { error } = await supabase.rpc('cancel_current_user_account_deletion')
+        const { error } = await supabase.rpc('cancel_account_deletion', {
+          p_user_id: expectedUserId,
+        })
 
         if (error) throw error
 
@@ -126,7 +130,7 @@ export function useAccountDeletion() {
           type: 'account_reactivation',
         })
 
-        void sendTeamNotification({
+        await sendTeamNotification({
           type: 'account_lifecycle',
           email: expectedEmail,
           userId: expectedUserId,

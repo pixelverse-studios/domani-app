@@ -35,6 +35,7 @@ import {
   RevenueCatAccountChangedError,
   isRevenueCatAccountChangedError,
   runRevenueCatUserOperation,
+  runRevenueCatUserOperationWithinAccountOperation,
   transitionRevenueCatIdentity,
 } from '~/lib/revenuecatCoordinator'
 import {
@@ -42,6 +43,7 @@ import {
   getAccountLifecycleSnapshot,
   isAccountOperationTokenCurrent,
   reconcileAccountOperation,
+  requireAccountOwnedOperation,
   runAccountOwnedOperation,
   subscribeToAccountLifecycle,
 } from '~/lib/accountLifecycleCoordinator'
@@ -195,7 +197,8 @@ async function confirmCurrentUserPromoRedemption(input: {
   const campaignId = attemptContext.campaignId
 
   const { data, error } = await runAuthenticatedUserOperation(input.expectedUserId, () =>
-    supabase.rpc('confirm_current_user_promo_redemption', {
+    supabase.rpc('confirm_expected_user_promo_redemption', {
+      p_expected_user_id: input.expectedUserId,
       p_redemption_attempt_id: redemptionAttemptId,
       p_code_id: codeId,
       p_campaign_id: campaignId,
@@ -652,15 +655,24 @@ export function useSubscription() {
     [runCurrentUserRevenueCatOperation],
   )
 
-  const markPromoCodeValidated = useCallback((context?: PurchaseAccessSyncAttemptContext) => {
-    const nextContext = context ?? null
-    setAccessSyncAttempt(nextContext)
-    setAccessSyncResult(null)
-    setAccessSyncPhase('code_validated')
-  }, [])
+  const markPromoCodeValidated = useCallback(
+    (context?: PurchaseAccessSyncAttemptContext) => {
+      if (!user?.id || !isAccountOperationTokenCurrent(captureAccountOperationToken(user.id))) {
+        return
+      }
+      const nextContext = context ?? null
+      setAccessSyncAttempt(nextContext)
+      setAccessSyncResult(null)
+      setAccessSyncPhase('code_validated')
+    },
+    [user?.id],
+  )
 
   const markExternalPurchaseAttempted = useCallback(
     (request?: Partial<PurchaseAccessSyncRequest>) => {
+      if (!user?.id || !isAccountOperationTokenCurrent(captureAccountOperationToken(user.id))) {
+        return
+      }
       const nextContext = request?.attemptContext ?? null
       const nextRequest: PurchaseAccessSyncRequest = {
         source: request?.source ?? 'promo_redemption',
@@ -685,6 +697,7 @@ export function useSubscription() {
 
   const recordPromoSyncFailure = useCallback(
     async (
+      expectedUserId: string,
       request: PurchaseAccessSyncRequest,
       status: PurchaseAccessSyncStatus | SupabaseSubscriptionSyncStatus,
       error?: unknown,
@@ -702,6 +715,8 @@ export function useSubscription() {
       })
 
       await recordPromoRedemptionAttemptEvent({
+        expectedUserId,
+        accountOperationAlreadyOwned: true,
         redemptionAttemptId: attemptContext.redemptionAttemptId,
         event: 'sync_failed',
         errorCode,
@@ -747,250 +762,269 @@ export function useSubscription() {
       }
 
       const expectedUserId = user.id
-      await assertAuthenticatedUser(expectedUserId)
-
-      setAccessSyncAttempt(attemptContext)
-      setAccessSyncResult(null)
-      setAccessSyncPhase('syncing')
-
-      addBreadcrumb('Started purchase access sync', 'monetization.sync', {
-        userId: expectedUserId,
-        source: request.source,
-        forceStoreSync: request.forceStoreSync ?? null,
-        hasProvidedCustomerInfo: !!request.customerInfo,
-        campaignId: attemptContext?.campaignId ?? null,
-        promoOutcome: attemptContext?.promoOutcome ?? null,
-      })
-
-      if (isPromoPurchaseAccessSync(request) && !hasPromoRedemptionAttemptContext(attemptContext)) {
-        const result: PurchaseAccessSyncResult = {
-          ...baseResult,
-          status: 'supabase_sync_failed',
-          recoverable: true,
-          error: new Error('PROMO_ATTEMPT_CONTEXT_REQUIRED'),
-        }
-        setAccessSyncResult(result)
-        setAccessSyncPhase('verification_failed')
-        addBreadcrumb('Blocked promo access sync without validated attempt', 'promo.confirmation', {
-          userId: user.id,
-          source: request.source,
-          hasRedemptionAttemptId: !!attemptContext?.redemptionAttemptId,
-          hasCodeId: !!attemptContext?.codeId,
-          hasCampaignId: !!attemptContext?.campaignId,
-        })
-        return result
-      }
-
-      let info: CustomerInfo | null = null
-
-      try {
-        if (request.customerInfo) {
-          info = request.customerInfo
-        } else if (request.forceStoreSync) {
-          info = await runRevenueCatUserOperation(expectedUserId, () =>
-            syncPurchasesAndRefreshCustomerInfo(),
-          )
-        } else {
-          info = await runRevenueCatUserOperation(expectedUserId, () => Purchases.getCustomerInfo())
-        }
+      return requireAccountOwnedOperation(expectedUserId, async () => {
         await assertAuthenticatedUser(expectedUserId)
-      } catch (error) {
-        if (isRevenueCatAccountChangedError(error)) throw error
-        const result: PurchaseAccessSyncResult = {
-          ...baseResult,
-          status: 'revenuecat_unavailable',
-          error,
-        }
-        setAccessSyncResult(result)
-        setAccessSyncPhase('verification_failed')
-        addBreadcrumb('Purchase access sync could not refresh RevenueCat', 'monetization.sync', {
-          userId: user.id,
-          source: request.source,
-          error: error instanceof Error ? error.message : String(error),
-        })
-        await recordPromoSyncFailure(request, result.status, error)
-        return result
-      }
 
-      const entitlement = info.entitlements.active[ENTITLEMENT_ID]
-      if (!entitlement) {
-        const result: PurchaseAccessSyncResult = {
-          ...baseResult,
-          status: 'missing_entitlement',
-          customerInfo: info,
-          error: null,
-        }
-        setAccessSyncResult(result)
-        setAccessSyncPhase('verification_failed')
-        addBreadcrumb('Purchase access sync found no active entitlement', 'monetization.sync', {
-          userId: user.id,
-          source: request.source,
-          entitlementId: ENTITLEMENT_ID,
-          activeEntitlementIds: Object.keys(info.entitlements.active ?? {}),
-        })
-        refetchCustomerInfo()
-        queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
-        await recordPromoSyncFailure(request, result.status)
-        return result
-      }
+        setAccessSyncAttempt(attemptContext)
+        setAccessSyncResult(null)
+        setAccessSyncPhase('syncing')
 
-      if (
-        isPromoGatedLifetimeProduct(entitlement.productIdentifier) &&
-        !hasPromoRedemptionAttemptContext(attemptContext)
-      ) {
-        const result: PurchaseAccessSyncResult = {
-          ...baseResult,
-          status: 'supabase_sync_failed',
-          customerInfo: info,
-          hasEntitlement: true,
-          profileSynced: false,
-          recoverable: true,
-          error: new Error('PROMO_GATED_PRODUCT_ATTEMPT_CONTEXT_REQUIRED'),
+        addBreadcrumb('Started purchase access sync', 'monetization.sync', {
+          userId: expectedUserId,
+          source: request.source,
+          forceStoreSync: request.forceStoreSync ?? null,
+          hasProvidedCustomerInfo: !!request.customerInfo,
+          campaignId: attemptContext?.campaignId ?? null,
+          promoOutcome: attemptContext?.promoOutcome ?? null,
+        })
+
+        if (
+          isPromoPurchaseAccessSync(request) &&
+          !hasPromoRedemptionAttemptContext(attemptContext)
+        ) {
+          const result: PurchaseAccessSyncResult = {
+            ...baseResult,
+            status: 'supabase_sync_failed',
+            recoverable: true,
+            error: new Error('PROMO_ATTEMPT_CONTEXT_REQUIRED'),
+          }
+          setAccessSyncResult(result)
+          setAccessSyncPhase('verification_failed')
+          addBreadcrumb(
+            'Blocked promo access sync without validated attempt',
+            'promo.confirmation',
+            {
+              userId: user.id,
+              source: request.source,
+              hasRedemptionAttemptId: !!attemptContext?.redemptionAttemptId,
+              hasCodeId: !!attemptContext?.codeId,
+              hasCampaignId: !!attemptContext?.campaignId,
+            },
+          )
+          return result
         }
-        setAccessSyncResult(result)
-        setAccessSyncPhase('verification_failed')
-        addBreadcrumb(
-          'Blocked promo-gated product sync without validated attempt',
-          'promo.confirmation',
-          {
+
+        let info: CustomerInfo | null = null
+
+        try {
+          if (request.customerInfo) {
+            info = request.customerInfo
+          } else if (request.forceStoreSync) {
+            info = await runRevenueCatUserOperationWithinAccountOperation(expectedUserId, () =>
+              syncPurchasesAndRefreshCustomerInfo(),
+            )
+          } else {
+            info = await runRevenueCatUserOperationWithinAccountOperation(expectedUserId, () =>
+              Purchases.getCustomerInfo(),
+            )
+          }
+          await assertAuthenticatedUser(expectedUserId)
+        } catch (error) {
+          if (isRevenueCatAccountChangedError(error)) throw error
+          const result: PurchaseAccessSyncResult = {
+            ...baseResult,
+            status: 'revenuecat_unavailable',
+            error,
+          }
+          setAccessSyncResult(result)
+          setAccessSyncPhase('verification_failed')
+          addBreadcrumb('Purchase access sync could not refresh RevenueCat', 'monetization.sync', {
+            userId: user.id,
+            source: request.source,
+            error: error instanceof Error ? error.message : String(error),
+          })
+          await recordPromoSyncFailure(expectedUserId, request, result.status, error)
+          return result
+        }
+
+        const entitlement = info.entitlements.active[ENTITLEMENT_ID]
+        if (!entitlement) {
+          const result: PurchaseAccessSyncResult = {
+            ...baseResult,
+            status: 'missing_entitlement',
+            customerInfo: info,
+            error: null,
+          }
+          setAccessSyncResult(result)
+          setAccessSyncPhase('verification_failed')
+          addBreadcrumb('Purchase access sync found no active entitlement', 'monetization.sync', {
+            userId: user.id,
+            source: request.source,
+            entitlementId: ENTITLEMENT_ID,
+            activeEntitlementIds: Object.keys(info.entitlements.active ?? {}),
+          })
+          refetchCustomerInfo()
+          queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
+          await recordPromoSyncFailure(expectedUserId, request, result.status)
+          return result
+        }
+
+        if (
+          isPromoGatedLifetimeProduct(entitlement.productIdentifier) &&
+          !hasPromoRedemptionAttemptContext(attemptContext)
+        ) {
+          const result: PurchaseAccessSyncResult = {
+            ...baseResult,
+            status: 'supabase_sync_failed',
+            customerInfo: info,
+            hasEntitlement: true,
+            profileSynced: false,
+            recoverable: true,
+            error: new Error('PROMO_GATED_PRODUCT_ATTEMPT_CONTEXT_REQUIRED'),
+          }
+          setAccessSyncResult(result)
+          setAccessSyncPhase('verification_failed')
+          addBreadcrumb(
+            'Blocked promo-gated product sync without validated attempt',
+            'promo.confirmation',
+            {
+              userId: user.id,
+              source: request.source,
+              entitlementId: ENTITLEMENT_ID,
+              productIdentifier: entitlement.productIdentifier ?? null,
+              hasRedemptionAttemptId: !!attemptContext?.redemptionAttemptId,
+              hasCodeId: !!attemptContext?.codeId,
+              hasCampaignId: !!attemptContext?.campaignId,
+            },
+          )
+          await recordPromoSyncFailure(expectedUserId, request, result.status, result.error)
+          refetchCustomerInfo()
+          queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
+          return result
+        }
+
+        let supabaseSyncStatus: SupabaseSubscriptionSyncStatus
+        try {
+          await assertAuthenticatedUser(expectedUserId)
+          supabaseSyncStatus = await syncSubscriptionToSupabase(
+            expectedUserId,
+            attemptContext,
+            true,
+          )
+          await assertAuthenticatedUser(expectedUserId)
+        } catch (error) {
+          if (isRevenueCatAccountChangedError(error)) throw error
+          const result: PurchaseAccessSyncResult = {
+            ...baseResult,
+            status: 'supabase_sync_failed',
+            customerInfo: info,
+            hasEntitlement: true,
+            error,
+          }
+          setAccessSyncResult(result)
+          setAccessSyncPhase('verification_failed')
+          addBreadcrumb('Purchase access sync failed to update Supabase', 'monetization.sync', {
             userId: user.id,
             source: request.source,
             entitlementId: ENTITLEMENT_ID,
             productIdentifier: entitlement.productIdentifier ?? null,
-            hasRedemptionAttemptId: !!attemptContext?.redemptionAttemptId,
-            hasCodeId: !!attemptContext?.codeId,
-            hasCampaignId: !!attemptContext?.campaignId,
-          },
-        )
-        await recordPromoSyncFailure(request, result.status, result.error)
-        refetchCustomerInfo()
-        queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
-        return result
-      }
-
-      let supabaseSyncStatus: SupabaseSubscriptionSyncStatus
-      try {
-        await assertAuthenticatedUser(expectedUserId)
-        supabaseSyncStatus = await syncSubscriptionToSupabase(expectedUserId, attemptContext)
-        await assertAuthenticatedUser(expectedUserId)
-      } catch (error) {
-        if (isRevenueCatAccountChangedError(error)) throw error
-        const result: PurchaseAccessSyncResult = {
-          ...baseResult,
-          status: 'supabase_sync_failed',
-          customerInfo: info,
-          hasEntitlement: true,
-          error,
+            error: error instanceof Error ? error.message : String(error),
+          })
+          refetchCustomerInfo()
+          queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
+          await recordPromoSyncFailure(expectedUserId, request, result.status, error)
+          return result
         }
-        setAccessSyncResult(result)
-        setAccessSyncPhase('verification_failed')
-        addBreadcrumb('Purchase access sync failed to update Supabase', 'monetization.sync', {
-          userId: user.id,
-          source: request.source,
-          entitlementId: ENTITLEMENT_ID,
-          productIdentifier: entitlement.productIdentifier ?? null,
-          error: error instanceof Error ? error.message : String(error),
-        })
-        refetchCustomerInfo()
-        queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
-        await recordPromoSyncFailure(request, result.status, error)
-        return result
-      }
 
-      if (supabaseSyncStatus !== 'synced') {
+        if (supabaseSyncStatus !== 'synced') {
+          const result: PurchaseAccessSyncResult = {
+            ...baseResult,
+            status: supabaseSyncStatus,
+            customerInfo: info,
+            hasEntitlement: true,
+            profileSynced: false,
+            recoverable: true,
+            error: null,
+          }
+
+          setAccessSyncResult(result)
+          setAccessSyncPhase('verification_failed')
+          addBreadcrumb('Purchase access sync did not apply lifetime tier', 'monetization.sync', {
+            userId: user.id,
+            source: request.source,
+            status: supabaseSyncStatus,
+            entitlementId: ENTITLEMENT_ID,
+            productIdentifier: entitlement.productIdentifier ?? null,
+            periodType: entitlement.periodType ?? null,
+          })
+          refetchCustomerInfo()
+          queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
+          await recordPromoSyncFailure(expectedUserId, request, supabaseSyncStatus)
+          return result
+        }
+
         const result: PurchaseAccessSyncResult = {
           ...baseResult,
-          status: supabaseSyncStatus,
+          status: 'confirmed',
           customerInfo: info,
           hasEntitlement: true,
-          profileSynced: false,
-          recoverable: true,
+          profileSynced: true,
+          recoverable: false,
           error: null,
         }
-
-        setAccessSyncResult(result)
-        setAccessSyncPhase('verification_failed')
-        addBreadcrumb('Purchase access sync did not apply lifetime tier', 'monetization.sync', {
+        const successSignature = JSON.stringify({
           userId: user.id,
-          source: request.source,
-          status: supabaseSyncStatus,
           entitlementId: ENTITLEMENT_ID,
           productIdentifier: entitlement.productIdentifier ?? null,
-          periodType: entitlement.periodType ?? null,
-        })
-        refetchCustomerInfo()
-        queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
-        await recordPromoSyncFailure(request, supabaseSyncStatus)
-        return result
-      }
-
-      const result: PurchaseAccessSyncResult = {
-        ...baseResult,
-        status: 'confirmed',
-        customerInfo: info,
-        hasEntitlement: true,
-        profileSynced: true,
-        recoverable: false,
-        error: null,
-      }
-      const successSignature = JSON.stringify({
-        userId: user.id,
-        entitlementId: ENTITLEMENT_ID,
-        productIdentifier: entitlement.productIdentifier ?? null,
-        originalPurchaseDate: entitlement.originalPurchaseDate ?? null,
-        redemptionAttemptId: attemptContext?.redemptionAttemptId ?? null,
-        campaignId: attemptContext?.campaignId ?? null,
-      })
-
-      if (previousConfirmedAccessSyncSignatureRef.current !== successSignature) {
-        previousConfirmedAccessSyncSignatureRef.current = successSignature
-        if (attemptContext?.redemptionAttemptId) {
-          const promoProps = {
-            ...buildPromoAttemptAnalyticsProps(attemptContext),
-            source: request.source,
-            sync_status: 'confirmed',
-          }
-          track('promo_sync_succeeded', promoProps)
-          track('promo_redemption_completed', promoProps)
-          await recordPromoRedemptionAttemptEvent({
-            redemptionAttemptId: attemptContext.redemptionAttemptId,
-            event: 'sync_succeeded',
-            metadata: {
-              source: request.source,
-              platform: Platform.OS,
-              entitlementId: ENTITLEMENT_ID,
-              productIdentifier: entitlement.productIdentifier ?? null,
-            },
-          })
-          await recordPromoRedemptionAttemptEvent({
-            redemptionAttemptId: attemptContext.redemptionAttemptId,
-            event: 'redemption_completed',
-            metadata: {
-              source: request.source,
-              platform: Platform.OS,
-              entitlementId: ENTITLEMENT_ID,
-              productIdentifier: entitlement.productIdentifier ?? null,
-            },
-          })
-        }
-        addBreadcrumb('Purchase access sync confirmed entitlement', 'monetization.sync', {
-          userId: user.id,
-          source: request.source,
-          entitlementId: ENTITLEMENT_ID,
-          productIdentifier: entitlement.productIdentifier ?? null,
-          periodType: entitlement.periodType ?? null,
+          originalPurchaseDate: entitlement.originalPurchaseDate ?? null,
+          redemptionAttemptId: attemptContext?.redemptionAttemptId ?? null,
           campaignId: attemptContext?.campaignId ?? null,
         })
-      }
 
-      await assertAuthenticatedUser(expectedUserId)
+        if (previousConfirmedAccessSyncSignatureRef.current !== successSignature) {
+          previousConfirmedAccessSyncSignatureRef.current = successSignature
+          if (attemptContext?.redemptionAttemptId) {
+            const promoProps = {
+              ...buildPromoAttemptAnalyticsProps(attemptContext),
+              source: request.source,
+              sync_status: 'confirmed',
+            }
+            track('promo_sync_succeeded', promoProps)
+            track('promo_redemption_completed', promoProps)
+            await recordPromoRedemptionAttemptEvent({
+              expectedUserId,
+              accountOperationAlreadyOwned: true,
+              redemptionAttemptId: attemptContext.redemptionAttemptId,
+              event: 'sync_succeeded',
+              metadata: {
+                source: request.source,
+                platform: Platform.OS,
+                entitlementId: ENTITLEMENT_ID,
+                productIdentifier: entitlement.productIdentifier ?? null,
+              },
+            })
+            await recordPromoRedemptionAttemptEvent({
+              expectedUserId,
+              accountOperationAlreadyOwned: true,
+              redemptionAttemptId: attemptContext.redemptionAttemptId,
+              event: 'redemption_completed',
+              metadata: {
+                source: request.source,
+                platform: Platform.OS,
+                entitlementId: ENTITLEMENT_ID,
+                productIdentifier: entitlement.productIdentifier ?? null,
+              },
+            })
+          }
+          addBreadcrumb('Purchase access sync confirmed entitlement', 'monetization.sync', {
+            userId: user.id,
+            source: request.source,
+            entitlementId: ENTITLEMENT_ID,
+            productIdentifier: entitlement.productIdentifier ?? null,
+            periodType: entitlement.periodType ?? null,
+            campaignId: attemptContext?.campaignId ?? null,
+          })
+        }
 
-      pendingExternalPurchaseSyncRef.current = null
-      setAccessSyncResult(result)
-      setAccessSyncPhase('confirmed')
-      refetchCustomerInfo()
-      queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
-      return result
+        await assertAuthenticatedUser(expectedUserId)
+
+        pendingExternalPurchaseSyncRef.current = null
+        setAccessSyncResult(result)
+        setAccessSyncPhase('confirmed')
+        refetchCustomerInfo()
+        queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
+        return result
+      })
     },
     [
       isInitialized,
@@ -1255,6 +1289,7 @@ export function useSubscription() {
             source: pendingExternalSync.source,
           })
           recordPromoRedemptionAttemptEvent({
+            expectedUserId: user.id,
             redemptionAttemptId: pendingExternalSync.attemptContext?.redemptionAttemptId,
             event: 'app_returned',
             metadata: {
@@ -1310,7 +1345,7 @@ export function useSubscription() {
 
       const expectedUserId = user.id
       const { data, error } = await runAuthenticatedUserOperation(expectedUserId, () =>
-        supabase.rpc('start_current_user_trial'),
+        supabase.rpc('start_expected_user_trial', { p_expected_user_id: expectedUserId }),
       )
 
       if (error) throw error
@@ -1730,6 +1765,7 @@ function computeSubscriptionState(
 async function syncSubscriptionToSupabase(
   userId: string | undefined,
   attemptContext: PurchaseAccessSyncAttemptContext | null,
+  accountOperationAlreadyOwned: boolean = false,
 ): Promise<SupabaseSubscriptionSyncStatus> {
   if (!userId) return 'non_lifetime_entitlement'
 
@@ -1741,11 +1777,13 @@ async function syncSubscriptionToSupabase(
           campaignId: attemptContext.campaignId!,
         }
       : null
-  const { data, error } = await runAuthenticatedUserOperation(userId, () =>
+  const invoke = () =>
     supabase.functions.invoke('sync-revenuecat-access', {
       body: { promoContext, expectedUserId: userId },
-    }),
-  )
+    })
+  const { data, error } = accountOperationAlreadyOwned
+    ? await invoke()
+    : await runAuthenticatedUserOperation(userId, invoke)
 
   if (error) throw error
 

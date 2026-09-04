@@ -25,6 +25,7 @@ import {
 } from '~/lib/accountTransitionSecurity'
 import {
   getAccountLifecycleSnapshot,
+  requireAccountOwnedOperation,
   retryAccountTransitionRecovery,
   setActiveAccount,
   subscribeToAccountLifecycle,
@@ -120,10 +121,41 @@ const checkPendingDeletion = async (
                 return
               }
 
-              // Cancel the deletion
-              const { error: cancelError } = await supabase.rpc(
-                'cancel_current_user_account_deletion',
-              )
+              let cancelError: unknown = null
+              try {
+                const result = await requireAccountOwnedOperation(userId, async (isCurrent) => {
+                  if (!isCurrent() || !isCurrentTransition()) {
+                    throw new Error('The authenticated account changed before reactivation.')
+                  }
+
+                  const rpcResult = await supabase.rpc('cancel_account_deletion', {
+                    p_user_id: userId,
+                  })
+                  if (rpcResult.error) return rpcResult
+                  if (!isCurrent() || !isCurrentTransition()) {
+                    throw new Error('The authenticated account changed during reactivation.')
+                  }
+
+                  await Promise.allSettled([
+                    sendAccountEmail({
+                      type: 'account_reactivation',
+                    }),
+                    sendTeamNotification({
+                      type: 'account_lifecycle',
+                      email: userEmail,
+                      userId,
+                      event: 'reactivated',
+                      deletionScheduledFor: profile.deletion_scheduled_for ?? null,
+                      source: 'sign_in_reactivation_prompt',
+                    }),
+                  ])
+
+                  return rpcResult
+                })
+                cancelError = result.error
+              } catch (error) {
+                cancelError = error
+              }
               if (!isCurrentTransition()) {
                 resolve(true)
                 return
@@ -132,20 +164,6 @@ const checkPendingDeletion = async (
               } else {
                 // Signal that account was reactivated for celebration
                 onReactivated()
-
-                // Send reactivation email (don't block on failure)
-                sendAccountEmail({
-                  type: 'account_reactivation',
-                })
-
-                sendTeamNotification({
-                  type: 'account_lifecycle',
-                  email: userEmail,
-                  userId,
-                  event: 'reactivated',
-                  deletionScheduledFor: profile.deletion_scheduled_for ?? null,
-                  source: 'sign_in_reactivation_prompt',
-                })
               }
               resolve(false) // Continue with login
             },
@@ -266,7 +284,8 @@ const ensureProfileExists = async (
       if (error.code === 'PGRST116') {
         console.log('[AuthProvider] Profile not found, recovering for user:', userId)
         const { data: recoveredProfile, error: recoverError } = await supabase.rpc(
-          'ensure_current_user_profile',
+          'ensure_expected_user_profile',
+          { p_expected_user_id: userId },
         )
 
         if (!isCurrentTransition()) return
@@ -286,7 +305,7 @@ const ensureProfileExists = async (
           ? new Date(recoveredProfile.created_at).getTime()
           : 0
         if (createdAt && Date.now() - createdAt < 60_000 && isCurrentTransition()) {
-          sendTeamNotification({
+          await sendTeamNotification({
             type: 'new_signup',
             email,
             name: fullName,
@@ -320,7 +339,7 @@ const ensureProfileExists = async (
       const createdAt = new Date(profile.created_at).getTime()
       const isNewSignup = Date.now() - createdAt < 60_000
       if (isNewSignup && isCurrentTransition()) {
-        sendTeamNotification({
+        await sendTeamNotification({
           type: 'new_signup',
           email,
           name: fullName,
@@ -460,13 +479,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       const signupMethod = nextSession.user.app_metadata?.provider
-      void ensureProfileExists(
-        nextSession.user.id,
-        nextSession.user.email!,
-        fullName,
-        signupMethod,
-        () => isMounted && authTransitionId === transitionId,
-      )
+      void requireAccountOwnedOperation(nextSession.user.id, (isCurrent) =>
+        ensureProfileExists(
+          nextSession.user.id,
+          nextSession.user.email!,
+          fullName,
+          signupMethod,
+          () => isCurrent() && isMounted && authTransitionId === transitionId,
+        ),
+      ).catch((error) => {
+        if (isMounted && authTransitionId === transitionId) {
+          console.warn('[AuthProvider] Profile initialization was cancelled:', error)
+        }
+      })
     }
 
     const {
@@ -697,10 +722,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (fullName && data.user) {
           console.log('[AuthProvider] Saving Apple user name:', fullName)
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({ full_name: fullName })
-            .eq('id', data.user.id)
+          const { error: profileError } = await requireAccountOwnedOperation(
+            data.user.id,
+            async () =>
+              await supabase
+                .from('profiles')
+                .update({ full_name: fullName })
+                .eq('id', data.user.id),
+          )
 
           if (profileError) {
             console.error('[AuthProvider] Failed to save Apple user name:', profileError)

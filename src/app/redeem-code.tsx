@@ -31,6 +31,7 @@ import {
   useValidatePromoCode,
 } from '~/hooks/usePromoCode'
 import { useSubscription } from '~/hooks/useSubscription'
+import { useAuth } from '~/hooks/useAuth'
 import { useTranslation } from '~/hooks/useTranslation'
 import { isAllowedExternalStoreUrl } from '~/lib/navigationSecurity'
 
@@ -79,6 +80,7 @@ export default function RedeemCodeScreen() {
   const { t } = useTranslation()
   const { track } = useAnalytics()
   const subscription = useSubscription()
+  const { user } = useAuth()
   const validatePromoCode = useValidatePromoCode()
   const [code, setCode] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
@@ -253,6 +255,7 @@ export default function RedeemCodeScreen() {
     })
     trackValidOfferEvent('promo_store_handoff_started', offer, 'store_fallback')
     void recordPromoRedemptionAttemptEvent({
+      expectedUserId: user?.id ?? null,
       redemptionAttemptId: offer.redemptionAttemptId,
       event: 'store_handoff_started',
       metadata: {
@@ -277,6 +280,7 @@ export default function RedeemCodeScreen() {
       setActionError(t('subscription.redeemCode.storeFallbackOpened'))
     } catch {
       void recordPromoRedemptionAttemptEvent({
+        expectedUserId: user?.id ?? null,
         redemptionAttemptId: offer.redemptionAttemptId,
         event: 'redemption_failed',
         status: 'failed',
@@ -344,6 +348,7 @@ export default function RedeemCodeScreen() {
 
     trackValidOfferEvent('promo_store_handoff_started', offer, 'revenuecat_purchase_package')
     void recordPromoRedemptionAttemptEvent({
+      expectedUserId: user?.id ?? null,
       redemptionAttemptId: offer.redemptionAttemptId,
       event: 'store_handoff_started',
       metadata: {
@@ -373,6 +378,7 @@ export default function RedeemCodeScreen() {
     try {
       trackValidOfferEvent('promo_applied', validOffer)
       void recordPromoRedemptionAttemptEvent({
+        expectedUserId: user?.id ?? null,
         redemptionAttemptId: validOffer.redemptionAttemptId,
         event: 'promo_applied',
         metadata: {
@@ -428,6 +434,7 @@ export default function RedeemCodeScreen() {
       }
     } catch {
       void recordPromoRedemptionAttemptEvent({
+        expectedUserId: user?.id ?? null,
         redemptionAttemptId: validOffer.redemptionAttemptId,
         event: 'redemption_failed',
         status: 'failed',

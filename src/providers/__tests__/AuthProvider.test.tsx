@@ -4,7 +4,7 @@ import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 import * as WebBrowser from 'expo-web-browser'
 import * as AppleAuthentication from 'expo-apple-authentication'
 
-import { act, render } from '~/test/test-utils'
+import { act, render, waitFor } from '~/test/test-utils'
 import { LocalizationProvider } from '~/providers/LocalizationProvider'
 import { AuthContext, AuthProvider } from '../AuthProvider'
 import { supabase } from '~/lib/supabase'
@@ -118,7 +118,10 @@ describe('AuthProvider', () => {
     })
 
     expect(mockExchangeCodeForSession).toHaveBeenCalledTimes(1)
-    expect(mockRpc).toHaveBeenCalledWith('set_current_user_expo_push_token', { p_token: null })
+    expect(mockRpc).toHaveBeenCalledWith('set_expected_user_expo_push_token', {
+      p_expected_user_id: 'user-1',
+      p_token: null,
+    })
     expect(getAccountLifecycleSnapshot()).toMatchObject({
       phase: 'stable',
       activeUserId: 'user-2',
@@ -160,7 +163,10 @@ describe('AuthProvider', () => {
     })
 
     expect(mockSignInWithIdToken).toHaveBeenCalledTimes(1)
-    expect(mockRpc).toHaveBeenCalledWith('set_current_user_expo_push_token', { p_token: null })
+    expect(mockRpc).toHaveBeenCalledWith('set_expected_user_expo_push_token', {
+      p_expected_user_id: 'user-1',
+      p_token: null,
+    })
     expect(getAccountLifecycleSnapshot()).toMatchObject({
       phase: 'stable',
       activeUserId: 'user-2',
@@ -504,8 +510,103 @@ describe('AuthProvider', () => {
       await reactivationAction.onPress()
     })
 
-    expect(mockRpc).not.toHaveBeenCalledWith('cancel_current_user_account_deletion')
+    expect(mockRpc).not.toHaveBeenCalledWith('cancel_account_deletion', {
+      p_user_id: 'user-1',
+    })
     expect(mockSignOut).not.toHaveBeenCalled()
+  })
+
+  it('binds an in-flight reactivation RPC to the account that opened the prompt', async () => {
+    let authListener:
+      | ((event: AuthChangeEvent, session: Session | null) => void | Promise<void>)
+      | null = null
+    let authContext: React.ContextType<typeof AuthContext> | undefined
+    let finishReactivation!: (value: { data: null; error: { code: string } }) => void
+    mockOnAuthStateChange.mockImplementation((listener) => {
+      authListener = listener
+      return { data: { subscription: { unsubscribe: jest.fn() } } }
+    })
+    mockRpc.mockImplementation((name: string) => {
+      if (name !== 'cancel_account_deletion') return Promise.resolve({ data: null, error: null })
+      return new Promise((resolve) => {
+        finishReactivation = resolve
+      })
+    })
+
+    const pendingDeletionResult = {
+      data: {
+        deleted_at: '2026-08-29T00:00:00.000Z',
+        deletion_scheduled_for: '2026-09-05T00:00:00.000Z',
+      },
+      error: null,
+    }
+    const existingProfileResult = {
+      data: {
+        id: 'profile',
+        timezone: 'America/New_York',
+        created_at: '2025-01-01T00:00:00.000Z',
+      },
+      error: null,
+    }
+    mockFrom
+      .mockReturnValueOnce(createProfileQuery(pendingDeletionResult))
+      .mockReturnValueOnce(createProfileQuery(existingProfileResult))
+      .mockReturnValueOnce(createProfileQuery({ data: { deleted_at: null }, error: null }))
+      .mockReturnValueOnce(createProfileQuery(existingProfileResult))
+
+    function Consumer() {
+      const value = useContext(AuthContext)
+      useEffect(() => {
+        authContext = value
+      }, [value])
+      return null
+    }
+
+    render(
+      <LocalizationProvider>
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>
+      </LocalizationProvider>,
+    )
+
+    const buildSession = (id: string) =>
+      ({
+        user: {
+          id,
+          email: `${id}@example.com`,
+          identities: [],
+          user_metadata: {},
+          app_metadata: {},
+        },
+      }) as unknown as Session
+
+    await act(async () => {
+      authListener?.('SIGNED_IN', buildSession('user-1'))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    const reactivationAction = alertSpy.mock.calls[0][2][0]
+    let reactivation!: Promise<void>
+    act(() => {
+      reactivation = reactivationAction.onPress()
+    })
+    await waitFor(() =>
+      expect(mockRpc).toHaveBeenCalledWith('cancel_account_deletion', {
+        p_user_id: 'user-1',
+      }),
+    )
+
+    act(() => {
+      authListener?.('SIGNED_IN', buildSession('user-2'))
+    })
+    finishReactivation({ data: null, error: { code: '42501' } })
+    await act(async () => {
+      await reactivation
+    })
+
+    expect(authContext?.user?.id).toBe('user-2')
+    expect(authContext?.accountReactivated).toBe(false)
   })
 
   it('keeps the authenticated session when push-token release repeatedly fails', async () => {
@@ -698,6 +799,8 @@ describe('AuthProvider', () => {
       await Promise.resolve()
     })
 
-    expect(mockRpc).not.toHaveBeenCalledWith('ensure_current_user_profile')
+    expect(mockRpc).not.toHaveBeenCalledWith('ensure_expected_user_profile', {
+      p_expected_user_id: 'user-1',
+    })
   })
 })

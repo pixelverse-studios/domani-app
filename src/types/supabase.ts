@@ -1384,11 +1384,27 @@ export type Database = {
         }
         Returns: Json
       }
+      confirm_expected_user_promo_redemption: {
+        Args: {
+          p_campaign_id: string
+          p_code_id: string
+          p_expected_user_id: string
+          p_redemption_attempt_id: string
+          p_revenuecat_app_user_id?: string | null
+          p_store_product_id?: string | null
+          p_store_transaction_id?: string | null
+        }
+        Returns: Json
+      }
       cleanup_expired_sessions: { Args: never; Returns: undefined }
       delete_expired_accounts: { Args: never; Returns: undefined }
       delete_user_by_email: { Args: { target_email: string }; Returns: string }
       ensure_current_user_profile: {
         Args: never
+        Returns: Database['public']['Tables']['profiles']['Row']
+      }
+      ensure_expected_user_profile: {
+        Args: { p_expected_user_id: string }
         Returns: Database['public']['Tables']['profiles']['Row']
       }
       ensure_profile_exists_for_auth_user: {
@@ -1432,9 +1448,27 @@ export type Database = {
         Args: { p_error?: string | null; p_platform?: string; p_source?: string | null }
         Returns: Database['public']['Tables']['purchase_refund_states']['Row']
       }
+      mark_expected_user_refund_request_pending: {
+        Args: {
+          p_error?: string | null
+          p_expected_user_id: string
+          p_platform?: string
+          p_source?: string | null
+        }
+        Returns: Database['public']['Tables']['purchase_refund_states']['Row']
+      }
       normalize_promo_code: { Args: { p_code: string }; Returns: string }
       record_current_user_duplicate_refund_request_hint: {
         Args: { p_error?: string | null; p_platform?: string; p_source?: string | null }
+        Returns: Database['public']['Tables']['purchase_refund_states']['Row']
+      }
+      record_expected_user_duplicate_refund_request_hint: {
+        Args: {
+          p_error?: string | null
+          p_expected_user_id: string
+          p_platform?: string
+          p_source?: string | null
+        }
         Returns: Database['public']['Tables']['purchase_refund_states']['Row']
       }
       release_account_email_delivery: {
@@ -1462,12 +1496,24 @@ export type Database = {
         Args: never
         Returns: undefined
       }
+      clear_expected_user_refund_request_state: {
+        Args: { p_expected_user_id: string }
+        Returns: undefined
+      }
+      set_expected_user_expo_push_token: {
+        Args: { p_expected_user_id: string; p_token: string | null }
+        Returns: undefined
+      }
       set_current_user_expo_push_token: {
         Args: { p_token: string | null }
         Returns: undefined
       }
       start_current_user_trial: {
         Args: never
+        Returns: Database['public']['Tables']['profiles']['Row']
+      }
+      start_expected_user_trial: {
+        Args: { p_expected_user_id: string }
         Returns: Database['public']['Tables']['profiles']['Row']
       }
       sync_auth_user_to_profile: {
@@ -1479,6 +1525,18 @@ export type Database = {
           p_error_code?: string | null
           p_error_message?: string | null
           p_event: string
+          p_metadata?: Json
+          p_redemption_attempt_id: string
+          p_status?: Database['public']['Enums']['promo_redemption_status'] | null
+        }
+        Returns: Json
+      }
+      update_expected_user_promo_redemption_attempt: {
+        Args: {
+          p_error_code?: string | null
+          p_error_message?: string | null
+          p_event: string
+          p_expected_user_id: string
           p_metadata?: Json
           p_redemption_attempt_id: string
           p_status?: Database['public']['Enums']['promo_redemption_status'] | null

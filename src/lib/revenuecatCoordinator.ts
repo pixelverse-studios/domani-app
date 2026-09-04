@@ -109,6 +109,40 @@ export const runRevenueCatUserOperation = <T>(
   })
 }
 
+// Use only from inside an already-registered account lifecycle operation.
+// Re-entering runAccountOwnedOperation from that position would queue behind
+// the caller and deadlock. The RevenueCat queue and captured lifecycle
+// generation still invalidate the result before the outer operation exits.
+export const runRevenueCatUserOperationWithinAccountOperation = <T>(
+  userId: string,
+  operation: () => Promise<T>,
+): Promise<T> =>
+  enqueue(async () => {
+    const lifecycle = getAccountLifecycleSnapshot()
+    if (
+      lifecycle.phase !== 'stable' ||
+      lifecycle.activeUserId !== userId ||
+      requestedUserId !== userId ||
+      activeUserId !== userId
+    ) {
+      throw new RevenueCatAccountChangedError()
+    }
+
+    const result = await operation()
+    const after = getAccountLifecycleSnapshot()
+    if (
+      after.phase !== 'stable' ||
+      after.activeUserId !== userId ||
+      after.generation !== lifecycle.generation ||
+      requestedUserId !== userId ||
+      activeUserId !== userId
+    ) {
+      throw new RevenueCatAccountChangedError()
+    }
+
+    return result
+  })
+
 export const isRevenueCatAccountChangedError = (
   error: unknown,
 ): error is RevenueCatAccountChangedError => error instanceof RevenueCatAccountChangedError

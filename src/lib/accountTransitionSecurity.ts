@@ -74,7 +74,8 @@ async function releaseCurrentPushToken(
 
     let releaseError: { code?: string; message?: string } | null = null
     for (let attempt = 1; attempt <= PUSH_TOKEN_RELEASE_ATTEMPTS; attempt += 1) {
-      const result = await supabase.rpc('set_current_user_expo_push_token', {
+      const result = await supabase.rpc('set_expected_user_expo_push_token', {
+        p_expected_user_id: expectedUserId,
         p_token: null,
       })
       releaseError = result.error
@@ -114,9 +115,15 @@ async function restoreNotificationsAfterFailure(snapshot: unknown[]): Promise<vo
   }
 }
 
-async function restorePushTokenAfterFailure(token: string | null): Promise<void> {
+async function restorePushTokenAfterFailure(
+  expectedUserId: string,
+  token: string | null,
+): Promise<void> {
   if (!token) return
-  const { error } = await supabase.rpc('set_current_user_expo_push_token', { p_token: token })
+  const { error } = await supabase.rpc('set_expected_user_expo_push_token', {
+    p_expected_user_id: expectedUserId,
+    p_token: token,
+  })
   if (error) {
     throw new Error(
       'The account transition failed and push notifications could not be restored. Please retry notification setup.',
@@ -193,7 +200,7 @@ async function restoreOutgoingAccount(
   }
   setActiveAccount(session.user.id)
   await restoreNotificationsAfterFailure(notificationSnapshot)
-  await restorePushTokenAfterFailure(pushTokenSnapshot)
+  await restorePushTokenAfterFailure(session.user.id, pushTokenSnapshot)
 }
 
 async function recoverOutgoingAccountOrRequireRetry(

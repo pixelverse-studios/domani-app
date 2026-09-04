@@ -181,10 +181,12 @@ describe('accountTransitionSecurity', () => {
 
     await expect(securelySignOut('user-1')).rejects.toThrow('network unavailable')
 
-    expect(mockRpc).toHaveBeenNthCalledWith(1, 'set_current_user_expo_push_token', {
+    expect(mockRpc).toHaveBeenNthCalledWith(1, 'set_expected_user_expo_push_token', {
+      p_expected_user_id: 'user-1',
       p_token: null,
     })
-    expect(mockRpc).toHaveBeenNthCalledWith(2, 'set_current_user_expo_push_token', {
+    expect(mockRpc).toHaveBeenNthCalledWith(2, 'set_expected_user_expo_push_token', {
+      p_expected_user_id: 'user-1',
       p_token: 'ExponentPushToken[user-1-device]',
     })
   })
@@ -291,7 +293,8 @@ describe('accountTransitionSecurity', () => {
     ).rejects.toThrow('sanitized OAuth failure')
 
     expect(mockRestoreScheduledNotifications).toHaveBeenCalledWith(reminders)
-    expect(mockRpc).toHaveBeenNthCalledWith(2, 'set_current_user_expo_push_token', {
+    expect(mockRpc).toHaveBeenNthCalledWith(2, 'set_expected_user_expo_push_token', {
+      p_expected_user_id: 'user-1',
       p_token: 'ExponentPushToken[user-1-device]',
     })
     expect(getAccountLifecycleSnapshot()).toMatchObject({

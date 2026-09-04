@@ -14,7 +14,10 @@ import { format, parseISO, setHours, setMinutes } from 'date-fns'
 import { supabase } from './supabase'
 import { NotificationService } from './notifications'
 import { addBreadcrumb } from './sentry'
-import { runAccountOwnedOperation } from './accountLifecycleCoordinator'
+import {
+  getAccountLifecycleSnapshot,
+  runAccountOwnedOperation,
+} from './accountLifecycleCoordinator'
 import type { TaskWithCategory, TaskPriority } from '~/types'
 
 /**
@@ -292,12 +295,10 @@ export interface CarryForwardInput {
  * })
  */
 export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskWithCategory[]> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+  const expectedUserId = getAccountLifecycleSnapshot().activeUserId
+  if (!expectedUserId) throw new Error('Not authenticated')
 
-  const result = await runAccountOwnedOperation(user.id, null, async () => {
+  const result = await runAccountOwnedOperation(expectedUserId, null, async () => {
     // Scope to authenticated user's tasks only
     // Fetch original tasks with all data including category relations
     const { data: selectedTasks, error: fetchError } = await supabase
@@ -310,7 +311,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
     `,
       )
       .in('id', input.selectedTaskIds)
-      .eq('user_id', user.id)
+      .eq('user_id', expectedUserId)
 
     if (fetchError) throw fetchError
     if (!selectedTasks || selectedTasks.length === 0) {
@@ -352,7 +353,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
         const { data: newTask, error: createError } = await supabase
           .from('tasks')
           .insert({
-            user_id: user.id,
+            user_id: expectedUserId,
             title: originalTask.title,
             description: originalTask.description,
             system_category_id: originalTask.system_category_id,
@@ -391,7 +392,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
               reminder_at: taskWithCategory.reminder_at,
               notes: taskWithCategory.notes,
             },
-            user.id,
+            expectedUserId,
             false,
           )
 
@@ -407,7 +408,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
             if (!updateError) {
               taskWithCategory.notification_id = notificationId
             } else {
-              await NotificationService.cancelTaskReminder(notificationId, user.id, false)
+              await NotificationService.cancelTaskReminder(notificationId, expectedUserId, false)
               await supabase
                 .from('tasks')
                 .update({ reminder_at: null, notification_id: null })
@@ -431,7 +432,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
         .from('tasks')
         .update({ rolled_over_at: new Date().toISOString() })
         .in('id', input.selectedTaskIds)
-        .eq('user_id', user.id)
+        .eq('user_id', expectedUserId)
 
       if (markError) {
         // Non-fatal: new tasks already created, log and continue
@@ -464,7 +465,7 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
       // Cancel all scheduled notifications
       for (const notificationId of scheduledNotifications) {
         try {
-          await NotificationService.cancelTaskReminder(notificationId, user.id, false)
+          await NotificationService.cancelTaskReminder(notificationId, expectedUserId, false)
         } catch (cancelError) {
           console.error(
             `[carryForwardTasks] Failed to cancel notification ${notificationId}:`,

@@ -85,7 +85,9 @@ export function useUpdateProfile() {
             throw error
           }
 
-          const { error: ensureProfileError } = await supabase.rpc('ensure_current_user_profile')
+          const { error: ensureProfileError } = await supabase.rpc('ensure_expected_user_profile', {
+            p_expected_user_id: expectedUserId,
+          })
 
           if (ensureProfileError) throw ensureProfileError
 

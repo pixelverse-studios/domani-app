@@ -52,8 +52,7 @@ export function useCreateSupportRequest() {
 
         if (error) throw error
 
-        // Send team notification (fire and forget)
-        void sendTeamNotification({
+        await sendTeamNotification({
           type: 'support_request',
           email: expectedEmail,
           category: input.category,

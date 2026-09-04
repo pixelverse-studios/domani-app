@@ -11,8 +11,8 @@ export const secureStorage = {
       const credentials = await Keychain.getGenericPassword({ service: key })
       return credentials ? credentials.password : null
     } catch (error) {
-      console.warn('[secureStorage] Error getting item:', error)
-      return null
+      console.error('[secureStorage] Error getting item:', error)
+      throw error
     }
   },
 
@@ -20,7 +20,8 @@ export const secureStorage = {
     try {
       await Keychain.setGenericPassword(key, value, { service: key })
     } catch (error) {
-      console.warn('[secureStorage] Error setting item:', error)
+      console.error('[secureStorage] Error setting item:', error)
+      throw error
     }
   },
 
@@ -28,7 +29,8 @@ export const secureStorage = {
     try {
       await Keychain.resetGenericPassword({ service: key })
     } catch (error) {
-      console.warn('[secureStorage] Error removing item:', error)
+      console.error('[secureStorage] Error removing item:', error)
+      throw error
     }
   },
 }

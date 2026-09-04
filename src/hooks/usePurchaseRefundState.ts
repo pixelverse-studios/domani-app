@@ -26,11 +26,13 @@ interface RecordDuplicateRefundRequestHintInput {
 }
 
 export async function markCurrentUserRefundRequestPending({
+  expectedUserId,
   platform,
   source,
   error: pendingError,
-}: MarkRefundPendingInput) {
-  const { error } = await supabase.rpc('mark_current_user_refund_request_pending', {
+}: MarkRefundPendingInput & { expectedUserId: string }) {
+  const { error } = await supabase.rpc('mark_expected_user_refund_request_pending', {
+    p_expected_user_id: expectedUserId,
     p_platform: platform,
     p_source: source ?? null,
     p_error: pendingError ?? null,
@@ -39,17 +41,21 @@ export async function markCurrentUserRefundRequestPending({
   if (error) throw error
 }
 
-export async function clearCurrentUserPurchaseRefundState() {
-  const { error } = await supabase.rpc('clear_current_user_refund_request_state')
+export async function clearCurrentUserPurchaseRefundState(expectedUserId: string) {
+  const { error } = await supabase.rpc('clear_expected_user_refund_request_state', {
+    p_expected_user_id: expectedUserId,
+  })
   if (error) throw error
 }
 
 export async function recordCurrentUserDuplicateRefundRequestHint({
+  expectedUserId,
   platform,
   source,
   error: duplicateError,
-}: RecordDuplicateRefundRequestHintInput) {
-  const { error } = await supabase.rpc('record_current_user_duplicate_refund_request_hint', {
+}: RecordDuplicateRefundRequestHintInput & { expectedUserId: string }) {
+  const { error } = await supabase.rpc('record_expected_user_duplicate_refund_request_hint', {
+    p_expected_user_id: expectedUserId,
     p_platform: platform,
     p_source: source ?? null,
     p_error: duplicateError ?? null,
@@ -94,6 +100,7 @@ export function usePurchaseRefundState() {
 
       return requireAccountOwnedOperation(expectedUserId, async () => {
         await markCurrentUserRefundRequestPending({
+          expectedUserId,
           platform,
           source,
           error: pendingError,
@@ -109,7 +116,7 @@ export function usePurchaseRefundState() {
         const refundState = data as PurchaseRefundState | null
 
         if (expectedEmail) {
-          sendTeamNotification({
+          await sendTeamNotification({
             type: 'purchase_refund_intent',
             email: expectedEmail,
             userId: expectedUserId,
@@ -150,6 +157,7 @@ export function usePurchaseRefundState() {
 
       return requireAccountOwnedOperation(expectedUserId, async () => {
         await recordCurrentUserDuplicateRefundRequestHint({
+          expectedUserId,
           platform,
           source,
           error: duplicateError,
@@ -165,7 +173,7 @@ export function usePurchaseRefundState() {
         const refundState = data as PurchaseRefundState | null
 
         if (expectedEmail) {
-          sendTeamNotification({
+          await sendTeamNotification({
             type: 'purchase_refund_intent',
             email: expectedEmail,
             userId: expectedUserId,
@@ -198,7 +206,7 @@ export function usePurchaseRefundState() {
       if (!user?.id) throw new Error('Not authenticated')
       const expectedUserId = user.id
       await requireAccountOwnedOperation(expectedUserId, () =>
-        clearCurrentUserPurchaseRefundState(),
+        clearCurrentUserPurchaseRefundState(expectedUserId),
       )
     },
     onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),

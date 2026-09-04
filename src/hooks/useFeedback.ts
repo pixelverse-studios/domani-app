@@ -57,8 +57,7 @@ export function useCreateFeedback() {
         // Track feedback submission
         track('feedback_submitted', { category: input.category })
 
-        // Send team notification (fire and forget)
-        void sendTeamNotification({
+        await sendTeamNotification({
           type: 'feedback',
           email: expectedEmail,
           category: input.category,

@@ -283,8 +283,9 @@ export function useUpdateFavoriteCategories() {
       }
 
       await requireAccountOwnedOperation(expectedUserId, async () => {
-        const { error } = await supabase.rpc('update_current_user_favorite_categories', {
+        const { error } = await supabase.rpc('update_favorite_categories', {
           p_favorite_category_ids: categoryIds,
+          p_user_id: expectedUserId,
         })
 
         if (error) throw error
@@ -317,8 +318,9 @@ export function useUpdateCategoryPositions() {
 
       // Call the database function to batch update positions
       await requireAccountOwnedOperation(expectedUserId, async () => {
-        const { error } = await supabase.rpc('update_current_user_category_positions', {
+        const { error } = await supabase.rpc('update_category_positions', {
           p_category_positions: categories,
+          p_user_id: expectedUserId,
         })
 
         if (error) throw error
@@ -359,9 +361,10 @@ export function useIncrementCategoryUsage() {
       if (!systemCategoryId && !userCategoryId) return
 
       await requireAccountOwnedOperation(expectedUserId, async () => {
-        const { error } = await supabase.rpc('increment_current_user_category_usage', {
+        const { error } = await supabase.rpc('increment_category_usage', {
           p_system_category_id: systemCategoryId ?? undefined,
           p_user_category_id: userCategoryId ?? undefined,
+          p_user_id: expectedUserId,
         })
 
         if (error) throw error
