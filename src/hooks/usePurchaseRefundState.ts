@@ -5,6 +5,11 @@ import { useProfile } from '~/hooks/useProfile'
 import { supabase } from '~/lib/supabase'
 import { sendTeamNotification } from '~/lib/teamNotifications'
 import type { PurchaseRefundState } from '~/types'
+import {
+  captureAccountOperationToken,
+  reconcileAccountOperation,
+  requireAccountOwnedOperation,
+} from '~/lib/accountLifecycleCoordinator'
 
 interface MarkRefundPendingInput {
   platform: 'ios'
@@ -21,11 +26,13 @@ interface RecordDuplicateRefundRequestHintInput {
 }
 
 export async function markCurrentUserRefundRequestPending({
+  expectedUserId,
   platform,
   source,
   error: pendingError,
-}: MarkRefundPendingInput) {
-  const { error } = await supabase.rpc('mark_current_user_refund_request_pending', {
+}: MarkRefundPendingInput & { expectedUserId: string }) {
+  const { error } = await supabase.rpc('mark_expected_user_refund_request_pending', {
+    p_expected_user_id: expectedUserId,
     p_platform: platform,
     p_source: source ?? null,
     p_error: pendingError ?? null,
@@ -34,17 +41,21 @@ export async function markCurrentUserRefundRequestPending({
   if (error) throw error
 }
 
-export async function clearCurrentUserPurchaseRefundState() {
-  const { error } = await supabase.rpc('clear_current_user_refund_request_state')
+export async function clearCurrentUserPurchaseRefundState(expectedUserId: string) {
+  const { error } = await supabase.rpc('clear_expected_user_refund_request_state', {
+    p_expected_user_id: expectedUserId,
+  })
   if (error) throw error
 }
 
 export async function recordCurrentUserDuplicateRefundRequestHint({
+  expectedUserId,
   platform,
   source,
   error: duplicateError,
-}: RecordDuplicateRefundRequestHintInput) {
-  const { error } = await supabase.rpc('record_current_user_duplicate_refund_request_hint', {
+}: RecordDuplicateRefundRequestHintInput & { expectedUserId: string }) {
+  const { error } = await supabase.rpc('record_expected_user_duplicate_refund_request_hint', {
+    p_expected_user_id: expectedUserId,
     p_platform: platform,
     p_source: source ?? null,
     p_error: duplicateError ?? null,
@@ -83,42 +94,53 @@ export function usePurchaseRefundState() {
       error: pendingError,
       subscriptionStatus,
     }: MarkRefundPendingInput) => {
-      await markCurrentUserRefundRequestPending({
-        platform,
-        source,
-        error: pendingError,
-      })
-
       if (!user?.id) return null
+      const expectedUserId = user.id
+      const expectedEmail = notificationEmail
 
-      const { data, error: selectError } = await supabase
-        .from('purchase_refund_states')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle()
-
-      if (selectError) throw selectError
-      const refundState = data as PurchaseRefundState | null
-
-      if (user?.id && notificationEmail) {
-        sendTeamNotification({
-          type: 'purchase_refund_intent',
-          email: notificationEmail,
-          userId: user.id,
-          intent: 'pending_refund_request',
+      return requireAccountOwnedOperation(expectedUserId, async () => {
+        await markCurrentUserRefundRequestPending({
+          expectedUserId,
           platform,
           source,
-          subscriptionStatus,
-          refundStatus: refundState?.status ?? null,
-          clientHint: refundState?.client_hint ?? null,
-          refundStateUpdatedAt: refundState?.updated_at ?? null,
+          error: pendingError,
         })
-      }
 
-      return refundState
+        const { data, error: selectError } = await supabase
+          .from('purchase_refund_states')
+          .select('*')
+          .eq('user_id', expectedUserId)
+          .maybeSingle()
+
+        if (selectError) throw selectError
+        const refundState = data as PurchaseRefundState | null
+
+        if (expectedEmail) {
+          await sendTeamNotification({
+            type: 'purchase_refund_intent',
+            email: expectedEmail,
+            userId: expectedUserId,
+            intent: 'pending_refund_request',
+            platform,
+            source,
+            subscriptionStatus,
+            refundStatus: refundState?.status ?? null,
+            clientHint: refundState?.client_hint ?? null,
+            refundStateUpdatedAt: refundState?.updated_at ?? null,
+          })
+        }
+
+        return refundState
+      })
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['purchaseRefundState', user?.id], data)
+    onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
+    onSuccess: (data, _variables, context) => {
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        queryClient.setQueryData(['purchaseRefundState', accountToken.userId], data)
+      })
     },
   })
 
@@ -129,51 +151,72 @@ export function usePurchaseRefundState() {
       error: duplicateError,
       subscriptionStatus,
     }: RecordDuplicateRefundRequestHintInput) => {
-      await recordCurrentUserDuplicateRefundRequestHint({
-        platform,
-        source,
-        error: duplicateError,
-      })
-
       if (!user?.id) return null
+      const expectedUserId = user.id
+      const expectedEmail = notificationEmail
 
-      const { data, error: selectError } = await supabase
-        .from('purchase_refund_states')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle()
-
-      if (selectError) throw selectError
-      const refundState = data as PurchaseRefundState | null
-
-      if (user?.id && notificationEmail) {
-        sendTeamNotification({
-          type: 'purchase_refund_intent',
-          email: notificationEmail,
-          userId: user.id,
-          intent: 'duplicate_refund_request',
+      return requireAccountOwnedOperation(expectedUserId, async () => {
+        await recordCurrentUserDuplicateRefundRequestHint({
+          expectedUserId,
           platform,
           source,
-          subscriptionStatus,
-          refundStatus: refundState?.status ?? null,
-          clientHint: refundState?.client_hint ?? null,
-          refundStateUpdatedAt: refundState?.updated_at ?? null,
+          error: duplicateError,
         })
-      }
 
-      return refundState
+        const { data, error: selectError } = await supabase
+          .from('purchase_refund_states')
+          .select('*')
+          .eq('user_id', expectedUserId)
+          .maybeSingle()
+
+        if (selectError) throw selectError
+        const refundState = data as PurchaseRefundState | null
+
+        if (expectedEmail) {
+          await sendTeamNotification({
+            type: 'purchase_refund_intent',
+            email: expectedEmail,
+            userId: expectedUserId,
+            intent: 'duplicate_refund_request',
+            platform,
+            source,
+            subscriptionStatus,
+            refundStatus: refundState?.status ?? null,
+            clientHint: refundState?.client_hint ?? null,
+            refundStateUpdatedAt: refundState?.updated_at ?? null,
+          })
+        }
+
+        return refundState
+      })
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['purchaseRefundState', user?.id], data)
+    onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
+    onSuccess: (data, _variables, context) => {
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        queryClient.setQueryData(['purchaseRefundState', accountToken.userId], data)
+      })
     },
   })
 
   const clearStateMutation = useMutation({
     mutationFn: async () => {
-      await clearCurrentUserPurchaseRefundState()
+      if (!user?.id) throw new Error('Not authenticated')
+      const expectedUserId = user.id
+      await requireAccountOwnedOperation(expectedUserId, () =>
+        clearCurrentUserPurchaseRefundState(expectedUserId),
+      )
     },
-    onSuccess: () => {
-      queryClient.setQueryData(['purchaseRefundState', user?.id], null)
+    onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
+    onSuccess: (_data, _variables, context) => {
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        queryClient.setQueryData(['purchaseRefundState', accountToken.userId], null)
+      })
     },
   })
 

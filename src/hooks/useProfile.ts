@@ -4,6 +4,11 @@ import { isToday, parseISO } from 'date-fns'
 import { supabase } from '~/lib/supabase'
 import { useAuth } from '~/hooks/useAuth'
 import type { Profile, ProfileUpdate } from '~/types'
+import {
+  captureAccountOperationToken,
+  reconcileAccountOperation,
+  runAccountOwnedOperation,
+} from '~/lib/accountLifecycleCoordinator'
 
 type EditableProfileUpdate = Pick<
   ProfileUpdate,
@@ -58,41 +63,61 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: async (updates: EditableProfileUpdate) => {
       if (!user?.id) throw new Error('Not authenticated')
+      const expectedUserId = user.id
+      const blocked = Symbol('profile-account-changed')
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user.id)
-        .select()
-        .single()
+      const result = await runAccountOwnedOperation<Profile | typeof blocked>(
+        expectedUserId,
+        blocked,
+        async () => {
+          const { data, error } = await supabase
+            .from('profiles')
+            .update(updates)
+            .eq('id', expectedUserId)
+            .select()
+            .single()
 
-      if (!error && data) {
-        return data as Profile
+          if (!error && data) {
+            return data as Profile
+          }
+
+          if (error?.code !== 'PGRST116' && error) {
+            throw error
+          }
+
+          const { error: ensureProfileError } = await supabase.rpc('ensure_expected_user_profile', {
+            p_expected_user_id: expectedUserId,
+          })
+
+          if (ensureProfileError) throw ensureProfileError
+
+          const { data: recoveredProfile, error: retryError } = await supabase
+            .from('profiles')
+            .update(updates)
+            .eq('id', expectedUserId)
+            .select()
+            .single()
+
+          if (retryError) throw retryError
+          return recoveredProfile as Profile
+        },
+      )
+      if (result === blocked) {
+        throw new Error('Profile update was cancelled because the authenticated account changed.')
       }
-
-      if (error?.code !== 'PGRST116' && error) {
-        throw error
-      }
-
-      const { error: ensureProfileError } = await supabase.rpc('ensure_current_user_profile')
-
-      if (ensureProfileError) throw ensureProfileError
-
-      const { data: recoveredProfile, error: retryError } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user.id)
-        .select()
-        .single()
-
-      if (retryError) throw retryError
-      return recoveredProfile as Profile
+      return result
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['profile', user?.id], data)
-      if (user?.id) {
-        queryClient.invalidateQueries({ queryKey: ['planningReminderTime', user.id] })
-      }
+    onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
+    onSuccess: (data, _updates, context) => {
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        queryClient.setQueryData(['profile', accountToken.userId], data)
+        queryClient.invalidateQueries({
+          queryKey: ['planningReminderTime', accountToken.userId],
+        })
+      })
     },
   })
 }

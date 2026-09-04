@@ -55,7 +55,8 @@ export default function LoginScreen() {
     try {
       googleSignInInFlightRef.current = true
       setGoogleLoading(true)
-      await signInWithGoogle()
+      const completed = await signInWithGoogle()
+      if (!completed) return
       const persistedSession = await waitForAuthSession(() => supabase.auth.getSession(), {
         attempts: 8,
         intervalMs: 150,
@@ -80,7 +81,8 @@ export default function LoginScreen() {
   const handleAppleSignIn = async () => {
     try {
       setAppleLoading(true)
-      await signInWithApple()
+      const completed = await signInWithApple()
+      if (!completed) return
       router.replace('/')
     } catch (error) {
       Alert.alert(

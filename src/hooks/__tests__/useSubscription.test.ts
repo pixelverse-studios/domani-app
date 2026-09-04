@@ -9,6 +9,7 @@ jest.mock('~/lib/revenuecat', () => ({
   purchasePackage: jest.fn(),
   restorePurchases: jest.fn(),
   setRevenueCatPromoRedemptionAttributes: jest.fn(),
+  beginRefundRequestForActiveEntitlement: jest.fn(),
   syncPurchasesAndRefreshCustomerInfo: jest.fn(),
   syncRevenueCatSubscriberAttributes: jest.fn(),
 }))
@@ -25,6 +26,7 @@ jest.mock('~/hooks/useProfile', () => ({
 }))
 
 import { act, renderHookWithProviders, waitFor } from '~/test/test-utils'
+import Purchases from 'react-native-purchases'
 import { supabase } from '~/lib/supabase'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import {
@@ -36,6 +38,7 @@ import {
   purchasePackage,
   restorePurchases,
   setRevenueCatPromoRedemptionAttributes,
+  beginRefundRequestForActiveEntitlement,
   syncPurchasesAndRefreshCustomerInfo,
   syncRevenueCatSubscriberAttributes,
 } from '~/lib/revenuecat'
@@ -47,10 +50,20 @@ import {
   type SubscriptionStatus,
   useSubscription,
 } from '../useSubscription'
+import {
+  RevenueCatAccountChangedError,
+  resetRevenueCatCoordinatorForTests,
+} from '~/lib/revenuecatCoordinator'
+import {
+  resetAccountLifecycleCoordinatorForTests,
+  runAccountTransition,
+  setActiveAccount,
+} from '~/lib/accountLifecycleCoordinator'
 
 const mockSupabaseFrom = supabase.from as unknown as jest.Mock
 const mockSupabaseFunctionsInvoke = supabase.functions.invoke as unknown as jest.Mock
 const mockSupabaseRpc = supabase.rpc as unknown as jest.Mock
+const mockSupabaseGetUser = supabase.auth.getUser as jest.Mock
 const mockUseAnalytics = useAnalytics as jest.Mock
 const mockTrack = jest.fn()
 const mockGetOfferingForCohort = getOfferingForCohort as jest.Mock
@@ -62,8 +75,11 @@ const mockPurchasePackage = purchasePackage as jest.Mock
 const mockRestorePurchases = restorePurchases as jest.Mock
 const mockSetRevenueCatPromoRedemptionAttributes =
   setRevenueCatPromoRedemptionAttributes as jest.Mock
+const mockBeginRefundRequestForActiveEntitlement =
+  beginRefundRequestForActiveEntitlement as jest.Mock
 const mockSyncPurchasesAndRefreshCustomerInfo = syncPurchasesAndRefreshCustomerInfo as jest.Mock
 const mockSyncRevenueCatSubscriberAttributes = syncRevenueCatSubscriberAttributes as jest.Mock
+const mockGetCustomerInfo = Purchases.getCustomerInfo as jest.Mock
 const revenueCatBlockingPhases = [
   'code_validated',
   'os_confirmation_attempted',
@@ -154,20 +170,30 @@ function setupSubscriptionHookMocks() {
   })
   mockGetOfferingForCohort.mockReturnValue('default')
   mockGetOfferings.mockResolvedValue(null)
-  mockInitializeRevenueCat.mockResolvedValue(undefined)
+  let revenueCatConfigured = false
+  ;(Purchases.isConfigured as jest.Mock).mockImplementation(() =>
+    Promise.resolve(revenueCatConfigured),
+  )
+  mockInitializeRevenueCat.mockImplementation(async () => {
+    revenueCatConfigured = true
+  })
   mockLoginRevenueCat.mockResolvedValue(undefined)
   mockPresentCodeRedemptionSheet.mockResolvedValue(true)
   mockPurchasePackage.mockResolvedValue(null)
   mockRestorePurchases.mockResolvedValue(null)
   mockSetRevenueCatPromoRedemptionAttributes.mockResolvedValue(undefined)
+  mockBeginRefundRequestForActiveEntitlement.mockResolvedValue('SUCCESS')
   mockSyncRevenueCatSubscriberAttributes.mockResolvedValue(undefined)
   mockSupabaseFrom.mockImplementation(() => createSupabaseQueryMock())
+  mockSupabaseGetUser.mockImplementation(() =>
+    Promise.resolve({ data: { user: mockUseAuth()?.user ?? null }, error: null }),
+  )
   mockSupabaseFunctionsInvoke.mockResolvedValue({
     data: { status: 'synced', accessGranted: true },
     error: null,
   })
   mockSupabaseRpc.mockImplementation((functionName: string) => {
-    if (functionName === 'confirm_current_user_promo_redemption') {
+    if (functionName === 'confirm_expected_user_promo_redemption') {
       return Promise.resolve({ data: { status: 'confirmed' }, error: null })
     }
 
@@ -177,6 +203,9 @@ function setupSubscriptionHookMocks() {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  resetAccountLifecycleCoordinatorForTests()
+  setActiveAccount('user-1')
+  resetRevenueCatCoordinatorForTests()
   setupSubscriptionHookMocks()
 })
 
@@ -280,7 +309,7 @@ describe('RevenueCat access gating', () => {
 describe('trial authority', () => {
   it('starts the trial through the authenticated server RPC without protected profile writes', async () => {
     mockSupabaseRpc.mockImplementation((functionName: string) => {
-      if (functionName === 'start_current_user_trial') {
+      if (functionName === 'start_expected_user_trial') {
         return Promise.resolve({
           data: {
             id: 'user-1',
@@ -303,7 +332,9 @@ describe('trial authority', () => {
       await result.current.startTrial()
     })
 
-    expect(mockSupabaseRpc).toHaveBeenCalledWith('start_current_user_trial')
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('start_expected_user_trial', {
+      p_expected_user_id: 'user-1',
+    })
     expect(
       mockSupabaseFrom.mock.results.some((queryResult) => {
         const query = queryResult.value as SupabaseQueryMock
@@ -326,6 +357,234 @@ describe('trial authority', () => {
 })
 
 describe('purchase access sync', () => {
+  it('stays fail-closed and retries a failed RevenueCat identity initialization', async () => {
+    mockInitializeRevenueCat
+      .mockRejectedValueOnce(new Error('identity unavailable'))
+      .mockResolvedValueOnce(undefined)
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => {
+      expect(result.current.revenueCatIdentityError).toBe(
+        'Unable to connect purchase services. Please try again.',
+      )
+    })
+    expect(result.current.isLoading).toBe(true)
+    expect(mockGetCustomerInfo).not.toHaveBeenCalled()
+
+    act(() => {
+      result.current.retryRevenueCatIdentity()
+    })
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.revenueCatIdentityError).toBeNull()
+    expect(mockInitializeRevenueCat).toHaveBeenCalledTimes(2)
+
+    unmount()
+  })
+
+  it('blocks RevenueCat reads and resets access state while switching accounts', async () => {
+    let resolveSecondLogin: (() => void) | null = null
+    mockLoginRevenueCat.mockImplementation((userId: string) => {
+      if (userId !== 'user-2') return Promise.resolve()
+      return new Promise<void>((resolve) => {
+        resolveSecondLogin = resolve
+      })
+    })
+    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())
+
+    const { result, rerender, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await act(async () => {
+      await result.current.syncAccess({ source: 'manual', forceStoreSync: true })
+    })
+    expect(result.current.accessSyncPhase).toBe('confirmed')
+    const firstUserCustomerInfoReads = mockGetCustomerInfo.mock.calls.length
+
+    mockUseAuth.mockReturnValue({ user: { id: 'user-2', email: 'two@example.com' } })
+    mockUseProfile.mockReturnValue({
+      isLoading: false,
+      profile: {
+        id: 'user-2',
+        tier: 'none',
+        purchased_at: null,
+        refunded_at: null,
+        trial_started_at: null,
+        trial_ends_at: null,
+        created_at: '2026-08-29T12:00:00.000Z',
+        email: 'two@example.com',
+        expo_push_token: null,
+        full_name: 'Second User',
+        signup_cohort: null,
+        signup_method: null,
+      },
+    })
+    act(() => {
+      setActiveAccount('user-2')
+      rerender(undefined)
+    })
+
+    await waitFor(() => expect(mockLoginRevenueCat).toHaveBeenCalledWith('user-2'))
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.accessSyncPhase).toBe('idle')
+    expect(result.current.accessSyncResult).toBeNull()
+    expect(mockGetCustomerInfo).toHaveBeenCalledTimes(firstUserCustomerInfoReads)
+
+    await act(async () => {
+      resolveSecondLogin?.()
+    })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(mockGetCustomerInfo).toHaveBeenCalledTimes(firstUserCustomerInfoReads + 1)
+
+    unmount()
+  })
+
+  it('rejects an in-flight restore when the authenticated account changes', async () => {
+    let resolveRestore: ((info: ReturnType<typeof buildLifetimeCustomerInfo>) => void) | null = null
+    mockRestorePurchases.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRestore = resolve
+        }),
+    )
+
+    const { result, rerender, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    mockSupabaseFunctionsInvoke.mockClear()
+
+    let restoreError: unknown
+    const restorePromise = result.current.restore().catch((error) => {
+      restoreError = error
+    })
+    await waitFor(() => expect(mockRestorePurchases).toHaveBeenCalledTimes(1))
+
+    mockUseAuth.mockReturnValue({ user: { id: 'user-2', email: 'two@example.com' } })
+    mockUseProfile.mockReturnValue({
+      isLoading: false,
+      profile: {
+        id: 'user-2',
+        tier: 'none',
+        purchased_at: null,
+        refunded_at: null,
+        trial_started_at: null,
+        trial_ends_at: null,
+        created_at: '2026-08-29T12:00:00.000Z',
+        email: 'two@example.com',
+        expo_push_token: null,
+        full_name: 'Second User',
+        signup_cohort: null,
+        signup_method: null,
+      },
+    })
+    mockSupabaseGetUser.mockResolvedValue({
+      data: { user: { id: 'user-2' } },
+      error: null,
+    })
+    act(() => {
+      setActiveAccount('user-2')
+      rerender(undefined)
+    })
+
+    await act(async () => {
+      resolveRestore?.(buildLifetimeCustomerInfo())
+      await restorePromise
+    })
+
+    expect(restoreError).toBeInstanceOf(RevenueCatAccountChangedError)
+    expect(mockSupabaseFunctionsInvoke).not.toHaveBeenCalled()
+
+    unmount()
+  })
+
+  it('serializes an in-flight refund request against account transitions', async () => {
+    let resolveRefund: ((status: string) => void) | null = null
+    mockBeginRefundRequestForActiveEntitlement.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRefund = resolve
+        }),
+    )
+
+    const { result, rerender, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    let refundError: unknown
+    const refundPromise = result.current.requestRefundForActiveEntitlement().catch((error) => {
+      refundError = error
+    })
+    await waitFor(() => expect(mockBeginRefundRequestForActiveEntitlement).toHaveBeenCalledTimes(1))
+
+    mockUseAuth.mockReturnValue({ user: { id: 'user-2', email: 'two@example.com' } })
+    mockUseProfile.mockReturnValue({
+      isLoading: false,
+      profile: {
+        id: 'user-2',
+        tier: 'none',
+        purchased_at: null,
+        refunded_at: null,
+        trial_started_at: null,
+        trial_ends_at: null,
+        created_at: '2026-08-29T12:00:00.000Z',
+        email: 'two@example.com',
+        expo_push_token: null,
+        full_name: 'Second User',
+        signup_cohort: null,
+        signup_method: null,
+      },
+    })
+    mockSupabaseGetUser.mockResolvedValue({
+      data: { user: { id: 'user-2' } },
+      error: null,
+    })
+    act(() => {
+      setActiveAccount('user-2')
+      rerender(undefined)
+    })
+
+    await act(async () => {
+      resolveRefund?.('SUCCESS')
+      await refundPromise
+    })
+
+    expect(refundError).toBeInstanceOf(RevenueCatAccountChangedError)
+
+    unmount()
+  })
+
+  it('drains compound access sync before an account transition can replace its owner', async () => {
+    let finishStoreSync!: (info: ReturnType<typeof buildLifetimeCustomerInfo>) => void
+    mockSyncPurchasesAndRefreshCustomerInfo.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishStoreSync = resolve
+        }),
+    )
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    const sync = result.current.syncAccess({ source: 'manual', forceStoreSync: true })
+    await waitFor(() => expect(mockSyncPurchasesAndRefreshCustomerInfo).toHaveBeenCalledTimes(1))
+
+    const transitionOperation = jest.fn(async () => setActiveAccount('user-2'))
+    let transition!: Promise<void>
+    act(() => {
+      transition = runAccountTransition('user-1', transitionOperation)
+    })
+    expect(transitionOperation).not.toHaveBeenCalled()
+
+    await act(async () => {
+      finishStoreSync(buildLifetimeCustomerInfo())
+      await expect(sync).rejects.toBeInstanceOf(RevenueCatAccountChangedError)
+      await transition
+    })
+    expect(transitionOperation).toHaveBeenCalledTimes(1)
+
+    unmount()
+  })
+
   it('reports refunded when a stale lifetime profile also has refunded_at', async () => {
     mockUseProfile.mockReturnValue({
       isLoading: false,
@@ -403,7 +662,7 @@ describe('purchase access sync', () => {
       recoverable: false,
     })
     expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledWith('sync-revenuecat-access', {
-      body: { promoContext: null },
+      body: { promoContext: null, expectedUserId: 'user-1' },
     })
 
     unmount()
@@ -446,6 +705,7 @@ describe('purchase access sync', () => {
 
     expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledWith('sync-revenuecat-access', {
       body: {
+        expectedUserId: 'user-1',
         promoContext: {
           campaignId: 'campaign-1',
           codeId: 'code-1',
@@ -644,7 +904,7 @@ describe('purchase access sync', () => {
       }),
     )
     expect(mockSupabaseRpc).toHaveBeenCalledWith(
-      'update_current_user_promo_redemption_attempt',
+      'update_expected_user_promo_redemption_attempt',
       expect.objectContaining({
         p_error_code: 'missing_entitlement',
         p_event: 'sync_failed',
@@ -721,6 +981,7 @@ describe('purchase access sync', () => {
     )
     expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledWith('sync-revenuecat-access', {
       body: {
+        expectedUserId: 'user-1',
         promoContext: {
           campaignId: 'campaign-1',
           codeId: 'code-1',
@@ -856,9 +1117,10 @@ describe('purchase access sync', () => {
     })
     expect(mockPresentCodeRedemptionSheet).not.toHaveBeenCalled()
     expect(mockSyncPurchasesAndRefreshCustomerInfo).not.toHaveBeenCalled()
-    expect(mockSupabaseRpc).toHaveBeenCalledWith('confirm_current_user_promo_redemption', {
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('confirm_expected_user_promo_redemption', {
       p_campaign_id: 'campaign-1',
       p_code_id: 'code-1',
+      p_expected_user_id: 'user-1',
       p_redemption_attempt_id: 'attempt-1',
       p_revenuecat_app_user_id: null,
       p_store_product_id: null,

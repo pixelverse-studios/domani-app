@@ -6,6 +6,11 @@ import { useProfile } from '~/hooks/useProfile'
 import { useTranslation } from '~/hooks/useTranslation'
 import { formatLocalizedDateWithOptions } from '~/i18n/date'
 import { sendTeamNotification } from '~/lib/teamNotifications'
+import {
+  captureAccountOperationToken,
+  reconcileAccountOperation,
+  requireAccountOwnedOperation,
+} from '~/lib/accountLifecycleCoordinator'
 
 export function useAccountDeletion() {
   const { user, signOut } = useAuth()
@@ -46,48 +51,62 @@ export function useAccountDeletion() {
   const scheduleDeletion = useMutation({
     mutationFn: async () => {
       if (!user?.id || !user?.email) throw new Error('Not authenticated')
+      const expectedUserId = user.id
+      const expectedEmail = user.email
 
-      const { error } = await supabase.rpc('schedule_current_user_account_deletion')
+      return requireAccountOwnedOperation(expectedUserId, async () => {
+        const { error } = await supabase.rpc('schedule_account_deletion', {
+          p_user_id: expectedUserId,
+        })
 
-      if (error) throw error
+        if (error) throw error
 
-      const { data: updatedProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('deletion_scheduled_for')
-        .eq('id', user.id)
-        .maybeSingle()
+        const { data: updatedProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select('deletion_scheduled_for')
+          .eq('id', expectedUserId)
+          .maybeSingle()
 
-      if (profileError) {
-        console.warn('[useAccountDeletion] failed to read scheduled deletion date:', profileError)
-      }
+        if (profileError) {
+          console.warn('[useAccountDeletion] failed to read scheduled deletion date:', profileError)
+        }
 
-      // Calculate deletion date (30 days from now) for email
-      const scheduledDate =
-        !profileError && updatedProfile?.deletion_scheduled_for
-          ? new Date(updatedProfile.deletion_scheduled_for)
-          : new Date()
+        // Calculate deletion date (30 days from now) for email
+        const scheduledDate =
+          !profileError && updatedProfile?.deletion_scheduled_for
+            ? new Date(updatedProfile.deletion_scheduled_for)
+            : new Date()
 
-      if (profileError || !updatedProfile?.deletion_scheduled_for) {
-        scheduledDate.setDate(scheduledDate.getDate() + 30)
-      }
+        if (profileError || !updatedProfile?.deletion_scheduled_for) {
+          scheduledDate.setDate(scheduledDate.getDate() + 30)
+        }
 
-      // Send deletion confirmation email (must complete before signOut invalidates token)
-      await sendAccountEmail({
-        type: 'account_deletion',
-      })
+        // Send deletion confirmation email (must complete before signOut invalidates token)
+        await sendAccountEmail({
+          type: 'account_deletion',
+        })
 
-      void sendTeamNotification({
-        type: 'account_lifecycle',
-        email: user.email,
-        userId: user.id,
-        event: 'deletion_scheduled',
-        deletionScheduledFor: scheduledDate.toISOString(),
-        source: 'settings',
+        await sendTeamNotification({
+          type: 'account_lifecycle',
+          email: expectedEmail,
+          userId: expectedUserId,
+          event: 'deletion_scheduled',
+          deletionScheduledFor: scheduledDate.toISOString(),
+          source: 'settings',
+        })
       })
     },
-    onSuccess: async () => {
-      // Sign out the user after scheduling deletion
-      await signOut()
+    onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
+    onSuccess: (_data, _variables, context) => {
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        // Sign out the retained account after its deletion was scheduled.
+        void signOut().catch((error) => {
+          console.error('[useAccountDeletion] failed to sign out scheduled account:', error)
+        })
+      })
     },
   })
 
@@ -95,28 +114,40 @@ export function useAccountDeletion() {
   const cancelDeletion = useMutation({
     mutationFn: async () => {
       if (!user?.id || !user?.email) throw new Error('Not authenticated')
+      const expectedUserId = user.id
+      const expectedEmail = user.email
+      const scheduledFor = profile?.deletion_scheduled_for ?? null
 
-      const { error } = await supabase.rpc('cancel_current_user_account_deletion')
+      return requireAccountOwnedOperation(expectedUserId, async () => {
+        const { error } = await supabase.rpc('cancel_account_deletion', {
+          p_user_id: expectedUserId,
+        })
 
-      if (error) throw error
+        if (error) throw error
 
-      // Send reactivation confirmation email
-      await sendAccountEmail({
-        type: 'account_reactivation',
-      })
+        // Send reactivation confirmation email
+        await sendAccountEmail({
+          type: 'account_reactivation',
+        })
 
-      void sendTeamNotification({
-        type: 'account_lifecycle',
-        email: user.email,
-        userId: user.id,
-        event: 'reactivated',
-        deletionScheduledFor: profile?.deletion_scheduled_for ?? null,
-        source: 'settings',
+        await sendTeamNotification({
+          type: 'account_lifecycle',
+          email: expectedEmail,
+          userId: expectedUserId,
+          event: 'reactivated',
+          deletionScheduledFor: scheduledFor,
+          source: 'settings',
+        })
       })
     },
-    onSuccess: () => {
-      // Invalidate profile to refresh the UI
-      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+    onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
+    onSuccess: (_data, _variables, context) => {
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        queryClient.invalidateQueries({ queryKey: ['profile', accountToken.userId] })
+      })
     },
   })
 

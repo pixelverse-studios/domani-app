@@ -7,11 +7,12 @@ import { useAuth } from '~/hooks/useAuth'
  * Should be used once at the app root level.
  */
 export function useAnalyticsIdentify() {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
   const { identify, reset } = useAnalytics()
   const previousUserId = useRef<string | null>(null)
 
   useEffect(() => {
+    if (loading) return
     const currentUserId = user?.id ?? null
 
     // Skip if user hasn't changed
@@ -20,6 +21,10 @@ export function useAnalyticsIdentify() {
     }
 
     if (currentUserId && user) {
+      if (previousUserId.current && previousUserId.current !== currentUserId) {
+        reset()
+      }
+
       // User signed in - identify them
       // Only include defined values
       const traits: Record<string, string | number | boolean | null> = {}
@@ -36,5 +41,5 @@ export function useAnalyticsIdentify() {
     }
 
     previousUserId.current = currentUserId
-  }, [user, identify, reset])
+  }, [user, loading, identify, reset])
 }

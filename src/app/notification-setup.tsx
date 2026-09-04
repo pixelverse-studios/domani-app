@@ -16,6 +16,8 @@ import { formatLocalizedTime } from '~/i18n/date'
 import { useUpdateProfile } from '~/hooks/useProfile'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { useTranslation } from '~/hooks/useTranslation'
+import { useAuth } from '~/hooks/useAuth'
+import { runAccountOwnedOperation } from '~/lib/accountLifecycleCoordinator'
 
 /**
  * Detect device timezone using Intl API
@@ -43,6 +45,7 @@ export default function NotificationSetupScreen() {
   const { locale, t } = useTranslation()
   const brandColor = theme.colors.brand.primary
   const { track } = useAnalytics()
+  const { user } = useAuth()
 
   const { setPlanningReminderId, setPermissionStatus } = useNotificationStore()
   const { startTutorial, hasCompletedTutorial } = useTutorialStore()
@@ -74,12 +77,18 @@ export default function NotificationSetupScreen() {
         setPermissionStatus(granted ? 'granted' : 'denied')
 
         if (granted) {
+          if (!user?.id) throw new Error('Not authenticated')
           track('notifications_enabled')
-          await NotificationService.cancelPlanningReminders()
-          const planningId = await NotificationService.schedulePlanningReminder(
-            planTime.getHours(),
-            planTime.getMinutes(),
-          )
+          const planningId = await runAccountOwnedOperation(user.id, '', async (isCurrent) => {
+            await NotificationService.cancelPlanningReminders(user.id, false)
+            if (!isCurrent()) return ''
+            return NotificationService.schedulePlanningReminder(
+              planTime.getHours(),
+              planTime.getMinutes(),
+              user.id,
+              false,
+            )
+          })
           setPlanningReminderId(planningId)
         } else {
           // OS denied — track as skipped; planning_reminder_enabled still saves as true

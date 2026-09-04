@@ -147,8 +147,17 @@ function SettingsContent() {
         text: copy.settings.logOut,
         style: 'destructive',
         onPress: async () => {
-          await signOut()
-          router.replace('/welcome')
+          try {
+            await signOut()
+            router.replace('/welcome')
+          } catch (error) {
+            Alert.alert(
+              copy.settings.logOutTitle,
+              error instanceof Error
+                ? error.message
+                : 'Unable to securely sign out. Please try again.',
+            )
+          }
         },
       },
     ])

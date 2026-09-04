@@ -121,6 +121,9 @@ jest.doMock('~/lib/supabase', () => ({
     auth: {
       getSession: jest.fn(() => Promise.resolve({ data: { session: null }, error: null })),
       getUser: jest.fn(() => Promise.resolve({ data: { user: null }, error: null })),
+      exchangeCodeForSession: jest.fn(() =>
+        Promise.resolve({ data: { session: null }, error: null }),
+      ),
       onAuthStateChange: jest.fn(() => ({
         data: { subscription: { unsubscribe: jest.fn() } },
       })),
@@ -142,10 +145,13 @@ jest.doMock('~/lib/supabase', () => ({
 
 jest.doMock('expo-notifications', () => ({
   AndroidImportance: { DEFAULT: 'default', HIGH: 'high' },
+  SchedulableTriggerInputTypes: { CALENDAR: 'calendar', DAILY: 'daily', DATE: 'date' },
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
   addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  cancelAllScheduledNotificationsAsync: jest.fn(() => Promise.resolve()),
   cancelScheduledNotificationAsync: jest.fn(() => Promise.resolve()),
   getExpoPushTokenAsync: jest.fn(() => Promise.resolve({ data: 'ExponentPushToken[test]' })),
+  getAllScheduledNotificationsAsync: jest.fn(() => Promise.resolve([])),
   getNotificationSettingsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
   getPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted', granted: true })),
   requestPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted', granted: true })),
@@ -160,6 +166,7 @@ jest.doMock('react-native-purchases', () => ({
     beginRefundRequestForActiveEntitlement: jest.fn(() => Promise.resolve(null)),
     collectDeviceIdentifiers: jest.fn(),
     configure: jest.fn(() => Promise.resolve()),
+    isConfigured: jest.fn(() => Promise.resolve(false)),
     getCustomerInfo: jest.fn(() => Promise.resolve({ entitlements: { active: {} } })),
     getOfferings: jest.fn(() => Promise.resolve({ current: null })),
     logIn: jest.fn(() => Promise.resolve({ customerInfo: { entitlements: { active: {} } } })),

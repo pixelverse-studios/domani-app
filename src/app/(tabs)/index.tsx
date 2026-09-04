@@ -42,8 +42,13 @@ import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useTranslation } from '~/hooks/useTranslation'
 import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 import type { TaskWithCategory } from '~/types'
+import {
+  captureAccountOperationToken,
+  isAccountOperationTokenCurrent,
+} from '~/lib/accountLifecycleCoordinator'
 
 const NAME_PROMPT_DISMISSED_KEY = 'domani_name_prompt_dismissed'
+const getNamePromptDismissedKey = (userId: string) => `${NAME_PROMPT_DISMISSED_KEY}:${userId}`
 
 export default function TodayScreen() {
   useScreenTracking('today')
@@ -67,21 +72,44 @@ export default function TodayScreen() {
 
   // Check if we should show name prompt
   useEffect(() => {
+    let cancelled = false
+
     const checkNamePrompt = async () => {
-      if (profileLoading || !profile) return
+      if (profileLoading || !profile?.id) {
+        setShowNameModal(false)
+        return
+      }
+
+      const expectedUserId = profile.id
+      const accountToken = captureAccountOperationToken(expectedUserId)
+      if (!isAccountOperationTokenCurrent(accountToken)) {
+        setShowNameModal(false)
+        return
+      }
 
       // If user already has a name, don't show
-      if (profile.full_name) return
+      if (profile.full_name) {
+        setShowNameModal(false)
+        return
+      }
+
+      // Hide any modal inherited from the previous account while this
+      // account's persisted dismissal state is being resolved.
+      setShowNameModal(false)
 
       // Check if user has dismissed the prompt before
-      const dismissed = await AsyncStorage.getItem(NAME_PROMPT_DISMISSED_KEY)
+      const dismissed = await AsyncStorage.getItem(getNamePromptDismissedKey(expectedUserId))
+      if (cancelled || !isAccountOperationTokenCurrent(accountToken)) return
       if (dismissed === 'true') return
 
       // Show the prompt
       setShowNameModal(true)
     }
 
-    checkNamePrompt()
+    void checkNamePrompt()
+    return () => {
+      cancelled = true
+    }
   }, [profile, profileLoading])
 
   const [refreshing, setRefreshing] = React.useState(false)
@@ -126,8 +154,13 @@ export default function TodayScreen() {
   }
 
   const handleDismissNameModal = async () => {
-    await AsyncStorage.setItem(NAME_PROMPT_DISMISSED_KEY, 'true')
-    setShowNameModal(false)
+    if (!profile?.id) return
+    const expectedUserId = profile.id
+    const accountToken = captureAccountOperationToken(expectedUserId)
+    if (!isAccountOperationTokenCurrent(accountToken)) return
+
+    await AsyncStorage.setItem(getNamePromptDismissedKey(expectedUserId), 'true')
+    if (isAccountOperationTokenCurrent(accountToken)) setShowNameModal(false)
   }
 
   const isLoading = tasksLoading || profileLoading

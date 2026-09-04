@@ -11,6 +11,10 @@ import {
   useTutorialStore,
 } from '~/stores/tutorialStore'
 import { TutorialSpotlight } from '../TutorialSpotlight'
+import {
+  resetAccountLifecycleCoordinatorForTests,
+  setActiveAccount,
+} from '~/lib/accountLifecycleCoordinator'
 
 jest.mock('~/hooks/useTutorialAnalytics', () => ({
   useTutorialAnalytics: jest.fn(() => ({
@@ -69,6 +73,8 @@ async function advanceTo(expectedStep: TutorialStep) {
 describe('tutorial layout compatibility', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    resetAccountLifecycleCoordinatorForTests()
+    setActiveAccount('user-1')
     useLayoutStore.setState({ taskLayout: 'default' })
     useTutorialStore.setState({
       isActive: false,

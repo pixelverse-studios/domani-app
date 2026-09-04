@@ -1,18 +1,35 @@
-import React, { createContext, useEffect, useRef, useState } from 'react'
+import React, { createContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Alert, Platform, NativeModules } from 'react-native'
-import { Session, User } from '@supabase/supabase-js'
+import {
+  AuthChangeEvent,
+  Session,
+  User,
+  isAuthRetryableFetchError,
+  isAuthSessionMissingError,
+} from '@supabase/supabase-js'
 import * as WebBrowser from 'expo-web-browser'
-import * as AuthSession from 'expo-auth-session'
 import * as AppleAuthentication from 'expo-apple-authentication'
 
 import { supabase, sendAccountEmail } from '~/lib/supabase'
 import { sendTeamNotification } from '~/lib/teamNotifications'
 import { captureException, addBreadcrumb } from '~/lib/sentry'
-import { parseOAuthTokensFromUrl, runSingleFlight, waitForAuthSession } from '~/lib/authSession'
+import { completeOAuthCallback, resolveOAuthRedirectUrl, runSingleFlight } from '~/lib/authSession'
 import { useTranslation } from '~/hooks/useTranslation'
 import { formatLocalizedDate } from '~/i18n/date'
 import type { AppLocale } from '~/i18n'
 import type { TranslationKey, TranslationValues } from '~/i18n/types'
+import {
+  securelyHandleExternalSessionLoss,
+  securelyReplaceSession,
+  securelySignOut,
+} from '~/lib/accountTransitionSecurity'
+import {
+  getAccountLifecycleSnapshot,
+  requireAccountOwnedOperation,
+  retryAccountTransitionRecovery,
+  setActiveAccount,
+  subscribeToAccountLifecycle,
+} from '~/lib/accountLifecycleCoordinator'
 
 // Configure web browser for OAuth
 WebBrowser.maybeCompleteAuthSession()
@@ -69,6 +86,7 @@ const checkPendingDeletion = async (
   userEmail: string,
   signOutFn: () => Promise<void>,
   onReactivated: () => void,
+  isCurrentTransition: () => boolean,
   locale: AppLocale,
   t: (key: TranslationKey, values?: TranslationValues) => string,
 ): Promise<boolean> => {
@@ -79,7 +97,7 @@ const checkPendingDeletion = async (
       .eq('id', userId)
       .single()
 
-    if (error || !profile?.deleted_at) {
+    if (!isCurrentTransition() || error || !profile?.deleted_at) {
       return false // No pending deletion
     }
 
@@ -98,29 +116,54 @@ const checkPendingDeletion = async (
           {
             text: t('auth.actions.reactivate'),
             onPress: async () => {
-              // Cancel the deletion
-              const { error: cancelError } = await supabase.rpc(
-                'cancel_current_user_account_deletion',
-              )
-              if (cancelError) {
+              if (!isCurrentTransition()) {
+                resolve(true)
+                return
+              }
+
+              let cancelError: unknown = null
+              try {
+                const result = await requireAccountOwnedOperation(userId, async (isCurrent) => {
+                  if (!isCurrent() || !isCurrentTransition()) {
+                    throw new Error('The authenticated account changed before reactivation.')
+                  }
+
+                  const rpcResult = await supabase.rpc('cancel_account_deletion', {
+                    p_user_id: userId,
+                  })
+                  if (rpcResult.error) return rpcResult
+                  if (!isCurrent() || !isCurrentTransition()) {
+                    throw new Error('The authenticated account changed during reactivation.')
+                  }
+
+                  await Promise.allSettled([
+                    sendAccountEmail({
+                      type: 'account_reactivation',
+                    }),
+                    sendTeamNotification({
+                      type: 'account_lifecycle',
+                      email: userEmail,
+                      userId,
+                      event: 'reactivated',
+                      deletionScheduledFor: profile.deletion_scheduled_for ?? null,
+                      source: 'sign_in_reactivation_prompt',
+                    }),
+                  ])
+
+                  return rpcResult
+                })
+                cancelError = result.error
+              } catch (error) {
+                cancelError = error
+              }
+              if (!isCurrentTransition()) {
+                resolve(true)
+                return
+              } else if (cancelError) {
                 console.error('[AuthProvider] Failed to cancel deletion:', cancelError)
               } else {
                 // Signal that account was reactivated for celebration
                 onReactivated()
-
-                // Send reactivation email (don't block on failure)
-                sendAccountEmail({
-                  type: 'account_reactivation',
-                })
-
-                sendTeamNotification({
-                  type: 'account_lifecycle',
-                  email: userEmail,
-                  userId,
-                  event: 'reactivated',
-                  deletionScheduledFor: profile.deletion_scheduled_for ?? null,
-                  source: 'sign_in_reactivation_prompt',
-                })
               }
               resolve(false) // Continue with login
             },
@@ -129,8 +172,23 @@ const checkPendingDeletion = async (
             text: t('auth.actions.keepDeletion'),
             style: 'destructive',
             onPress: async () => {
-              await signOutFn()
-              resolve(true) // Block login
+              if (!isCurrentTransition()) {
+                resolve(true)
+                return
+              }
+              try {
+                await signOutFn()
+                resolve(true) // Block login
+              } catch (error) {
+                Alert.alert(
+                  t('auth.pendingDeletion.title'),
+                  error instanceof Error
+                    ? error.message
+                    : 'Unable to securely sign out. Please try again.',
+                  [{ text: t('auth.actions.ok') }],
+                )
+                resolve(false)
+              }
             },
           },
         ],
@@ -144,9 +202,11 @@ const checkPendingDeletion = async (
   }
 }
 
-// Validate that the user actually exists in the database
-// Returns true if valid, false if orphaned session (user deleted)
-const validateUserExists = async (userId: string): Promise<boolean> => {
+type UserValidationResult = 'valid' | 'invalid' | 'unavailable'
+
+// Validate that the cached user still exists without treating a transient
+// network/profile failure as proof that the account was deleted.
+const validateUserExists = async (userId: string): Promise<UserValidationResult> => {
   try {
     // Try to fetch the profile - if it fails with 23503 on insert or user doesn't exist,
     // we have an orphaned session
@@ -157,34 +217,49 @@ const validateUserExists = async (userId: string): Promise<boolean> => {
       .maybeSingle()
 
     if (error) {
-      // If we get a permission error, the user likely doesn't exist in auth.users
-      // (RLS policies reference auth.uid() which would be invalid)
       console.warn('[AuthProvider] Error checking user existence:', error.code, error.message)
-      return false
     }
 
     // If profile exists, user is valid
     if (profile) {
-      return true
+      return 'valid'
     }
 
     // Profile doesn't exist - try to verify the user exists in auth by attempting
     // to get the current user from the server (not cache)
     const { data: authData, error: authError } = await supabase.auth.getUser()
 
-    if (authError || !authData.user) {
+    if (authError) {
       console.warn('[AuthProvider] User does not exist on server:', authError?.message)
-      return false
+      if (isAuthSessionMissingError(authError)) return 'invalid'
+      if (isAuthRetryableFetchError(authError)) return 'unavailable'
+      const status = 'status' in authError ? authError.status : undefined
+      const code = 'code' in authError ? authError.code : undefined
+      if (
+        status === 401 ||
+        status === 403 ||
+        code === 'invalid_jwt' ||
+        code === 'session_not_found'
+      ) {
+        return 'invalid'
+      }
+      return 'unavailable'
     }
+    if (!authData.user) return 'invalid'
 
     // User exists in auth but no profile yet - this is valid (profile will be created)
-    return true
+    return authData.user.id === userId ? 'valid' : 'invalid'
   } catch (error) {
     console.error('[AuthProvider] Failed to validate user:', error)
     captureException(error as Error, { context: 'validateUserExists', userId })
-    return false
+    return 'unavailable'
   }
 }
+
+const releasePushTokenAndSignOut = async (
+  expectedUserId: string,
+  options: { allowReleaseFailure?: boolean } = {},
+) => securelySignOut(expectedUserId, options)
 
 // Ensure user has a profile row and set timezone if not already set
 const ensureProfileExists = async (
@@ -192,8 +267,10 @@ const ensureProfileExists = async (
   email: string,
   fullName?: string | null,
   signupMethod?: string,
+  isCurrentTransition: () => boolean = () => true,
 ) => {
   try {
+    if (!isCurrentTransition()) return
     console.log('[AuthProvider] Checking profile for user:', userId)
     const { data: profile, error } = await supabase
       .from('profiles')
@@ -201,12 +278,17 @@ const ensureProfileExists = async (
       .eq('id', userId)
       .single()
 
+    if (!isCurrentTransition()) return
+
     if (error) {
       if (error.code === 'PGRST116') {
         console.log('[AuthProvider] Profile not found, recovering for user:', userId)
         const { data: recoveredProfile, error: recoverError } = await supabase.rpc(
-          'ensure_current_user_profile',
+          'ensure_expected_user_profile',
+          { p_expected_user_id: userId },
         )
+
+        if (!isCurrentTransition()) return
 
         if (recoverError) {
           console.warn(
@@ -222,8 +304,8 @@ const ensureProfileExists = async (
         const createdAt = recoveredProfile?.created_at
           ? new Date(recoveredProfile.created_at).getTime()
           : 0
-        if (createdAt && Date.now() - createdAt < 60_000) {
-          sendTeamNotification({
+        if (createdAt && Date.now() - createdAt < 60_000 && isCurrentTransition()) {
+          await sendTeamNotification({
             type: 'new_signup',
             email,
             name: fullName,
@@ -232,7 +314,10 @@ const ensureProfileExists = async (
           })
         }
 
-        if (!recoveredProfile?.timezone || recoveredProfile.timezone === 'UTC') {
+        if (
+          (!recoveredProfile?.timezone || recoveredProfile.timezone === 'UTC') &&
+          isCurrentTransition()
+        ) {
           const deviceTimezone = getDeviceTimezone()
           const { error: updateError } = await supabase
             .from('profiles')
@@ -253,8 +338,8 @@ const ensureProfileExists = async (
       // Check if this is a brand new signup (created within the last 60 seconds)
       const createdAt = new Date(profile.created_at).getTime()
       const isNewSignup = Date.now() - createdAt < 60_000
-      if (isNewSignup) {
-        sendTeamNotification({
+      if (isNewSignup && isCurrentTransition()) {
+        await sendTeamNotification({
           type: 'new_signup',
           email,
           name: fullName,
@@ -265,7 +350,7 @@ const ensureProfileExists = async (
 
       // Profile exists - check if timezone needs to be set
       // Treat null, undefined, or 'UTC' as "not set" since UTC is the old default
-      if (!profile.timezone || profile.timezone === 'UTC') {
+      if ((!profile.timezone || profile.timezone === 'UTC') && isCurrentTransition()) {
         const deviceTimezone = getDeviceTimezone()
         console.log('[AuthProvider] Setting device timezone:', deviceTimezone)
         const { error: updateError } = await supabase
@@ -289,8 +374,10 @@ interface AuthContextValue {
   session: Session | null
   user: User | null
   loading: boolean
-  signInWithGoogle: () => Promise<void>
-  signInWithApple: () => Promise<void>
+  accountRecoveryError: string | null
+  retryAccountRecovery: () => Promise<boolean>
+  signInWithGoogle: () => Promise<boolean>
+  signInWithApple: () => Promise<boolean>
   signOut: () => Promise<void>
   accountReactivated: boolean
   clearAccountReactivated: () => void
@@ -303,71 +390,56 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const accountLifecycle = useSyncExternalStore(
+    subscribeToAccountLifecycle,
+    getAccountLifecycleSnapshot,
+    getAccountLifecycleSnapshot,
+  )
   const [accountReactivated, setAccountReactivated] = useState(false)
-  const googleSignInPromiseRef = useRef<Promise<void> | null>(null)
+  const googleSignInPromiseRef = useRef<Promise<boolean> | null>(null)
 
-  // Configure OAuth redirect for mobile app
-  // Uses the native scheme defined in app.json: domani://
-  const redirectTo = AuthSession.makeRedirectUri({
-    scheme: 'domani',
-    path: 'auth/callback',
-    // For development builds, force native scheme instead of exp://
-    native: 'domani://auth/callback',
+  const redirectTo = resolveOAuthRedirectUrl({
+    isDev: __DEV__,
+    platform: Platform.OS,
+    platformVersion: Platform.Version,
   })
 
   useEffect(() => {
-    // Get initial session - just set state, don't call ensureProfileExists here
-    // Profile creation is handled by onAuthStateChange which has proper auth context
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('[AuthProvider] Initial session:', session ? 'Found' : 'None')
-      // State will be set by onAuthStateChange callback
-    })
+    let isMounted = true
+    let authTransitionId = 0
+    let initialValidationTimer: ReturnType<typeof setTimeout> | null = null
+    let externalSessionLossTimer: ReturnType<typeof setTimeout> | null = null
+    let externalSessionLossInProgress = false
+    let appliedUserId = getAccountLifecycleSnapshot().activeUserId
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[AuthProvider] Auth state changed:', event)
-      console.log('[AuthProvider] Session:', session ? 'Found' : 'None')
+    const applyAuthState = (
+      event: AuthChangeEvent,
+      nextSession: Session | null,
+      transitionId: number,
+    ) => {
+      if (!isMounted) return
 
-      // For initial sessions (cached), validate that the user still exists
-      // This handles "orphaned sessions" where the user was deleted but the token is cached
-      if (event === 'INITIAL_SESSION' && session?.user) {
-        console.log('[AuthProvider] Validating cached session for user:', session.user.id)
-        const isValid = await validateUserExists(session.user.id)
-
-        if (!isValid) {
-          console.warn('[AuthProvider] Orphaned session detected - user no longer exists')
-          // Clear the invalid session
-          await supabase.auth.signOut()
-          setSession(null)
-          setUser(null)
-          setLoading(false)
-          return
-        }
-        console.log('[AuthProvider] Session validated successfully')
-      }
-
-      // Update state immediately - don't block on profile creation
-      setSession(session)
-      setUser(session?.user ?? null)
+      setSession(nextSession)
+      setUser(nextSession?.user ?? null)
+      setActiveAccount(nextSession?.user.id ?? null)
+      appliedUserId = nextSession?.user.id ?? null
       setLoading(false)
 
-      // Handle profile creation for both initial session and new sign-ins
-      // Run in background - don't await to avoid blocking the auth flow
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
-        // Check for multiple linked providers on sign-in
-        if (event === 'SIGNED_IN') {
-          const identities = session.user.identities || []
+      if ((event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') || !nextSession?.user) return
 
-          if (identities.length > 1) {
-            console.warn(
-              '[AuthProvider] Multiple providers detected:',
-              identities.map((i) => i.provider),
-            )
+      if (event === 'SIGNED_IN') {
+        const identities = nextSession.user.identities || []
 
-            // Sign out and alert the user (run async)
-            supabase.auth.signOut().then(() => {
+        if (identities.length > 1) {
+          console.warn(
+            '[AuthProvider] Multiple providers detected:',
+            identities.map((identity) => identity.provider),
+          )
+
+          void releasePushTokenAndSignOut(nextSession.user.id)
+            .then((didSignOut) => {
+              if (!didSignOut) return
+              if (!isMounted || authTransitionId !== transitionId) return
               Alert.alert(
                 t('auth.errors.accountExistsTitle'),
                 t('auth.errors.accountExistsMessage'),
@@ -376,36 +448,185 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               setSession(null)
               setUser(null)
             })
-            return
-          }
+            .catch((error) => {
+              console.error('[AuthProvider] Failed to securely sign out linked account:', error)
+            })
+          return
         }
+      }
 
-        // Ensure profile exists and set timezone (run in background)
-        const fullName = session.user.user_metadata?.full_name || session.user.user_metadata?.name
+      const fullName =
+        nextSession.user.user_metadata?.full_name || nextSession.user.user_metadata?.name
 
-        // Check for pending deletion on sign-in
-        if (event === 'SIGNED_IN') {
-          checkPendingDeletion(
-            session.user.id,
-            session.user.email!,
-            async () => {
-              const { error } = await supabase.auth.signOut()
-              if (!error) {
+      if (event === 'SIGNED_IN') {
+        void checkPendingDeletion(
+          nextSession.user.id,
+          nextSession.user.email!,
+          async () => {
+            const didSignOut = await releasePushTokenAndSignOut(nextSession.user.id)
+            if (didSignOut && isMounted && authTransitionId === transitionId) {
+              setSession(null)
+              setUser(null)
+            }
+          },
+          () => {
+            if (isMounted && authTransitionId === transitionId) setAccountReactivated(true)
+          },
+          () => isMounted && authTransitionId === transitionId,
+          locale,
+          t,
+        )
+      }
+
+      const signupMethod = nextSession.user.app_metadata?.provider
+      void requireAccountOwnedOperation(nextSession.user.id, (isCurrent) =>
+        ensureProfileExists(
+          nextSession.user.id,
+          nextSession.user.email!,
+          fullName,
+          signupMethod,
+          () => isCurrent() && isMounted && authTransitionId === transitionId,
+        ),
+      ).catch((error) => {
+        if (isMounted && authTransitionId === transitionId) {
+          console.warn('[AuthProvider] Profile initialization was cancelled:', error)
+        }
+      })
+    }
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === 'SIGNED_OUT' && !nextSession && externalSessionLossInProgress) {
+        setLoading(true)
+        return
+      }
+
+      const transitionId = ++authTransitionId
+      console.log('[AuthProvider] Auth state changed:', event)
+      console.log('[AuthProvider] Session:', nextSession ? 'Found' : 'None')
+
+      if (event === 'SIGNED_OUT' && !nextSession) {
+        const lifecycle = getAccountLifecycleSnapshot()
+        const externallyLostUserId = appliedUserId ?? lifecycle.activeUserId
+
+        if (
+          externallyLostUserId &&
+          lifecycle.phase === 'stable' &&
+          lifecycle.activeUserId === externallyLostUserId
+        ) {
+          setLoading(true)
+          externalSessionLossInProgress = true
+          externalSessionLossTimer = setTimeout(() => {
+            externalSessionLossTimer = null
+            void securelyHandleExternalSessionLoss(externallyLostUserId)
+              .then(() => {
+                if (!isMounted || authTransitionId !== transitionId) return
+                applyAuthState(event, null, transitionId)
+              })
+              .catch((error) => {
+                if (!isMounted || authTransitionId !== transitionId) return
+                console.error(
+                  '[AuthProvider] Failed to clean up an externally lost session:',
+                  error,
+                )
                 setSession(null)
                 setUser(null)
-              }
-            },
-            () => setAccountReactivated(true),
-            locale,
-            t,
-          )
+                appliedUserId = null
+                setLoading(false)
+              })
+              .finally(() => {
+                externalSessionLossInProgress = false
+              })
+          }, 0)
+          return
         }
-        const signupMethod = session.user.app_metadata?.provider
-        ensureProfileExists(session.user.id, session.user.email!, fullName, signupMethod)
       }
+
+      if (event !== 'INITIAL_SESSION' || !nextSession?.user) {
+        applyAuthState(event, nextSession, transitionId)
+        return
+      }
+
+      // Supabase invokes auth listeners while holding an exclusive auth lock.
+      // Defer any Supabase API calls until the listener has returned and released it.
+      setLoading(true)
+      initialValidationTimer = setTimeout(() => {
+        void (async () => {
+          console.log('[AuthProvider] Validating cached session for user:', nextSession.user.id)
+          const validationResult = await validateUserExists(nextSession.user.id)
+          if (!isMounted || authTransitionId !== transitionId) return
+
+          if (validationResult === 'unavailable') {
+            console.warn(
+              '[AuthProvider] Cached session could not be verified; retaining it for offline use',
+            )
+            applyAuthState(event, nextSession, transitionId)
+            return
+          }
+
+          if (validationResult === 'invalid') {
+            console.warn('[AuthProvider] Orphaned session detected - user no longer exists')
+            let didSignOut = false
+            try {
+              didSignOut = await releasePushTokenAndSignOut(nextSession.user.id, {
+                allowReleaseFailure: true,
+              })
+            } catch (error) {
+              if (!isMounted || authTransitionId !== transitionId) return
+              console.error('[AuthProvider] Failed to clean up invalid cached session:', error)
+              captureException(error as Error, {
+                context: 'cleanupInvalidCachedSession',
+                userId: nextSession.user.id,
+              })
+              applyAuthState(event, nextSession, transitionId)
+              Alert.alert(
+                t('auth.errors.signInTitle'),
+                error instanceof Error
+                  ? error.message
+                  : 'Unable to securely clear the saved session. Please try signing out again.',
+                [{ text: t('auth.actions.ok') }],
+              )
+              return
+            }
+            if (!didSignOut) {
+              applyAuthState(event, nextSession, transitionId)
+              Alert.alert(
+                t('auth.errors.signInTitle'),
+                'Unable to securely clear the saved session. Please try signing out again.',
+                [{ text: t('auth.actions.ok') }],
+              )
+              return
+            }
+            if (!isMounted || authTransitionId !== transitionId) return
+            setSession(null)
+            setUser(null)
+            setActiveAccount(null)
+            setLoading(false)
+            return
+          }
+
+          console.log('[AuthProvider] Session validated successfully')
+          applyAuthState(event, nextSession, transitionId)
+        })().catch((error) => {
+          if (!isMounted || authTransitionId !== transitionId) return
+          console.error('[AuthProvider] Cached session validation failed unexpectedly:', error)
+          captureException(error as Error, {
+            context: 'validateCachedSession',
+            userId: nextSession.user.id,
+          })
+          applyAuthState(event, nextSession, transitionId)
+        })
+      }, 0)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      isMounted = false
+      authTransitionId += 1
+      if (initialValidationTimer) clearTimeout(initialValidationTimer)
+      if (externalSessionLossTimer) clearTimeout(externalSessionLossTimer)
+      subscription.unsubscribe()
+    }
   }, [locale, t])
 
   const signInWithGoogle = () =>
@@ -432,48 +653,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         console.log('[AuthProvider] Browser result type:', result.type)
 
-        if (result.type === 'success') {
-          // Note: Don't log result.url as it contains OAuth tokens
-          const tokens = parseOAuthTokensFromUrl(result.url)
+        if (result.type !== 'success') return false
 
-          console.log('[AuthProvider] Tokens received:', {
-            hasAccessToken: !!tokens?.access_token,
-            hasRefreshToken: !!tokens?.refresh_token,
-          })
-
-          if (tokens) {
-            // Set the session manually
-            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-              access_token: tokens.access_token,
-              refresh_token: tokens.refresh_token,
-            })
-
-            if (sessionError) {
-              console.error('[AuthProvider] Session error:', sessionError)
-              throw sessionError
-            }
-
-            console.log('[AuthProvider] Session set successfully!')
-            addBreadcrumb('Google sign in completed', 'auth', { provider: 'google' })
-            const persistedSession =
-              sessionData.session ??
-              (await waitForAuthSession(() => supabase.auth.getSession(), {
-                attempts: 8,
-                intervalMs: 150,
-              }))
-
-            if (!persistedSession) {
-              throw new Error('Google sign in completed, but no session was persisted.')
-            }
-            // Profile creation is handled by onAuthStateChange callback
-          } else {
-            console.error('[AuthProvider] No tokens in redirect URL')
-            throw new Error('Google sign in completed, but no session tokens were returned.')
-          }
-        } else {
-          console.log('[AuthProvider] OAuth was cancelled or failed')
-          throw new Error('Google sign in was cancelled.')
-        }
+        await completeOAuthCallback(
+          result.url,
+          (code) =>
+            securelyReplaceSession(async () => {
+              const exchange = await supabase.auth.exchangeCodeForSession(code)
+              if (exchange.error || !exchange.data.session) {
+                throw new Error('OAuth sign in could not be completed. Please try again.')
+              }
+              return exchange
+            }),
+          () => supabase.auth.getSession(),
+        )
+        addBreadcrumb('Google sign in completed', 'auth', { provider: 'google' })
+        return true
       } else {
         throw new Error('Google sign in could not start.')
       }
@@ -504,15 +699,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       // Sign in to Supabase with the Apple identity token
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'apple',
-        token: credential.identityToken,
+      const { data } = await securelyReplaceSession(async () => {
+        const result = await supabase.auth.signInWithIdToken({
+          provider: 'apple',
+          token: credential.identityToken!,
+        })
+        if (result.error || !result.data.session) {
+          throw new Error('Apple sign in could not be completed. Please try again.')
+        }
+        return result
       })
-
-      if (error) {
-        console.error('[AuthProvider] Supabase Apple auth error:', error)
-        throw error
-      }
 
       console.log('[AuthProvider] Apple sign in successful!')
       addBreadcrumb('Apple sign in completed', 'auth', { provider: 'apple' })
@@ -526,10 +722,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (fullName && data.user) {
           console.log('[AuthProvider] Saving Apple user name:', fullName)
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update({ full_name: fullName })
-            .eq('id', data.user.id)
+          const { error: profileError } = await requireAccountOwnedOperation(
+            data.user.id,
+            async () =>
+              await supabase
+                .from('profiles')
+                .update({ full_name: fullName })
+                .eq('id', data.user.id),
+          )
 
           if (profileError) {
             console.error('[AuthProvider] Failed to save Apple user name:', profileError)
@@ -538,6 +738,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       // Profile creation is handled by onAuthStateChange callback
+      return true
     } catch (error: unknown) {
       // Handle user cancellation
       if (
@@ -547,7 +748,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         error.code === 'ERR_REQUEST_CANCELED'
       ) {
         console.log('[AuthProvider] Apple Sign In cancelled by user')
-        return
+        return false
       }
       console.error('[AuthProvider] Apple sign in error:', error)
       throw error
@@ -557,8 +758,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       addBreadcrumb('User signing out', 'auth')
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
+      await securelySignOut(user?.id ?? null)
     } catch (error) {
       console.error('[AuthProvider] Sign out error:', error)
       throw error
@@ -570,7 +770,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const value = {
     session,
     user,
-    loading,
+    loading: loading || accountLifecycle.phase !== 'stable',
+    accountRecoveryError: accountLifecycle.recoveryError,
+    retryAccountRecovery: retryAccountTransitionRecovery,
     signInWithGoogle,
     signInWithApple,
     signOut,

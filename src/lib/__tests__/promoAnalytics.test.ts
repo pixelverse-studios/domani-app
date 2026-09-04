@@ -4,10 +4,19 @@ import {
   buildPromoAnalyticsProps,
   recordPromoRedemptionAttemptEvent,
 } from '~/lib/promoAnalytics'
+import {
+  resetAccountLifecycleCoordinatorForTests,
+  setActiveAccount,
+} from '~/lib/accountLifecycleCoordinator'
 
 const mockSupabaseRpc = supabase.rpc as unknown as jest.Mock
 
 describe('promo analytics helpers', () => {
+  beforeEach(() => {
+    resetAccountLifecycleCoordinatorForTests()
+    setActiveAccount('user-1')
+  })
+
   it('builds privacy-safe props for valid promo responses', () => {
     const props = buildPromoAnalyticsProps({
       status: 'valid',
@@ -78,6 +87,7 @@ describe('promo analytics helpers', () => {
     })
 
     await recordPromoRedemptionAttemptEvent({
+      expectedUserId: 'user-1',
       redemptionAttemptId: 'attempt-1',
       event: 'store_handoff_started',
       metadata: {
@@ -86,10 +96,11 @@ describe('promo analytics helpers', () => {
       },
     })
 
-    expect(mockSupabaseRpc).toHaveBeenCalledWith('update_current_user_promo_redemption_attempt', {
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('update_expected_user_promo_redemption_attempt', {
       p_error_code: null,
       p_error_message: null,
       p_event: 'store_handoff_started',
+      p_expected_user_id: 'user-1',
       p_metadata: {
         platform: 'ios',
         source: 'native_redemption_sheet',

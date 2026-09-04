@@ -45,6 +45,10 @@ import { wasPromptedInCurrentCycle, isPastReminderTime } from '~/lib/rollover'
 import { useAuth } from '~/hooks/useAuth'
 import { useNotificationStore } from '~/stores/notificationStore'
 import {
+  captureAccountOperationToken,
+  isAccountOperationTokenCurrent,
+} from '~/lib/accountLifecycleCoordinator'
+import {
   useEveningRolloverTasks,
   type UseEveningRolloverTasksResult,
 } from './useEveningRolloverTasks'
@@ -102,6 +106,9 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
     // Prevent concurrent checks and re-running once already activated
     if (isCheckingRef.current || timeCheckPassedRef.current) return
     if (!user?.id) return
+    const expectedUserId = user.id
+    const accountToken = captureAccountOperationToken(expectedUserId)
+    if (!isAccountOperationTokenCurrent(accountToken)) return
     isCheckingRef.current = true
 
     // Dev bypass: skip all preconditions, immediately activate
@@ -133,8 +140,9 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('planning_reminder_time')
-            .eq('id', user.id)
+            .eq('id', expectedUserId)
             .maybeSingle()
+          if (!isAccountOperationTokenCurrent(accountToken)) return
           if (profileError) {
             if (__DEV__)
               console.error('[useEveningRolloverOnAppOpen] Profile query failed:', profileError)
@@ -155,7 +163,8 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
         // — catch here and fail-closed (skip rollover on error)
         let alreadyPrompted: boolean
         try {
-          alreadyPrompted = await wasPromptedInCurrentCycle(reminderTime, user.id)
+          alreadyPrompted = await wasPromptedInCurrentCycle(reminderTime, expectedUserId)
+          if (!isAccountOperationTokenCurrent(accountToken)) return
         } catch {
           if (__DEV__)
             console.error(
@@ -185,6 +194,7 @@ export function useEveningRolloverOnAppOpen(): UseEveningRolloverOnAppOpenResult
           beforeReminder ? '(morning mode)' : '(evening mode)',
           shouldBypass ? '[DEV BYPASS]' : '',
         )
+      if (!isAccountOperationTokenCurrent(accountToken)) return
       setIsBeforeReminderTime(beforeReminder)
       setEveningRolloverSource('app_open')
       timeCheckPassedRef.current = true

@@ -32,6 +32,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
+export function parseExpectedUserId(value: unknown): string | null {
+  if (value == null) return null
+  if (typeof value !== 'string') throw new Error('INVALID_EXPECTED_USER_ID')
+
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  if (!uuidPattern.test(value)) throw new Error('INVALID_EXPECTED_USER_ID')
+  return value
+}
+
 function parseIsoDate(value: unknown) {
   if (typeof value !== 'string' || !value.trim()) return null
   const date = new Date(value)

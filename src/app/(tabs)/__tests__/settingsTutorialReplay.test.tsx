@@ -4,6 +4,10 @@ import { fireEvent, renderWithProviders, screen } from '~/test/test-utils'
 import SettingsScreen from '../settings'
 import { useTutorialStore } from '~/stores/tutorialStore'
 import { hasFullAccess, useSubscription } from '~/hooks/useSubscription'
+import {
+  resetAccountLifecycleCoordinatorForTests,
+  setActiveAccount,
+} from '~/lib/accountLifecycleCoordinator'
 
 const mockPush = jest.fn()
 const mockReplace = jest.fn()
@@ -187,6 +191,8 @@ jest.mock('~/stores/appConfigStore', () => ({
 describe('SettingsScreen tutorial replay', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    resetAccountLifecycleCoordinatorForTests()
+    setActiveAccount('user-1')
     mockHasFullAccess.mockImplementation((status) => status === 'trialing' || status === 'lifetime')
     mockSubscriptionStatus('trialing')
     useTutorialStore.setState({
