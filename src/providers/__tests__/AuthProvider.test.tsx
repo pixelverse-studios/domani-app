@@ -80,13 +80,40 @@ describe('AuthProvider', () => {
   })
 
   it('replaces account A with Google under the account lifecycle', async () => {
+    let authListener:
+      | ((event: AuthChangeEvent, session: Session | null) => void | Promise<void>)
+      | null = null
     let authContext: React.ContextType<typeof AuthContext> | undefined
     const accountA = { user: { id: 'user-1' } } as unknown as Session
-    const accountB = { user: { id: 'user-2' } } as unknown as Session
+    const accountB = {
+      user: {
+        id: 'user-2',
+        email: 'user-2@example.com',
+        identities: [],
+        user_metadata: {},
+        app_metadata: {},
+      },
+    } as unknown as Session
     setActiveAccount('user-1')
+    mockOnAuthStateChange.mockImplementation((listener) => {
+      authListener = listener
+      return { data: { subscription: { unsubscribe: jest.fn() } } }
+    })
     mockGetSession.mockResolvedValue({ data: { session: accountA }, error: null })
     mockGetUser.mockResolvedValue({ data: { user: accountA.user }, error: null })
-    mockFrom.mockReturnValue(createProfileQuery({ data: { expo_push_token: null }, error: null }))
+    mockFrom.mockReturnValue(
+      createProfileQuery({
+        data: {
+          id: 'user-2',
+          expo_push_token: null,
+          deleted_at: null,
+          deletion_scheduled_for: null,
+          timezone: 'America/New_York',
+          created_at: '2025-01-01T00:00:00.000Z',
+        },
+        error: null,
+      }),
+    )
     mockSignInWithOAuth.mockResolvedValue({
       data: { url: 'https://provider.example/login' },
       error: null,
@@ -95,7 +122,12 @@ describe('AuthProvider', () => {
       type: 'success',
       url: 'domani://auth/callback?code=google-code',
     })
-    mockExchangeCodeForSession.mockResolvedValue({ data: { session: accountB }, error: null })
+    mockExchangeCodeForSession.mockImplementation(async () => {
+      authListener?.('SIGNED_IN', accountB)
+      expect(getAccountLifecycleSnapshot().phase).toBe('transitioning')
+      expect(mockFrom).toHaveBeenCalledTimes(1)
+      return { data: { session: accountB }, error: null }
+    })
 
     function Consumer() {
       const value = useContext(AuthContext)
@@ -126,6 +158,7 @@ describe('AuthProvider', () => {
       phase: 'stable',
       activeUserId: 'user-2',
     })
+    await waitFor(() => expect(mockFrom).toHaveBeenCalledTimes(3))
   })
 
   it('replaces account A with Apple under the account lifecycle', async () => {

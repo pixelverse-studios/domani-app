@@ -427,7 +427,6 @@ export function useSubscription() {
     const currentUserId = user?.id
 
     setInitializedUserId(null)
-    setRevenueCatIdentityError(null)
     pendingExternalPurchaseSyncRef.current = null
     previousConfirmedAccessSyncSignatureRef.current = null
     isStartTrialPendingRef.current = false
@@ -446,6 +445,7 @@ export function useSubscription() {
     // During beta, skip RevenueCat entirely.
     if (shouldBypassRevenueCat) {
       if (currentUserId) setInitializedUserId(currentUserId)
+      setRevenueCatIdentityError(null)
       return () => {
         isMounted = false
       }
@@ -470,8 +470,8 @@ export function useSubscription() {
       }
     })
       .then((applied) => {
-        if (applied && isMounted && currentUserId) {
-          setInitializedUserId(currentUserId)
+        if (applied && isMounted) {
+          if (currentUserId) setInitializedUserId(currentUserId)
           setRevenueCatIdentityError(null)
         }
       })
@@ -479,7 +479,7 @@ export function useSubscription() {
         // Keep initialization fail-closed. The root recovery screen exposes a
         // retry instead of allowing purchase operations under an unknown identity.
         console.warn('[useSubscription] RevenueCat identity transition failed:', error)
-        if (isMounted && currentUserId) {
+        if (isMounted) {
           setRevenueCatIdentityError('Unable to connect purchase services. Please try again.')
         }
       })
@@ -496,7 +496,6 @@ export function useSubscription() {
   ])
 
   const retryRevenueCatIdentity = useCallback(() => {
-    setRevenueCatIdentityError(null)
     setRevenueCatIdentityRetryToken((value) => value + 1)
   }, [])
 

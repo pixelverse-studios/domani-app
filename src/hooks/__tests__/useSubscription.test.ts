@@ -34,6 +34,7 @@ import {
   getOfferings,
   initializeRevenueCat,
   loginRevenueCat,
+  logoutRevenueCat,
   presentCodeRedemptionSheet,
   purchasePackage,
   restorePurchases,
@@ -70,6 +71,7 @@ const mockGetOfferingForCohort = getOfferingForCohort as jest.Mock
 const mockGetOfferings = getOfferings as jest.Mock
 const mockInitializeRevenueCat = initializeRevenueCat as jest.Mock
 const mockLoginRevenueCat = loginRevenueCat as jest.Mock
+const mockLogoutRevenueCat = logoutRevenueCat as jest.Mock
 const mockPresentCodeRedemptionSheet = presentCodeRedemptionSheet as jest.Mock
 const mockPurchasePackage = purchasePackage as jest.Mock
 const mockRestorePurchases = restorePurchases as jest.Mock
@@ -178,6 +180,7 @@ function setupSubscriptionHookMocks() {
     revenueCatConfigured = true
   })
   mockLoginRevenueCat.mockResolvedValue(undefined)
+  mockLogoutRevenueCat.mockResolvedValue(undefined)
   mockPresentCodeRedemptionSheet.mockResolvedValue(true)
   mockPurchasePackage.mockResolvedValue(null)
   mockRestorePurchases.mockResolvedValue(null)
@@ -379,6 +382,37 @@ describe('purchase access sync', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false))
     expect(result.current.revenueCatIdentityError).toBeNull()
     expect(mockInitializeRevenueCat).toHaveBeenCalledTimes(2)
+
+    unmount()
+  })
+
+  it('keeps a signed-out RevenueCat cleanup failure fail-closed until retry succeeds', async () => {
+    mockUseAuth.mockReturnValue({ user: null })
+    mockUseProfile.mockReturnValue({ isLoading: false, profile: null })
+    setActiveAccount(null)
+    ;(Purchases.isConfigured as jest.Mock).mockResolvedValue(true)
+    mockLogoutRevenueCat
+      .mockRejectedValueOnce(new Error('logout unavailable'))
+      .mockResolvedValueOnce(undefined)
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => {
+      expect(result.current.revenueCatIdentityError).toBe(
+        'Unable to connect purchase services. Please try again.',
+      )
+    })
+    expect(mockLogoutRevenueCat).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      result.current.retryRevenueCatIdentity()
+    })
+
+    expect(result.current.revenueCatIdentityError).toBe(
+      'Unable to connect purchase services. Please try again.',
+    )
+    await waitFor(() => expect(mockLogoutRevenueCat).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(result.current.revenueCatIdentityError).toBeNull())
 
     unmount()
   })

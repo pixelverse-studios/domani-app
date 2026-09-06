@@ -24,7 +24,9 @@ import {
   securelySignOut,
 } from '~/lib/accountTransitionSecurity'
 import {
+  captureAccountOperationToken,
   getAccountLifecycleSnapshot,
+  isAccountOperationTokenCurrent,
   requireAccountOwnedOperation,
   retryAccountTransitionRecovery,
   setActiveAccount,
@@ -411,6 +413,86 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let externalSessionLossTimer: ReturnType<typeof setTimeout> | null = null
     let externalSessionLossInProgress = false
     let appliedUserId = getAccountLifecycleSnapshot().activeUserId
+    const pendingPostAuthCancellations = new Set<() => void>()
+
+    const schedulePostAuthWork = (
+      event: AuthChangeEvent,
+      nextSession: Session,
+      transitionId: number,
+    ) => {
+      let cancelled = false
+      let unsubscribe: () => void = () => undefined
+
+      const cancel = () => {
+        if (cancelled) return
+        cancelled = true
+        unsubscribe()
+        pendingPostAuthCancellations.delete(cancel)
+      }
+
+      const runWhenStable = () => {
+        if (cancelled) return
+
+        const lifecycle = getAccountLifecycleSnapshot()
+        if (lifecycle.phase !== 'stable') return
+
+        cancel()
+        if (
+          !isMounted ||
+          authTransitionId !== transitionId ||
+          lifecycle.activeUserId !== nextSession.user.id
+        ) {
+          return
+        }
+
+        const accountToken = captureAccountOperationToken(nextSession.user.id)
+        const isStillCurrent = () =>
+          isMounted &&
+          authTransitionId === transitionId &&
+          isAccountOperationTokenCurrent(accountToken)
+
+        if (event === 'SIGNED_IN') {
+          void checkPendingDeletion(
+            nextSession.user.id,
+            nextSession.user.email!,
+            async () => {
+              const didSignOut = await releasePushTokenAndSignOut(nextSession.user.id)
+              if (didSignOut && isStillCurrent()) {
+                setSession(null)
+                setUser(null)
+              }
+            },
+            () => {
+              if (isStillCurrent()) setAccountReactivated(true)
+            },
+            isStillCurrent,
+            locale,
+            t,
+          )
+        }
+
+        const fullName =
+          nextSession.user.user_metadata?.full_name || nextSession.user.user_metadata?.name
+        const signupMethod = nextSession.user.app_metadata?.provider
+        void requireAccountOwnedOperation(nextSession.user.id, (isCurrent) =>
+          ensureProfileExists(
+            nextSession.user.id,
+            nextSession.user.email!,
+            fullName,
+            signupMethod,
+            () => isCurrent() && isStillCurrent(),
+          ),
+        ).catch((error) => {
+          if (isStillCurrent()) {
+            console.warn('[AuthProvider] Profile initialization was cancelled:', error)
+          }
+        })
+      }
+
+      unsubscribe = subscribeToAccountLifecycle(runWhenStable)
+      pendingPostAuthCancellations.add(cancel)
+      runWhenStable()
+    }
 
     const applyAuthState = (
       event: AuthChangeEvent,
@@ -455,43 +537,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
 
-      const fullName =
-        nextSession.user.user_metadata?.full_name || nextSession.user.user_metadata?.name
-
-      if (event === 'SIGNED_IN') {
-        void checkPendingDeletion(
-          nextSession.user.id,
-          nextSession.user.email!,
-          async () => {
-            const didSignOut = await releasePushTokenAndSignOut(nextSession.user.id)
-            if (didSignOut && isMounted && authTransitionId === transitionId) {
-              setSession(null)
-              setUser(null)
-            }
-          },
-          () => {
-            if (isMounted && authTransitionId === transitionId) setAccountReactivated(true)
-          },
-          () => isMounted && authTransitionId === transitionId,
-          locale,
-          t,
-        )
-      }
-
-      const signupMethod = nextSession.user.app_metadata?.provider
-      void requireAccountOwnedOperation(nextSession.user.id, (isCurrent) =>
-        ensureProfileExists(
-          nextSession.user.id,
-          nextSession.user.email!,
-          fullName,
-          signupMethod,
-          () => isCurrent() && isMounted && authTransitionId === transitionId,
-        ),
-      ).catch((error) => {
-        if (isMounted && authTransitionId === transitionId) {
-          console.warn('[AuthProvider] Profile initialization was cancelled:', error)
-        }
-      })
+      schedulePostAuthWork(event, nextSession, transitionId)
     }
 
     const {
@@ -625,6 +671,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       authTransitionId += 1
       if (initialValidationTimer) clearTimeout(initialValidationTimer)
       if (externalSessionLossTimer) clearTimeout(externalSessionLossTimer)
+      pendingPostAuthCancellations.forEach((cancel) => cancel())
       subscription.unsubscribe()
     }
   }, [locale, t])
