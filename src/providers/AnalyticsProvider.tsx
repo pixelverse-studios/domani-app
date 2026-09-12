@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useCallback } from 'react'
+import { Platform } from 'react-native'
 import { PostHogProvider, usePostHog } from 'posthog-react-native'
 import Constants from 'expo-constants'
+import { getPostHogOptions, isPostHogSessionReplayEnabled } from '~/lib/posthog'
 
 export interface AnalyticsBaseProperties {
   platform: 'ios' | 'android'
@@ -11,7 +13,13 @@ export interface AnalyticsBaseProperties {
 
 const POSTHOG_API_KEY =
   Constants.expoConfig?.extra?.posthogApiKey || process.env.EXPO_PUBLIC_POSTHOG_KEY || ''
-const POSTHOG_HOST = 'https://us.i.posthog.com'
+const POSTHOG_SESSION_REPLAY_ENABLED = isPostHogSessionReplayEnabled(
+  __DEV__,
+  process.env.EXPO_PUBLIC_POSTHOG_SESSION_REPLAY_ENABLED,
+  Platform.OS,
+  Platform.Version,
+)
+const POSTHOG_OPTIONS = getPostHogOptions(POSTHOG_SESSION_REPLAY_ENABLED)
 
 // Event types for type-safe tracking
 export type AnalyticsEvent =
@@ -319,25 +327,13 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     '[Analytics] Initializing PostHog with key:',
     POSTHOG_API_KEY.substring(0, 10) + '...',
   )
-  console.log('[Analytics] PostHog host:', POSTHOG_HOST)
+  console.log('[Analytics] PostHog host:', POSTHOG_OPTIONS.host)
+  console.log('[Analytics] Session replay enabled:', POSTHOG_SESSION_REPLAY_ENABLED)
 
   return (
     <PostHogProvider
       apiKey={POSTHOG_API_KEY}
-      options={{
-        host: POSTHOG_HOST,
-        // Capture app lifecycle events automatically
-        captureAppLifecycleEvents: true,
-        // Disable session replay for now (requires custom dev build, not Expo Go)
-        enableSessionReplay: false,
-        // Note: Uncomment below when using custom dev builds (not Expo Go)
-        // enableSessionReplay: true,
-        // sessionReplayConfig: {
-        //   maskAllTextInputs: true,
-        //   maskAllImages: false,
-        //   captureNetworkTelemetry: true,
-        // },
-      }}
+      options={POSTHOG_OPTIONS}
       // Enable autocapture for screen views
       autocapture={{
         captureScreens: true,
