@@ -1,8 +1,4 @@
-import {
-  act,
-  renderHookWithProviders,
-  waitFor,
-} from '~/test/test-utils'
+import { act, renderHookWithProviders, waitFor } from '~/test/test-utils'
 import { Platform } from 'react-native'
 
 import { supabase } from '~/lib/supabase'
@@ -13,6 +9,10 @@ import {
   useValidatePromoCode,
 } from '~/hooks/usePromoCode'
 import { findPromoPackage } from '~/lib/promoPackages'
+import {
+  resetAccountLifecycleCoordinatorForTests,
+  setActiveAccount,
+} from '~/lib/accountLifecycleCoordinator'
 
 const mockSupabaseRpc = supabase.rpc as unknown as jest.Mock
 const originalPlatform = Platform.OS
@@ -27,6 +27,8 @@ function setPlatform(os: typeof Platform.OS) {
 describe('promo code helpers', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    resetAccountLifecycleCoordinatorForTests()
+    setActiveAccount('user-1')
   })
 
   afterEach(() => {

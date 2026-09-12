@@ -4,6 +4,8 @@ import Constants from 'expo-constants'
 
 import { supabase } from '~/lib/supabase'
 import type { Json } from '~/types/supabase'
+import { useAuth } from '~/hooks/useAuth'
+import { requireAccountOwnedOperation } from '~/lib/accountLifecycleCoordinator'
 
 export type PromoCodeFailureStatus =
   | 'invalid'
@@ -270,6 +272,8 @@ export function parsePromoCodeResult(value: Json): PromoCodeResult {
 }
 
 export function useValidatePromoCode() {
+  const { user } = useAuth()
+
   return useMutation({
     mutationFn: async (code: string) => {
       const normalizedCode = normalizePromoCodeInput(code)
@@ -281,19 +285,23 @@ export function useValidatePromoCode() {
           result: localResult,
         }
       }
+      if (!user?.id) throw new Error('Not authenticated')
+      const expectedUserId = user.id
 
-      const { data, error } = await supabase.rpc('validate_promo_code', {
-        p_code: normalizedCode,
-        p_platform: Platform.OS,
-        p_app_version: Constants.expoConfig?.version ?? null,
+      return requireAccountOwnedOperation(expectedUserId, async () => {
+        const { data, error } = await supabase.rpc('validate_promo_code', {
+          p_code: normalizedCode,
+          p_platform: Platform.OS,
+          p_app_version: Constants.expoConfig?.version ?? null,
+        })
+
+        if (error) throw error
+
+        return {
+          code: normalizedCode,
+          result: parsePromoCodeResult(data),
+        }
       })
-
-      if (error) throw error
-
-      return {
-        code: normalizedCode,
-        result: parsePromoCodeResult(data),
-      }
     },
   })
 }

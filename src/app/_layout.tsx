@@ -17,8 +17,9 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from '@expo-google-fonts/inter'
-import { View, ActivityIndicator, Alert } from 'react-native'
+import { View, ActivityIndicator, Alert, Pressable, Text } from 'react-native'
 import { useCurrentDate } from '~/hooks/useCurrentDate'
+import { useAppTheme } from '~/hooks/useAppTheme'
 
 import { supabase } from '~/lib/supabase'
 import { LocalizationProvider } from '~/providers/LocalizationProvider'
@@ -48,19 +49,46 @@ const queryClient = new QueryClient()
 function RootLayoutContent() {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { locale } = useTranslation()
+  const theme = useAppTheme()
+  const { locale, t } = useTranslation()
   const copy = getMainScreenCopy(locale)
+  const {
+    accountReactivated,
+    clearAccountReactivated,
+    loading,
+    user,
+    accountRecoveryError,
+    retryAccountRecovery,
+  } = useAuth()
+  const [recoveryRetrying, setRecoveryRetrying] = React.useState(false)
+  const previousUserIdRef = React.useRef<string | null>(user?.id ?? null)
 
   // Clear React Query cache on sign out to prevent stale data leaking into new accounts.
   // Note: queryClient is stable for the lifetime of the provider — [] is intentional.
   React.useEffect(() => {
+    const clearAuthScopedState = () => {
+      queryClient.clear()
+      useCelebrationStore.getState().dismiss()
+      useTutorialStore.getState().clearSessionState()
+      const notificationStore = useNotificationStore.getState()
+      notificationStore.setEveningRolloverSource(null)
+      notificationStore.setHasValidatedIds(false)
+      notificationStore.setPlanningReminderId(null)
+      clearAccountReactivated()
+    }
+
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      const nextUserId = session?.user.id ?? null
       if (event === 'SIGNED_OUT') {
         if (__DEV__) console.log('[RootLayout] Clearing React Query cache on SIGNED_OUT')
-        queryClient.clear()
+        clearAuthScopedState()
+      } else if (previousUserIdRef.current && nextUserId !== previousUserIdRef.current) {
+        if (__DEV__) console.log('[RootLayout] Clearing React Query cache on account switch')
+        clearAuthScopedState()
       }
+      previousUserIdRef.current = nextUserId
     })
     return () => subscription.unsubscribe()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,8 +115,12 @@ function RootLayoutContent() {
     fetchConfig()
   }, [fetchConfig])
 
-  const { accountReactivated, clearAccountReactivated, loading } = useAuth()
-  const { status: subscriptionStatus, isLoading: subscriptionLoading } = useSubscription()
+  const {
+    status: subscriptionStatus,
+    isLoading: subscriptionLoading,
+    revenueCatIdentityError,
+    retryRevenueCatIdentity,
+  } = useSubscription()
   const hasAppAccess = !subscriptionLoading && hasFullAccess(subscriptionStatus)
 
   // Real-time celebration — triggered immediately when the last task is completed
@@ -122,7 +154,7 @@ function RootLayoutContent() {
   // - Tutorial is not active (don't conflict with tutorial)
   // - Auth is complete
   // Celebration takes precedence over evening rollover
-  const showCelebration = celebrationVisible && !tutorialActive && !loading
+  const showCelebration = celebrationVisible && !tutorialActive && !loading && hasAppAccess
 
   // Evening rollover (app-open path)
   const showEveningAppOpenRollover =
@@ -294,9 +326,52 @@ function RootLayoutContent() {
     router,
   ])
 
-  // Wait for auth to initialize before rendering routes
-  // This prevents the race condition where (tabs) renders before auth check completes
-  if (loading) {
+  // Recovery failures remain fail-closed, but provide a path to restore the
+  // retained account instead of leaving the app on an indefinite spinner.
+  const recoveryError = accountRecoveryError ?? revenueCatIdentityError
+
+  if (recoveryError) {
+    return (
+      <View
+        className="flex-1 items-center justify-center px-8"
+        style={{ backgroundColor: theme.colors.background }}
+      >
+        <Text
+          className="mb-3 text-center text-xl font-semibold"
+          style={{ color: theme.colors.text.primary }}
+        >
+          {t('common.errors.title')}
+        </Text>
+        <Text className="mb-6 text-center text-base" style={{ color: theme.colors.text.secondary }}>
+          {recoveryError}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          disabled={recoveryRetrying}
+          onPress={() => {
+            setRecoveryRetrying(true)
+            if (accountRecoveryError) {
+              void retryAccountRecovery().finally(() => setRecoveryRetrying(false))
+            } else {
+              retryRevenueCatIdentity()
+              setRecoveryRetrying(false)
+            }
+          }}
+          className="min-w-40 items-center rounded-2xl px-6 py-4"
+          style={{ backgroundColor: theme.colors.brand.primary }}
+        >
+          {recoveryRetrying ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text className="font-semibold text-white">{t('common.errors.tryAgain')}</Text>
+          )}
+        </Pressable>
+      </View>
+    )
+  }
+
+  // Do not mount authenticated routes until both identity and access are resolved.
+  if (loading || (user && subscriptionLoading)) {
     return (
       <View className="flex-1 items-center justify-center" style={{ backgroundColor: '#FAF8F5' }}>
         <ActivityIndicator size="large" color="#7D9B8A" />

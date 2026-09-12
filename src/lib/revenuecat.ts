@@ -275,18 +275,8 @@ export async function logoutRevenueCat() {
       return
     }
 
-    // Ignore rate limit errors (code 16, status 429) - these happen when
-    // another request is in flight, which is common during rapid auth changes
-    if (
-      error &&
-      typeof error === 'object' &&
-      'code' in error &&
-      (error as { code: number }).code === 16
-    ) {
-      console.log('[RevenueCat] Logout skipped - another request in progress')
-      return
-    }
     console.error('[RevenueCat] Logout error:', error)
+    throw error
   }
 }
 

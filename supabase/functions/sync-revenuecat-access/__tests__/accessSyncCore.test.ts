@@ -1,4 +1,8 @@
-import { parsePromoConfirmationContext, parseVerifiedLifetimeAccess } from '../accessSyncCore'
+import {
+  parseExpectedUserId,
+  parsePromoConfirmationContext,
+  parseVerifiedLifetimeAccess,
+} from '../accessSyncCore'
 
 const entitlementId = 'Domani Staging Lifetime'
 
@@ -82,5 +86,13 @@ describe('RevenueCat access sync core', () => {
     expect(() => parsePromoConfirmationContext({ redemptionAttemptId: 'not-a-uuid' })).toThrow(
       'INVALID_PROMO_CONTEXT',
     )
+  })
+
+  it('accepts an optional UUID-bound expected user id', () => {
+    expect(parseExpectedUserId(null)).toBeNull()
+    expect(parseExpectedUserId('10000000-0000-4000-8000-000000000001')).toBe(
+      '10000000-0000-4000-8000-000000000001',
+    )
+    expect(() => parseExpectedUserId('user-1')).toThrow('INVALID_EXPECTED_USER_ID')
   })
 })

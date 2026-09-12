@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
 import { Platform, AppState, type AppStateStatus } from 'react-native'
 import { router } from 'expo-router'
 import Constants from 'expo-constants'
@@ -6,6 +6,15 @@ import Constants from 'expo-constants'
 import { NotificationService } from '~/lib/notifications'
 import { useNotificationStore } from '~/stores/notificationStore'
 import { supabase } from '~/lib/supabase'
+import { getAllowedNotificationRoute } from '~/lib/navigationSecurity'
+import { useAuth } from '~/hooks/useAuth'
+import {
+  canRunAccountOperation,
+  captureAccountOperationToken,
+  isAccountOperationTokenCurrent,
+  runAccountOwnedOperation,
+} from '~/lib/accountLifecycleCoordinator'
+import { canRegisterPushTokenForUser } from '~/lib/accountTransitionSecurity'
 
 // Check if notifications are supported (not in Expo Go on Android SDK 53+)
 const isExpoGo = Constants.appOwnership === 'expo'
@@ -17,53 +26,57 @@ const Notifications = isNotificationsSupported ? require('expo-notifications') :
 // Retry configuration for push token registration
 const MAX_RETRY_ATTEMPTS = 3
 const INITIAL_RETRY_DELAY_MS = 1000
+const MAX_HANDLED_NOTIFICATION_RESPONSES = 100
 
 /**
  * Register push token with retry logic and exponential backoff
  * @param attempt Current attempt number (1-based)
  * @returns True if registration succeeded, false otherwise
  */
-async function registerPushTokenWithRetry(attempt: number = 1): Promise<boolean> {
+async function registerPushTokenWithRetry(
+  expectedUserId: string,
+  shouldContinue: () => boolean,
+  attempt: number = 1,
+): Promise<boolean> {
   try {
+    if (!shouldContinue()) return false
+
     const token = await NotificationService.getExpoPushToken()
-    if (!token) {
+    if (!token || !shouldContinue()) {
       console.log(`[Notifications] No push token available (attempt ${attempt})`)
       return false
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      console.log('[Notifications] No authenticated user')
-      return false
-    }
+    return await runAccountOwnedOperation(expectedUserId, false, async () => {
+      if (!shouldContinue()) return false
 
-    // Get current profile to check if token changed
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('expo_push_token, push_token_invalid_at')
-      .eq('id', user.id)
-      .single()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (user?.id !== expectedUserId || !shouldContinue()) {
+        console.log('[Notifications] Authenticated account changed before token registration')
+        return false
+      }
 
-    // Only update if token is different or was previously invalid
-    if (profile?.expo_push_token !== token || profile?.push_token_invalid_at !== null) {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          expo_push_token: token,
-          push_token_invalid_at: null, // Clear invalid flag on re-registration
-        })
-        .eq('id', user.id)
+      // The RPC atomically assigns this opaque device token to the current
+      // authenticated profile and removes it from any previous account owner.
+      const { error } = await supabase.rpc('set_expected_user_expo_push_token', {
+        p_expected_user_id: expectedUserId,
+        p_token: token,
+      })
 
-      if (error) {
-        throw error
+      if (error) throw error
+
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
+      if (currentUser?.id !== expectedUserId || !shouldContinue()) {
+        return false
       }
 
       console.log('[Notifications] Push token registered successfully')
-    }
-
-    return true
+      return true
+    })
   } catch (error) {
     console.error(`[Notifications] Push token registration failed (attempt ${attempt}):`, error)
 
@@ -72,7 +85,7 @@ async function registerPushTokenWithRetry(attempt: number = 1): Promise<boolean>
       const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1)
       console.log(`[Notifications] Retrying in ${delay}ms...`)
       await new Promise((resolve) => setTimeout(resolve, delay))
-      return registerPushTokenWithRetry(attempt + 1)
+      return registerPushTokenWithRetry(expectedUserId, shouldContinue, attempt + 1)
     }
 
     console.error('[Notifications] Max retry attempts reached')
@@ -85,28 +98,57 @@ async function registerPushTokenWithRetry(attempt: number = 1): Promise<boolean>
  * Should be called in the root layout to enable deep linking
  */
 export function useNotificationObserver() {
+  const { user } = useAuth()
+  const userId = user?.id ?? null
   const notificationListener = useRef<{ remove: () => void } | null>(null)
   const responseListener = useRef<{ remove: () => void } | null>(null)
   const appStateRef = useRef<AppStateStatus>(AppState.currentState)
   const hasRegisteredToken = useRef(false)
   const hasCheckedPermission = useRef(false)
-
-  // Memoized function to handle push token registration
-  const handleTokenRegistration = useCallback(async () => {
-    if (hasRegisteredToken.current) return
-
-    const success = await registerPushTokenWithRetry()
-    if (success) {
-      hasRegisteredToken.current = true
-    }
-  }, [])
+  const handledResponseKeys = useRef(new Set<string>())
+  const handledResponseOrder = useRef<string[]>([])
 
   useEffect(() => {
     // Skip if notifications aren't supported
     if (!Notifications) return
 
+    let cancelled = false
+    let foregroundRegistrationTimeout: ReturnType<typeof setTimeout> | null = null
+    const navigationTimeouts = new Set<ReturnType<typeof setTimeout>>()
+    const store = useNotificationStore.getState()
+
+    hasRegisteredToken.current = false
+    hasCheckedPermission.current = false
+    store.setHasValidatedIds(false)
+    store.setPlanningReminderId(null)
+    store.setEveningRolloverSource(null)
+
+    const belongsToCurrentUser = async () => {
+      if (cancelled) return false
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
+      return !cancelled && currentUser?.id === userId
+    }
+
+    if (!userId) {
+      return () => {
+        cancelled = true
+      }
+    }
+
+    const handleTokenRegistration = async () => {
+      if (hasRegisteredToken.current || cancelled) return
+
+      const success = await registerPushTokenWithRetry(
+        userId,
+        () => !cancelled && canRegisterPushTokenForUser(userId),
+      )
+      if (success && !cancelled) hasRegisteredToken.current = true
+    }
+
     // Initialize notification system on mount
-    NotificationService.initialize()
+    void NotificationService.initialize()
 
     // iOS only registers the app with the system (making it appear in
     // Settings → Notifications) after the first requestPermissionsAsync call.
@@ -144,8 +186,8 @@ export function useNotificationObserver() {
         // Reset flag to allow re-registration attempt
         hasRegisteredToken.current = false
         // Small delay for stability
-        setTimeout(() => {
-          registerPushTokenWithRetry()
+        foregroundRegistrationTimeout = setTimeout(() => {
+          if (!cancelled) void handleTokenRegistration()
         }, 500)
       }
     })
@@ -154,7 +196,7 @@ export function useNotificationObserver() {
     // This also validates and cleans up any orphaned notifications from previous app versions
     const reschedulePlanningReminder = async () => {
       try {
-        const store = useNotificationStore.getState()
+        if (cancelled) return
 
         // Check if we've already validated this session
         if (store.hasValidatedIds) {
@@ -180,7 +222,7 @@ export function useNotificationObserver() {
         const {
           data: { user },
         } = await supabase.auth.getUser()
-        if (!user) {
+        if (!user || user.id !== userId) {
           console.log('[Notifications] No user found, skipping reschedule')
           return
         }
@@ -192,6 +234,12 @@ export function useNotificationObserver() {
           .select('planning_reminder_time, planning_reminder_enabled')
           .eq('id', user.id)
           .single()
+
+        if (cancelled) return
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser()
+        if (currentUser?.id !== userId) return
 
         if (profileError) {
           console.error('[Notifications] Error fetching profile:', profileError)
@@ -223,21 +271,6 @@ export function useNotificationObserver() {
           ),
         )
 
-        // Cancel existing planning reminders only; task reminders are managed separately.
-        console.log('[Notifications] Cancelling existing planning reminders...')
-        const cancelSuccess = await NotificationService.cancelPlanningReminders()
-
-        // Verify cancellation worked
-        const planningAfterCancel =
-          await NotificationService.getScheduledNotificationsByType('planning_reminder')
-        console.log(
-          `[Notifications] After cancel: ${planningAfterCancel.length} planning reminders remaining`,
-        )
-
-        if (!cancelSuccess || planningAfterCancel.length > 0) {
-          console.warn('[Notifications] WARNING: Some planning reminders could not be cancelled!')
-        }
-
         // Only schedule new notification if user has a reminder time configured and
         // has opted in to planning reminder notifications
         if (!profile?.planning_reminder_time || !profile?.planning_reminder_enabled) {
@@ -250,12 +283,25 @@ export function useNotificationObserver() {
           return
         }
 
-        // Parse the time and reschedule
+        // Parse the time and replace the reminder as one account-bound operation.
         const { hour, minute } = NotificationService.parseTimeString(profile.planning_reminder_time)
-
-        // Schedule fresh notification with current text
-        console.log(`[Notifications] Scheduling new reminder for ${hour}:${minute}`)
-        const newId = await NotificationService.schedulePlanningReminder(hour, minute)
+        const newId = await runAccountOwnedOperation(userId, '', async (isCurrent) => {
+          if (!isCurrent() || !(await belongsToCurrentUser())) return ''
+          const cancelSuccess = await NotificationService.cancelPlanningReminders(userId, false)
+          if (!cancelSuccess || !isCurrent()) return ''
+          const identifier = await NotificationService.schedulePlanningReminder(
+            hour,
+            minute,
+            userId,
+            false,
+          )
+          if (!isCurrent() || !(await belongsToCurrentUser())) {
+            if (identifier) await NotificationService.cancelNotification(identifier)
+            return ''
+          }
+          return identifier
+        })
+        if (!newId) return
         console.log(`[Notifications] schedulePlanningReminder returned ID: ${newId || 'EMPTY'}`)
         store.setPlanningReminderId(newId)
 
@@ -301,10 +347,12 @@ export function useNotificationObserver() {
     // This ensures notifications survive app reinstalls or device restarts
     const rescheduleTaskReminders = async () => {
       try {
+        if (cancelled) return
+
         const {
           data: { user },
         } = await supabase.auth.getUser()
-        if (!user) return
+        if (!user || user.id !== userId) return
 
         // Fetch tasks with pending reminders (reminder_at in the future, not completed)
         const { data: tasksWithReminders, error } = await supabase
@@ -324,6 +372,12 @@ export function useNotificationObserver() {
           return
         }
 
+        if (cancelled) return
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser()
+        if (currentUser?.id !== userId) return
+
         console.log(
           `[Notifications] Rescheduling ${tasksWithReminders.length} pending task reminders`,
         )
@@ -338,12 +392,9 @@ export function useNotificationObserver() {
             notes: t.notes,
             notification_id: t.notification_id,
           })),
+          userId,
+          belongsToCurrentUser,
         )
-
-        // Update notification IDs in database
-        for (const [taskId, notificationId] of results) {
-          await supabase.from('tasks').update({ notification_id: notificationId }).eq('id', taskId)
-        }
 
         console.log(`[Notifications] Successfully rescheduled ${results.size} task reminders`)
       } catch (error) {
@@ -365,48 +416,71 @@ export function useNotificationObserver() {
     )
 
     // Handle notification interactions (user taps notification)
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      (response: { notification: { request: { content: { data?: { url?: unknown } } } } }) => {
-        const url = response.notification.request.content.data?.url
-        console.log('[Notifications] User tapped notification, URL:', url)
+    type NotificationResponse = {
+      notification: {
+        date: number
+        request: { identifier: string; content: { data?: { url?: unknown } } }
+      }
+    }
 
-        if (typeof url === 'string') {
-          // Small delay to ensure app is ready
-          setTimeout(() => {
-            router.push(url as `/${string}`)
-          }, 100)
-        }
-      },
+    const handleNotificationResponse = (response: NotificationResponse, delayMs: number) => {
+      const request = response.notification.request
+      const responseKey = `${request.identifier}:${response.notification.date}`
+      if (handledResponseKeys.current.has(responseKey)) {
+        void Notifications.clearLastNotificationResponseAsync().catch((error: unknown) => {
+          console.warn('[Notifications] Failed to clear duplicate notification response:', error)
+        })
+        return
+      }
+
+      const route = getAllowedNotificationRoute(request.content.data?.url)
+      if (!route) {
+        console.warn('[Notifications] Rejected unapproved notification destination')
+        void Notifications.clearLastNotificationResponseAsync().catch((error: unknown) => {
+          console.warn('[Notifications] Failed to clear rejected notification response:', error)
+        })
+        return
+      }
+
+      handledResponseKeys.current.add(responseKey)
+      handledResponseOrder.current.push(responseKey)
+      if (handledResponseOrder.current.length > MAX_HANDLED_NOTIFICATION_RESPONSES) {
+        const oldestResponseKey = handledResponseOrder.current.shift()
+        if (oldestResponseKey) handledResponseKeys.current.delete(oldestResponseKey)
+      }
+      void Notifications.clearLastNotificationResponseAsync().catch((error: unknown) => {
+        console.warn('[Notifications] Failed to clear handled notification response:', error)
+      })
+      const timeout = setTimeout(() => {
+        navigationTimeouts.delete(timeout)
+        if (!cancelled) router.push(route)
+      }, delayMs)
+      navigationTimeouts.add(timeout)
+    }
+
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(
+      (response: NotificationResponse) => handleNotificationResponse(response, 100),
     )
 
     // Check if app was opened from a notification
     Notifications.getLastNotificationResponseAsync().then(
-      (
-        response: { notification: { request: { content: { data?: { url?: unknown } } } } } | null,
-      ) => {
-        if (response?.notification) {
-          const url = response.notification.request.content.data?.url
-          console.log('[Notifications] App opened from notification, URL:', url)
-
-          if (typeof url === 'string') {
-            // Longer delay for cold start
-            setTimeout(() => {
-              router.push(url as `/${string}`)
-            }, 500)
-          }
-        }
+      (response: NotificationResponse | null) => {
+        if (response) handleNotificationResponse(response, 500)
       },
     )
 
     return () => {
+      cancelled = true
       clearTimeout(tokenTimeout)
       clearTimeout(rescheduleTimeout)
       clearTimeout(taskReminderTimeout)
+      if (foregroundRegistrationTimeout) clearTimeout(foregroundRegistrationTimeout)
+      navigationTimeouts.forEach((timeout) => clearTimeout(timeout))
       appStateSubscription.remove()
       notificationListener.current?.remove()
       responseListener.current?.remove()
     }
-  }, [handleTokenRegistration])
+  }, [userId])
 }
 
 /**
@@ -414,70 +488,104 @@ export function useNotificationObserver() {
  */
 export function useNotifications() {
   const store = useNotificationStore()
+  const { user } = useAuth()
 
   const schedulePlanningReminder = async (hour: number, minute: number) => {
-    console.log(`[Notifications] schedulePlanningReminder called for ${hour}:${minute}`)
+    const expectedUserId = user?.id
+    if (!expectedUserId) throw new Error('Not authenticated')
+    return runAccountOwnedOperation(expectedUserId, '', async (isCurrent) => {
+      console.log(`[Notifications] schedulePlanningReminder called for ${hour}:${minute}`)
 
-    // Log existing notifications before cancel
-    const before = await NotificationService.getScheduledNotificationsByType('planning_reminder')
-    console.log(`[Notifications] Before cancel: ${before.length} planning reminders`)
+      // Log existing notifications before cancel
+      const before = await NotificationService.getScheduledNotificationsByType('planning_reminder')
+      console.log(`[Notifications] Before cancel: ${before.length} planning reminders`)
 
-    // Cancel planning reminders before scheduling new one to prevent duplicates.
-    const cancelOk = await NotificationService.cancelPlanningReminders()
-    if (!cancelOk) {
-      console.warn(
-        '[Notifications] cancelPlanningReminders returned false — orphaned planning reminders may remain',
-      )
-    }
+      // Cancel planning reminders before scheduling new one to prevent duplicates.
+      const cancelOk = await NotificationService.cancelPlanningReminders(expectedUserId, false)
+      if (!cancelOk) {
+        console.warn(
+          '[Notifications] cancelPlanningReminders returned false — orphaned planning reminders may remain',
+        )
+      }
 
-    // Verify cancel worked
-    const afterCancel =
-      await NotificationService.getScheduledNotificationsByType('planning_reminder')
-    console.log(`[Notifications] After cancel: ${afterCancel.length} planning reminders`)
-
-    try {
-      const identifier = await NotificationService.schedulePlanningReminder(hour, minute)
-      store.setPlanningReminderId(identifier)
-
-      // Verify schedule worked
-      const afterSchedule =
+      // Verify cancel worked
+      const afterCancel =
         await NotificationService.getScheduledNotificationsByType('planning_reminder')
-      console.log(
-        `[Notifications] After schedule: ${afterSchedule.length} planning reminders, ID: ${identifier}`,
-      )
+      console.log(`[Notifications] After cancel: ${afterCancel.length} planning reminders`)
 
-      return identifier
-    } catch (error) {
-      // Clear store ID since we know no notification is scheduled
-      store.setPlanningReminderId(null)
-      console.error('[Notifications] Failed to schedule planning reminder:', error)
-      throw error
-    }
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        if (session?.user.id !== expectedUserId || !isCurrent()) {
+          throw new Error('The authenticated account changed while updating reminders.')
+        }
+
+        const identifier = await NotificationService.schedulePlanningReminder(
+          hour,
+          minute,
+          expectedUserId,
+          false,
+        )
+        if (!isCurrent()) {
+          if (identifier) await NotificationService.cancelNotification(identifier)
+          throw new Error('The authenticated account changed while updating reminders.')
+        }
+        store.setPlanningReminderId(identifier)
+
+        // Verify schedule worked
+        const afterSchedule =
+          await NotificationService.getScheduledNotificationsByType('planning_reminder')
+        console.log(
+          `[Notifications] After schedule: ${afterSchedule.length} planning reminders, ID: ${identifier}`,
+        )
+
+        return identifier
+      } catch (error) {
+        // Clear store ID since we know no notification is scheduled
+        if (canRunAccountOperation(expectedUserId)) store.setPlanningReminderId(null)
+        console.error('[Notifications] Failed to schedule planning reminder:', error)
+        throw error
+      }
+    })
   }
 
   const cancelPlanningReminder = async () => {
-    // Cancel planning reminders only; disabling the daily planning reminder should
-    // not remove per-task reminders.
-    const success = await NotificationService.cancelPlanningReminders()
-    if (!success) {
-      console.warn(
-        '[Notifications] cancelPlanningReminders returned false — some planning reminders may remain',
-      )
-    }
-    store.setPlanningReminderId(null)
+    const expectedUserId = user?.id
+    if (!expectedUserId) return
+    await runAccountOwnedOperation(expectedUserId, undefined, async (isCurrent) => {
+      // Cancel planning reminders only; disabling the daily planning reminder should
+      // not remove per-task reminders.
+      const success = await NotificationService.cancelPlanningReminders(expectedUserId, false)
+      if (!success) {
+        console.warn(
+          '[Notifications] cancelPlanningReminders returned false — some planning reminders may remain',
+        )
+      }
+      if (!isCurrent())
+        throw new Error('The authenticated account changed while updating reminders.')
+      store.setPlanningReminderId(null)
+    })
   }
 
   // Note: Execution reminders are now handled server-side via Edge Function
   // No local scheduling methods needed
 
   const requestPermissions = async () => {
+    const expectedUserId = user?.id ?? null
+    const accountToken = captureAccountOperationToken(expectedUserId)
     const granted = await NotificationService.requestPermissions()
     store.setPermissionStatus(granted ? 'granted' : 'denied')
 
-    // If permissions granted, trigger token registration
-    if (granted) {
-      // Register token with retry
-      registerPushTokenWithRetry()
+    // The OS permission prompt may outlive the account that opened it. Only
+    // continue registration for the synchronously captured lifecycle owner.
+    if (granted && expectedUserId && isAccountOperationTokenCurrent(accountToken)) {
+      await registerPushTokenWithRetry(
+        expectedUserId,
+        () =>
+          isAccountOperationTokenCurrent(accountToken) &&
+          canRegisterPushTokenForUser(expectedUserId),
+      )
     }
 
     return granted

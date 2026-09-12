@@ -46,6 +46,8 @@ export function createTestWrapper(options: TestProviderOptions = {}) {
     session: null,
     user,
     loading: false,
+    accountRecoveryError: null,
+    retryAccountRecovery: jest.fn().mockResolvedValue(true),
     signInWithGoogle: jest.fn(),
     signInWithApple: jest.fn(),
     signOut: jest.fn(),

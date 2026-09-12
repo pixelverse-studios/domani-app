@@ -9,6 +9,10 @@ import {
   useTutorialStore,
 } from '~/stores/tutorialStore'
 import { TutorialSpotlight } from '../TutorialSpotlight'
+import {
+  resetAccountLifecycleCoordinatorForTests,
+  setActiveAccount,
+} from '~/lib/accountLifecycleCoordinator'
 
 jest.mock('~/hooks/useTutorialAnalytics', () => ({
   useTutorialAnalytics: jest.fn(() => ({
@@ -50,6 +54,8 @@ function setSpotlightStep(step: TutorialStep) {
 describe('TutorialSpotlight', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    resetAccountLifecycleCoordinatorForTests()
+    setActiveAccount('user-1')
     useTutorialStore.setState({
       isActive: false,
       currentStep: null,
