@@ -510,6 +510,47 @@ export type Database = {
         }
         Relationships: []
       }
+      posthog_trial_event_deliveries: {
+        Row: {
+          claim_token: string
+          claimed_at: string
+          created_at: string
+          delivered_at: string | null
+          event_properties: Json
+          event_timestamp: string
+          event_uuid: string
+          user_id: string
+        }
+        Insert: {
+          claim_token: string
+          claimed_at?: string
+          created_at?: string
+          delivered_at?: string | null
+          event_properties: Json
+          event_timestamp: string
+          event_uuid?: string
+          user_id: string
+        }
+        Update: {
+          claim_token?: string
+          claimed_at?: string
+          created_at?: string
+          delivered_at?: string | null
+          event_properties?: Json
+          event_timestamp?: string
+          event_uuid?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'posthog_trial_event_deliveries_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       profiles: {
         Row: {
           auto_sort_categories: boolean | null
@@ -1338,6 +1379,20 @@ export type Database = {
       }
     }
     Functions: {
+      claim_posthog_trial_started: {
+        Args: { p_client_properties: Json; p_user_id: string }
+        Returns: {
+          claim_token: string
+          event_properties: Json
+          event_timestamp: string
+          event_uuid: string
+        }[]
+      }
+      complete_posthog_trial_started: {
+        Args: { p_claim_token: string; p_user_id: string }
+        Returns: boolean
+      }
+      start_trial_with_posthog_outbox: { Args: never; Returns: Json }
       claim_meta_app_event: {
         Args: { p_event_key: string; p_event_payload: Json; p_user_id: string }
         Returns: {

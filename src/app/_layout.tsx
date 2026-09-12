@@ -30,6 +30,7 @@ import { useAnalyticsIdentify } from '~/hooks/useAnalyticsIdentify'
 import { useSentryIdentify } from '~/hooks/useSentryIdentify'
 import { useAuthAnalytics } from '~/hooks/useAuthAnalytics'
 import { useMetaAcquisitionEventReplay } from '~/hooks/useMetaAcquisitionEventReplay'
+import { usePostHogTrialEvent } from '~/hooks/usePostHogTrialEvent'
 import { useAccessStateAnalytics } from '~/hooks/useAccessStateAnalytics'
 import { useAppLifecycleAnalytics } from '~/hooks/useAppLifecycleAnalytics'
 import { initializeMetaAppEvents } from '~/lib/metaAppEvents'
@@ -79,6 +80,9 @@ function RootLayoutContent() {
 
   // Initialize analytics user identification
   useAnalyticsIdentify()
+
+  // Emit one server-confirmed trial start with its authoritative timestamp.
+  usePostHogTrialEvent()
 
   // Track stable first-open/app-open events for acquisition and retention reporting
   useAppLifecycleAnalytics()
