@@ -24,7 +24,7 @@ describe('PostHog configuration', () => {
       maskAllImages: true,
       maskAllSandboxedViews: true,
       captureLog: false,
-      captureNetworkTelemetry: true,
+      captureNetworkTelemetry: false,
       sampleRate: POSTHOG_SESSION_REPLAY_SAMPLE_RATE,
       throttleDelayMs: 1000,
       screenshotScale: 0.5,
