@@ -66,7 +66,7 @@ Review the planned and skipped counts before applying. Apply is deliberately cou
 npm run posthog:backfill:trials -- --apply --expected-count=REVIEWED_COUNT
 ```
 
-The apply path uses a deterministic event UUID and records delivery in Supabase, so reruns are idempotent even if an earlier run stopped between PostHog ingestion and the delivery update. The script reports planned, written, and skipped counts without printing user IDs or secrets.
+The apply path verifies that the write key belongs to the PostHog project used for the dry run, then uses a deterministic event UUID and records delivery in Supabase. If an earlier run stopped after PostHog ingestion but before the delivery update, the next run reconciles the matching UUID instead of abandoning or resending it. The script reports planned, written, reconciled, and skipped counts without printing user IDs or secrets.
 
 ## Attribution Limitation
 

@@ -53,6 +53,22 @@ async function posthogQuery(query) {
   return response.json()
 }
 
+async function verifyPostHogWriteTarget() {
+  const response = await fetch(`${posthogHost}/api/projects/${posthogProjectId}/`, {
+    headers: { Authorization: `Bearer ${posthogPersonalKey}` },
+  })
+  if (!response.ok) {
+    throw new Error(`PostHog project verification failed: ${response.status}`)
+  }
+
+  const project = await response.json()
+  if (typeof project.api_token !== 'string' || project.api_token !== posthogProjectKey) {
+    throw new Error(
+      'EXPO_PUBLIC_POSTHOG_KEY does not belong to the PostHog project selected by POSTHOG_PROJECT_ID',
+    )
+  }
+}
+
 async function supabaseRequest(path, options = {}) {
   const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
     ...options,
@@ -82,6 +98,19 @@ async function loadProfiles() {
   }
 }
 
+async function loadDeliveries() {
+  const deliveries = []
+  const pageSize = 1000
+  for (let start = 0; ; start += pageSize) {
+    const page = await supabaseRequest(
+      'posthog_trial_event_deliveries?select=user_id,event_uuid,event_timestamp,event_properties,delivered_at',
+      { headers: { Range: `${start}-${start + pageSize - 1}` } },
+    )
+    deliveries.push(...page)
+    if (page.length < pageSize) return deliveries
+  }
+}
+
 function stableEventUuid(userId, timestamp) {
   const bytes = crypto.createHash('sha256').update(`trial_started:${userId}:${timestamp}`).digest()
   bytes[6] = (bytes[6] & 0x0f) | 0x40
@@ -108,23 +137,32 @@ const releaseActivity = await posthogQuery(`
   LIMIT 10000
 `)
 const existingTrialEvents = await posthogQuery(`
-  SELECT DISTINCT distinct_id
+  SELECT distinct_id, uuid
   FROM events
   WHERE event = 'trial_started'
   LIMIT 10000
 `)
 
 const activityByUser = new Map(releaseActivity.results.map((row) => [row[0], row]))
-const alreadyTracked = new Set(existingTrialEvents.results.map((row) => row[0]))
+const trackedTrialUuidsByUser = new Map()
+for (const [userId, eventUuid] of existingTrialEvents.results) {
+  const eventUuids = trackedTrialUuidsByUser.get(userId) ?? new Set()
+  eventUuids.add(eventUuid)
+  trackedTrialUuidsByUser.set(userId, eventUuids)
+}
 const profiles = await loadProfiles()
+const deliveries = await loadDeliveries()
+const deliveryByUser = new Map(deliveries.map((delivery) => [delivery.user_id, delivery]))
 const skipped = {
   no_1_1_2_activity: 0,
   already_tracked: 0,
+  existing_delivery: 0,
   invalid_trial_window: 0,
   activity_outside_start_window: 0,
   invalid_platform: 0,
 }
 const candidates = []
+const reconciliations = []
 
 for (const profile of profiles) {
   const activity = activityByUser.get(profile.id)
@@ -132,11 +170,6 @@ for (const profile of profiles) {
     skipped.no_1_1_2_activity += 1
     continue
   }
-  if (alreadyTracked.has(profile.id)) {
-    skipped.already_tracked += 1
-    continue
-  }
-
   const trialStarted = new Date(profile.trial_started_at)
   const trialEnds = new Date(profile.trial_ends_at)
   const firstSeen = new Date(activity[1])
@@ -161,7 +194,7 @@ for (const profile of profiles) {
     continue
   }
 
-  candidates.push({
+  const candidate = {
     userId: profile.id,
     eventUuid: stableEventUuid(profile.id, profile.trial_started_at),
     eventTimestamp: profile.trial_started_at,
@@ -175,8 +208,27 @@ for (const profile of profiles) {
       trial_expires_at: profile.trial_ends_at,
       backfilled: true,
     },
-  })
+  }
+  const delivery = deliveryByUser.get(profile.id)
+  const trackedEventUuids = trackedTrialUuidsByUser.get(profile.id) ?? new Set()
+
+  if (delivery?.delivered_at) {
+    skipped.existing_delivery += 1
+    continue
+  }
+  if (trackedEventUuids.size > 0) {
+    if (delivery && trackedEventUuids.has(delivery.event_uuid)) {
+      reconciliations.push({ userId: profile.id, eventUuid: delivery.event_uuid })
+    } else {
+      skipped.already_tracked += 1
+    }
+    continue
+  }
+
+  candidates.push(candidate)
 }
+
+const planned = candidates.length + reconciliations.length
 
 console.log(
   JSON.stringify(
@@ -185,7 +237,9 @@ console.log(
       release: '1.1.2',
       profiles_with_trial: profiles.length,
       posthog_release_users: activityByUser.size,
-      planned: candidates.length,
+      planned,
+      capture_planned: candidates.length,
+      reconciliation_planned: reconciliations.length,
       skipped,
       earliest_planned_at: candidates.length
         ? candidates.map((candidate) => candidate.eventTimestamp).sort()[0]
@@ -204,27 +258,43 @@ console.log(
 
 if (!apply) {
   console.log(
-    `Dry run only. After reviewing the count, apply with --apply --expected-count=${candidates.length}`,
+    `Dry run only. After reviewing the count, apply with --apply --expected-count=${planned}`,
   )
   process.exit(0)
 }
-if (!Number.isInteger(expectedCount) || expectedCount !== candidates.length) {
-  throw new Error(`Expected count must exactly match the reviewed plan (${candidates.length})`)
+if (!Number.isInteger(expectedCount) || expectedCount !== planned) {
+  throw new Error(`Expected count must exactly match the reviewed plan (${planned})`)
 }
+
+await verifyPostHogWriteTarget()
 
 let written = 0
 let skippedExistingDelivery = 0
-for (const candidate of candidates) {
-  const existing = await supabaseRequest(
-    `posthog_trial_event_deliveries?select=event_uuid,delivered_at&user_id=eq.${candidate.userId}`,
+let reconciled = 0
+for (const reconciliation of reconciliations) {
+  const updated = await supabaseRequest(
+    `posthog_trial_event_deliveries?user_id=eq.${reconciliation.userId}&event_uuid=eq.${reconciliation.eventUuid}&delivered_at=is.null`,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({ delivered_at: new Date().toISOString() }),
+    },
   )
-  if (existing[0]?.delivered_at) {
+  if (updated.length !== 1) {
+    throw new Error('Pending PostHog trial delivery could not be reconciled')
+  }
+  reconciled += 1
+}
+
+for (const candidate of candidates) {
+  const existing = deliveryByUser.get(candidate.userId)
+  if (existing?.delivered_at) {
     skippedExistingDelivery += 1
     continue
   }
 
   const claimToken = crypto.randomUUID()
-  if (!existing[0]) {
+  if (!existing) {
     await supabaseRequest('posthog_trial_event_deliveries', {
       method: 'POST',
       headers: { Prefer: 'return=minimal' },
@@ -238,7 +308,9 @@ for (const candidate of candidates) {
     })
   }
 
-  const eventUuid = existing[0]?.event_uuid ?? candidate.eventUuid
+  const eventUuid = existing?.event_uuid ?? candidate.eventUuid
+  const eventTimestamp = existing?.event_timestamp ?? candidate.eventTimestamp
+  const eventProperties = existing?.event_properties ?? candidate.properties
   const captureResponse = await fetch(`${posthogHost}/capture/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -246,11 +318,11 @@ for (const candidate of candidates) {
       api_key: posthogProjectKey,
       event: 'trial_started',
       uuid: eventUuid,
-      timestamp: candidate.eventTimestamp,
+      timestamp: eventTimestamp,
       properties: {
         distinct_id: candidate.userId,
         $insert_id: eventUuid,
-        ...candidate.properties,
+        ...eventProperties,
       },
     }),
   })
@@ -260,18 +332,25 @@ for (const candidate of candidates) {
     )
   }
 
-  await supabaseRequest(`posthog_trial_event_deliveries?user_id=eq.${candidate.userId}`, {
-    method: 'PATCH',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({ delivered_at: new Date().toISOString() }),
-  })
+  const updated = await supabaseRequest(
+    `posthog_trial_event_deliveries?user_id=eq.${candidate.userId}&event_uuid=eq.${eventUuid}&delivered_at=is.null`,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({ delivered_at: new Date().toISOString() }),
+    },
+  )
+  if (updated.length !== 1) {
+    throw new Error('PostHog trial delivery could not be marked complete')
+  }
   written += 1
 }
 
 console.log(
   JSON.stringify({
-    planned: candidates.length,
+    planned,
     written,
+    reconciled,
     skipped_existing: skippedExistingDelivery,
   }),
 )

@@ -36,6 +36,7 @@ describe('PostHog trial events', () => {
     )
 
     expect(capture).toHaveBeenCalledWith(
+      'user-1',
       claim.event_properties,
       claim.event_uuid,
       claim.event_timestamp,
@@ -67,6 +68,25 @@ describe('PostHog trial events', () => {
     )
 
     expect(mockRpc).toHaveBeenCalledTimes(1)
+    expect(mockRpc).not.toHaveBeenCalledWith('complete_posthog_trial_started', expect.anything())
+  })
+
+  it('leaves the claim pending if the analytics identity changes before capture', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [claim], error: null })
+    const capture = jest
+      .fn()
+      .mockImplementation(async (expectedUserId: string) => expectedUserId === 'user-b')
+
+    await expect(deliverPostHogTrialStarted('user-a', clientProperties, capture)).resolves.toBe(
+      'error',
+    )
+
+    expect(capture).toHaveBeenCalledWith(
+      'user-a',
+      claim.event_properties,
+      claim.event_uuid,
+      claim.event_timestamp,
+    )
     expect(mockRpc).not.toHaveBeenCalledWith('complete_posthog_trial_started', expect.anything())
   })
 

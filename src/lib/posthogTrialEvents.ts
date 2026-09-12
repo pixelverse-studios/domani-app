@@ -17,6 +17,7 @@ interface PostHogTrialClaim {
 }
 
 type CaptureTrialStarted = (
+  expectedUserId: string,
   properties: TrialStartedProperties,
   eventUuid: string,
   eventTimestamp: string,
@@ -67,6 +68,7 @@ async function deliver(
     if (!claim) return 'not_claimed' as const
 
     const captured = await capture(
+      userId,
       parseProperties(claim.event_properties),
       claim.event_uuid,
       claim.event_timestamp,

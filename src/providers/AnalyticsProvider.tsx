@@ -251,6 +251,7 @@ export type AnalyticsEvent =
 interface AnalyticsContextValue {
   track: <T extends AnalyticsEvent>(eventName: T['name'], properties?: T['properties']) => void
   captureTrialStarted: (
+    expectedUserId: string,
     properties: Extract<AnalyticsEvent, { name: 'trial_started' }>['properties'],
     eventUuid: string,
     eventTimestamp: string,
@@ -279,12 +280,18 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
 
   const captureTrialStarted = useCallback(
     async (
+      expectedUserId: string,
       properties: Extract<AnalyticsEvent, { name: 'trial_started' }>['properties'],
       eventUuid: string,
       eventTimestamp: string,
     ) => {
       if (!posthog) {
         console.warn('[Analytics] Cannot track durable trial event, PostHog not initialized')
+        return false
+      }
+
+      if (posthog.getDistinctId() !== expectedUserId) {
+        console.warn('[Analytics] Skipping durable trial event after analytics identity changed')
         return false
       }
 
