@@ -34,6 +34,11 @@ const PLANNING_CHANNEL_ID = 'planning-reminders'
 const TASK_CHANNEL_ID = 'task-reminders'
 type NotificationType = 'planning_reminder' | 'task_reminder'
 
+const getErrorCode = (error: unknown): string | null => {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return null
+  return typeof error.code === 'string' ? error.code : null
+}
+
 const getNotificationType = (notification: unknown): NotificationType | null => {
   const data = (notification as { content?: { data?: { type?: unknown } } })?.content?.data
   return data?.type === 'planning_reminder' || data?.type === 'task_reminder' ? data.type : null
@@ -389,6 +394,17 @@ export const NotificationService = {
       const token = await Notifications.getExpoPushTokenAsync({ projectId })
       return token.data
     } catch (error) {
+      const errorCode = getErrorCode(error)
+      if (errorCode === 'ERR_NOTIFICATIONS_NETWORK_ERROR') {
+        console.warn('[Notifications] Expo push token unavailable due to a network error')
+        addBreadcrumb(
+          'Expo push token unavailable due to a transient network error',
+          'notifications',
+          { method: 'getExpoPushToken', errorCode },
+        )
+        return null
+      }
+
       console.error('[Notifications] Failed to get push token:', error)
       captureException(error instanceof Error ? error : new Error(String(error)), {
         method: 'getExpoPushToken',
