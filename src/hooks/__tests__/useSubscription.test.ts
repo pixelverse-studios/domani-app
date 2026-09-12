@@ -350,7 +350,7 @@ describe('RevenueCat access gating', () => {
 })
 
 describe('subscription product analytics', () => {
-  it('tracks a trial only after the profile update succeeds', async () => {
+  it('leaves PostHog trial delivery to the server-confirmed outbox after the update succeeds', async () => {
     mockSupabaseFrom.mockReturnValue(
       createSupabaseQueryMock({
         data: {
@@ -368,13 +368,7 @@ describe('subscription product analytics', () => {
       await result.current.startTrial()
     })
 
-    expect(mockTrack).toHaveBeenCalledWith(
-      'trial_started',
-      expect.objectContaining({
-        offer: 'default',
-        trial_expires_at: '2026-08-30T12:00:00.000Z',
-      }),
-    )
+    expect(mockTrack).not.toHaveBeenCalledWith('trial_started', expect.anything())
     expect(mockLogMetaStartTrial).toHaveBeenCalledWith({ userId: 'user-1', offer: 'default' })
 
     unmount()
@@ -1232,10 +1226,7 @@ describe('purchase access sync', () => {
       await result.current.purchase(buildPurchasesPackage() as never)
     })
 
-    expect(mockTrack).not.toHaveBeenCalledWith(
-      'lifetime_purchase_completed',
-      expect.any(Object),
-    )
+    expect(mockTrack).not.toHaveBeenCalledWith('lifetime_purchase_completed', expect.any(Object))
     expect(mockLogMetaPurchase).not.toHaveBeenCalled()
 
     unmount()

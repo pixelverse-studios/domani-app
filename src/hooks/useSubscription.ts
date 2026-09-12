@@ -174,9 +174,7 @@ function isPromoGatedLifetimeProduct(productIdentifier: string | null | undefine
   return !!productIdentifier && PROMO_GATED_LIFETIME_PRODUCT_IDS.has(productIdentifier)
 }
 
-function hasPromoRedemptionAttemptContext(
-  attemptContext: PurchaseAccessSyncAttemptContext | null,
-) {
+function hasPromoRedemptionAttemptContext(attemptContext: PurchaseAccessSyncAttemptContext | null) {
   return !!(
     attemptContext?.redemptionAttemptId &&
     attemptContext.codeId &&
@@ -1432,13 +1430,7 @@ export function useSubscription() {
         queryClient.setQueryData<Profile>(['profile', user.id], context.previousProfile)
       }
     },
-    onSuccess: (data) => {
-      track('trial_started', {
-        ...getAnalyticsBaseProperties(),
-        offer: offeringIdentifier ?? null,
-        signup_cohort: profile?.signup_cohort ?? null,
-        trial_expires_at: data.trial_ends_at!,
-      })
+    onSuccess: () => {
       if (user?.id) {
         void logMetaStartTrial({ userId: user.id, offer: offeringIdentifier ?? null })
       }

@@ -16,6 +16,8 @@ The acquisition funnel is:
 
 `planning_activated` is claimed only for the user's first non-tutorial task scheduled for today or tomorrow. The `profiles.planning_activated_at` column makes the event durable across devices and app reinstalls.
 
+`trial_started` is emitted from a server-confirmed, user-scoped outbox. The database supplies the authoritative trial start time, expiry, and signup cohort. A stable event UUID plus a five-minute stale-claim window makes delivery safe across retries, reinstalls, cached sessions, and multiple devices. Direct account switches reset PostHog before the next user is identified.
+
 General retention uses `app_opened`. Product retention uses the PostHog action `Meaningful Task Activity`, which combines:
 
 - `task_created`
@@ -50,6 +52,22 @@ npm run posthog:configure
 
 The command reads `POSTHOG_HOST`, `POSTHOG_PROJECT_ID`, and `POSTHOG_PERSONAL_API_KEY` from the environment or the local `.env`. It never prints the API key.
 
+## v1.1.2 Trial Backfill
+
+The trial repair script is dry-run by default. It intersects privacy-safe Supabase trial fields with identified PostHog 1.1.2 activity, rejects invalid trial windows, requires activity within 24 hours of the authoritative start, and skips users who already have `trial_started`.
+
+```bash
+npm run posthog:backfill:trials
+```
+
+Review the planned and skipped counts before applying. Apply is deliberately count-locked and requires the outbox migration to exist in the target environment:
+
+```bash
+npm run posthog:backfill:trials -- --apply --expected-count=REVIEWED_COUNT
+```
+
+The apply path uses a deterministic event UUID and records delivery in Supabase, so reruns are idempotent even if an earlier run stopped between PostHog ingestion and the delivery update. The script reports planned, written, and skipped counts without printing user IDs or secrets.
+
 ## Attribution Limitation
 
 Campaign, ad-set, ad, and creative identifiers are not added speculatively. Until the app receives those identifiers through a reliable attribution or deep-link integration, PostHog product outcomes should be reported as campaign-period cohorts and compared with the pre-campaign baseline. Meta Ads Manager remains the source for spend, delivery, clicks, and Meta-attributed installs.
@@ -58,7 +76,7 @@ Campaign, ad-set, ad, and creative identifiers are not added speculatively. Unti
 
 Before relying on the dashboards:
 
-1. Apply the `planning_activated_at` migration to the target Supabase environment.
+1. Apply the `planning_activated_at` and PostHog trial outbox migrations to the target Supabase environment.
 2. Install a build containing the updated analytics hooks.
 3. Confirm each event once in PostHog Live Events using a test account.
 4. Confirm tutorial activity does not produce `planning_activated`.
@@ -66,3 +84,5 @@ Before relying on the dashboards:
 6. Confirm failed trials and failed purchases produce no success event.
 7. Confirm restore produces `purchase_restored`, not `lifetime_purchase_completed`.
 8. Confirm D1, D7, and D14 retention denominators use `trial_started` cohorts.
+9. Confirm `trial_started` contains the original timestamp, distinct user ID, version, build, platform, and privacy-safe properties.
+10. Switch directly from account A to account B and confirm their PostHog persons and events remain isolated.

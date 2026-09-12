@@ -224,6 +224,7 @@ jest.doMock('react-native-fbsdk-next', () => {
 jest.doMock('~/providers/AnalyticsProvider', () => {
   const React = require('react')
   const analytics = {
+    captureTrialStarted: jest.fn(() => Promise.resolve(true)),
     identify: jest.fn(),
     reset: jest.fn(),
     screen: jest.fn(),

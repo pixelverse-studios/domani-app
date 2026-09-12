@@ -250,6 +250,11 @@ export type AnalyticsEvent =
 
 interface AnalyticsContextValue {
   track: <T extends AnalyticsEvent>(eventName: T['name'], properties?: T['properties']) => void
+  captureTrialStarted: (
+    properties: Extract<AnalyticsEvent, { name: 'trial_started' }>['properties'],
+    eventUuid: string,
+    eventTimestamp: string,
+  ) => Promise<boolean>
   identify: (userId: string, traits?: Record<string, string | number | boolean | null>) => void
   reset: () => void
   screen: (screenName: string) => void
@@ -268,6 +273,31 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
       }
       console.log('[Analytics] Tracking event:', eventName, properties)
       posthog.capture(eventName, properties as Parameters<typeof posthog.capture>[1])
+    },
+    [posthog],
+  )
+
+  const captureTrialStarted = useCallback(
+    async (
+      properties: Extract<AnalyticsEvent, { name: 'trial_started' }>['properties'],
+      eventUuid: string,
+      eventTimestamp: string,
+    ) => {
+      if (!posthog) {
+        console.warn('[Analytics] Cannot track durable trial event, PostHog not initialized')
+        return false
+      }
+
+      posthog.capture(
+        'trial_started',
+        { ...properties },
+        {
+          uuid: eventUuid,
+          timestamp: new Date(eventTimestamp),
+        },
+      )
+      await posthog.flush()
+      return true
     },
     [posthog],
   )
@@ -305,7 +335,7 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
     [posthog],
   )
 
-  const value = { track, identify, reset, screen }
+  const value = { track, captureTrialStarted, identify, reset, screen }
 
   return <AnalyticsContext.Provider value={value}>{children}</AnalyticsContext.Provider>
 }
@@ -316,6 +346,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     console.warn('[Analytics] No PostHog API key found, analytics disabled')
     const noopValue: AnalyticsContextValue = {
       track: () => {},
+      captureTrialStarted: async () => false,
       identify: () => {},
       reset: () => {},
       screen: () => {},
