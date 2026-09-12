@@ -551,21 +551,6 @@ export type Database = {
           },
         ]
       }
-      posthog_trial_event_settings: {
-        Row: {
-          live_started_at: string
-          singleton: boolean
-        }
-        Insert: {
-          live_started_at?: string
-          singleton?: boolean
-        }
-        Update: {
-          live_started_at?: string
-          singleton?: boolean
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           auto_sort_categories: boolean | null
@@ -1407,6 +1392,7 @@ export type Database = {
         Args: { p_claim_token: string; p_user_id: string }
         Returns: boolean
       }
+      start_trial_with_posthog_outbox: { Args: never; Returns: Json }
       claim_meta_app_event: {
         Args: { p_event_key: string; p_event_payload: Json; p_user_id: string }
         Returns: {

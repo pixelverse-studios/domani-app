@@ -1378,22 +1378,13 @@ export function useSubscription() {
         throw new Error('Trial cannot be started from current state')
       }
 
-      const now = new Date()
-      const trialEnd = addDays(now, TRIAL_DURATION_DAYS)
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({
-          tier: 'trialing',
-          trial_started_at: now.toISOString(),
-          trial_ends_at: trialEnd.toISOString(),
-        })
-        .eq('id', user.id)
-        .select()
-        .single()
+      const { data, error } = await supabase.rpc('start_trial_with_posthog_outbox')
 
       if (error) throw error
-      return data
+      if (!data || Array.isArray(data) || typeof data !== 'object') {
+        throw new Error('Trial start returned an invalid profile')
+      }
+      return data as Profile
     },
     onMutate: async () => {
       // Mark a trial-start as in-flight so the AppState foreground listener

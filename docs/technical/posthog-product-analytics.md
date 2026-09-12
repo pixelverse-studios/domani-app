@@ -16,7 +16,7 @@ The acquisition funnel is:
 
 `planning_activated` is claimed only for the user's first non-tutorial task scheduled for today or tomorrow. The `profiles.planning_activated_at` column makes the event durable across devices and app reinstalls.
 
-`trial_started` is emitted from a server-confirmed, user-scoped outbox. The database supplies the authoritative trial start time, expiry, and signup cohort. A stable event UUID plus a five-minute stale-claim window makes delivery safe across retries, reinstalls, cached sessions, and multiple devices. Direct account switches reset PostHog before the next user is identified.
+`trial_started` is emitted from a server-confirmed, user-scoped outbox. Automatic trials create their pending event when the profile is inserted, while explicit trials use one transaction that starts the trial and creates the pending event together. The client can only claim an event the server already created; this prevents a legacy client's direct event from being replayed merely because that user later upgrades. The database supplies the authoritative trial start time, expiry, and signup cohort. A stable event UUID plus a five-minute stale-claim window makes delivery safe across retries, reinstalls, cached sessions, and multiple devices. Direct account switches reset PostHog before the next user is identified.
 
 General retention uses `app_opened`. Product retention uses the PostHog action `Meaningful Task Activity`, which combines:
 

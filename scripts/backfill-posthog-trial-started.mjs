@@ -310,7 +310,10 @@ for (const candidate of candidates) {
 
   const eventUuid = existing?.event_uuid ?? candidate.eventUuid
   const eventTimestamp = existing?.event_timestamp ?? candidate.eventTimestamp
-  const eventProperties = existing?.event_properties ?? candidate.properties
+  const eventProperties = {
+    ...candidate.properties,
+    ...(existing?.event_properties ?? {}),
+  }
   const captureResponse = await fetch(`${posthogHost}/capture/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

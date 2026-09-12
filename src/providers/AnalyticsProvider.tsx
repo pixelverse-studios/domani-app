@@ -263,6 +263,30 @@ interface AnalyticsContextValue {
 
 const AnalyticsContext = createContext<AnalyticsContextValue | undefined>(undefined)
 
+export async function captureTrialStartedForIdentity(
+  posthog: NonNullable<ReturnType<typeof usePostHog>>,
+  expectedUserId: string,
+  properties: Extract<AnalyticsEvent, { name: 'trial_started' }>['properties'],
+  eventUuid: string,
+  eventTimestamp: string,
+) {
+  if (posthog.getDistinctId() !== expectedUserId) {
+    console.warn('[Analytics] Skipping durable trial event after analytics identity changed')
+    return false
+  }
+
+  posthog.capture(
+    'trial_started',
+    { ...properties },
+    {
+      uuid: eventUuid,
+      timestamp: new Date(eventTimestamp),
+    },
+  )
+  await posthog.flush()
+  return true
+}
+
 function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
   const posthog = usePostHog()
 
@@ -290,21 +314,13 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
         return false
       }
 
-      if (posthog.getDistinctId() !== expectedUserId) {
-        console.warn('[Analytics] Skipping durable trial event after analytics identity changed')
-        return false
-      }
-
-      posthog.capture(
-        'trial_started',
-        { ...properties },
-        {
-          uuid: eventUuid,
-          timestamp: new Date(eventTimestamp),
-        },
+      return captureTrialStartedForIdentity(
+        posthog,
+        expectedUserId,
+        properties,
+        eventUuid,
+        eventTimestamp,
       )
-      await posthog.flush()
-      return true
     },
     [posthog],
   )

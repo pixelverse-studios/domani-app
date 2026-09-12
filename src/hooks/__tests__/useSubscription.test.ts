@@ -350,17 +350,21 @@ describe('RevenueCat access gating', () => {
 })
 
 describe('subscription product analytics', () => {
-  it('leaves PostHog trial delivery to the server-confirmed outbox after the update succeeds', async () => {
-    mockSupabaseFrom.mockReturnValue(
-      createSupabaseQueryMock({
-        data: {
-          tier: 'trialing',
-          trial_started_at: '2026-08-16T12:00:00.000Z',
-          trial_ends_at: '2026-08-30T12:00:00.000Z',
-        },
-        error: null,
-      }),
-    )
+  it('starts an explicit trial atomically with its server-confirmed PostHog outbox row', async () => {
+    mockSupabaseRpc.mockImplementation((functionName: string) => {
+      if (functionName === 'start_trial_with_posthog_outbox') {
+        return Promise.resolve({
+          data: {
+            tier: 'trialing',
+            trial_started_at: '2026-08-16T12:00:00.000Z',
+            trial_ends_at: '2026-08-30T12:00:00.000Z',
+          },
+          error: null,
+        })
+      }
+
+      return Promise.resolve({ data: null, error: null })
+    })
     const { result, unmount } = renderHookWithProviders(() => useSubscription())
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
@@ -368,6 +372,7 @@ describe('subscription product analytics', () => {
       await result.current.startTrial()
     })
 
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('start_trial_with_posthog_outbox')
     expect(mockTrack).not.toHaveBeenCalledWith('trial_started', expect.anything())
     expect(mockLogMetaStartTrial).toHaveBeenCalledWith({ userId: 'user-1', offer: 'default' })
 
