@@ -50,6 +50,7 @@ export function useCarryForwardTasks() {
       // Broad invalidation: refreshes both source plan (rolled-over tasks disappear)
       // and target plan (new tasks appear). Matches useDeleteTask/useToggleTask pattern.
       queryClient.invalidateQueries({ queryKey: ['tasks', user.id] })
+      queryClient.invalidateQueries({ queryKey: ['analytics', user.id] })
 
       // Invalidate rollover tasks query (no longer show carried tasks)
       queryClient.invalidateQueries({ queryKey: ['rolloverTasks', user.id] })

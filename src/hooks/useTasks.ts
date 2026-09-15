@@ -129,6 +129,11 @@ export function useToggleTask() {
       return { previousTasks, taskForAnalytics }
     },
     onSuccess: async (data, variables) => {
+      const userId = user?.id ?? data.user_id
+      if (userId) {
+        queryClient.invalidateQueries({ queryKey: ['analytics', userId] })
+      }
+
       // Real-time celebration: fire when the last incomplete task is marked complete.
       // Checks the optimistic cache (already updated by onMutate) — no DB round-trip needed.
       // Wrapped in try/catch to isolate celebration logic from the mutation lifecycle:
@@ -136,7 +141,6 @@ export function useToggleTask() {
       try {
         if (!variables.completed) return
 
-        const userId = user?.id ?? data.user_id
         if (!userId) return
 
         const tasks = queryClient.getQueryData<TaskWithCategory[]>([
@@ -303,6 +307,7 @@ export function useCreateTask() {
       const userId = user?.id ?? data.user_id
       if (userId) {
         queryClient.invalidateQueries({ queryKey: ['tasks', userId, data.scheduled_date] })
+        queryClient.invalidateQueries({ queryKey: ['analytics', userId] })
       }
       addBreadcrumb('Task created', 'task', {
         taskId: data.id,
@@ -525,6 +530,7 @@ export function useUpdateTask() {
 
       // Invalidate the new day's tasks
       queryClient.invalidateQueries({ queryKey: ['tasks', userId, data.scheduled_date] })
+      queryClient.invalidateQueries({ queryKey: ['analytics', userId] })
       // If task moved to different day, also invalidate the original day's tasks
       if (originalDate && originalDate !== data.scheduled_date) {
         queryClient.invalidateQueries({ queryKey: ['tasks', userId, originalDate] })
@@ -582,6 +588,7 @@ export function useDeleteTask() {
     onSuccess: ({ taskId, wasCompleted }) => {
       if (user?.id) {
         queryClient.invalidateQueries({ queryKey: ['tasks', user.id] })
+        queryClient.invalidateQueries({ queryKey: ['analytics', user.id] })
       }
       addBreadcrumb('Task deleted', 'task', { taskId })
 
