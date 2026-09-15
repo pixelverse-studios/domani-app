@@ -7,6 +7,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
+        "EXPO_PUBLIC_ANALYTICS_ENVIRONMENT": "development",
         "SENTRY_ENVIRONMENT": "development",
         "EXPO_PUBLIC_POSTHOG_SESSION_REPLAY_ENABLED": "false",
         "EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID": "Domani Staging Lifetime"
@@ -15,6 +16,7 @@
     "preview": {
       "distribution": "internal",
       "env": {
+        "EXPO_PUBLIC_ANALYTICS_ENVIRONMENT": "staging",
         "SENTRY_ENVIRONMENT": "preview",
         "EXPO_PUBLIC_POSTHOG_SESSION_REPLAY_ENABLED": "false",
         "EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID": "Domani Staging Lifetime"
@@ -22,6 +24,7 @@
     },
     "production": {
       "env": {
+        "EXPO_PUBLIC_ANALYTICS_ENVIRONMENT": "production",
         "SENTRY_ENVIRONMENT": "production",
         "EXPO_PUBLIC_POSTHOG_SESSION_REPLAY_ENABLED": "true",
         "EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID": "Domani Lifetime"
