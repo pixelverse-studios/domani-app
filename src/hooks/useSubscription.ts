@@ -14,6 +14,20 @@ import { useAuth } from '~/hooks/useAuth'
 import { useProfile } from '~/hooks/useProfile'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { getAnalyticsBaseProperties } from '~/lib/productAnalytics'
+import {
+  logMetaPurchase,
+  logMetaPurchaseRestored,
+  logMetaStartTrial,
+} from '~/lib/metaAcquisitionEvents'
+import {
+  candidateMatchesEntitlement,
+  clearMetaPurchaseCandidate,
+  createMetaPurchaseCandidate,
+  getMetaPurchaseCandidate,
+  isMetaPurchaseCandidateExpired,
+  recordMetaPurchaseCandidateTransaction,
+  type MetaPurchaseCandidate,
+} from '~/lib/metaPurchaseCandidate'
 import { useAppConfig } from '~/stores/appConfigStore'
 import { isBetaPhase } from '~/types/appConfig'
 import type { Profile } from '~/types'
@@ -142,6 +156,7 @@ interface SubscriptionState {
 
 type SupabaseSubscriptionSyncStatus =
   | 'synced'
+  | 'synced_new_lifetime'
   | 'preserved_existing_lifetime'
   | 'non_lifetime_entitlement'
 
@@ -159,9 +174,7 @@ function isPromoGatedLifetimeProduct(productIdentifier: string | null | undefine
   return !!productIdentifier && PROMO_GATED_LIFETIME_PRODUCT_IDS.has(productIdentifier)
 }
 
-function hasPromoRedemptionAttemptContext(
-  attemptContext: PurchaseAccessSyncAttemptContext | null,
-) {
+function hasPromoRedemptionAttemptContext(attemptContext: PurchaseAccessSyncAttemptContext | null) {
   return !!(
     attemptContext?.redemptionAttemptId &&
     attemptContext.codeId &&
@@ -240,6 +253,17 @@ function hasActiveRecordedLifetime(
 ): boolean {
   const hasRecordedLifetime = profile?.tier === 'lifetime' || !!profile?.purchased_at
   return hasRecordedLifetime && !profile?.refunded_at
+}
+
+async function clearMetaPurchaseCandidateSafely(userId: string) {
+  try {
+    await clearMetaPurchaseCandidate(userId)
+  } catch (error) {
+    console.warn('[useSubscription] Failed to clear Meta purchase candidate', {
+      userId,
+      error,
+    })
+  }
 }
 
 export function shouldUseRevenueCatCustomerInfoForAccess(input: {
@@ -339,6 +363,7 @@ export function useSubscription() {
   const previousAndroidMonetizationBreadcrumbRef = useRef<string | null>(null)
   const pendingExternalPurchaseSyncRef = useRef<PurchaseAccessSyncRequest | null>(null)
   const previousConfirmedAccessSyncSignatureRef = useRef<string | null>(null)
+  const metaPurchaseRecoveryUserRef = useRef<string | null>(null)
   const [accessSyncPhase, setAccessSyncPhase] = useState<PurchaseAccessSyncPhase>('idle')
   const [accessSyncResult, setAccessSyncResult] = useState<PurchaseAccessSyncResult | null>(null)
   const [accessSyncAttempt, setAccessSyncAttempt] =
@@ -370,6 +395,7 @@ export function useSubscription() {
       // Handle logout when user signs out (previous user existed, now gone)
       if (previousUserId.current && !user?.id) {
         logoutRevenueCat()
+        metaPurchaseRecoveryUserRef.current = null
         previousRevenueCatAttributeSignatureRef.current = null
         previousAndroidMonetizationBreadcrumbRef.current = null
         setRevenueCatAttributeSyncRetryToken(0)
@@ -772,7 +798,12 @@ export function useSubscription() {
         return result
       }
 
-      if (supabaseSyncStatus !== 'synced') {
+      const isNewLifetimePurchase = supabaseSyncStatus === 'synced_new_lifetime'
+
+      if (
+        supabaseSyncStatus === 'preserved_existing_lifetime' ||
+        supabaseSyncStatus === 'non_lifetime_entitlement'
+      ) {
         const result: PurchaseAccessSyncResult = {
           ...baseResult,
           status: supabaseSyncStatus,
@@ -804,6 +835,11 @@ export function useSubscription() {
           track('purchase_restored', {
             ...getAnalyticsBaseProperties(),
             product_id: entitlement.productIdentifier,
+            store: entitlement.store ?? null,
+          })
+          void logMetaPurchaseRestored({
+            userId: user.id,
+            productId: entitlement.productIdentifier,
             store: entitlement.store ?? null,
           })
         }
@@ -916,24 +952,28 @@ export function useSubscription() {
           campaignId: attemptContext?.campaignId ?? null,
         })
 
-        if (request.source === 'purchase') {
-          track('lifetime_purchase_completed', {
-            ...getAnalyticsBaseProperties(),
-            product_id: entitlement.productIdentifier,
-            store: entitlement.store ?? null,
-            price: attemptContext?.price ?? null,
-            currency: attemptContext?.currency ?? null,
+        if (
+          isNewLifetimePurchase &&
+          attemptContext?.promoOutcome === 'discounted' &&
+          (request.source === 'promo_redemption' || request.source === 'foreground')
+        ) {
+          void logMetaPurchase({
+            userId: user.id,
+            productId: entitlement.productIdentifier,
+            amount: attemptContext.price ?? null,
+            currency: attemptContext.currency ?? null,
             offer: offeringIdentifier ?? null,
-            purchase_timestamp:
-              entitlement.latestPurchaseDate ?? entitlement.originalPurchaseDate ?? null,
-            campaign_id: attemptContext?.campaignId ?? null,
-            campaign_slug: attemptContext?.campaignSlug ?? null,
-            promo_outcome: attemptContext?.promoOutcome ?? null,
+            store: entitlement.store ?? null,
           })
         } else if (request.source === 'restore') {
           track('purchase_restored', {
             ...getAnalyticsBaseProperties(),
             product_id: entitlement.productIdentifier,
+            store: entitlement.store ?? null,
+          })
+          void logMetaPurchaseRestored({
+            userId: user.id,
+            productId: entitlement.productIdentifier,
             store: entitlement.store ?? null,
           })
         }
@@ -960,6 +1000,97 @@ export function useSubscription() {
       user?.id,
     ],
   )
+
+  const completeMetaPurchaseCandidate = useCallback(
+    async (candidate: MetaPurchaseCandidate, info: CustomerInfo) => {
+      const entitlement = info.entitlements.active[ENTITLEMENT_ID]
+      if (!entitlement || !candidateMatchesEntitlement(candidate, entitlement)) return false
+
+      track('lifetime_purchase_completed', {
+        ...getAnalyticsBaseProperties(),
+        product_id: entitlement.productIdentifier,
+        store: entitlement.store ?? null,
+        price: candidate.amount,
+        currency: candidate.currency,
+        offer: candidate.offer,
+        purchase_timestamp:
+          entitlement.latestPurchaseDate ?? entitlement.originalPurchaseDate ?? null,
+      })
+
+      const metaResult = await logMetaPurchase({
+        userId: candidate.userId,
+        productId: candidate.productId,
+        amount: candidate.amount,
+        currency: candidate.currency,
+        offer: candidate.offer,
+        store: entitlement.store ?? null,
+      })
+      if (metaResult === 'error') return false
+
+      await clearMetaPurchaseCandidateSafely(candidate.userId)
+      return true
+    },
+    [track],
+  )
+
+  useEffect(() => {
+    if (
+      !user?.id ||
+      !customerInfo ||
+      !isInitialized ||
+      shouldBypassRevenueCat ||
+      metaPurchaseRecoveryUserRef.current === user.id
+    ) {
+      return
+    }
+
+    metaPurchaseRecoveryUserRef.current = user.id
+    const recover = async () => {
+      const candidate = await getMetaPurchaseCandidate(user.id)
+      if (!candidate) return
+      if (isMetaPurchaseCandidateExpired(candidate)) {
+        await clearMetaPurchaseCandidateSafely(user.id)
+        return
+      }
+
+      const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID]
+      if (!entitlement || !candidateMatchesEntitlement(candidate, entitlement)) {
+        metaPurchaseRecoveryUserRef.current = null
+        return
+      }
+
+      const result = await syncExternalPurchaseAccess({
+        source: 'purchase',
+        customerInfo,
+        forceStoreSync: false,
+        attemptContext: {
+          price: candidate.amount,
+          currency: candidate.currency,
+        },
+      })
+      if (result.status === 'confirmed' && result.customerInfo) {
+        const completed = await completeMetaPurchaseCandidate(candidate, result.customerInfo)
+        if (!completed) metaPurchaseRecoveryUserRef.current = null
+      } else {
+        metaPurchaseRecoveryUserRef.current = null
+      }
+    }
+
+    recover().catch((error) => {
+      metaPurchaseRecoveryUserRef.current = null
+      console.warn('[useSubscription] Failed to recover pending Meta purchase', {
+        userId: user.id,
+        error,
+      })
+    })
+  }, [
+    completeMetaPurchaseCandidate,
+    customerInfo,
+    isInitialized,
+    shouldBypassRevenueCat,
+    syncExternalPurchaseAccess,
+    user?.id,
+  ])
 
   const syncAccessMutation = useMutation({
     mutationFn: (request?: Partial<PurchaseAccessSyncRequest>) =>
@@ -1247,22 +1378,13 @@ export function useSubscription() {
         throw new Error('Trial cannot be started from current state')
       }
 
-      const now = new Date()
-      const trialEnd = addDays(now, TRIAL_DURATION_DAYS)
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({
-          tier: 'trialing',
-          trial_started_at: now.toISOString(),
-          trial_ends_at: trialEnd.toISOString(),
-        })
-        .eq('id', user.id)
-        .select()
-        .single()
+      const { data, error } = await supabase.rpc('start_trial_with_posthog_outbox')
 
       if (error) throw error
-      return data
+      if (!data || Array.isArray(data) || typeof data !== 'object') {
+        throw new Error('Trial start returned an invalid profile')
+      }
+      return data as Profile
     },
     onMutate: async () => {
       // Mark a trial-start as in-flight so the AppState foreground listener
@@ -1299,13 +1421,10 @@ export function useSubscription() {
         queryClient.setQueryData<Profile>(['profile', user.id], context.previousProfile)
       }
     },
-    onSuccess: (data) => {
-      track('trial_started', {
-        ...getAnalyticsBaseProperties(),
-        offer: offeringIdentifier ?? null,
-        signup_cohort: profile?.signup_cohort ?? null,
-        trial_expires_at: data.trial_ends_at!,
-      })
+    onSuccess: () => {
+      if (user?.id) {
+        void logMetaStartTrial({ userId: user.id, offer: offeringIdentifier ?? null })
+      }
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
     },
     onSettled: () => {
@@ -1358,19 +1477,67 @@ export function useSubscription() {
         productIdentifier: pkg.product.identifier,
       })
 
-      const info = await purchasePackage(pkg)
-      if (info) {
+      if (!user?.id) throw new Error('Not authenticated')
+
+      let candidate: MetaPurchaseCandidate | null = null
+      if (!attemptContext.redemptionAttemptId) {
+        try {
+          candidate = await createMetaPurchaseCandidate({
+            userId: user.id,
+            productId: pkg.product.identifier,
+            amount: attemptContext.price,
+            currency: attemptContext.currency,
+            offer: offeringIdentifier,
+            baselinePurchaseDate:
+              customerInfo?.entitlements.active[ENTITLEMENT_ID]?.latestPurchaseDate ?? null,
+          })
+        } catch (error) {
+          console.warn('[useSubscription] Failed to persist Meta purchase candidate', {
+            userId: user.id,
+            error,
+          })
+        }
+      }
+
+      let purchaseResult
+      try {
+        purchaseResult = await purchasePackage(pkg)
+      } catch (error) {
+        if (candidate) await clearMetaPurchaseCandidateSafely(user.id)
+        throw error
+      }
+
+      if (purchaseResult) {
+        if (candidate) {
+          try {
+            candidate = await recordMetaPurchaseCandidateTransaction(candidate, {
+              transactionId: purchaseResult.transaction.transactionIdentifier,
+              purchaseDate: purchaseResult.transaction.purchaseDate,
+            })
+          } catch (error) {
+            console.warn('[useSubscription] Failed to enrich Meta purchase candidate', {
+              userId: user.id,
+              error,
+            })
+          }
+        }
         const result = await syncExternalPurchaseAccess({
           source: 'purchase',
-          customerInfo: info,
+          customerInfo: purchaseResult.customerInfo,
           forceStoreSync: false,
           attemptContext,
         })
         if (result.status !== 'confirmed') {
           throw new Error('PURCHASE_VERIFICATION_FAILED')
         }
+        if (candidate && result.customerInfo && !hasActiveRecordedLifetime(profile)) {
+          await completeMetaPurchaseCandidate(candidate, result.customerInfo)
+        } else if (candidate) {
+          await clearMetaPurchaseCandidateSafely(user.id)
+        }
         return result.customerInfo
       }
+      if (candidate) await clearMetaPurchaseCandidateSafely(user.id)
       return null
     },
     onSuccess: (info) => {
@@ -1666,6 +1833,7 @@ async function syncSubscriptionToSupabase(
     .eq('id', userId)
     .maybeSingle()
   if (profileError) throw profileError
+  if (!currentProfile) throw new Error('PROFILE_NOT_FOUND')
 
   console.log('[useSubscription] Syncing RevenueCat state to Supabase', {
     userId,
@@ -1676,11 +1844,14 @@ async function syncSubscriptionToSupabase(
   })
 
   // Always update revenuecat_user_id so the customer is linked
-  const { error: rcError } = await supabase
+  const { data: linkedProfile, error: rcError } = await supabase
     .from('profiles')
     .update({ revenuecat_user_id: customerInfo.originalAppUserId })
     .eq('id', userId)
+    .select('id')
+    .single()
   if (rcError) throw rcError
+  if (!linkedProfile) throw new Error('PROFILE_LINK_NOT_APPLIED')
 
   console.log('[useSubscription] Linked RevenueCat user in Supabase', {
     userId,
@@ -1693,6 +1864,7 @@ async function syncSubscriptionToSupabase(
     const isTrialing = entitlement.periodType === 'TRIAL'
     const hasRecordedLifetime =
       currentProfile?.tier === 'lifetime' || !!currentProfile?.purchased_at
+    const isNewLifetimePurchase = !isTrialing && !hasRecordedLifetime
     const hasActiveRecordedLifetime = hasRecordedLifetime && !currentProfile?.refunded_at
 
     if (isTrialing && !hasActiveRecordedLifetime) {
@@ -1723,7 +1895,7 @@ async function syncSubscriptionToSupabase(
       : null
     const trialEndsAt = isTrialing ? entitlement.expirationDate : null
 
-    const { error: tierError } = await supabase
+    const { data: updatedProfile, error: tierError } = await supabase
       .from('profiles')
       .update({
         tier,
@@ -1732,7 +1904,10 @@ async function syncSubscriptionToSupabase(
         trial_ends_at: trialEndsAt,
       })
       .eq('id', userId)
+      .select('id')
+      .single()
     if (tierError) throw tierError
+    if (!updatedProfile) throw new Error('PROFILE_TIER_UPDATE_NOT_APPLIED')
 
     const { error: clearRefundStateError } = await supabase.rpc(
       'clear_current_user_refund_request_state',
@@ -1750,9 +1925,10 @@ async function syncSubscriptionToSupabase(
       entitlementId: ENTITLEMENT_ID,
       productIdentifier: entitlement.productIdentifier ?? null,
     })
+    return isNewLifetimePurchase ? 'synced_new_lifetime' : 'synced'
   }
 
-  return entitlement ? 'synced' : 'non_lifetime_entitlement'
+  return 'non_lifetime_entitlement'
 }
 
 async function rollbackFailedPromoAccessSync(userId: string | undefined) {

@@ -5,7 +5,13 @@ import { supabase } from '~/lib/supabase'
 import { NotificationService } from '~/lib/notifications'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { useTutorialStore } from '~/stores/tutorialStore'
-import { useCreateTask, useDeleteTask, useTasks, useUpdateTask } from '../useTasks'
+import { useCreateTask, useDeleteTask, useTasks, useToggleTask, useUpdateTask } from '../useTasks'
+
+const mockLogMetaPlanningActivated = jest.fn()
+
+jest.mock('~/lib/metaAcquisitionEvents', () => ({
+  logMetaPlanningActivated: (...args: unknown[]) => mockLogMetaPlanningActivated(...args),
+}))
 
 const mockIncrementUsageMutate = jest.fn()
 
@@ -121,6 +127,52 @@ describe('task hooks', () => {
     expect(mockFrom).not.toHaveBeenCalled()
   })
 
+  it.each([
+    { completed: true, initialCompletedAt: null, label: 'completion' },
+    {
+      completed: false,
+      initialCompletedAt: '2026-05-16T10:00:00.000Z',
+      label: 'uncompletion',
+    },
+  ])(
+    'invalidates progress analytics after task $label',
+    async ({ completed, initialCompletedAt }) => {
+      const task = buildTaskWithCategory({
+        id: 'task-toggle',
+        scheduled_date: '2026-05-16',
+        completed_at: initialCompletedAt,
+      })
+      const existingQuery = createQueryMock({ data: { notification_id: null }, error: null })
+      const updateQuery = createQueryMock({
+        data: {
+          ...task,
+          completed_at: completed ? '2026-05-16T12:00:00.000Z' : null,
+        },
+        error: null,
+      })
+      mockFrom.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery)
+
+      const { result, queryClient } = trackQueryClient(
+        renderHookWithProviders(() => useToggleTask()),
+      )
+      queryClient.setQueryData(
+        ['tasks', 'user-1', '2026-05-16'],
+        [task, buildTaskWithCategory({ id: 'task-still-incomplete', completed_at: null })],
+      )
+      const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries')
+
+      await act(async () => {
+        await result.current.mutateAsync({ taskId: 'task-toggle', completed })
+      })
+
+      expect(updateQuery.update).toHaveBeenCalledWith({
+        completed_at: completed ? expect.any(String) : null,
+      })
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['analytics', 'user-1'] })
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'user-1'] })
+    },
+  )
+
   it('inserts the expected create payload and invalidates the scheduled date', async () => {
     const createdTask = buildTaskWithCategory({
       id: 'task-created',
@@ -161,6 +213,7 @@ describe('task hooks', () => {
       scheduled_date: '2026-05-16',
     })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'user-1', '2026-05-16'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['analytics', 'user-1'] })
     expect(mockIncrementUsageMutate).toHaveBeenCalledWith({
       systemCategoryId: 'system-category-test-id',
       userCategoryId: null,
@@ -204,7 +257,7 @@ describe('task hooks', () => {
     })
     mockFrom.mockReturnValueOnce(insertQuery).mockReturnValueOnce(activationQuery)
 
-    const { result } = trackQueryClient(renderHookWithProviders(() => useCreateTask()))
+    const { result, unmount } = trackQueryClient(renderHookWithProviders(() => useCreateTask()))
 
     await act(async () => {
       await result.current.mutateAsync({ scheduledDate: '2026-05-16', title: 'Start the day' })
@@ -219,7 +272,12 @@ describe('task hooks', () => {
       'planning_activated',
       expect.objectContaining({ scheduled_for: 'today' }),
     )
+    expect(mockLogMetaPlanningActivated).toHaveBeenCalledWith({
+      userId: 'user-1',
+      scheduledFor: 'today',
+    })
 
+    unmount()
     jest.useRealTimers()
   })
 
@@ -232,14 +290,16 @@ describe('task hooks', () => {
     })
     mockFrom.mockReturnValue(insertQuery)
 
-    const { result } = trackQueryClient(renderHookWithProviders(() => useCreateTask()))
+    const { result, unmount } = trackQueryClient(renderHookWithProviders(() => useCreateTask()))
     await act(async () => {
       await result.current.mutateAsync({ scheduledDate: '2026-05-16', title: 'Tutorial task' })
     })
 
     expect(mockFrom).toHaveBeenCalledTimes(1)
     expect(mockTrack).not.toHaveBeenCalledWith('planning_activated', expect.any(Object))
+    expect(mockLogMetaPlanningActivated).not.toHaveBeenCalled()
 
+    unmount()
     jest.useRealTimers()
   })
 
@@ -352,6 +412,7 @@ describe('task hooks', () => {
     ])
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'user-1', '2026-05-17'] })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'user-1', '2026-05-16'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['analytics', 'user-1'] })
     expect(mockTrack).toHaveBeenCalledWith(
       'task_edited',
       expect.objectContaining({ moved_day: true }),
@@ -428,5 +489,6 @@ describe('task hooks', () => {
     expect(deleteQuery.delete).toHaveBeenCalledTimes(1)
     expect(deleteQuery.eq).toHaveBeenCalledWith('id', 'task-delete')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'user-1'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['analytics', 'user-1'] })
   })
 })

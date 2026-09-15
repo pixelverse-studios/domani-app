@@ -1,7 +1,13 @@
 import { useEffect, useRef } from 'react'
 import { useAuth } from '~/hooks/useAuth'
+import { useProfile } from '~/hooks/useProfile'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { getAnalyticsBaseProperties } from '~/lib/productAnalytics'
+import {
+  logMetaCompletedRegistration,
+  logMetaStartTrial,
+} from '~/lib/metaAcquisitionEvents'
+import { requestMetaTrackingPermission } from '~/lib/metaAppEvents'
 
 const RECENT_AUTH_WINDOW_MS = 2 * 60 * 1000
 
@@ -17,8 +23,10 @@ export function isRecentAuthTimestamp(timestamp: string | undefined, now = Date.
  */
 export function useAuthAnalytics() {
   const { user } = useAuth()
+  const { profile } = useProfile()
   const { track } = useAnalytics()
   const previousUserId = useRef<string | null>(null)
+  const metaAcquisitionUserId = useRef<string | null>(null)
 
   useEffect(() => {
     const currentUserId = user?.id ?? null
@@ -51,4 +59,34 @@ export function useAuthAnalytics() {
 
     previousUserId.current = currentUserId
   }, [user, track])
+
+  useEffect(() => {
+    const userId = user?.id
+    const provider = user?.identities?.[0]?.provider as 'google' | 'apple' | undefined
+    const hasAutomaticTrial =
+      profile?.id === userId &&
+      profile?.tier === 'trialing' &&
+      isRecentAuthTimestamp(profile?.trial_started_at ?? undefined)
+
+    if (
+      !userId ||
+      metaAcquisitionUserId.current === userId ||
+      (provider !== 'google' && provider !== 'apple') ||
+      !isRecentAuthTimestamp(user.created_at) ||
+      !hasAutomaticTrial
+    ) {
+      return
+    }
+
+    metaAcquisitionUserId.current = userId
+
+    void requestMetaTrackingPermission()
+      .catch(() => undefined)
+      .then(() =>
+        Promise.all([
+          logMetaCompletedRegistration({ userId, method: provider }),
+          logMetaStartTrial({ userId }),
+        ]),
+      )
+  }, [profile?.id, profile?.tier, profile?.trial_started_at, user])
 }

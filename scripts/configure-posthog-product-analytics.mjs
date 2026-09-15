@@ -65,9 +65,59 @@ async function ensureNamedResource(path, name, payload) {
   return created
 }
 
+const requiredTestAccountFilters = [
+  {
+    key: 'email',
+    type: 'person',
+    value: '@pixelversestudios.io',
+    operator: 'not_icontains',
+  },
+  {
+    key: 'email',
+    type: 'person',
+    value: 'arfusop.dev@gmail.com',
+    operator: 'is_not',
+  },
+]
+
+function samePropertyFilter(left, right) {
+  return (
+    left.key === right.key &&
+    left.type === right.type &&
+    left.operator === right.operator &&
+    JSON.stringify(left.value) === JSON.stringify(right.value)
+  )
+}
+
+async function ensureTestAccountFilters() {
+  const project = await request('/')
+  const existing = project.test_account_filters ?? []
+  const missing = requiredTestAccountFilters.filter(
+    (required) => !existing.some((filter) => samePropertyFilter(filter, required)),
+  )
+  if (missing.length === 0) return
+
+  await request('/', {
+    method: 'PATCH',
+    body: JSON.stringify({ test_account_filters: [...existing, ...missing] }),
+  })
+  console.log('Updated production test-account filters')
+}
+
 function eventNode(event, math = 'dau') {
   return { kind: 'EventsNode', event, name: event, math }
 }
+
+const productionProperties = [
+  {
+    key: 'app_environment',
+    value: ['production'],
+    operator: 'exact',
+    type: 'event',
+  },
+]
+
+await ensureTestAccountFilters()
 
 function trendQuery(events, dateFrom = '-30d') {
   return {
@@ -78,8 +128,8 @@ function trendQuery(events, dateFrom = '-30d') {
       interval: 'day',
       dateRange: { date_from: dateFrom, explicitDate: false },
       trendsFilter: { display: 'ActionsLineGraph' },
-      properties: [],
-      filterTestAccounts: false,
+      properties: productionProperties,
+      filterTestAccounts: true,
     },
   }
 }
@@ -91,7 +141,7 @@ function retentionQuery(returningEntity, totalIntervals) {
       kind: 'RetentionQuery',
       version: 2,
       dateRange: { date_from: '-90d', explicitDate: false },
-      properties: [],
+      properties: productionProperties,
       retentionFilter: {
         period: 'Day',
         targetEntity: { id: 'trial_started', type: 'events' },
@@ -99,7 +149,7 @@ function retentionQuery(returningEntity, totalIntervals) {
         retentionType: 'retention_first_time',
         totalIntervals,
       },
-      filterTestAccounts: false,
+      filterTestAccounts: true,
     },
   }
 }
@@ -169,8 +219,8 @@ await ensureInsight(
         funnelWindowIntervalUnit: 'day',
         funnelVizType: 'steps',
       },
-      properties: [],
-      filterTestAccounts: false,
+      properties: productionProperties,
+      filterTestAccounts: true,
     },
   },
 )
