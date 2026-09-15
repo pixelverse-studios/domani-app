@@ -2,7 +2,12 @@ import React, { createContext, useContext, useCallback } from 'react'
 import { Platform } from 'react-native'
 import { PostHogProvider, usePostHog } from 'posthog-react-native'
 import Constants from 'expo-constants'
-import { getPostHogOptions, isPostHogSessionReplayEnabled } from '~/lib/posthog'
+import {
+  getPostHogOptions,
+  getPostHogRuntimeConfig,
+  isPostHogSessionReplayEnabled,
+  type AnalyticsEnvironment,
+} from '~/lib/posthog'
 
 export interface AnalyticsBaseProperties {
   platform: 'ios' | 'android'
@@ -11,15 +16,22 @@ export interface AnalyticsBaseProperties {
   country: string | null
 }
 
-const POSTHOG_API_KEY =
-  Constants.expoConfig?.extra?.posthogApiKey || process.env.EXPO_PUBLIC_POSTHOG_KEY || ''
+const POSTHOG_RUNTIME = getPostHogRuntimeConfig({
+  apiKey: Constants.expoConfig?.extra?.posthogApiKey,
+  environment:
+    (Constants.expoConfig?.extra?.analyticsEnvironment as AnalyticsEnvironment | undefined) ??
+    'development',
+  host: Constants.expoConfig?.extra?.posthogHost,
+  isDevelopment: __DEV__,
+  releaseChannel: Constants.expoConfig?.extra?.analyticsReleaseChannel ?? 'local',
+})
 const POSTHOG_SESSION_REPLAY_ENABLED = isPostHogSessionReplayEnabled(
   __DEV__,
   process.env.EXPO_PUBLIC_POSTHOG_SESSION_REPLAY_ENABLED,
   Platform.OS,
   Platform.Version,
 )
-const POSTHOG_OPTIONS = getPostHogOptions(POSTHOG_SESSION_REPLAY_ENABLED)
+const POSTHOG_OPTIONS = getPostHogOptions(POSTHOG_SESSION_REPLAY_ENABLED, POSTHOG_RUNTIME)
 
 // Event types for type-safe tracking
 export type AnalyticsEvent =
@@ -364,9 +376,11 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
-  // Skip PostHog if no API key (e.g., in development without .env)
-  if (!POSTHOG_API_KEY) {
-    console.warn('[Analytics] No PostHog API key found, analytics disabled')
+  // Local development stays isolated even when the active .env contains production values.
+  if (!POSTHOG_RUNTIME.enabled) {
+    console.warn(
+      `[Analytics] PostHog disabled for ${POSTHOG_RUNTIME.environment}/${POSTHOG_RUNTIME.releaseChannel}`,
+    )
     const noopValue: AnalyticsContextValue = {
       track: () => {},
       captureTrialStarted: async () => false,
@@ -377,16 +391,13 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     return <AnalyticsContext.Provider value={noopValue}>{children}</AnalyticsContext.Provider>
   }
 
-  console.log(
-    '[Analytics] Initializing PostHog with key:',
-    POSTHOG_API_KEY.substring(0, 10) + '...',
-  )
+  console.log('[Analytics] Initializing PostHog for:', POSTHOG_RUNTIME.environment)
   console.log('[Analytics] PostHog host:', POSTHOG_OPTIONS.host)
   console.log('[Analytics] Session replay enabled:', POSTHOG_SESSION_REPLAY_ENABLED)
 
   return (
     <PostHogProvider
-      apiKey={POSTHOG_API_KEY}
+      apiKey={POSTHOG_RUNTIME.apiKey}
       options={POSTHOG_OPTIONS}
       // Enable autocapture for screen views
       autocapture={{
