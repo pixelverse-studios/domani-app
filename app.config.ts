@@ -9,6 +9,7 @@ const DEFAULT_POSTHOG_HOST = 'https://us.i.posthog.com'
 function resolveAnalyticsEnvironment(
   easBuildProfile: string | undefined,
   configuredEnvironment: string | undefined,
+  supabaseUrl: string | undefined,
 ) {
   if (easBuildProfile === 'production') return 'production'
   if (easBuildProfile === 'preview') return 'staging'
@@ -20,6 +21,13 @@ function resolveAnalyticsEnvironment(
   ) {
     return configuredEnvironment
   }
+  if (
+    supabaseUrl?.includes('domani.supabase.co') ||
+    supabaseUrl?.includes('exxnnlhxcjujxnnwwrxv.supabase.co')
+  ) {
+    return 'production'
+  }
+  if (supabaseUrl?.includes('ftgltnzejaxasdvfkqut.supabase.co')) return 'staging'
   return 'development'
 }
 
@@ -38,6 +46,7 @@ export function getPostHogBuildConfig(env: Record<string, string | undefined>) {
   const environment = resolveAnalyticsEnvironment(
     env.EAS_BUILD_PROFILE,
     env.EXPO_PUBLIC_ANALYTICS_ENVIRONMENT,
+    env.EXPO_PUBLIC_SUPABASE_URL,
   )
   const releaseChannel =
     env.EAS_BUILD_PROFILE?.trim() ||
@@ -55,7 +64,7 @@ export function getPostHogBuildConfig(env: Record<string, string | undefined>) {
       'A valid EXPO_PUBLIC_POSTHOG_PRODUCTION_KEY (or legacy EXPO_PUBLIC_POSTHOG_KEY) is required for production builds',
     )
   }
-  if (environment === 'staging' && !isValidPostHogProjectKey(apiKey)) {
+  if (env.EAS_BUILD_PROFILE === 'preview' && !isValidPostHogProjectKey(apiKey)) {
     throw new Error('A valid EXPO_PUBLIC_POSTHOG_STAGING_KEY is required for preview builds')
   }
   if (!/^https:\/\//.test(host)) {

@@ -36,6 +36,33 @@ describe('PostHog build configuration', () => {
     })
   })
 
+  it('selects production for local Android and Xcode release builds using production Supabase', () => {
+    expect(
+      getPostHogBuildConfig({
+        EXPO_PUBLIC_SUPABASE_URL: 'https://exxnnlhxcjujxnnwwrxv.supabase.co',
+        EXPO_PUBLIC_POSTHOG_KEY: productionKey,
+      }),
+    ).toEqual({
+      apiKey: productionKey,
+      environment: 'production',
+      host: 'https://us.i.posthog.com',
+      releaseChannel: 'production',
+    })
+  })
+
+  it('recognizes local staging config without requiring analytics during development', () => {
+    expect(
+      getPostHogBuildConfig({
+        EXPO_PUBLIC_SUPABASE_URL: 'https://ftgltnzejaxasdvfkqut.supabase.co',
+      }),
+    ).toEqual({
+      apiKey: undefined,
+      environment: 'staging',
+      host: 'https://us.i.posthog.com',
+      releaseChannel: 'internal',
+    })
+  })
+
   it('does not put any project key into local development config', () => {
     expect(
       getPostHogBuildConfig({

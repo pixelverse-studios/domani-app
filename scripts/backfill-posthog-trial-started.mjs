@@ -206,8 +206,6 @@ for (const profile of profiles) {
       offer: profile.signup_cohort === 'early_adopter' ? 'early_adopter' : 'general',
       signup_cohort: profile.signup_cohort,
       trial_expires_at: profile.trial_ends_at,
-      app_environment: 'production',
-      release_channel: 'backfill',
       backfilled: true,
     },
   }

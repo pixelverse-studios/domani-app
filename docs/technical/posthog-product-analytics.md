@@ -31,7 +31,7 @@ Every event emitted by the mobile SDK includes `app_environment` and `release_ch
 
 ## Environment Isolation
 
-The EAS build profile selects the analytics environment; the committed app manifest contains no PostHog token.
+The EAS build profile selects the analytics environment for remote builds. Local Android and Xcode release builds infer it from the already-selected production or staging Supabase project, so the normal single-`.env` build workflow does not need another manual switch. The committed app manifest contains no PostHog token.
 
 - `production` requires `EXPO_PUBLIC_POSTHOG_PRODUCTION_KEY`. `EXPO_PUBLIC_POSTHOG_KEY` remains a temporary production-only fallback for the existing release environment.
 - `preview` is staging/internal and requires `EXPO_PUBLIC_POSTHOG_STAGING_KEY`.
@@ -80,7 +80,7 @@ Review the planned and skipped counts before applying. Apply is deliberately cou
 npm run posthog:backfill:trials -- --apply --expected-count=REVIEWED_COUNT
 ```
 
-The apply path verifies that the write key belongs to the PostHog project used for the dry run, then uses a deterministic event UUID and records delivery in Supabase. If an earlier run stopped after PostHog ingestion but before the delivery update, the next run reconciles the matching UUID instead of abandoning or resending it. The script reports planned, written, reconciled, and skipped counts without printing user IDs or secrets.
+The apply path verifies that the write key belongs to the PostHog project used for the dry run, then uses a deterministic event UUID and records delivery in Supabase. If an earlier run stopped after PostHog ingestion but before the delivery update, the next run reconciles the matching UUID instead of abandoning or resending it. The script reports planned, written, reconciled, and skipped counts without printing user IDs or secrets. Because historical 1.1.2 traffic cannot be reliably classified as store or internal traffic, backfilled events intentionally remain unclassified and are excluded from the production-only 1.1.3 dashboards.
 
 ## Attribution Limitation
 
@@ -90,7 +90,7 @@ Campaign, ad-set, ad, and creative identifiers are not added speculatively. Unti
 
 Before relying on the dashboards:
 
-1. Confirm the EAS environment provides the correct PostHog public project token for the selected profile. Running `npx expo config --type public` with `EAS_BUILD_PROFILE=production` or `preview` fails if that profile's token is missing or invalid.
+1. Confirm the EAS environment provides the correct PostHog public project token for the selected profile. Running `npx expo config --type public` with `EAS_BUILD_PROFILE=production` or `preview` fails if that profile's token is missing or invalid. For local Android/Xcode release builds, run the same command without `EAS_BUILD_PROFILE` after selecting the target Supabase values and confirm `analyticsEnvironment` matches that target.
 2. Apply the `planning_activated_at` and PostHog trial outbox migrations to the target Supabase environment.
 3. Install a build containing the updated analytics hooks.
 4. Confirm each event once in PostHog Live Events using a test account.
