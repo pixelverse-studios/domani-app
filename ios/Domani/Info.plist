@@ -21,7 +21,7 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.1.2</string>
+    <string>1.1.3</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleURLTypes</key>
@@ -47,7 +47,7 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>12</string>
+    <string>13</string>
     <key>FacebookAdvertiserIDCollectionEnabled</key>
     <false/>
     <key>FacebookAppID</key>
@@ -55,7 +55,7 @@
     <key>FacebookAutoInitEnabled</key>
     <false/>
     <key>FacebookAutoLogAppEventsEnabled</key>
-    <true/>
+    <false/>
     <key>FacebookClientToken</key>
     <string>16744d197d09de3b8fbe963bee30b999</string>
     <key>FacebookDisplayName</key>

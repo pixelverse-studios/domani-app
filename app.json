@@ -2,7 +2,7 @@
   "expo": {
     "name": "Domani",
     "slug": "domani-app",
-    "version": "1.1.2",
+    "version": "1.1.3",
     "orientation": "portrait",
     "scheme": "domani",
     "icon": "./assets/AppIcon-sage.png",
@@ -16,14 +16,14 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.baitedz.domani-app",
-      "buildNumber": "12",
+      "buildNumber": "13",
       "usesAppleSignIn": true,
       "infoPlist": {
         "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {
-      "versionCode": 125,
+      "versionCode": 126,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-adaptive-icon-foreground.png",
         "backgroundColor": "#FAF8F5"
