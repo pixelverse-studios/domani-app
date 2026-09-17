@@ -21,6 +21,7 @@ import {
   TutorialStep,
   TutorialTargetMeasurement,
 } from '~/stores/tutorialStore'
+import { getAccountLifecycleSnapshot } from '~/lib/accountLifecycleCoordinator'
 
 type TutorialStepConfig = {
   title: string
@@ -197,7 +198,8 @@ export function TutorialSpotlight() {
 
     if (currentStep === 'complete') {
       trackTutorialCompleted()
-      setTimeout(() => completeTutorial(), 150)
+      const expectedUserId = getAccountLifecycleSnapshot().activeUserId ?? undefined
+      setTimeout(() => completeTutorial(expectedUserId), 150)
       return
     }
 
@@ -228,7 +230,8 @@ export function TutorialSpotlight() {
 
     overlayOpacity.value = withTiming(0, { duration: 150 })
     tooltipScale.value = withTiming(0.9, { duration: 150 })
-    setTimeout(() => skipTutorial(), 150)
+    const expectedUserId = getAccountLifecycleSnapshot().activeUserId ?? undefined
+    setTimeout(() => skipTutorial(expectedUserId), 150)
   }
 
   const overlayAnimatedStyle = useAnimatedStyle(() => ({
@@ -380,7 +383,10 @@ export function TutorialSpotlight() {
               ]}
               activeOpacity={0.8}
             >
-              <Text className="font-sans-semibold text-sm" style={{ color: theme.colors.text.secondary }}>
+              <Text
+                className="font-sans-semibold text-sm"
+                style={{ color: theme.colors.text.secondary }}
+              >
                 {t('common.actions.back')}
               </Text>
             </TouchableOpacity>

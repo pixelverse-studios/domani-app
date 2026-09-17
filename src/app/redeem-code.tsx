@@ -19,7 +19,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Text } from '~/components/ui'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { addBreadcrumb } from '~/lib/sentry'
-import { getOfferings, OFFERINGS, setRevenueCatPromoRedemptionAttributes } from '~/lib/revenuecat'
+import { OFFERINGS } from '~/lib/revenuecat'
 import { findPromoPackage } from '~/lib/promoPackages'
 import { buildPromoAnalyticsProps, recordPromoRedemptionAttemptEvent } from '~/lib/promoAnalytics'
 import { useAppTheme } from '~/hooks/useAppTheme'
@@ -31,7 +31,9 @@ import {
   useValidatePromoCode,
 } from '~/hooks/usePromoCode'
 import { useSubscription } from '~/hooks/useSubscription'
+import { useAuth } from '~/hooks/useAuth'
 import { useTranslation } from '~/hooks/useTranslation'
+import { isAllowedExternalStoreUrl } from '~/lib/navigationSecurity'
 
 function getPromoErrorKey(status: PromoCodeFailureStatus) {
   switch (status) {
@@ -78,6 +80,7 @@ export default function RedeemCodeScreen() {
   const { t } = useTranslation()
   const { track } = useAnalytics()
   const subscription = useSubscription()
+  const { user } = useAuth()
   const validatePromoCode = useValidatePromoCode()
   const [code, setCode] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
@@ -101,7 +104,7 @@ export default function RedeemCodeScreen() {
     !!validOffer && subscription.offeringIdentifier !== OFFERINGS.GENERAL
   const { data: generalOffering } = useQuery({
     queryKey: ['offerings', OFFERINGS.GENERAL],
-    queryFn: () => getOfferings(OFFERINGS.GENERAL),
+    queryFn: () => subscription.loadOffering(OFFERINGS.GENERAL),
     enabled: shouldLoadGeneralOfferingPrice,
     retry: false,
   })
@@ -240,7 +243,7 @@ export default function RedeemCodeScreen() {
   }
 
   const handleOpenFallback = async (offer: ValidPromoCodeResult) => {
-    if (!offer.routing.fallbackUrl) {
+    if (!isAllowedExternalStoreUrl(offer.routing.fallbackUrl)) {
       setActionError(t('subscription.redeemCode.errorPlatformUnavailable'))
       return
     }
@@ -252,6 +255,7 @@ export default function RedeemCodeScreen() {
     })
     trackValidOfferEvent('promo_store_handoff_started', offer, 'store_fallback')
     void recordPromoRedemptionAttemptEvent({
+      expectedUserId: user?.id ?? null,
       redemptionAttemptId: offer.redemptionAttemptId,
       event: 'store_handoff_started',
       metadata: {
@@ -267,7 +271,7 @@ export default function RedeemCodeScreen() {
       platform: Platform.OS,
     })
     try {
-      await setRevenueCatPromoRedemptionAttributes(offerContext)
+      await subscription.syncPromoRedemptionAttributes(offerContext)
     } catch {
       // The fallback is the recovery path; do not block it on support metadata.
     }
@@ -276,6 +280,7 @@ export default function RedeemCodeScreen() {
       setActionError(t('subscription.redeemCode.storeFallbackOpened'))
     } catch {
       void recordPromoRedemptionAttemptEvent({
+        expectedUserId: user?.id ?? null,
         redemptionAttemptId: offer.redemptionAttemptId,
         event: 'redemption_failed',
         status: 'failed',
@@ -332,7 +337,9 @@ export default function RedeemCodeScreen() {
   }
 
   const purchasePromoPackage = async (offer: ValidPromoCodeResult) => {
-    const offering = await getOfferings(offer.routing.revenueCatOfferingId ?? undefined)
+    const offering = await subscription.loadOffering(
+      offer.routing.revenueCatOfferingId ?? undefined,
+    )
     const promoPackage = findPromoPackage(offering?.availablePackages, offer)
 
     if (!promoPackage) {
@@ -341,6 +348,7 @@ export default function RedeemCodeScreen() {
 
     trackValidOfferEvent('promo_store_handoff_started', offer, 'revenuecat_purchase_package')
     void recordPromoRedemptionAttemptEvent({
+      expectedUserId: user?.id ?? null,
       redemptionAttemptId: offer.redemptionAttemptId,
       event: 'store_handoff_started',
       metadata: {
@@ -370,6 +378,7 @@ export default function RedeemCodeScreen() {
     try {
       trackValidOfferEvent('promo_applied', validOffer)
       void recordPromoRedemptionAttemptEvent({
+        expectedUserId: user?.id ?? null,
         redemptionAttemptId: validOffer.redemptionAttemptId,
         event: 'promo_applied',
         metadata: {
@@ -425,6 +434,7 @@ export default function RedeemCodeScreen() {
       }
     } catch {
       void recordPromoRedemptionAttemptEvent({
+        expectedUserId: user?.id ?? null,
         redemptionAttemptId: validOffer.redemptionAttemptId,
         event: 'redemption_failed',
         status: 'failed',

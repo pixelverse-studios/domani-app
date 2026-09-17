@@ -14,6 +14,10 @@ import { format, parseISO, setHours, setMinutes } from 'date-fns'
 import { supabase } from './supabase'
 import { NotificationService } from './notifications'
 import { addBreadcrumb } from './sentry'
+import {
+  getAccountLifecycleSnapshot,
+  runAccountOwnedOperation,
+} from './accountLifecycleCoordinator'
 import type { TaskWithCategory, TaskPriority } from '~/types'
 
 /**
@@ -291,117 +295,128 @@ export interface CarryForwardInput {
  * })
  */
 export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskWithCategory[]> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+  const expectedUserId = getAccountLifecycleSnapshot().activeUserId
+  if (!expectedUserId) throw new Error('Not authenticated')
 
-  // Scope to authenticated user's tasks only
-  // Fetch original tasks with all data including category relations
-  const { data: selectedTasks, error: fetchError } = await supabase
-    .from('tasks')
-    .select(
-      `
+  const result = await runAccountOwnedOperation(expectedUserId, null, async () => {
+    // Scope to authenticated user's tasks only
+    // Fetch original tasks with all data including category relations
+    const { data: selectedTasks, error: fetchError } = await supabase
+      .from('tasks')
+      .select(
+        `
       *,
       system_category:system_categories(*),
       user_category:user_categories(*)
     `,
-    )
-    .in('id', input.selectedTaskIds)
-    .eq('user_id', user.id)
+      )
+      .in('id', input.selectedTaskIds)
+      .eq('user_id', expectedUserId)
 
-  if (fetchError) throw fetchError
-  if (!selectedTasks || selectedTasks.length === 0) {
-    return []
-  }
+    if (fetchError) throw fetchError
+    if (!selectedTasks || selectedTasks.length === 0) {
+      return []
+    }
 
-  const createdTasks: TaskWithCategory[] = []
-  const scheduledNotifications: string[] = []
-  const now = new Date()
+    const createdTasks: TaskWithCategory[] = []
+    const scheduledNotifications: string[] = []
+    const now = new Date()
 
-  try {
-    // Create each task in the target plan
-    for (const originalTask of selectedTasks) {
-      // Determine priority for MIT handling
-      // If shouldMakeMIT is true AND this was the MIT, set priority='top'
-      // DB trigger will auto-set is_mit=true and demote other TOP tasks
-      let newPriority: TaskPriority = (originalTask.priority ?? 'medium') as TaskPriority
-      if (input.shouldMakeMIT && originalTask.is_mit) {
-        newPriority = 'top'
-      }
-
-      // Calculate reminder time if keeping times
-      let newReminderAt: string | null = null
-      if (input.keepReminderTimes && originalTask.reminder_at) {
-        const originalReminder = parseISO(originalTask.reminder_at)
-        // Create new reminder for today at the same time
-        const nextOccurrence = setMinutes(
-          setHours(now, originalReminder.getHours()),
-          originalReminder.getMinutes(),
-        )
-
-        // Only use if future (don't schedule reminders in the past)
-        if (nextOccurrence > now) {
-          newReminderAt = nextOccurrence.toISOString()
+    try {
+      // Create each task in the target plan
+      for (const originalTask of selectedTasks) {
+        // Determine priority for MIT handling
+        // If shouldMakeMIT is true AND this was the MIT, set priority='top'
+        // DB trigger will auto-set is_mit=true and demote other TOP tasks
+        let newPriority: TaskPriority = (originalTask.priority ?? 'medium') as TaskPriority
+        if (input.shouldMakeMIT && originalTask.is_mit) {
+          newPriority = 'top'
         }
-      }
 
-      // Create new task for target date
-      const { data: newTask, error: createError } = await supabase
-        .from('tasks')
-        .insert({
-          user_id: user.id,
-          title: originalTask.title,
-          description: originalTask.description,
-          system_category_id: originalTask.system_category_id,
-          user_category_id: originalTask.user_category_id,
-          priority: newPriority,
-          estimated_duration_minutes: originalTask.estimated_duration_minutes,
-          notes: originalTask.notes,
-          reminder_at: newReminderAt,
-          scheduled_date: input.targetDate,
-          // Do NOT set: is_mit (auto-set by trigger), completed_at, notification_id
-        })
-        .select(
-          `
+        // Calculate reminder time if keeping times
+        let newReminderAt: string | null = null
+        if (input.keepReminderTimes && originalTask.reminder_at) {
+          const originalReminder = parseISO(originalTask.reminder_at)
+          // Create new reminder for today at the same time
+          const nextOccurrence = setMinutes(
+            setHours(now, originalReminder.getHours()),
+            originalReminder.getMinutes(),
+          )
+
+          // Only use if future (don't schedule reminders in the past)
+          if (nextOccurrence > now) {
+            newReminderAt = nextOccurrence.toISOString()
+          }
+        }
+
+        // Create new task for target date
+        const { data: newTask, error: createError } = await supabase
+          .from('tasks')
+          .insert({
+            user_id: expectedUserId,
+            title: originalTask.title,
+            description: originalTask.description,
+            system_category_id: originalTask.system_category_id,
+            user_category_id: originalTask.user_category_id,
+            priority: newPriority,
+            estimated_duration_minutes: originalTask.estimated_duration_minutes,
+            notes: originalTask.notes,
+            reminder_at: newReminderAt,
+            scheduled_date: input.targetDate,
+            // Do NOT set: is_mit (auto-set by trigger), completed_at, notification_id
+          })
+          .select(
+            `
           *,
           system_category:system_categories(*),
           user_category:user_categories(*)
         `,
-        )
-        .single()
+          )
+          .single()
 
-      if (createError) {
-        throw createError
-      }
+        if (createError) {
+          throw createError
+        }
 
-      const taskWithCategory = newTask as TaskWithCategory
-      // FIX 4: IMPORTANT - Track task immediately after successful insert
-      createdTasks.push(taskWithCategory)
+        const taskWithCategory = newTask as TaskWithCategory
+        // FIX 4: IMPORTANT - Track task immediately after successful insert
+        createdTasks.push(taskWithCategory)
 
-      // Schedule notification if reminder is set
-      if (taskWithCategory.reminder_at) {
-        const notificationId = await NotificationService.scheduleTaskReminder({
-          id: taskWithCategory.id,
-          title: taskWithCategory.title,
-          is_mit: taskWithCategory.is_mit,
-          reminder_at: taskWithCategory.reminder_at,
-          notes: taskWithCategory.notes,
-        })
+        // Schedule notification if reminder is set
+        if (taskWithCategory.reminder_at) {
+          const notificationId = await NotificationService.scheduleTaskReminder(
+            {
+              id: taskWithCategory.id,
+              title: taskWithCategory.title,
+              is_mit: taskWithCategory.is_mit,
+              reminder_at: taskWithCategory.reminder_at,
+              notes: taskWithCategory.notes,
+            },
+            expectedUserId,
+            false,
+          )
 
-        if (notificationId) {
-          scheduledNotifications.push(notificationId)
-          // FIX 5: IMPORTANT - Check for errors when updating notification_id
-          // Update task with notification ID
-          const { error: updateError } = await supabase
-            .from('tasks')
-            .update({ notification_id: notificationId })
-            .eq('id', taskWithCategory.id)
-          // Only update local object if update succeeded
-          if (!updateError) {
-            taskWithCategory.notification_id = notificationId
+          if (notificationId) {
+            scheduledNotifications.push(notificationId)
+            // FIX 5: IMPORTANT - Check for errors when updating notification_id
+            // Update task with notification ID
+            const { error: updateError } = await supabase
+              .from('tasks')
+              .update({ notification_id: notificationId })
+              .eq('id', taskWithCategory.id)
+            // Only update local object if update succeeded
+            if (!updateError) {
+              taskWithCategory.notification_id = notificationId
+            } else {
+              await NotificationService.cancelTaskReminder(notificationId, expectedUserId, false)
+              await supabase
+                .from('tasks')
+                .update({ reminder_at: null, notification_id: null })
+                .eq('id', taskWithCategory.id)
+              taskWithCategory.reminder_at = null
+              taskWithCategory.notification_id = null
+            }
           } else {
-            await NotificationService.cancelTaskReminder(notificationId)
             await supabase
               .from('tasks')
               .update({ reminder_at: null, notification_id: null })
@@ -409,64 +424,60 @@ export async function carryForwardTasks(input: CarryForwardInput): Promise<TaskW
             taskWithCategory.reminder_at = null
             taskWithCategory.notification_id = null
           }
-        } else {
-          await supabase
-            .from('tasks')
-            .update({ reminder_at: null, notification_id: null })
-            .eq('id', taskWithCategory.id)
-          taskWithCategory.reminder_at = null
-          taskWithCategory.notification_id = null
         }
       }
-    }
 
-    // Mark source tasks as rolled over (soft archive — preserves data for analytics)
-    const { error: markError } = await supabase
-      .from('tasks')
-      .update({ rolled_over_at: new Date().toISOString() })
-      .in('id', input.selectedTaskIds)
-      .eq('user_id', user.id)
+      // Mark source tasks as rolled over (soft archive — preserves data for analytics)
+      const { error: markError } = await supabase
+        .from('tasks')
+        .update({ rolled_over_at: new Date().toISOString() })
+        .in('id', input.selectedTaskIds)
+        .eq('user_id', expectedUserId)
 
-    if (markError) {
-      // Non-fatal: new tasks already created, log and continue
-      console.error('[carryForwardTasks] Failed to mark tasks as rolled over:', markError)
-      addBreadcrumb('Failed to mark tasks rolled_over_at', 'rollover', {
-        error: markError.message,
+      if (markError) {
+        // Non-fatal: new tasks already created, log and continue
+        console.error('[carryForwardTasks] Failed to mark tasks as rolled over:', markError)
+        addBreadcrumb('Failed to mark tasks rolled_over_at', 'rollover', {
+          error: markError.message,
+        })
+      }
+
+      // Log success breadcrumb for Sentry
+      addBreadcrumb('Tasks carried forward', 'rollover', {
+        taskCount: createdTasks.length,
+        mitCarried: createdTasks.some((t) => t.is_mit),
+        keepReminders: input.keepReminderTimes,
       })
-    }
 
-    // Log success breadcrumb for Sentry
-    addBreadcrumb('Tasks carried forward', 'rollover', {
-      taskCount: createdTasks.length,
-      mitCarried: createdTasks.some((t) => t.is_mit),
-      keepReminders: input.keepReminderTimes,
-    })
+      return createdTasks
+    } catch (error) {
+      // All-or-nothing rollback: Delete all created tasks
+      console.error('[carryForwardTasks] Error occurred, rolling back:', error)
 
-    return createdTasks
-  } catch (error) {
-    // All-or-nothing rollback: Delete all created tasks
-    console.error('[carryForwardTasks] Error occurred, rolling back:', error)
-
-    for (const task of createdTasks) {
-      try {
-        await supabase.from('tasks').delete().eq('id', task.id)
-      } catch (deleteError) {
-        console.error(`[carryForwardTasks] Rollback failed for task ${task.id}:`, deleteError)
+      for (const task of createdTasks) {
+        try {
+          await supabase.from('tasks').delete().eq('id', task.id)
+        } catch (deleteError) {
+          console.error(`[carryForwardTasks] Rollback failed for task ${task.id}:`, deleteError)
+        }
       }
-    }
 
-    // Cancel all scheduled notifications
-    for (const notificationId of scheduledNotifications) {
-      try {
-        await NotificationService.cancelTaskReminder(notificationId)
-      } catch (cancelError) {
-        console.error(
-          `[carryForwardTasks] Failed to cancel notification ${notificationId}:`,
-          cancelError,
-        )
+      // Cancel all scheduled notifications
+      for (const notificationId of scheduledNotifications) {
+        try {
+          await NotificationService.cancelTaskReminder(notificationId, expectedUserId, false)
+        } catch (cancelError) {
+          console.error(
+            `[carryForwardTasks] Failed to cancel notification ${notificationId}:`,
+            cancelError,
+          )
+        }
       }
-    }
 
-    throw error
-  }
+      throw error
+    }
+  })
+
+  if (result === null) throw new Error('The authenticated account changed during rollover.')
+  return result
 }

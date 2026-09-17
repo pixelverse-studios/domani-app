@@ -3,6 +3,7 @@ import { AppState, type AppStateStatus } from 'react-native'
 
 import { supabase } from '~/lib/supabase'
 import { useAuth } from '~/hooks/useAuth'
+import { runAccountOwnedOperation } from '~/lib/accountLifecycleCoordinator'
 
 const THROTTLE_MS = 60 * 60 * 1000 // 1 hour
 
@@ -21,13 +22,15 @@ export function useActivityTracking() {
     const updateActivity = () => {
       const now = Date.now()
       if (now - lastUpdatedRef.current < THROTTLE_MS) return
-      lastUpdatedRef.current = now
+      const expectedUserId = user.id
 
-      supabase
-        .from('profiles')
-        .update({ last_active_at: new Date().toISOString() })
-        .eq('id', user.id)
-        .then() // fire-and-forget
+      void runAccountOwnedOperation(expectedUserId, undefined, async () => {
+        lastUpdatedRef.current = now
+        await supabase
+          .from('profiles')
+          .update({ last_active_at: new Date().toISOString() })
+          .eq('id', expectedUserId)
+      })
     }
 
     // Update on mount (app open)

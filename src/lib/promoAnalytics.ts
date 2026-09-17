@@ -2,6 +2,7 @@ import { Platform } from 'react-native'
 
 import { supabase } from '~/lib/supabase'
 import { addBreadcrumb } from '~/lib/sentry'
+import { requireAccountOwnedOperation } from '~/lib/accountLifecycleCoordinator'
 import type { PromoCodeResult, ValidPromoCodeResult } from '~/hooks/usePromoCode'
 import type { PurchaseAccessSyncAttemptContext } from '~/hooks/useSubscription'
 import type { Json } from '~/types/supabase'
@@ -90,28 +91,44 @@ export function buildPromoAttemptAnalyticsProps(
 }
 
 export async function recordPromoRedemptionAttemptEvent(input: {
+  expectedUserId: string | null
   redemptionAttemptId?: string | null
   event: string
   status?: 'failed' | 'abandoned' | null
   errorCode?: string | null
   errorMessage?: string | null
   metadata?: Record<string, unknown>
+  accountOperationAlreadyOwned?: boolean
 }) {
-  if (!input.redemptionAttemptId) return
+  if (!input.expectedUserId || !input.redemptionAttemptId) return
 
   const metadata = (input.metadata ?? {}) as Json
 
   try {
-    const { error } = await supabase.rpc('update_current_user_promo_redemption_attempt', {
-      p_redemption_attempt_id: input.redemptionAttemptId,
-      p_event: input.event,
-      p_status: input.status ?? null,
-      p_error_code: input.errorCode ?? null,
-      p_error_message: input.errorMessage ?? null,
-      p_metadata: metadata,
-    })
+    const updateAudit = async () =>
+      await supabase.rpc('update_expected_user_promo_redemption_attempt', {
+        p_expected_user_id: input.expectedUserId!,
+        p_redemption_attempt_id: input.redemptionAttemptId!,
+        p_event: input.event,
+        p_status: input.status ?? null,
+        p_error_code: input.errorCode ?? null,
+        p_error_message: input.errorMessage ?? null,
+        p_metadata: metadata,
+      })
+    const { data, error } = input.accountOperationAlreadyOwned
+      ? await updateAudit()
+      : await requireAccountOwnedOperation(input.expectedUserId, updateAudit)
 
     if (error) throw error
+    if (
+      data &&
+      typeof data === 'object' &&
+      !Array.isArray(data) &&
+      'status' in data &&
+      data.status === 'not_found'
+    ) {
+      throw new Error('Promo redemption attempt was not found for the initiating account.')
+    }
   } catch (error) {
     addBreadcrumb('Failed to update promo redemption audit event', 'promo.audit', {
       redemptionAttemptId: input.redemptionAttemptId,

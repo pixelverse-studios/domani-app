@@ -6,6 +6,11 @@ import { useAuth } from '~/hooks/useAuth'
 import type { UserCategory, SystemCategory, UserCategoryPreference } from '~/types'
 import { getTheme } from '~/theme/themes'
 import { validateCategoryName } from '~/constants/systemCategories.validation'
+import {
+  captureAccountOperationToken,
+  reconcileAccountOperation,
+  requireAccountOwnedOperation,
+} from '~/lib/accountLifecycleCoordinator'
 
 // Map of form category IDs to database names for system categories
 const SYSTEM_CATEGORY_MAP: Record<string, string> = {
@@ -102,26 +107,33 @@ export function useCreateUserCategory() {
       validateCategoryName(name)
 
       if (!user?.id) throw new Error('Not authenticated')
+      const expectedUserId = user.id
 
-      const { data, error } = await supabase
-        .from('user_categories')
-        .insert({
-          user_id: user.id,
-          name,
-          color,
-          icon,
-        })
-        .select()
-        .single()
+      return requireAccountOwnedOperation(expectedUserId, async () => {
+        const { data, error } = await supabase
+          .from('user_categories')
+          .insert({
+            user_id: expectedUserId,
+            name,
+            color,
+            icon,
+          })
+          .select()
+          .single()
 
-      if (error) throw error
+        if (error) throw error
 
-      return data as UserCategory
+        return data as UserCategory
+      })
     },
-    onSuccess: () => {
-      if (user?.id) {
-        queryClient.invalidateQueries({ queryKey: ['userCategories', user.id] })
-      }
+    onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
+    onSuccess: (_data, _variables, context) => {
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        queryClient.invalidateQueries({ queryKey: ['userCategories', accountToken.userId] })
+      })
     },
   })
 }
@@ -133,19 +145,26 @@ export function useDeleteUserCategory() {
   return useMutation({
     mutationFn: async (categoryId: string) => {
       if (!user?.id) throw new Error('Not authenticated')
+      const expectedUserId = user.id
 
-      const { error } = await supabase
-        .from('user_categories')
-        .delete()
-        .eq('id', categoryId)
-        .eq('user_id', user.id)
+      await requireAccountOwnedOperation(expectedUserId, async () => {
+        const { error } = await supabase
+          .from('user_categories')
+          .delete()
+          .eq('id', categoryId)
+          .eq('user_id', expectedUserId)
 
-      if (error) throw error
+        if (error) throw error
+      })
     },
-    onSuccess: () => {
-      if (user?.id) {
-        queryClient.invalidateQueries({ queryKey: ['userCategories', user.id] })
-      }
+    onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
+    onSuccess: (_data, _variables, context) => {
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        queryClient.invalidateQueries({ queryKey: ['userCategories', accountToken.userId] })
+      })
     },
   })
 }
@@ -257,22 +276,32 @@ export function useUpdateFavoriteCategories() {
   return useMutation({
     mutationFn: async (categoryIds: string[]) => {
       if (!user?.id) throw new Error('Not authenticated')
+      const expectedUserId = user.id
 
       if (categoryIds.length > 4) {
         throw new Error('Maximum 4 favorite categories allowed')
       }
 
-      const { error } = await supabase.rpc('update_current_user_favorite_categories', {
-        p_favorite_category_ids: categoryIds,
-      })
+      await requireAccountOwnedOperation(expectedUserId, async () => {
+        const { error } = await supabase.rpc('update_favorite_categories', {
+          p_favorite_category_ids: categoryIds,
+          p_user_id: expectedUserId,
+        })
 
-      if (error) throw error
+        if (error) throw error
+      })
     },
-    onSuccess: () => {
-      if (user?.id) {
-        queryClient.invalidateQueries({ queryKey: ['userCategories', user.id] })
-        queryClient.invalidateQueries({ queryKey: ['userCategoryPreferences', user.id] })
-      }
+    onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
+    onSuccess: (_data, _variables, context) => {
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        queryClient.invalidateQueries({ queryKey: ['userCategories', accountToken.userId] })
+        queryClient.invalidateQueries({
+          queryKey: ['userCategoryPreferences', accountToken.userId],
+        })
+      })
     },
   })
 }
@@ -285,19 +314,29 @@ export function useUpdateCategoryPositions() {
   return useMutation({
     mutationFn: async (categories: { id: string; position: number; isSystem: boolean }[]) => {
       if (!user?.id) throw new Error('Not authenticated')
+      const expectedUserId = user.id
 
       // Call the database function to batch update positions
-      const { error } = await supabase.rpc('update_current_user_category_positions', {
-        p_category_positions: categories,
-      })
+      await requireAccountOwnedOperation(expectedUserId, async () => {
+        const { error } = await supabase.rpc('update_category_positions', {
+          p_category_positions: categories,
+          p_user_id: expectedUserId,
+        })
 
-      if (error) throw error
+        if (error) throw error
+      })
     },
-    onSuccess: () => {
-      if (user?.id) {
-        queryClient.invalidateQueries({ queryKey: ['userCategories', user.id] })
-        queryClient.invalidateQueries({ queryKey: ['userCategoryPreferences', user.id] })
-      }
+    onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
+    onSuccess: (_data, _variables, context) => {
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        queryClient.invalidateQueries({ queryKey: ['userCategories', accountToken.userId] })
+        queryClient.invalidateQueries({
+          queryKey: ['userCategoryPreferences', accountToken.userId],
+        })
+      })
     },
   })
 }
@@ -316,22 +355,32 @@ export function useIncrementCategoryUsage() {
       userCategoryId?: string | null
     }) => {
       if (!user?.id) throw new Error('Not authenticated')
+      const expectedUserId = user.id
 
       // Only call if there's a category to update
       if (!systemCategoryId && !userCategoryId) return
 
-      const { error } = await supabase.rpc('increment_current_user_category_usage', {
-        p_system_category_id: systemCategoryId ?? undefined,
-        p_user_category_id: userCategoryId ?? undefined,
-      })
+      await requireAccountOwnedOperation(expectedUserId, async () => {
+        const { error } = await supabase.rpc('increment_category_usage', {
+          p_system_category_id: systemCategoryId ?? undefined,
+          p_user_category_id: userCategoryId ?? undefined,
+          p_user_id: expectedUserId,
+        })
 
-      if (error) throw error
+        if (error) throw error
+      })
     },
-    onSuccess: () => {
-      if (user?.id) {
-        queryClient.invalidateQueries({ queryKey: ['userCategories', user.id] })
-        queryClient.invalidateQueries({ queryKey: ['userCategoryPreferences', user.id] })
-      }
+    onMutate: () => ({ accountToken: captureAccountOperationToken(user?.id ?? null) }),
+    onSuccess: (_data, _variables, context) => {
+      const accountToken = context?.accountToken
+      if (!accountToken) return
+      reconcileAccountOperation(accountToken, (disposition) => {
+        if (disposition === 'changed') return
+        queryClient.invalidateQueries({ queryKey: ['userCategories', accountToken.userId] })
+        queryClient.invalidateQueries({
+          queryKey: ['userCategoryPreferences', accountToken.userId],
+        })
+      })
     },
   })
 }

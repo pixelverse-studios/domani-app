@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import {
+  parseExpectedUserId,
   parsePromoConfirmationContext,
   parseVerifiedLifetimeAccess,
   PROMO_GATED_LIFETIME_PRODUCT_IDS,
@@ -55,14 +56,23 @@ Deno.serve(async (req) => {
   }
 
   let promoContext = null
+  let expectedUserId = null
   try {
     const body = await req.json().catch(() => ({}))
     promoContext = parsePromoConfirmationContext(body?.promoContext)
+    expectedUserId = parseExpectedUserId(body?.expectedUserId)
   } catch (error) {
     if (error instanceof Error && error.message === 'INVALID_PROMO_CONTEXT') {
       return jsonResponse({ error: 'Invalid promo context' }, 400)
     }
+    if (error instanceof Error && error.message === 'INVALID_EXPECTED_USER_ID') {
+      return jsonResponse({ error: 'Invalid expected user' }, 400)
+    }
     return jsonResponse({ error: 'Invalid request body' }, 400)
+  }
+
+  if (expectedUserId && expectedUserId !== user.id) {
+    return jsonResponse({ error: 'Authenticated account changed' }, 409)
   }
 
   let revenueCatResponse: Response

@@ -6,6 +6,10 @@ import {
   useTutorialStore,
 } from '~/stores/tutorialStore'
 import { supabase } from '~/lib/supabase'
+import {
+  resetAccountLifecycleCoordinatorForTests,
+  setActiveAccount,
+} from '~/lib/accountLifecycleCoordinator'
 
 function emptyMeasurements(): Record<TutorialStep, TutorialTargetMeasurement | null> {
   return Object.fromEntries(TUTORIAL_STEPS.map((step) => [step, null])) as Record<
@@ -52,13 +56,12 @@ function createProfilesQuery(
 }
 
 const mockFrom = supabase.from as unknown as jest.Mock
-const mockGetUser = supabase.auth.getUser as unknown as jest.Mock
-
 describe('tutorialStore', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    resetAccountLifecycleCoordinatorForTests()
+    setActiveAccount('user-1')
     resetTutorialStore()
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
   })
 
   it('starts the tutorial for users without tutorial_completed_at', async () => {
@@ -93,6 +96,58 @@ describe('tutorialStore', () => {
       hasCompletedTutorial: true,
       isLoading: false,
     })
+  })
+
+  it('ignores a stale initialization result after an account switch', async () => {
+    let resolveFirst: (value: { data: unknown; error: unknown }) => void = () => {}
+    const firstQuery = createProfilesQuery()
+    firstQuery.single.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveFirst = resolve
+        }),
+    )
+    const secondQuery = createProfilesQuery({
+      data: { tutorial_completed_at: '2026-05-15T20:00:00.000Z' },
+      error: null,
+    })
+    mockFrom.mockReturnValueOnce(firstQuery).mockReturnValueOnce(secondQuery)
+
+    const firstInitialization = useTutorialStore.getState().initializeTutorialState('user-1')
+    await useTutorialStore.getState().initializeTutorialState('user-2')
+    resolveFirst({ data: { tutorial_completed_at: null }, error: null })
+    await firstInitialization
+
+    expect(useTutorialStore.getState()).toMatchObject({
+      isActive: false,
+      currentStep: null,
+      hasCompletedTutorial: true,
+      isLoading: false,
+    })
+  })
+
+  it('clears volatile tutorial state when the authenticated account changes', () => {
+    resetTutorialStore({
+      isActive: true,
+      currentStep: 'task_priority',
+      hasCompletedTutorial: true,
+      isLoading: false,
+      pausedAt: Date.now(),
+      pausedStep: 'task_category',
+      analyticsViewedSteps: new Set<TutorialStep>(['welcome']),
+    })
+
+    useTutorialStore.getState().clearSessionState()
+
+    expect(useTutorialStore.getState()).toMatchObject({
+      isActive: false,
+      currentStep: null,
+      hasCompletedTutorial: false,
+      isLoading: true,
+      pausedAt: null,
+      pausedStep: null,
+    })
+    expect(useTutorialStore.getState().analyticsViewedSteps.size).toBe(0)
   })
 
   it('marks the tutorial complete when skipped', async () => {
@@ -173,6 +228,22 @@ describe('tutorialStore', () => {
     await waitFor(() => {
       expect(query.update).toHaveBeenCalledWith({ tutorial_completed_at: null })
       expect(query.eq).toHaveBeenCalledWith('id', 'user-1')
+    })
+  })
+
+  it('ignores a delayed account A action after account B becomes active', async () => {
+    const query = createProfilesQuery()
+    mockFrom.mockReturnValue(query)
+    resetTutorialStore({ isActive: true, currentStep: 'complete', isLoading: false })
+
+    setActiveAccount('user-2')
+    useTutorialStore.getState().completeTutorial('user-1')
+
+    expect(query.update).not.toHaveBeenCalled()
+    expect(useTutorialStore.getState()).toMatchObject({
+      isActive: true,
+      currentStep: 'complete',
+      hasCompletedTutorial: false,
     })
   })
 

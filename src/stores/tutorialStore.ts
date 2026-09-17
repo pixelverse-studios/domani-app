@@ -1,6 +1,12 @@
 import { create } from 'zustand'
 
 import { supabase } from '~/lib/supabase'
+import {
+  captureAccountOperationToken,
+  getAccountLifecycleSnapshot,
+  isAccountOperationTokenCurrent,
+  requireAccountOwnedOperation,
+} from '~/lib/accountLifecycleCoordinator'
 
 /**
  * Tutorial steps in order of progression
@@ -84,9 +90,10 @@ interface TutorialStore {
   startTutorial: () => void
   nextStep: (step?: TutorialStep) => void
   previousStep: () => void
-  skipTutorial: () => void
-  completeTutorial: () => void
-  resetTutorial: () => void
+  skipTutorial: (expectedUserId?: string) => void
+  completeTutorial: (expectedUserId?: string) => void
+  resetTutorial: (expectedUserId?: string) => void
+  clearSessionState: () => void
 
   // Soft timeout actions
   pauseTutorial: () => void
@@ -108,32 +115,27 @@ interface TutorialStore {
 /**
  * Helper to mark tutorial as completed in the database
  */
-async function markTutorialCompleted(): Promise<void> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return
+async function persistTutorialCompletion(
+  expectedUserId: string,
+  completedAt: string | null,
+): Promise<void> {
+  await requireAccountOwnedOperation(expectedUserId, async (isCurrent) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ tutorial_completed_at: completedAt })
+      .eq('id', expectedUserId)
 
-  await supabase
-    .from('profiles')
-    .update({ tutorial_completed_at: new Date().toISOString() })
-    .eq('id', user.id)
+    if (error) throw error
+    if (!isCurrent()) {
+      throw new Error('Tutorial update was cancelled because the authenticated account changed.')
+    }
+  })
 }
 
-/**
- * Helper to clear tutorial completion in the database (for replay)
- */
-async function clearTutorialCompletion(): Promise<void> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return
+const resolveTutorialOwner = (expectedUserId?: string) =>
+  expectedUserId ?? getAccountLifecycleSnapshot().activeUserId ?? undefined
 
-  await supabase.from('profiles').update({ tutorial_completed_at: null }).eq('id', user.id)
-}
-
-// Guard to prevent race conditions during initialization
-const initState = { isInitializing: false }
+let initializingUserId: string | null = null
 
 export const useTutorialStore = create<TutorialStore>()((set, get) => ({
   // Initial state
@@ -154,8 +156,9 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
 
   // Initialize tutorial state from database
   initializeTutorialState: async (userId: string) => {
-    if (initState.isInitializing) return
-    initState.isInitializing = true
+    if (initializingUserId === userId) return
+    initializingUserId = userId
+    set({ isLoading: true })
 
     try {
       const { data, error } = await supabase
@@ -163,6 +166,8 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
         .select('tutorial_completed_at')
         .eq('id', userId)
         .single()
+
+      if (initializingUserId !== userId) return
 
       if (error) {
         console.error('Error fetching tutorial state:', error)
@@ -187,10 +192,11 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
         })
       }
     } catch (error) {
+      if (initializingUserId !== userId) return
       console.error('Error initializing tutorial state:', error)
       set({ isLoading: false })
     } finally {
-      initState.isInitializing = false
+      if (initializingUserId === userId) initializingUserId = null
     }
   },
 
@@ -253,8 +259,12 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
     }),
 
   // Skip the tutorial entirely
-  skipTutorial: () => {
-    markTutorialCompleted().catch((err) =>
+  skipTutorial: (expectedUserId) => {
+    const ownerId = resolveTutorialOwner(expectedUserId)
+    const accountToken = ownerId ? captureAccountOperationToken(ownerId) : null
+    if (!ownerId || !isAccountOperationTokenCurrent(accountToken)) return
+
+    persistTutorialCompletion(ownerId, new Date().toISOString()).catch((err) =>
       console.error('Failed to save tutorial completion:', err),
     )
     set({
@@ -266,8 +276,12 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
   },
 
   // Complete the tutorial successfully
-  completeTutorial: () => {
-    markTutorialCompleted().catch((err) =>
+  completeTutorial: (expectedUserId) => {
+    const ownerId = resolveTutorialOwner(expectedUserId)
+    const accountToken = ownerId ? captureAccountOperationToken(ownerId) : null
+    if (!ownerId || !isAccountOperationTokenCurrent(accountToken)) return
+
+    persistTutorialCompletion(ownerId, new Date().toISOString()).catch((err) =>
       console.error('Failed to save tutorial completion:', err),
     )
     set({
@@ -279,14 +293,35 @@ export const useTutorialStore = create<TutorialStore>()((set, get) => ({
   },
 
   // Reset tutorial state and start it (for "Replay Tutorial" in Settings)
-  resetTutorial: () => {
-    clearTutorialCompletion().catch((err) =>
+  resetTutorial: (expectedUserId) => {
+    const ownerId = resolveTutorialOwner(expectedUserId)
+    const accountToken = ownerId ? captureAccountOperationToken(ownerId) : null
+    if (!ownerId || !isAccountOperationTokenCurrent(accountToken)) return
+
+    persistTutorialCompletion(ownerId, null).catch((err) =>
       console.error('Failed to clear tutorial completion:', err),
     )
     set({
       isActive: true,
       currentStep: 'welcome',
       hasCompletedTutorial: false,
+      isOverlayHidden: false,
+      pausedAt: null,
+      pausedStep: null,
+      abandonCount: 0,
+      analyticsStartTime: null,
+      analyticsViewedSteps: new Set<TutorialStep>(),
+      targetMeasurements: createEmptyTargetMeasurements(),
+    })
+  },
+
+  clearSessionState: () => {
+    initializingUserId = null
+    set({
+      isActive: false,
+      currentStep: null,
+      hasCompletedTutorial: false,
+      isLoading: true,
       isOverlayHidden: false,
       pausedAt: null,
       pausedStep: null,

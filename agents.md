@@ -154,6 +154,43 @@ Closes #[issue number] (if applicable)
 - [ ] TypeScript types updated
 ```
 
+## Linear Planning Structure
+
+Use a flat Linear hierarchy suited to Domani's small team. Do not create separate `Epic:` parent issues by default; project milestones serve as the epic-level workstreams.
+
+### Hierarchy
+
+1. **Project** — the ongoing product line, such as `Domani App 1.x`.
+2. **Release** — the actual app version or build that ships, such as `1.2.0` or `1.2.1`.
+3. **Milestone** — a meaningful feature or workstream within a release, such as `1.2 Security`, `1.2 Templates`, or `1.2 Expanded Task Options`.
+4. **Ticket** — an independently deliverable story, capability, fix, design task, or QA scope assigned to the appropriate milestone.
+5. **Child ticket** — an independently implementable, reviewable, or testable part of a larger ticket. Do not create children merely to reproduce a checklist.
+
+### Rules
+
+- Treat milestones as Domani's epic-level planning layer. Do not add an additional epic-issue layer unless the user explicitly requests it.
+- Create a milestone only when several related tickets form a distinct body of work worth tracking separately.
+- Do not create a milestone automatically for every release, isolated bug, or small patch.
+- A patch release with only a few fixes may contain tickets without any new milestone. Create a patch milestone only for a coordinated workstream such as stabilization.
+- Keep story tickets independently actionable and place detailed acceptance criteria, verification steps, dependencies, relevant PRD links, and design screenshots on the most relevant ticket.
+- Avoid duplicating the same screenshot across many tickets. Attach it to the owning story and reference that story from related children.
+- Use child tickets only when the pieces can be implemented, reviewed, assigned, or verified independently.
+- Associate shipped tickets with Releases through their commits and pull requests. Milestones describe planned work; Releases record what actually shipped.
+- Use normal semantic versions for platform-specific releases. The release pipeline identifies iOS or Android, so do not add `-ios` or `-android` to the app version solely for tracking.
+
+### Example
+
+```text
+Project: Domani App 1.x
+└── Release: 1.2.0
+    ├── Milestone: 1.2 Security
+    │   └── Story tickets and optional child tickets
+    ├── Milestone: 1.2 Templates
+    │   └── Story tickets and optional child tickets
+    └── Milestone: 1.2 Expanded Task Options
+        └── Story tickets and optional child tickets
+```
+
 ## Technology Stack
 
 ### Core Framework

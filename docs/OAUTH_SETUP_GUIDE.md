@@ -146,11 +146,11 @@ Add these URLs:
 exp://127.0.0.1:8081/--/auth/callback
 exp://localhost:8081/--/auth/callback
 
-# Production (Custom Scheme)
-domani://auth/callback
+# Production (claimed HTTPS callback; primary on Android and iOS 17.4+)
+https://www.domani-app.com/auth/callback
 
-# Production (Universal Links - Optional)
-https://domani.app/auth/callback
+# Compatibility fallback (development and iOS versions before 17.4)
+domani://auth/callback
 ```
 
 Click **Save**
