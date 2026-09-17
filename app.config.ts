@@ -101,7 +101,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         scheme: META_SCHEME,
         advertiserIDCollectionEnabled: false,
         autoLogAppEventsEnabled,
-        isAutoInitEnabled: false,
+        // Native modules can be loaded before the JS initializer runs, especially
+        // while Expo Router discovers routes on Android. Initialize the SDK
+        // natively, while keeping advertiser-ID collection disabled.
+        isAutoInitEnabled: true,
         iosUserTrackingPermission: trackingPermission || false,
       },
     ],
