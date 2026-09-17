@@ -21,6 +21,10 @@ function isMetaAppEventsConfigured() {
   return Constants.expoConfig?.extra?.metaAppEventsConfigured === true
 }
 
+function shouldAutoLogMetaAppEvents() {
+  return Constants.expoConfig?.extra?.metaAutoLogAppEventsEnabled === true
+}
+
 async function disableAdvertiserTracking() {
   Settings.setAdvertiserIDCollectionEnabled(false)
   if (Platform.OS === 'ios') {
@@ -42,6 +46,7 @@ export function initializeMetaAppEvents() {
       if (!isMetaAppEventsConfigured()) return false
 
       Settings.initializeSDK()
+      Settings.setAutoLogAppEventsEnabled(shouldAutoLogMetaAppEvents())
       await disableAdvertiserTracking()
       return true
     })().catch((error) => {

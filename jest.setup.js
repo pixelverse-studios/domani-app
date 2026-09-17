@@ -215,6 +215,7 @@ jest.doMock('react-native-fbsdk-next', () => {
     ...supportedMock,
     Settings: {
       ...supportedMock.Settings,
+      setAutoLogAppEventsEnabled: jest.fn(),
       setAdvertiserIDCollectionEnabled: jest.fn(),
       setAdvertiserTrackingEnabled: jest.fn(() => Promise.resolve(true)),
     },

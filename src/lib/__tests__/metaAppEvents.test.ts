@@ -2,12 +2,16 @@ jest.mock('expo-constants', () => ({
   __esModule: true,
   default: {
     expoConfig: {
-      extra: { metaAppEventsConfigured: true },
+      extra: {
+        metaAppEventsConfigured: true,
+        metaAutoLogAppEventsEnabled: true,
+      },
     },
   },
 }))
 
 import { Platform } from 'react-native'
+import Constants from 'expo-constants'
 
 type MetaAppEventsModule = typeof import('../metaAppEvents')
 
@@ -41,6 +45,7 @@ describe('Meta App Events SDK privacy controls', () => {
 
   afterEach(() => {
     setPlatform(originalPlatform)
+    Constants.expoConfig!.extra!.metaAutoLogAppEventsEnabled = true
   })
 
   it('initializes once with advertiser tracking disabled', async () => {
@@ -51,8 +56,18 @@ describe('Meta App Events SDK privacy controls', () => {
     await metaAppEvents.initializeMetaAppEvents()
 
     expect(Settings.initializeSDK).toHaveBeenCalledTimes(1)
+    expect(Settings.setAutoLogAppEventsEnabled).toHaveBeenCalledWith(true)
     expect(Settings.setAdvertiserIDCollectionEnabled).toHaveBeenCalledWith(false)
     expect(Settings.setAdvertiserTrackingEnabled).toHaveBeenCalledWith(false)
+  })
+
+  it('keeps automatic events disabled when the build flag is false', async () => {
+    Constants.expoConfig!.extra!.metaAutoLogAppEventsEnabled = false
+    const { metaAppEvents, Settings } = loadModule()
+
+    await metaAppEvents.initializeMetaAppEvents()
+
+    expect(Settings.setAutoLogAppEventsEnabled).toHaveBeenCalledWith(false)
   })
 
   it('enables advertiser tracking only after ATT is granted', async () => {

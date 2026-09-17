@@ -15,10 +15,10 @@ As of August 16, 2026:
 - Meta's manual App Events setup was configured to request implementation instructions for `StartTrial`, `Purchase`, and `CompleteRegistration`.
 - `react-native-fbsdk-next` and `expo-tracking-transparency` are installed for Expo SDK 54.
 - The Expo config plugin supplies the production Meta App ID, display name, URL scheme, privacy flags, ATT copy, and build-time Client Token.
-- The SDK initializes once at app startup with advertiser tracking and advertiser-ID collection disabled.
+- Android initializes the native SDK before React Native loads; iOS initializes it from JavaScript. Both keep advertiser tracking and advertiser-ID collection disabled initially.
 - ATT permission is requested when the user taps **Start 14-Day Free Trial**, immediately before trial creation. A denial, unavailable prompt, or permission error never blocks the trial.
 - Manual funnel event calls remain tracked separately in DEV-1109.
-- Automatic App Install/App Launch logging is enabled through build configuration; automatic in-app-purchase logging remains disabled in Meta.
+- Native manifests keep automatic App Install/App Launch logging disabled. JavaScript enables it only when the selected build environment explicitly sets `META_AUTO_LOG_APP_EVENTS_ENABLED=true`; automatic in-app-purchase logging remains disabled in Meta.
 - The iOS shared-secret field is intentionally blank because Domani does not sell an auto-renewing subscription.
 
 ## Meta Asset Identifiers
@@ -45,7 +45,7 @@ The dynamic Expo config accepts:
 | `META_IOS_TRACKING_USAGE_DESCRIPTION` | Approved `NSUserTrackingUsageDescription` copy                                 | Missing; ATT plugin is omitted         |
 | `META_AUTO_LOG_APP_EVENTS_ENABLED`    | Enables automatic App Install/App Launch logging when explicitly set to `true` | `false`                                |
 
-Production EAS config evaluation fails if the Client Token or ATT description is missing. Advertiser-ID collection remains disabled in generated configuration regardless of the automatic-event setting and is enabled at runtime on iOS only after ATT is granted.
+Production EAS config evaluation fails if the Client Token or ATT description is missing. Generated native configuration always keeps automatic event logging and advertiser-ID collection disabled. JavaScript applies the environment-specific automatic-event setting after SDK initialization, while advertiser-ID collection is enabled at runtime on iOS only after ATT is granted.
 
 Because this repository contains checked-in native directories, app-config changes are not automatically synchronized into those directories. Before any native build—including an EAS build that uses the checked-in projects—supply the build variables and run:
 

@@ -1,10 +1,24 @@
 import { ConfigContext, ExpoConfig } from 'expo/config'
+import { AndroidConfig, ConfigPlugin, withAndroidManifest } from 'expo/config-plugins'
 import appJson from './app.json'
 
 const META_APP_ID = '1378815353582072'
 const META_DISPLAY_NAME = 'Domani'
 const META_SCHEME = `fb${META_APP_ID}`
 const DEFAULT_POSTHOG_HOST = 'https://us.i.posthog.com'
+
+const withAndroidMetaAutoInitialization: ConfigPlugin = (config) =>
+  withAndroidManifest(config, (androidConfig) => {
+    const application = AndroidConfig.Manifest.getMainApplicationOrThrow(
+      androidConfig.modResults,
+    )
+    AndroidConfig.Manifest.addMetaDataItemToMainApplication(
+      application,
+      'com.facebook.sdk.AutoInitEnabled',
+      'true',
+    )
+    return androidConfig
+  })
 
 function resolveAnalyticsEnvironment(
   easBuildProfile: string | undefined,
@@ -92,6 +106,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   const plugins = [
     ...(appJson.expo.plugins ?? []),
+    // Expo applies same-platform mods inside-out. Register this before the
+    // Facebook plugin so its Android-only override runs after that plugin.
+    withAndroidMetaAutoInitialization,
     [
       'react-native-fbsdk-next',
       {
@@ -100,11 +117,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         displayName: META_DISPLAY_NAME,
         scheme: META_SCHEME,
         advertiserIDCollectionEnabled: false,
-        autoLogAppEventsEnabled,
-        // Native modules can be loaded before the JS initializer runs, especially
-        // while Expo Router discovers routes on Android. Initialize the SDK
-        // natively, while keeping advertiser-ID collection disabled.
-        isAutoInitEnabled: true,
+        // Keep automatic telemetry disabled in the native manifests so checked-in
+        // projects cannot bypass the selected build environment. JS enables it
+        // after reading the environment-specific Expo configuration.
+        autoLogAppEventsEnabled: false,
+        // iOS remains manually initialized. The Android-only plugin above
+        // overrides this native value because Expo Router can load Facebook
+        // native modules before the JS initializer executes on Android.
+        isAutoInitEnabled: false,
         iosUserTrackingPermission: trackingPermission || false,
       },
     ],
