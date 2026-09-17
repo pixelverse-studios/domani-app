@@ -55,7 +55,7 @@
     <key>FacebookAutoInitEnabled</key>
     <false/>
     <key>FacebookAutoLogAppEventsEnabled</key>
-    <true/>
+    <false/>
     <key>FacebookClientToken</key>
     <string>16744d197d09de3b8fbe963bee30b999</string>
     <key>FacebookDisplayName</key>
