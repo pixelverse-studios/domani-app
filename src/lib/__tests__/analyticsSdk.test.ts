@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { PostHog, PostHogPersistedProperty } from 'posthog-react-native'
+import { resetAnalyticsClient } from '../resetAnalyticsClient'
 import { analyticsStorage } from '../analyticsStorage'
 import { filterAnalyticsEvent } from '../telemetryPrivacy'
 
@@ -61,4 +62,46 @@ describe('PostHog persistence integration', () => {
     await Promise.all([first.shutdown(), second.shutdown()])
     fetch.mockRestore()
   })
+})
+
+it('waits for an outgoing batch before accepting replacement-account events', async () => {
+  let release!: () => void
+  let started!: () => void
+  const began = new Promise<void>((resolve) => {
+    started = resolve
+  })
+  const response = new Promise<Response>((resolve) => {
+    release = () => resolve(new Response('{}'))
+  })
+  const fetch = jest.spyOn(global, 'fetch').mockImplementation(async (url) => {
+    if (String(url).includes('/batch/')) {
+      started()
+      return response
+    }
+    return new Response('{"surveys":[]}')
+  })
+  await AsyncStorage.clear()
+  const sdk = client('120')
+  await sdk.ready()
+  sdk.setPersistedProperty(PostHogPersistedProperty.Queue, [])
+  sdk.identify('11111111-1111-4111-8111-111111111111')
+  const flushing = sdk.flush()
+  await began
+  let cleaned = false
+  const cleanup = resetAnalyticsClient(sdk).then(() => {
+    cleaned = true
+  })
+  await analyticsStorage.getItem('.posthog-rn.json')
+  expect(cleaned).toBe(false)
+  release()
+  await Promise.all([flushing, cleanup])
+  sdk.identify('22222222-2222-4222-8222-222222222222')
+  sdk.capture('feedback_submitted', { category: 'bug_report' })
+  await analyticsStorage.getItem('.posthog-rn.json')
+  const queue = JSON.stringify(sdk.getPersistedProperty(PostHogPersistedProperty.Queue))
+  expect(queue).toContain('22222222-2222-4222-8222-222222222222')
+  expect(queue).toContain('bug_report')
+  expect(queue).not.toContain('11111111-1111-4111-8111-111111111111')
+  await sdk.shutdown()
+  fetch.mockRestore()
 })

@@ -159,3 +159,20 @@ describe('telemetry privacy', () => {
     })
   })
 })
+
+it.each(['bug_report', 'feature_idea', 'what_i_love', 'general'])(
+  'preserves fixed feedback category %s at both boundaries only for feedback',
+  (category) => {
+    if (typeof filterAnalyticsEvent !== 'function') throw new Error('expected one filter')
+    const properties = structuralProperties({ category }, 'feedback_submitted')
+    expect(properties).toEqual({ category })
+    expect(filterAnalyticsEvent({ event: 'feedback_submitted', properties })?.properties).toEqual({
+      category,
+    })
+    expect(structuralProperties({ category }, 'task_created')).toEqual({})
+    expect(
+      filterAnalyticsEvent({ event: 'task_created', properties: { category } })?.properties,
+    ).toEqual({})
+    expect(structuralProperties({ category: 'private category' }, 'feedback_submitted')).toEqual({})
+  },
+)

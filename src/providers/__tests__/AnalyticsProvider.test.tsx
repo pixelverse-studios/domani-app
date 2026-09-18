@@ -26,6 +26,7 @@ jest.mock('~/lib/analyticsStorage', () => ({
 const mockState: Record<string, unknown> = {}
 const mockPosthog = {
   ready: jest.fn(async () => {}),
+  flush: jest.fn(async () => {}),
   getDistinctId: jest.fn(() => mockState.distinct_id),
   getPersistedProperty: jest.fn((key: string) => mockState[key]),
   setPersistedProperty: jest.fn((key: string, value: unknown) => {
@@ -59,6 +60,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 beforeEach(() => {
   jest.clearAllMocks()
   mockPosthog.ready.mockResolvedValue(undefined)
+  mockPosthog.flush.mockResolvedValue(undefined)
   for (const key of Object.keys(mockState)) delete mockState[key]
   mockState.installed_app_build = '120'
 })
@@ -133,4 +135,35 @@ describe('analytics identity lifecycle', () => {
     })
     expect(mockPosthog.identify).not.toHaveBeenCalled()
   })
+})
+
+it('gates captures and replacement identity until the outgoing flush settles', async () => {
+  let release!: () => void
+  mockPosthog.flush.mockReturnValue(
+    new Promise<void>((resolve) => {
+      release = resolve
+    }),
+  )
+  mockState.person_mode = 'identified'
+  mockState.distinct_id = 'A'
+  const { result } = renderHook(useAnalytics, { wrapper })
+  const cleared = clearAccountAnalytics()
+  act(() => {
+    result.current.identify('B')
+    result.current.track('feedback_submitted', { category: 'bug_report' })
+    result.current.screen('today')
+  })
+  await act(async () => {
+    await Promise.resolve()
+  })
+  expect(mockPosthog.identify).not.toHaveBeenCalled()
+  expect(mockPosthog.capture).not.toHaveBeenCalled()
+  expect(mockPosthog.screen).not.toHaveBeenCalled()
+  await act(async () => {
+    release()
+    await cleared
+  })
+  await waitFor(() => expect(mockPosthog.identify).toHaveBeenCalledWith('B', {}))
+  act(() => result.current.track('feedback_submitted', { category: 'bug_report' }))
+  expect(mockPosthog.capture).toHaveBeenCalledWith('feedback_submitted', { category: 'bug_report' })
 })

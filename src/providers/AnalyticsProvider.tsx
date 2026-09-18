@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useCallback, useEffect, useRef } from 'react'
 import { PostHogProvider, PostHogPersistedProperty, usePostHog } from 'posthog-react-native'
 import Constants from 'expo-constants'
+import { resetAnalyticsClient } from '~/lib/resetAnalyticsClient'
 import {
   analyticsStorage,
   clearAccountAnalytics,
@@ -178,19 +179,18 @@ const AnalyticsContext = createContext<AnalyticsContextValue | undefined>(undefi
 function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
   const posthog = usePostHog()
   const identityUpdate = useRef(0)
+  const cleanup = useRef<Promise<void> | null>(null)
 
   useEffect(() => {
     if (!posthog) return
-    return registerAnalyticsCleanup(async () => {
+    return registerAnalyticsCleanup(() => {
+      if (cleanup.current) return cleanup.current
       identityUpdate.current += 1
-      await posthog.ready()
-      // SDK reset preserves its queue by default; explicitly remove account events too.
-      posthog.setPersistedProperty(PostHogPersistedProperty.Queue, [])
-      posthog.reset([
-        PostHogPersistedProperty.InstalledAppBuild,
-        PostHogPersistedProperty.InstalledAppVersion,
-        PostHogPersistedProperty.OptedOut,
-      ])
+      const pending = resetAnalyticsClient(posthog).finally(() => {
+        cleanup.current = null
+      })
+      cleanup.current = pending
+      return pending
     })
   }, [posthog])
 
@@ -201,7 +201,8 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
         return
       }
       console.log('[Analytics] Tracking event:', eventName, properties)
-      posthog.capture(eventName, structuralProperties(properties))
+      if (cleanup.current) return
+      posthog.capture(eventName, structuralProperties(properties, eventName))
     },
     [posthog],
   )
@@ -217,6 +218,7 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
       void posthog
         .ready()
         .then(async () => {
+          await cleanup.current
           if (identityUpdate.current !== update) return
           if (
             posthog.getPersistedProperty(PostHogPersistedProperty.PersonMode) === 'identified' &&
@@ -262,6 +264,7 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
         return
       }
       console.log('[Analytics] Tracking screen:', screenName)
+      if (cleanup.current) return
       posthog.screen(screenName)
     },
     [posthog],

@@ -189,6 +189,7 @@ const IDENTIFIER = /^[a-zA-Z0-9_$][a-zA-Z0-9_.:$-]{0,127}$/
 // category names, route parameters and future task fields) are private by default.
 export function structuralProperties(
   properties: Record<string, unknown> = {},
+  eventName?: string,
 ): Record<string, string | number | boolean> {
   return Object.fromEntries(
     Object.entries(properties).filter(
@@ -200,6 +201,9 @@ export function structuralProperties(
             (IDS.has(key) && UUID.test(value)) ||
             (VERSION_FIELDS.has(key) && VERSION.test(value)) ||
             (IDENTIFIER_FIELDS.has(key) && IDENTIFIER.test(value)) ||
+            (key === 'category' &&
+              eventName === 'feedback_submitted' &&
+              ['bug_report', 'feature_idea', 'what_i_love', 'general'].includes(value)) ||
             (key === 'plan_date' && /^\d{4}-\d{2}-\d{2}$/.test(value)))),
     ),
   ) as Record<string, string | number | boolean>
@@ -224,7 +228,7 @@ export function identityTraits(properties: Record<string, unknown> = {}) {
 
 export const filterAnalyticsEvent: NonNullable<PostHogOptions['before_send']> = (event) => {
   if (!event || !EVENTS.has(event.event)) return null
-  const properties = structuralProperties(event.properties)
+  const properties = structuralProperties(event.properties, event.event)
   // PostHog injects the public project token; ingestion requires it.
   if (typeof event.properties?.token === 'string') properties.token = event.properties.token
   return {
