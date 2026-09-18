@@ -710,7 +710,7 @@ export function useSubscription() {
         ...buildPromoAttemptAnalyticsProps(attemptContext),
         source: request.source,
         sync_status: errorCode,
-        error_code: error instanceof Error ? error.message : errorCode,
+        error_code: errorCode,
       })
 
       await recordPromoRedemptionAttemptEvent({

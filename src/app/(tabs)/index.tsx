@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
-import AsyncStorage from '@react-native-async-storage/async-storage'
+import { accountStorage } from '~/lib/accountStorage'
 import { X } from 'lucide-react-native'
 
 import { Text } from '~/components/ui'
@@ -48,7 +48,6 @@ import {
 } from '~/lib/accountLifecycleCoordinator'
 
 const NAME_PROMPT_DISMISSED_KEY = 'domani_name_prompt_dismissed'
-const getNamePromptDismissedKey = (userId: string) => `${NAME_PROMPT_DISMISSED_KEY}:${userId}`
 
 export default function TodayScreen() {
   useScreenTracking('today')
@@ -98,7 +97,7 @@ export default function TodayScreen() {
       setShowNameModal(false)
 
       // Check if user has dismissed the prompt before
-      const dismissed = await AsyncStorage.getItem(getNamePromptDismissedKey(expectedUserId))
+      const dismissed = await accountStorage.getItem(NAME_PROMPT_DISMISSED_KEY, expectedUserId)
       if (cancelled || !isAccountOperationTokenCurrent(accountToken)) return
       if (dismissed === 'true') return
 
@@ -159,7 +158,7 @@ export default function TodayScreen() {
     const accountToken = captureAccountOperationToken(expectedUserId)
     if (!isAccountOperationTokenCurrent(accountToken)) return
 
-    await AsyncStorage.setItem(getNamePromptDismissedKey(expectedUserId), 'true')
+    await accountStorage.setItem(NAME_PROMPT_DISMISSED_KEY, expectedUserId, 'true')
     if (isAccountOperationTokenCurrent(accountToken)) setShowNameModal(false)
   }
 

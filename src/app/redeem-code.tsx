@@ -233,7 +233,7 @@ export default function RedeemCodeScreen() {
       track('promo_validation_failed', {
         platform: Platform.OS,
         validation_status: 'request_failed',
-        error_code: error instanceof Error ? error.message : String(error),
+        error_code: 'request_failed',
       })
       addBreadcrumb('Promo code validation request failed', 'promo.validation', {
         platform: Platform.OS,
