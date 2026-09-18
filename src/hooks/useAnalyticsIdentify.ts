@@ -28,9 +28,7 @@ export function useAnalyticsIdentify() {
       // User signed in - identify them
       // Only include defined values
       const traits: Record<string, string | number | boolean | null> = {}
-      if (user.email) traits.email = user.email
       if (user.identities?.[0]?.provider) traits.auth_provider = user.identities[0].provider
-      if (user.created_at) traits.created_at = user.created_at
 
       identify(currentUserId, traits)
       console.log('[Analytics] User identified:', currentUserId)

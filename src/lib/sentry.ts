@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/react-native'
 import Constants from 'expo-constants'
+import { sanitizeErrorEvent } from './telemetryPrivacy'
 
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN || ''
 
@@ -37,9 +38,8 @@ export function initSentry() {
     // Environment differentiation
     environment: __DEV__ ? 'development' : 'production',
 
-    // Sample rate for performance monitoring (0.0 to 1.0)
-    // Start with 20% to balance insights vs cost
-    tracesSampleRate: 0.2,
+    // Traces can include navigation and request data; send sanitized errors only.
+    tracesSampleRate: 0,
 
     // Enable native crash reporting
     enableNative: true,
@@ -48,20 +48,18 @@ export function initSentry() {
     attachStacktrace: true,
 
     // Breadcrumb configuration
-    maxBreadcrumbs: 50,
+    maxBreadcrumbs: 0,
+    beforeBreadcrumb: () => null,
+    beforeSendTransaction: () => null,
+    enableLogs: false,
+    attachScreenshot: false,
+    attachViewHierarchy: false,
 
     // Don't send PII by default
     sendDefaultPii: false,
 
     // Filter out known non-actionable errors
-    beforeSend(event) {
-      // Filter out network errors that are user-side issues
-      if (event.exception?.values?.[0]?.type === 'NetworkError') {
-        return null
-      }
-
-      return event
-    },
+    beforeSend: sanitizeErrorEvent,
 
     // Add app context
     initialScope: {
@@ -77,13 +75,12 @@ export function initSentry() {
  * Set the current user for Sentry error tracking.
  * Call this after authentication to associate errors with users.
  */
-export function setSentryUser(userId: string | null, email?: string) {
+export function setSentryUser(userId: string | null) {
   if (!SENTRY_DSN || __DEV__) return
 
   if (userId) {
     Sentry.setUser({
       id: userId,
-      email: email,
     })
   } else {
     Sentry.setUser(null)

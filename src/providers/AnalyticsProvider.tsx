@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useCallback } from 'react'
+import React, { createContext, useContext, useCallback, useEffect } from 'react'
 import { PostHogProvider, usePostHog } from 'posthog-react-native'
 import Constants from 'expo-constants'
+import { clearLegacyTelemetryStorage } from '~/lib/legacyTelemetryStorage'
+import { filterAnalyticsEvent, structuralProperties } from '~/lib/telemetryPrivacy'
 
 const POSTHOG_API_KEY =
   Constants.expoConfig?.extra?.posthogApiKey || process.env.EXPO_PUBLIC_POSTHOG_KEY || ''
@@ -147,7 +149,12 @@ export type AnalyticsEvent =
     }
   | {
       name: 'evening_rollover_started_fresh'
-      properties: { task_count: number; had_mit: boolean; source: 'notification' | 'app_open'; mode?: 'morning' | 'evening' }
+      properties: {
+        task_count: number
+        had_mit: boolean
+        source: 'notification' | 'app_open'
+        mode?: 'morning' | 'evening'
+      }
     }
   // Celebration events
   | {
@@ -174,7 +181,7 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
         return
       }
       console.log('[Analytics] Tracking event:', eventName, properties)
-      posthog.capture(eventName, properties)
+      posthog.capture(eventName, structuralProperties(properties))
     },
     [posthog],
   )
@@ -186,7 +193,7 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
         return
       }
       console.log('[Analytics] Identifying user:', userId, traits)
-      posthog.identify(userId, traits)
+      posthog.identify(userId, structuralProperties(traits))
     },
     [posthog],
   )
@@ -218,6 +225,12 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    void clearLegacyTelemetryStorage().catch(() => {
+      console.warn('[Analytics] Legacy telemetry cleanup failed; retry on next launch or sign-out')
+    })
+  }, [])
+
   // Skip PostHog if no API key (e.g., in development without .env)
   if (!POSTHOG_API_KEY) {
     console.warn('[Analytics] No PostHog API key found, analytics disabled')
@@ -241,21 +254,17 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       apiKey={POSTHOG_API_KEY}
       options={{
         host: POSTHOG_HOST,
+        persistence: 'memory',
+        before_send: filterAnalyticsEvent,
+        errorTracking: { autocapture: false },
         // Capture app lifecycle events automatically
         captureAppLifecycleEvents: true,
         // Disable session replay for now (requires custom dev build, not Expo Go)
         enableSessionReplay: false,
-        // Note: Uncomment below when using custom dev builds (not Expo Go)
-        // enableSessionReplay: true,
-        // sessionReplayConfig: {
-        //   maskAllTextInputs: true,
-        //   maskAllImages: false,
-        //   captureNetworkTelemetry: true,
-        // },
       }}
-      // Enable autocapture for screen views
+      // Explicit screen events use fixed names; automatic routes can contain private parameters.
       autocapture={{
-        captureScreens: true,
+        captureScreens: false,
         captureTouches: false,
       }}
     >

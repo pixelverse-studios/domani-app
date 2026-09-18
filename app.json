@@ -19,10 +19,12 @@
       "usesAppleSignIn": true,
       "associatedDomains": ["applinks:www.domani-app.com"],
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": ["remote-notification"],
+        "RCTAsyncStorageExcludeFromBackup": true
       }
     },
     "android": {
+      "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-adaptive-icon-foreground.png",
         "backgroundColor": "#FAF8F5"
@@ -53,6 +55,7 @@
       "output": "static"
     },
     "plugins": [
+      "./plugins/with-private-backups.cjs",
       "expo-router",
       "expo-apple-authentication",
       "expo-font",

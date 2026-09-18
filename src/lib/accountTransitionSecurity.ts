@@ -9,6 +9,7 @@ import {
   setTransitionOutgoingUser,
 } from './accountLifecycleCoordinator'
 import { supabase } from './supabase'
+import { clearAccountStorage } from './accountStorage'
 
 const NOTIFICATION_PURGE_ATTEMPTS = 3
 const NOTIFICATION_PURGE_RETRY_DELAY_MS = 250
@@ -229,6 +230,7 @@ export async function securelyReplaceSession<T>(operation: () => Promise<T>): Pr
 
     if (!session?.user) {
       await requireAccountNotificationReset('change accounts')
+      await clearAccountStorage(null)
       const result = await operation()
       await activateReplacementResult(result)
       return result
@@ -249,6 +251,7 @@ export async function securelyReplaceSession<T>(operation: () => Promise<T>): Pr
       if (!(await releaseCurrentPushToken(user.id, { action: 'change accounts' }))) {
         throw new Error('The authenticated account changed before secure cleanup completed.')
       }
+      await clearAccountStorage(user.id)
       const result = await operation()
       await activateReplacementResult(result)
       return result
@@ -297,6 +300,7 @@ export async function securelySignOut(
         if (!released) return false
       }
 
+      await clearAccountStorage(resolvedUserId ?? expectedUserId)
       const { error: signOutError } = await supabase.auth.signOut()
       if (signOutError) throw signOutError
       setActiveAccount(null)
@@ -321,6 +325,7 @@ export async function securelyHandleExternalSessionLoss(expectedUserId: string):
 
     const finishCleanup = async () => {
       await requireAccountNotificationReset('sign out')
+      await clearAccountStorage(expectedUserId)
       setActiveAccount(null)
     }
 

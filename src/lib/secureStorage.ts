@@ -9,7 +9,13 @@ export const secureStorage = {
   getItem: async (key: string): Promise<string | null> => {
     try {
       const credentials = await Keychain.getGenericPassword({ service: key })
-      return credentials ? credentials.password : null
+      if (!credentials) return null
+      // Upgrade existing installations before their saved session can be reused.
+      await Keychain.setGenericPassword(key, credentials.password, {
+        service: key,
+        accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      })
+      return credentials.password
     } catch (error) {
       console.error('[secureStorage] Error getting item:', error)
       throw error
@@ -18,7 +24,10 @@ export const secureStorage = {
 
   setItem: async (key: string, value: string): Promise<void> => {
     try {
-      await Keychain.setGenericPassword(key, value, { service: key })
+      await Keychain.setGenericPassword(key, value, {
+        service: key,
+        accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      })
     } catch (error) {
       console.error('[secureStorage] Error setting item:', error)
       throw error

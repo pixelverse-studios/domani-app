@@ -1,7 +1,10 @@
 module.exports = function (api) {
-  api.cache(true)
+  const isProduction = api.env('production')
   return {
     presets: ['babel-preset-expo', 'nativewind/babel'],
-    plugins: ['react-native-reanimated/plugin'],
+    plugins: [
+      ...(isProduction ? ['./plugins/strip-production-console.cjs'] : []),
+      'react-native-reanimated/plugin',
+    ],
   }
 }

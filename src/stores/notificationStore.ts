@@ -50,10 +50,12 @@ export const useNotificationStore = create<NotificationStore>()(
     }),
     {
       name: 'notification-storage',
+      version: 1,
+      // Discard legacy persisted account reminder IDs; permissions are rechecked with the OS.
+      migrate: () => ({ permissionStatus: 'undetermined' as PermissionStatus }),
       storage: createJSONStorage(() => AsyncStorage),
       // Only persist device-level state; session-only fields are excluded
       partialize: (state) => ({
-        planningReminderId: state.planningReminderId,
         permissionStatus: state.permissionStatus,
       }),
       // On rehydrate, reset session-only fields to their defaults via setState
@@ -62,6 +64,7 @@ export const useNotificationStore = create<NotificationStore>()(
       // by replacing stale planning reminders before scheduling
       onRehydrateStorage: () => () => {
         useNotificationStore.setState({
+          planningReminderId: null,
           hasValidatedIds: false,
           eveningRolloverSource: null,
           devRolloverRecheckCounter: 0,

@@ -1,4 +1,5 @@
 import { waitFor } from '~/test/test-utils'
+import * as accountStorage from '../accountStorage'
 import { NotificationService } from '../notifications'
 import {
   getAccountLifecycleSnapshot,
@@ -70,6 +71,20 @@ describe('accountTransitionSecurity', () => {
 
   afterEach(() => {
     jest.useRealTimers()
+  })
+
+  it('does not sign out or replace a session when account data cannot be removed', async () => {
+    const cleanup = jest.spyOn(accountStorage, 'clearAccountStorage')
+    cleanup.mockRejectedValueOnce(new Error('local cleanup failed'))
+    await expect(securelySignOut('user-1')).rejects.toThrow('local cleanup failed')
+    expect(mockSignOut).not.toHaveBeenCalled()
+    expect(getAccountLifecycleSnapshot().activeUserId).toBe('user-1')
+
+    cleanup.mockRejectedValueOnce(new Error('local cleanup failed'))
+    const replace = jest.fn()
+    await expect(securelyReplaceSession(replace)).rejects.toThrow('local cleanup failed')
+    expect(replace).not.toHaveBeenCalled()
+    cleanup.mockRestore()
   })
 
   it('keeps the current session active when reminder cleanup cannot be verified', async () => {

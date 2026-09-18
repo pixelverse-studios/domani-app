@@ -21,7 +21,7 @@ export function useSentryIdentify() {
 
     if (currentUserId && user) {
       // User signed in - identify them in Sentry
-      setSentryUser(currentUserId, user.email ?? undefined)
+      setSentryUser(currentUserId)
       if (__DEV__) {
         console.log('[Sentry] User identified:', currentUserId)
       }

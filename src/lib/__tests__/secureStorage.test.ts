@@ -3,6 +3,7 @@ import * as Keychain from 'react-native-keychain'
 import { secureStorage } from '../secureStorage'
 
 jest.mock('react-native-keychain', () => ({
+  ACCESSIBLE: { WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WhenUnlockedThisDeviceOnly' },
   getGenericPassword: jest.fn(),
   resetGenericPassword: jest.fn(),
   setGenericPassword: jest.fn(),
@@ -28,6 +29,10 @@ describe('secureStorage', () => {
     mockGetGenericPassword.mockResolvedValue({ username: 'session', password: 'secret' })
 
     await expect(secureStorage.getItem('auth-session')).resolves.toBe('secret')
+    expect(mockSetGenericPassword).toHaveBeenCalledWith('auth-session', 'secret', {
+      service: 'auth-session',
+      accessible: 'WhenUnlockedThisDeviceOnly',
+    })
   })
 
   it.each([
