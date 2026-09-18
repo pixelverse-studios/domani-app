@@ -1,4 +1,4 @@
-import { clearLegacyTelemetryStorage } from './legacyTelemetryStorage'
+import { clearAccountAnalytics } from './analyticsStorage'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   captureAccountOperationToken,
@@ -42,7 +42,7 @@ export const accountStorage = {
 // sign-out/replacement commits. Queued writes cannot recreate outgoing data.
 export function clearAccountStorage(userId: string | null): Promise<void> {
   return enqueue(async () => {
-    await clearLegacyTelemetryStorage()
+    if (userId) await clearAccountAnalytics()
     await AsyncStorage.multiRemove([
       ...ACCOUNT_KEYS,
       ...(userId ? ACCOUNT_KEYS.map((key) => `${key}:${userId}`) : []),

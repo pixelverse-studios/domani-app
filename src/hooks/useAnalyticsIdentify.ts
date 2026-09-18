@@ -1,6 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { useAuth } from '~/hooks/useAuth'
+import {
+  getAccountLifecycleSnapshot,
+  subscribeToAccountLifecycle,
+} from '~/lib/accountLifecycleCoordinator'
 
 /**
  * Hook to identify/reset users in analytics when auth state changes.
@@ -9,14 +13,19 @@ import { useAuth } from '~/hooks/useAuth'
 export function useAnalyticsIdentify() {
   const { user, loading } = useAuth()
   const { identify, reset } = useAnalytics()
-  const previousUserId = useRef<string | null>(null)
+  const { generation } = useSyncExternalStore(
+    subscribeToAccountLifecycle,
+    getAccountLifecycleSnapshot,
+  )
+  const previousGeneration = useRef<number | null>(null)
+  const previousUserId = useRef<string | null | undefined>(undefined)
 
   useEffect(() => {
     if (loading) return
     const currentUserId = user?.id ?? null
 
-    // Skip if user hasn't changed
-    if (currentUserId === previousUserId.current) {
+    // Re-identify a retained account after a failed transition cleared analytics state.
+    if (currentUserId === previousUserId.current && generation === previousGeneration.current) {
       return
     }
 
@@ -28,16 +37,19 @@ export function useAnalyticsIdentify() {
       // User signed in - identify them
       // Only include defined values
       const traits: Record<string, string | number | boolean | null> = {}
+      if (user.email) traits.email = user.email
+      if (user.created_at) traits.created_at = user.created_at
       if (user.identities?.[0]?.provider) traits.auth_provider = user.identities[0].provider
 
       identify(currentUserId, traits)
       console.log('[Analytics] User identified:', currentUserId)
-    } else if (previousUserId.current && !currentUserId) {
+    } else if (!currentUserId) {
       // User signed out - reset analytics
       reset()
       console.log('[Analytics] User reset (signed out)')
     }
 
+    previousGeneration.current = generation
     previousUserId.current = currentUserId
-  }, [user, loading, identify, reset])
+  }, [user, loading, generation, identify, reset])
 }

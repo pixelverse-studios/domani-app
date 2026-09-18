@@ -6,8 +6,8 @@ import {
   setActiveAccount,
 } from '../accountLifecycleCoordinator'
 
-jest.mock('../legacyTelemetryStorage', () => ({
-  clearLegacyTelemetryStorage: jest.fn(async () => {}),
+jest.mock('../analyticsStorage', () => ({
+  clearAccountAnalytics: jest.fn(async () => {}),
 }))
 
 jest.mock('@react-native-async-storage/async-storage', () =>

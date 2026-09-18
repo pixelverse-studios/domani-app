@@ -39,6 +39,7 @@ const EVENTS = new Set([
   'evening_rollover_started_fresh',
   'celebration_shown',
   '$identify',
+  '$set',
   '$create_alias',
   '$screen',
   'Application Installed',
@@ -66,6 +67,8 @@ const BOOLEANS = new Set([
   'mit_made_tomorrow',
   'kept_reminders',
   'had_mit',
+  '$is_identified',
+  '$process_person_profile',
 ])
 const SCREENS = [
   'welcome',
@@ -79,6 +82,29 @@ const SCREENS = [
   'contact_support',
   'purchase_help',
 ]
+const TUTORIAL_STEPS = [
+  'welcome',
+  'today_primary_action',
+  'planning_form',
+  'task_title',
+  'task_category',
+  'task_priority',
+  'task_reminder',
+  'task_submit',
+  'complete',
+]
+const SYNC_STATUSES = [
+  'confirmed',
+  'non_lifetime_entitlement',
+  'missing_entitlement',
+  'supabase_sync_failed',
+  'revenuecat_unavailable',
+  'skipped',
+  'synced',
+  'not_authenticated',
+  'profile_not_found',
+  'error',
+]
 const ENUMS: Record<string, readonly string[]> = {
   priority: ['top', 'high', 'medium', 'low'],
   provider: ['google', 'apple'],
@@ -86,7 +112,45 @@ const ENUMS: Record<string, readonly string[]> = {
   tier: ['trialing', 'lifetime', 'expired', 'refunded', 'pre_trial', 'beta'],
   platform: ['ios', 'android', 'web'],
   promo_outcome: ['free', 'discounted', 'unknown'],
-  source: ['onboarding', 'settings', 'notification', 'app_open', 'purchase_help', 'redeem_code'],
+  source: [
+    'onboarding',
+    'settings',
+    'notification',
+    'app_open',
+    'purchase_help',
+    'redeem_code',
+    'purchase',
+    'restore',
+    'manual',
+    'promo_redemption',
+    'foreground',
+  ],
+  step: TUTORIAL_STEPS,
+  last_step: TUTORIAL_STEPS,
+  validation_status: [
+    'valid',
+    'invalid',
+    'inactive',
+    'expired',
+    'over_limit',
+    'already_redeemed',
+    'platform_unavailable',
+    'request_failed',
+  ],
+  sync_status: SYNC_STATUSES,
+  error_code: [...SYNC_STATUSES, 'request_failed', 'NETWORK_ERROR'],
+  discount_kind: ['free', 'percent', 'fixed_price'],
+  campaign_type: ['free_lifetime', 'percent_discount_lifetime', 'fixed_price_lifetime'],
+  store_action: [
+    'ios_offer_code_sheet',
+    'android_promo_code_flow',
+    'revenuecat_purchase_package',
+    'server_grant_lifetime',
+    'local_test',
+  ],
+  $app_name: ['Domani'],
+  $os_name: ['iOS', 'Android', 'Web', 'Mac OS X', 'Windows'],
+  $lib: ['posthog-react-native'],
   mode: ['morning', 'evening'],
   celebration_type: ['daily_completion'],
   screen: SCREENS,
@@ -103,6 +167,24 @@ const IDS = new Set([
 ])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+const VERSION_FIELDS = new Set([
+  '$app_version',
+  '$app_build',
+  '$os_version',
+  '$lib_version',
+  'previous_version',
+  'previous_build',
+])
+const IDENTIFIER_FIELDS = new Set([
+  'campaign_slug',
+  'product_id',
+  'revenuecat_offering_id',
+  'revenuecat_package_id',
+  '$app_namespace',
+])
+const VERSION = /^\d+(?:[.\-+][a-zA-Z0-9]+)*$/
+const IDENTIFIER = /^[a-zA-Z0-9_$][a-zA-Z0-9_.:$-]{0,127}$/
+
 // An allowlist is intentional: arbitrary strings (including error messages,
 // category names, route parameters and future task fields) are private by default.
 export function structuralProperties(
@@ -115,9 +197,29 @@ export function structuralProperties(
         (BOOLEANS.has(key) && typeof value === 'boolean') ||
         (typeof value === 'string' &&
           ((Object.prototype.hasOwnProperty.call(ENUMS, key) && ENUMS[key].includes(value)) ||
-            (IDS.has(key) && UUID.test(value)))),
+            (IDS.has(key) && UUID.test(value)) ||
+            (VERSION_FIELDS.has(key) && VERSION.test(value)) ||
+            (IDENTIFIER_FIELDS.has(key) && IDENTIFIER.test(value)) ||
+            (key === 'plan_date' && /^\d{4}-\d{2}-\d{2}$/.test(value)))),
     ),
   ) as Record<string, string | number | boolean>
+}
+
+// Identity traits are allowed only in the explicit identify/person-property channel.
+export function identityTraits(properties: Record<string, unknown> = {}) {
+  const result = structuralProperties({ auth_provider: properties.auth_provider })
+  if (typeof properties.email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(properties.email)) {
+    result.email = properties.email
+  }
+  if (
+    typeof properties.created_at === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(
+      properties.created_at,
+    )
+  ) {
+    result.created_at = properties.created_at
+  }
+  return result
 }
 
 export const filterAnalyticsEvent: NonNullable<PostHogOptions['before_send']> = (event) => {
@@ -130,8 +232,8 @@ export const filterAnalyticsEvent: NonNullable<PostHogOptions['before_send']> = 
     uuid: event.uuid,
     timestamp: event.timestamp,
     properties,
-    $set: structuralProperties(event.$set),
-    $set_once: structuralProperties(event.$set_once),
+    $set: identityTraits(event.$set),
+    $set_once: identityTraits(event.$set_once),
   }
 }
 
@@ -154,6 +256,13 @@ export function sanitizeErrorEvent(event: ErrorEvent): ErrorEvent | null {
           ? exception.type
           : 'Error',
         value: '[private error message removed]',
+        mechanism: exception.mechanism
+          ? {
+              type: 'generic',
+              handled: exception.mechanism.handled,
+              synthetic: exception.mechanism.synthetic,
+            }
+          : undefined,
         stacktrace: {
           frames: exception.stacktrace?.frames?.map((frame) => ({
             // Strip URL queries/fragments and source snippets/locals.

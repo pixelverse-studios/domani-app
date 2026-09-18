@@ -1,8 +1,12 @@
-import React, { createContext, useContext, useCallback, useEffect } from 'react'
-import { PostHogProvider, usePostHog } from 'posthog-react-native'
+import React, { createContext, useContext, useCallback, useEffect, useRef } from 'react'
+import { PostHogProvider, PostHogPersistedProperty, usePostHog } from 'posthog-react-native'
 import Constants from 'expo-constants'
-import { clearLegacyTelemetryStorage } from '~/lib/legacyTelemetryStorage'
-import { filterAnalyticsEvent, structuralProperties } from '~/lib/telemetryPrivacy'
+import {
+  analyticsStorage,
+  clearAccountAnalytics,
+  registerAnalyticsCleanup,
+} from '~/lib/analyticsStorage'
+import { filterAnalyticsEvent, structuralProperties, identityTraits } from '~/lib/telemetryPrivacy'
 
 const POSTHOG_API_KEY =
   Constants.expoConfig?.extra?.posthogApiKey || process.env.EXPO_PUBLIC_POSTHOG_KEY || ''
@@ -173,6 +177,22 @@ const AnalyticsContext = createContext<AnalyticsContextValue | undefined>(undefi
 
 function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
   const posthog = usePostHog()
+  const identityUpdate = useRef(0)
+
+  useEffect(() => {
+    if (!posthog) return
+    return registerAnalyticsCleanup(async () => {
+      identityUpdate.current += 1
+      await posthog.ready()
+      // SDK reset preserves its queue by default; explicitly remove account events too.
+      posthog.setPersistedProperty(PostHogPersistedProperty.Queue, [])
+      posthog.reset([
+        PostHogPersistedProperty.InstalledAppBuild,
+        PostHogPersistedProperty.InstalledAppVersion,
+        PostHogPersistedProperty.OptedOut,
+      ])
+    })
+  }, [posthog])
 
   const track = useCallback(
     <T extends AnalyticsEvent>(eventName: T['name'], properties?: T['properties']) => {
@@ -193,7 +213,24 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
         return
       }
       console.log('[Analytics] Identifying user:', userId, traits)
-      posthog.identify(userId, structuralProperties(traits))
+      const update = ++identityUpdate.current
+      void posthog
+        .ready()
+        .then(async () => {
+          if (identityUpdate.current !== update) return
+          if (
+            posthog.getPersistedProperty(PostHogPersistedProperty.PersonMode) === 'identified' &&
+            posthog.getDistinctId() !== userId
+          ) {
+            await clearAccountAnalytics()
+            // clearAccountAnalytics invalidates earlier identity callbacks.
+            if (identityUpdate.current !== update + 1) return
+          }
+          posthog.identify(userId, identityTraits(traits))
+        })
+        .catch(() => {
+          console.warn('[Analytics] Identity reconciliation failed')
+        })
     },
     [posthog],
   )
@@ -204,7 +241,18 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
       return
     }
     console.log('[Analytics] Resetting user session')
-    posthog.reset()
+    const update = ++identityUpdate.current
+    void posthog
+      .ready()
+      .then(async () => {
+        if (identityUpdate.current !== update) return
+        if (posthog.getPersistedProperty(PostHogPersistedProperty.PersonMode) === 'identified') {
+          await clearAccountAnalytics()
+        }
+      })
+      .catch(() => {
+        console.warn('[Analytics] Account reset failed')
+      })
   }, [posthog])
 
   const screen = useCallback(
@@ -225,12 +273,6 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    void clearLegacyTelemetryStorage().catch(() => {
-      console.warn('[Analytics] Legacy telemetry cleanup failed; retry on next launch or sign-out')
-    })
-  }, [])
-
   // Skip PostHog if no API key (e.g., in development without .env)
   if (!POSTHOG_API_KEY) {
     console.warn('[Analytics] No PostHog API key found, analytics disabled')
@@ -254,7 +296,8 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       apiKey={POSTHOG_API_KEY}
       options={{
         host: POSTHOG_HOST,
-        persistence: 'memory',
+        persistence: 'file',
+        customStorage: analyticsStorage,
         before_send: filterAnalyticsEvent,
         errorTracking: { autocapture: false },
         // Capture app lifecycle events automatically
