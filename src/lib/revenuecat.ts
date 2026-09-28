@@ -310,7 +310,16 @@ export async function getOfferings(offeringIdentifier?: string): Promise<Purchas
       return offerings.all[offeringIdentifier]
     }
 
-    // Fall back to the default/current offering
+    // A missing explicitly selected offering must not silently switch prices.
+    if (offeringIdentifier) {
+      console.error('[RevenueCat] Requested offering unavailable', {
+        requestedOfferingIdentifier: offeringIdentifier,
+        availableOfferingIds,
+      })
+      return null
+    }
+
+    // Fall back to the default/current offering only when no offer was selected.
     console.log('[RevenueCat] Returning current offering', {
       requestedOfferingIdentifier: offeringIdentifier ?? null,
       availableOfferingIds,
