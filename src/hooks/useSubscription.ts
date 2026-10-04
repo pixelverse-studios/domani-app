@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
 import { AppState, Platform } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import Purchases, { CustomerInfo, PurchasesPackage } from 'react-native-purchases'
+import type { CustomerInfo, PurchasesPackage } from 'react-native-purchases'
 import { addDays, parseISO } from 'date-fns'
 
 import { supabase } from '~/lib/supabase'
@@ -37,9 +37,11 @@ import {
   setRevenueCatSessionUser,
   syncRevenueCatSubscriberAttributesForUser,
   getOfferings,
+  getCustomerInfoForUser,
   purchasePackageForUser,
-  restorePurchases,
-  syncPurchasesAndRefreshCustomerInfo,
+  restorePurchasesForUser,
+  runRevenueCatOperationForUser,
+  syncPurchasesAndRefreshCustomerInfoForUser,
   presentCodeRedemptionSheet,
   setRevenueCatPromoRedemptionAttributes,
   ENTITLEMENT_ID,
@@ -397,6 +399,11 @@ export function useSubscription() {
 
     if (previousId && previousId !== user?.id) {
       if (!user?.id) metaPurchaseRecoveryUserRef.current = null
+      pendingExternalPurchaseSyncRef.current = null
+      previousConfirmedAccessSyncSignatureRef.current = null
+      setAccessSyncAttempt(null)
+      setAccessSyncResult(null)
+      setAccessSyncPhase('idle')
       previousRevenueCatAttributeSignatureRef.current = null
       previousAndroidMonetizationBreadcrumbRef.current = null
       setRevenueCatAttributeSyncRetryToken(0)
@@ -498,9 +505,10 @@ export function useSubscription() {
   } = useQuery({
     queryKey: ['customerInfo', user?.id],
     queryFn: async () => {
-      if (!isInitialized || shouldBypassRevenueCat) return null
+      if (!user?.id || initializedRevenueCatUserId !== user.id || shouldBypassRevenueCat)
+        return null
       try {
-        const info = await Purchases.getCustomerInfo()
+        const info = await getCustomerInfoForUser(user.id)
         console.log('[useSubscription] Loaded RevenueCat customer info', {
           userId: user?.id ?? null,
           originalAppUserId: info.originalAppUserId,
@@ -675,7 +683,12 @@ export function useSubscription() {
         attemptContext,
       }
 
-      if (!user?.id || shouldBypassRevenueCat || !isInitialized) {
+      if (
+        !user?.id ||
+        shouldBypassRevenueCat ||
+        !isInitialized ||
+        initializedRevenueCatUserId !== user.id
+      ) {
         const result: PurchaseAccessSyncResult = {
           ...baseResult,
           status: 'skipped',
@@ -715,12 +728,13 @@ export function useSubscription() {
       let info: CustomerInfo | null = null
 
       try {
-        if (request.customerInfo) {
-          info = request.customerInfo
+        const providedCustomerInfo = request.customerInfo
+        if (providedCustomerInfo) {
+          info = await runRevenueCatOperationForUser(user.id, async () => providedCustomerInfo)
         } else if (request.forceStoreSync) {
-          info = await syncPurchasesAndRefreshCustomerInfo()
+          info = await syncPurchasesAndRefreshCustomerInfoForUser(user.id)
         } else {
-          info = await Purchases.getCustomerInfo()
+          info = await getCustomerInfoForUser(user.id)
         }
       } catch (error) {
         const result: PurchaseAccessSyncResult = {
@@ -797,6 +811,7 @@ export function useSubscription() {
 
       let supabaseSyncStatus: SupabaseSubscriptionSyncStatus
       try {
+        await runRevenueCatOperationForUser(user.id, async () => undefined)
         supabaseSyncStatus = await syncSubscriptionToSupabase(user.id, info)
       } catch (error) {
         const result: PurchaseAccessSyncResult = {
@@ -1011,6 +1026,7 @@ export function useSubscription() {
     },
     [
       isInitialized,
+      initializedRevenueCatUserId,
       profile?.purchased_at,
       profile?.refunded_at,
       profile?.tier,
@@ -1616,7 +1632,10 @@ export function useSubscription() {
       console.log('[useSubscription] Restore mutation started', {
         userId: user?.id ?? null,
       })
-      const info = await restorePurchases()
+      if (!user?.id || initializedRevenueCatUserId !== user.id) {
+        throw new Error('REVENUECAT_USER_MISMATCH')
+      }
+      const info = await restorePurchasesForUser(user.id)
       if (info) {
         const result = await syncExternalPurchaseAccess({
           source: 'restore',

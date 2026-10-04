@@ -6,6 +6,7 @@ jest.mock('react-native-purchases', () => ({
     logIn: jest.fn(),
     logOut: jest.fn(),
     purchasePackage: jest.fn(),
+    restorePurchases: jest.fn(),
   },
   LOG_LEVEL: { DEBUG: 'DEBUG' },
   REFUND_REQUEST_STATUS: {},
@@ -16,6 +17,7 @@ import {
   getOfferings,
   OFFERINGS,
   purchasePackageForUser,
+  restorePurchasesForUser,
   setRevenueCatSessionUser,
 } from '../revenuecat'
 import { waitFor } from '~/test/test-utils'
@@ -115,5 +117,34 @@ describe('RevenueCat session coordination', () => {
     ).rejects.toThrow('PRICE_OFFER_UNAVAILABLE')
     await expect(nextLogin).resolves.toBe(true)
     expect(mockPurchase).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects a restore result when the requested account changes mid-restore', async () => {
+    let sdkUserId = 'user-d'
+    let finishRestore: (() => void) | undefined
+    const mockLogIn = Purchases.logIn as jest.Mock
+    const mockRestore = Purchases.restorePurchases as jest.Mock
+    ;(Purchases.getAppUserID as jest.Mock).mockImplementation(async () => sdkUserId)
+    mockLogIn.mockImplementation(async (userId: string) => {
+      sdkUserId = userId
+      return { customerInfo: { entitlements: { active: {} } } }
+    })
+    mockRestore.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishRestore = () =>
+            resolve({ originalAppUserId: 'user-a', entitlements: { active: {} } })
+        }),
+    )
+
+    await expect(setRevenueCatSessionUser('user-a')).resolves.toBe(true)
+    const restore = restorePurchasesForUser('user-a')
+    await waitFor(() => expect(mockRestore).toHaveBeenCalledTimes(1))
+    const nextLogin = setRevenueCatSessionUser('user-b')
+    finishRestore?.()
+
+    await expect(restore).rejects.toThrow('REVENUECAT_USER_MISMATCH')
+    await expect(nextLogin).resolves.toBe(true)
+    expect(sdkUserId).toBe('user-b')
   })
 })

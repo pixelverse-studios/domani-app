@@ -2,13 +2,15 @@ jest.mock('~/lib/revenuecat', () => ({
   ENTITLEMENT_ID: 'test-entitlement',
   OFFERINGS: { EARLY_ADOPTER: 'early_adopter', GENERAL: 'general' },
   getOfferings: jest.fn(),
+  getCustomerInfoForUser: jest.fn(),
   setRevenueCatSessionUser: jest.fn(),
   presentCodeRedemptionSheet: jest.fn(),
   purchasePackage: jest.fn(),
   purchasePackageForUser: jest.fn(),
-  restorePurchases: jest.fn(),
+  restorePurchasesForUser: jest.fn(),
+  runRevenueCatOperationForUser: jest.fn(),
   setRevenueCatPromoRedemptionAttributes: jest.fn(),
-  syncPurchasesAndRefreshCustomerInfo: jest.fn(),
+  syncPurchasesAndRefreshCustomerInfoForUser: jest.fn(),
   syncRevenueCatSubscriberAttributesForUser: jest.fn(),
 }))
 
@@ -56,13 +58,15 @@ import { supabase } from '~/lib/supabase'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import {
   getOfferings,
+  getCustomerInfoForUser,
   setRevenueCatSessionUser,
   presentCodeRedemptionSheet,
   purchasePackage,
   purchasePackageForUser,
-  restorePurchases,
+  restorePurchasesForUser,
+  runRevenueCatOperationForUser,
   setRevenueCatPromoRedemptionAttributes,
-  syncPurchasesAndRefreshCustomerInfo,
+  syncPurchasesAndRefreshCustomerInfoForUser,
   syncRevenueCatSubscriberAttributesForUser,
 } from '~/lib/revenuecat'
 import {
@@ -78,16 +82,19 @@ const mockSupabaseFrom = supabase.from as unknown as jest.Mock
 const mockSupabaseRpc = supabase.rpc as unknown as jest.Mock
 const mockUseAnalytics = useAnalytics as jest.Mock
 const mockGetCustomerInfo = Purchases.getCustomerInfo as jest.Mock
+const mockGetCustomerInfoForUser = getCustomerInfoForUser as jest.Mock
 const mockTrack = jest.fn()
 const mockGetOfferings = getOfferings as jest.Mock
 const mockSetRevenueCatSessionUser = setRevenueCatSessionUser as jest.Mock
 const mockPresentCodeRedemptionSheet = presentCodeRedemptionSheet as jest.Mock
 const mockPurchasePackage = purchasePackage as jest.Mock
 const mockPurchasePackageForUser = purchasePackageForUser as jest.Mock
-const mockRestorePurchases = restorePurchases as jest.Mock
+const mockRestorePurchases = restorePurchasesForUser as jest.Mock
+const mockRunRevenueCatOperationForUser = runRevenueCatOperationForUser as jest.Mock
 const mockSetRevenueCatPromoRedemptionAttributes =
   setRevenueCatPromoRedemptionAttributes as jest.Mock
-const mockSyncPurchasesAndRefreshCustomerInfo = syncPurchasesAndRefreshCustomerInfo as jest.Mock
+const mockSyncPurchasesAndRefreshCustomerInfo =
+  syncPurchasesAndRefreshCustomerInfoForUser as jest.Mock
 const mockSyncRevenueCatSubscriberAttributesForUser =
   syncRevenueCatSubscriberAttributesForUser as jest.Mock
 const revenueCatBlockingPhases = [
@@ -169,6 +176,8 @@ function buildPurchasesPackage() {
 
 function setupSubscriptionHookMocks() {
   mockGetCustomerInfo.mockResolvedValue(buildCustomerInfo({}))
+  mockGetCustomerInfoForUser.mockImplementation(() => mockGetCustomerInfo())
+  mockRunRevenueCatOperationForUser.mockImplementation((_userId, operation) => operation())
   mockUseAnalytics.mockReturnValue({
     identify: jest.fn(),
     reset: jest.fn(),
@@ -536,6 +545,8 @@ describe('purchase access sync', () => {
     rerender(undefined)
     expect(result.current.offeringIdentifier).toBeNull()
     expect(mockGetCustomerInfo).toHaveBeenCalledTimes(customerInfoReads)
+    await expect(result.current.restore()).rejects.toThrow('REVENUECAT_USER_MISMATCH')
+    expect(mockRestorePurchases).not.toHaveBeenCalled()
 
     await act(async () => finishNewLogin?.())
 

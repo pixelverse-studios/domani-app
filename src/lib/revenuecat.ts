@@ -377,6 +377,42 @@ export function purchasePackageForUser(
   })
 }
 
+export function runRevenueCatOperationForUser<T>(
+  expectedUserId: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  return queueRevenueCatSessionOperation(async () => {
+    if (
+      requestedRevenueCatUserId !== expectedUserId ||
+      (await Purchases.getAppUserID()) !== expectedUserId
+    ) {
+      throw new Error('REVENUECAT_USER_MISMATCH')
+    }
+
+    const result = await operation()
+    if (
+      requestedRevenueCatUserId !== expectedUserId ||
+      (await Purchases.getAppUserID()) !== expectedUserId
+    ) {
+      throw new Error('REVENUECAT_USER_MISMATCH')
+    }
+
+    return result
+  })
+}
+
+export function getCustomerInfoForUser(userId: string) {
+  return runRevenueCatOperationForUser(userId, () => Purchases.getCustomerInfo())
+}
+
+export function restorePurchasesForUser(userId: string) {
+  return runRevenueCatOperationForUser(userId, restorePurchases)
+}
+
+export function syncPurchasesAndRefreshCustomerInfoForUser(userId: string) {
+  return runRevenueCatOperationForUser(userId, syncPurchasesAndRefreshCustomerInfo)
+}
+
 /**
  * Get current offerings (products available for purchase)
  * @param offeringIdentifier - Optional specific offering to fetch (for cohort-based pricing)
