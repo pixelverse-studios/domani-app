@@ -34,12 +34,10 @@ import { useAppConfig } from '~/stores/appConfigStore'
 import { isBetaPhase } from '~/types/appConfig'
 import type { Profile } from '~/types'
 import {
-  initializeRevenueCat,
-  loginRevenueCat,
-  logoutRevenueCat,
-  syncRevenueCatSubscriberAttributes,
+  setRevenueCatSessionUser,
+  syncRevenueCatSubscriberAttributesForUser,
   getOfferings,
-  purchasePackage,
+  purchasePackageForUser,
   restorePurchases,
   syncPurchasesAndRefreshCustomerInfo,
   presentCodeRedemptionSheet,
@@ -362,7 +360,6 @@ export function useSubscription() {
   )
   const [revenueCatAttributeSyncRetryToken, setRevenueCatAttributeSyncRetryToken] = useState(0)
   const previousUserId = useRef<string | undefined>(undefined)
-  const revenueCatInitChainRef = useRef<Promise<void>>(Promise.resolve())
   const previousRevenueCatAttributeSignatureRef = useRef<string | null>(null)
   const revenueCatAttributeRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const previousAndroidMonetizationBreadcrumbRef = useRef<string | null>(null)
@@ -387,69 +384,42 @@ export function useSubscription() {
   // Initialize RevenueCat when user changes (skip during beta)
   useEffect(() => {
     let isMounted = true
+    const previousId = previousUserId.current
+    previousUserId.current = user?.id
+    setInitializedRevenueCatUserId(null)
 
-    async function init() {
-      // During beta, skip RevenueCat entirely
-      if (shouldBypassRevenueCat) {
-        if (isMounted) {
-          setIsInitialized(true)
-          setInitializedRevenueCatUserId(null)
-        }
-        return
+    if (shouldBypassRevenueCat) {
+      setIsInitialized(true)
+      return () => {
+        isMounted = false
       }
-
-      // Handle logout when user signs out (previous user existed, now gone)
-      if (previousUserId.current && !user?.id) {
-        logoutRevenueCat()
-        metaPurchaseRecoveryUserRef.current = null
-        previousRevenueCatAttributeSignatureRef.current = null
-        previousAndroidMonetizationBreadcrumbRef.current = null
-        setRevenueCatAttributeSyncRetryToken(0)
-        if (revenueCatAttributeRetryTimeoutRef.current) {
-          clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
-          revenueCatAttributeRetryTimeoutRef.current = null
-        }
-        if (isMounted) {
-          setIsInitialized(false)
-          setInitializedRevenueCatUserId(null)
-        }
-      }
-
-      if (previousUserId.current && user?.id && previousUserId.current !== user.id) {
-        setInitializedRevenueCatUserId(null)
-        previousRevenueCatAttributeSignatureRef.current = null
-        previousAndroidMonetizationBreadcrumbRef.current = null
-        setRevenueCatAttributeSyncRetryToken(0)
-        if (revenueCatAttributeRetryTimeoutRef.current) {
-          clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
-          revenueCatAttributeRetryTimeoutRef.current = null
-        }
-      }
-
-      // Handle login when user signs in
-      if (user?.id) {
-        let didLogin = false
-        try {
-          await initializeRevenueCat(user.id)
-          await loginRevenueCat(user.id)
-          didLogin = true
-        } catch (error) {
-          // RevenueCat failed to initialize - continue without it
-          // This can happen if Android API key is not configured
-          console.warn('[useSubscription] RevenueCat initialization failed:', error)
-        }
-        // Always mark as initialized so Settings doesn't hang
-        if (isMounted) {
-          setIsInitialized(true)
-          setInitializedRevenueCatUserId(didLogin ? user.id : null)
-        }
-      }
-
-      // Track the current user id for next comparison
-      previousUserId.current = user?.id
     }
-    const pendingInit = revenueCatInitChainRef.current.catch(() => {}).then(init)
-    revenueCatInitChainRef.current = pendingInit
+
+    if (previousId && previousId !== user?.id) {
+      if (!user?.id) metaPurchaseRecoveryUserRef.current = null
+      previousRevenueCatAttributeSignatureRef.current = null
+      previousAndroidMonetizationBreadcrumbRef.current = null
+      setRevenueCatAttributeSyncRetryToken(0)
+      if (revenueCatAttributeRetryTimeoutRef.current) {
+        clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
+        revenueCatAttributeRetryTimeoutRef.current = null
+      }
+    }
+
+    setIsInitialized(false)
+    void setRevenueCatSessionUser(user?.id ?? null)
+      .then((ready) => {
+        if (!isMounted) return
+        setIsInitialized(!!user?.id)
+        setInitializedRevenueCatUserId(ready ? (user?.id ?? null) : null)
+      })
+      .catch((error) => {
+        console.warn('[useSubscription] RevenueCat initialization failed:', error)
+        if (!isMounted) return
+        // Keep Settings responsive while pricing and checkout remain unavailable.
+        setIsInitialized(!!user?.id)
+        setInitializedRevenueCatUserId(null)
+      })
 
     return () => {
       isMounted = false
@@ -466,7 +436,14 @@ export function useSubscription() {
   }, [])
 
   useEffect(() => {
-    if (!user?.id || !isInitialized || shouldBypassRevenueCat || !profile) return
+    if (
+      !user?.id ||
+      !isInitialized ||
+      initializedRevenueCatUserId !== user.id ||
+      shouldBypassRevenueCat ||
+      !profile
+    )
+      return
 
     const attributeSignature = JSON.stringify({
       email: user.email ?? null,
@@ -480,7 +457,7 @@ export function useSubscription() {
 
     previousRevenueCatAttributeSignatureRef.current = attributeSignature
 
-    syncRevenueCatSubscriberAttributes({
+    syncRevenueCatSubscriberAttributesForUser(user.id, {
       email: user.email ?? null,
       displayName: profile.full_name ?? null,
       pushToken: profile.expo_push_token ?? null,
@@ -502,6 +479,7 @@ export function useSubscription() {
     })
   }, [
     isInitialized,
+    initializedRevenueCatUserId,
     shouldBypassRevenueCat,
     user?.email,
     user?.id,
@@ -535,7 +513,11 @@ export function useSubscription() {
         return null
       }
     },
-    enabled: isInitialized && !!user?.id && !shouldBypassRevenueCat,
+    enabled:
+      isInitialized &&
+      initializedRevenueCatUserId === user?.id &&
+      !!user?.id &&
+      !shouldBypassRevenueCat,
     retry: false, // Don't retry if RevenueCat is not configured
   })
 
@@ -546,7 +528,11 @@ export function useSubscription() {
     hasPendingExternalPurchaseSync: !!pendingExternalPurchaseSyncRef.current,
   })
   const effectiveCustomerInfo =
-    shouldBypassRevenueCat || !shouldUseRevenueCatForAccess ? null : customerInfo
+    shouldBypassRevenueCat ||
+    initializedRevenueCatUserId !== user?.id ||
+    !shouldUseRevenueCatForAccess
+      ? null
+      : customerInfo
 
   const pricingEligibility = useQuery({
     queryKey: ['pricingEligibility', user?.id],
@@ -1520,20 +1506,6 @@ export function useSubscription() {
         currency: pkg.product.currencyCode ?? null,
       }
 
-      if (attemptContext?.redemptionAttemptId) {
-        await setRevenueCatPromoRedemptionAttributes(attemptContext)
-      } else {
-        try {
-          await setRevenueCatPromoRedemptionAttributes(null)
-        } catch (error) {
-          console.warn('[useSubscription] Failed to clear promo RevenueCat attributes', {
-            userId: user?.id ?? null,
-            error,
-          })
-          throw new Error('PROMO_ATTRIBUTE_CLEAR_FAILED')
-        }
-      }
-
       console.log('[useSubscription] Purchase mutation started', {
         userId: user?.id ?? null,
         offeringIdentifier,
@@ -1573,7 +1545,22 @@ export function useSubscription() {
             price: pkg.product.priceString,
           })
         }
-        purchaseResult = await purchasePackage(pkg)
+        purchaseResult = await purchasePackageForUser(pkg, user.id, async () => {
+          if (attemptContext.redemptionAttemptId) {
+            await setRevenueCatPromoRedemptionAttributes(attemptContext)
+            return
+          }
+
+          try {
+            await setRevenueCatPromoRedemptionAttributes(null)
+          } catch (error) {
+            console.warn('[useSubscription] Failed to clear promo RevenueCat attributes', {
+              userId: user.id,
+              error,
+            })
+            throw new Error('PROMO_ATTRIBUTE_CLEAR_FAILED')
+          }
+        })
       } catch (error) {
         if (candidate) await clearMetaPurchaseCandidateSafely(user.id)
         throw error

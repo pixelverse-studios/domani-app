@@ -2,15 +2,14 @@ jest.mock('~/lib/revenuecat', () => ({
   ENTITLEMENT_ID: 'test-entitlement',
   OFFERINGS: { EARLY_ADOPTER: 'early_adopter', GENERAL: 'general' },
   getOfferings: jest.fn(),
-  initializeRevenueCat: jest.fn(),
-  loginRevenueCat: jest.fn(),
-  logoutRevenueCat: jest.fn(),
+  setRevenueCatSessionUser: jest.fn(),
   presentCodeRedemptionSheet: jest.fn(),
   purchasePackage: jest.fn(),
+  purchasePackageForUser: jest.fn(),
   restorePurchases: jest.fn(),
   setRevenueCatPromoRedemptionAttributes: jest.fn(),
   syncPurchasesAndRefreshCustomerInfo: jest.fn(),
-  syncRevenueCatSubscriberAttributes: jest.fn(),
+  syncRevenueCatSubscriberAttributesForUser: jest.fn(),
 }))
 
 const mockLogMetaPurchase = jest.fn()
@@ -57,14 +56,14 @@ import { supabase } from '~/lib/supabase'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import {
   getOfferings,
-  initializeRevenueCat,
-  loginRevenueCat,
+  setRevenueCatSessionUser,
   presentCodeRedemptionSheet,
   purchasePackage,
+  purchasePackageForUser,
   restorePurchases,
   setRevenueCatPromoRedemptionAttributes,
   syncPurchasesAndRefreshCustomerInfo,
-  syncRevenueCatSubscriberAttributes,
+  syncRevenueCatSubscriberAttributesForUser,
 } from '~/lib/revenuecat'
 import {
   hasFullAccess,
@@ -81,15 +80,16 @@ const mockUseAnalytics = useAnalytics as jest.Mock
 const mockGetCustomerInfo = Purchases.getCustomerInfo as jest.Mock
 const mockTrack = jest.fn()
 const mockGetOfferings = getOfferings as jest.Mock
-const mockInitializeRevenueCat = initializeRevenueCat as jest.Mock
-const mockLoginRevenueCat = loginRevenueCat as jest.Mock
+const mockSetRevenueCatSessionUser = setRevenueCatSessionUser as jest.Mock
 const mockPresentCodeRedemptionSheet = presentCodeRedemptionSheet as jest.Mock
 const mockPurchasePackage = purchasePackage as jest.Mock
+const mockPurchasePackageForUser = purchasePackageForUser as jest.Mock
 const mockRestorePurchases = restorePurchases as jest.Mock
 const mockSetRevenueCatPromoRedemptionAttributes =
   setRevenueCatPromoRedemptionAttributes as jest.Mock
 const mockSyncPurchasesAndRefreshCustomerInfo = syncPurchasesAndRefreshCustomerInfo as jest.Mock
-const mockSyncRevenueCatSubscriberAttributes = syncRevenueCatSubscriberAttributes as jest.Mock
+const mockSyncRevenueCatSubscriberAttributesForUser =
+  syncRevenueCatSubscriberAttributesForUser as jest.Mock
 const revenueCatBlockingPhases = [
   'code_validated',
   'os_confirmation_attempted',
@@ -199,13 +199,16 @@ function setupSubscriptionHookMocks() {
     identifier,
     availablePackages: [buildPurchasesPackage()],
   }))
-  mockInitializeRevenueCat.mockResolvedValue(undefined)
-  mockLoginRevenueCat.mockResolvedValue(undefined)
+  mockSetRevenueCatSessionUser.mockImplementation(async (userId: string | null) => !!userId)
+  mockPurchasePackageForUser.mockImplementation(async (pkg, _userId, preparePurchase) => {
+    await preparePurchase?.()
+    return mockPurchasePackage(pkg)
+  })
   mockPresentCodeRedemptionSheet.mockResolvedValue(true)
   mockPurchasePackage.mockResolvedValue(null)
   mockRestorePurchases.mockResolvedValue(null)
   mockSetRevenueCatPromoRedemptionAttributes.mockResolvedValue(undefined)
-  mockSyncRevenueCatSubscriberAttributes.mockResolvedValue(undefined)
+  mockSyncRevenueCatSubscriberAttributesForUser.mockResolvedValue(undefined)
   mockLogMetaPurchase.mockResolvedValue('logged')
   mockCandidateMatchesEntitlement.mockReturnValue(true)
   mockClearMetaPurchaseCandidate.mockResolvedValue(undefined)
@@ -504,6 +507,14 @@ describe('purchase access sync', () => {
   })
 
   it('fetches the new account offer after an account switch', async () => {
+    let finishNewLogin: (() => void) | undefined
+    mockSetRevenueCatSessionUser.mockImplementation((userId: string | null) =>
+      userId === 'user-2'
+        ? new Promise<boolean>((resolve) => {
+            finishNewLogin = () => resolve(true)
+          })
+        : Promise.resolve(!!userId),
+    )
     mockSupabaseRpc.mockImplementation(
       (functionName: string, args?: { p_expected_user_id?: string }) =>
         Promise.resolve({
@@ -520,9 +531,13 @@ describe('purchase access sync', () => {
     const { result, rerender, unmount } = renderHookWithProviders(() => useSubscription())
     await waitFor(() => expect(result.current.offeringIdentifier).toBe('early_adopter'))
 
+    const customerInfoReads = mockGetCustomerInfo.mock.calls.length
     mockUseAuth.mockReturnValue({ user: { id: 'user-2', email: 'second@example.com' } })
     rerender(undefined)
     expect(result.current.offeringIdentifier).toBeNull()
+    expect(mockGetCustomerInfo).toHaveBeenCalledTimes(customerInfoReads)
+
+    await act(async () => finishNewLogin?.())
 
     await waitFor(() => expect(result.current.offeringIdentifier).toBe('general'))
     expect(mockSupabaseRpc).toHaveBeenCalledWith('get_my_lifetime_pricing_offer', {
@@ -1071,6 +1086,7 @@ describe('purchase access sync', () => {
     })
 
     expect(mockPurchasePackage).toHaveBeenCalledWith(pkg)
+    expect(mockPurchasePackageForUser).toHaveBeenCalledWith(pkg, 'user-1', expect.any(Function))
     expect(mockCreateMetaPurchaseCandidate.mock.invocationCallOrder[0]).toBeLessThan(
       mockPurchasePackage.mock.invocationCallOrder[0],
     )
