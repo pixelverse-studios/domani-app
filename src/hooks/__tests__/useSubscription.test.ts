@@ -159,7 +159,7 @@ function buildPurchasesPackage() {
     identifier: 'lifetime',
     packageType: 'LIFETIME',
     product: {
-      identifier: 'domani_lifetime',
+      identifier: 'domani_lifetime_early',
       priceString: '$9.99',
       price: 9.99,
       currencyCode: 'USD',
@@ -195,7 +195,8 @@ function setupSubscriptionHookMocks() {
       signup_method: null,
     },
   })
-  mockGetOfferings.mockImplementation(async () => ({
+  mockGetOfferings.mockImplementation(async (identifier: string) => ({
+    identifier,
     availablePackages: [buildPurchasesPackage()],
   }))
   mockInitializeRevenueCat.mockResolvedValue(undefined)
@@ -479,6 +480,26 @@ describe('purchase access sync', () => {
       'lifetime_offer_mismatch',
       expect.objectContaining({ offer: 'early_adopter' }),
     )
+    unmount()
+  })
+
+  it('blocks checkout when the verified offering contains the wrong lifetime product', async () => {
+    mockGetOfferings.mockImplementation(async (identifier: string) => ({
+      identifier,
+      availablePackages: [
+        {
+          ...buildPurchasesPackage(),
+          product: { ...buildPurchasesPackage().product, identifier: 'domani_lifetime' },
+        },
+      ],
+    }))
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.offeringIdentifier).toBe('early_adopter'))
+    await expect(result.current.purchase(buildPurchasesPackage() as never)).rejects.toThrow(
+      'PRICE_OFFER_UNAVAILABLE',
+    )
+    expect(mockPurchasePackage).not.toHaveBeenCalled()
     unmount()
   })
 
@@ -1083,7 +1104,7 @@ describe('purchase access sync', () => {
     })
 
     expect(mockCreateMetaPurchaseCandidate).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'user-1', productId: 'domani_lifetime' }),
+      expect.objectContaining({ userId: 'user-1', productId: 'domani_lifetime_early' }),
     )
     expect(mockClearMetaPurchaseCandidate).toHaveBeenCalledWith('user-1')
     expect(mockLogMetaPurchase).not.toHaveBeenCalled()

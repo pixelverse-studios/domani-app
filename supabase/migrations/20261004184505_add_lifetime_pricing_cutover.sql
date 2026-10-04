@@ -28,6 +28,32 @@ FOR EACH ROW EXECUTE FUNCTION public.prevent_lifetime_pricing_cutover_change();
 
 REVOKE ALL ON FUNCTION public.prevent_lifetime_pricing_cutover_change() FROM PUBLIC, anon, authenticated;
 
+-- Share a transaction lock with activation so every signup is wholly before
+-- or after the cutover. A signup waiting for activation must not retain a
+-- transaction-start created_at that predates the newly committed cutoff.
+CREATE FUNCTION public.stamp_lifetime_pricing_signup()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  PERFORM pg_catalog.pg_advisory_xact_lock_shared(1555, 1);
+
+  IF EXISTS (SELECT 1 FROM public.lifetime_pricing_cutover WHERE singleton = TRUE) THEN
+    NEW.created_at := clock_timestamp();
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER stamp_lifetime_pricing_signup
+BEFORE INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.stamp_lifetime_pricing_signup();
+
+REVOKE ALL ON FUNCTION public.stamp_lifetime_pricing_signup() FROM PUBLIC, anon, authenticated;
+
 CREATE FUNCTION public.get_my_lifetime_pricing_offer(p_expected_user_id UUID)
 RETURNS TEXT
 LANGUAGE plpgsql
@@ -87,6 +113,10 @@ DECLARE
   v_count BIGINT;
   v_public_pricing JSONB;
 BEGIN
+  -- Existing signups hold the shared lock until commit. New signups wait here
+  -- and receive a post-cutover created_at in the trigger after we commit.
+  PERFORM pg_catalog.pg_advisory_xact_lock(1555, 1);
+
   SELECT value INTO v_public_pricing
   FROM public.app_config
   WHERE key = 'public_pricing'

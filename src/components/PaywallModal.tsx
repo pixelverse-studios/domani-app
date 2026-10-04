@@ -11,7 +11,6 @@ import {
 } from 'react-native'
 import { Crown, Check, X, RotateCcw, AlertCircle, PartyPopper } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
-import { PACKAGE_TYPE } from 'react-native-purchases'
 import type { PurchasesOffering, PurchasesPackage } from 'react-native-purchases'
 
 import { Text } from '~/components/ui/Text'
@@ -19,6 +18,7 @@ import { GradientButton } from '~/components/ui/GradientButton'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
+import { getLifetimePackageForOffer } from '~/lib/lifetimePricingProduct'
 
 interface PaywallModalProps {
   visible: boolean
@@ -62,10 +62,7 @@ export function PaywallModal({
   const trackedOfferRef = useRef<string | null>(null)
   const [successScaleAnim] = useState(() => new Animated.Value(0.8))
 
-  const lifetimePackage =
-    offerings?.availablePackages?.find((pkg) => pkg.packageType === PACKAGE_TYPE.LIFETIME) ??
-    offerings?.availablePackages?.[0] ??
-    null
+  const lifetimePackage = getLifetimePackageForOffer(offerings, offeringIdentifier)
   const priceString = lifetimePackage?.product?.priceString
 
   useEffect(() => {

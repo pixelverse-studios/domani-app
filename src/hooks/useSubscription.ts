@@ -6,6 +6,7 @@ import { addDays, parseISO } from 'date-fns'
 
 import { supabase } from '~/lib/supabase'
 import { getVerifiedPricingOffer } from '~/lib/pricingEligibility'
+import { getLifetimePackageForOffer } from '~/lib/lifetimePricingProduct'
 import { addBreadcrumb } from '~/lib/sentry'
 import {
   buildPromoAttemptAnalyticsProps,
@@ -1483,15 +1484,14 @@ export function useSubscription() {
       if (!('pkg' in input && input.attemptContext?.redemptionAttemptId)) {
         const verifiedOffer = await getVerifiedPricingOffer(user.id)
         const currentOffering = verifiedOffer ? await getOfferings(verifiedOffer) : null
-        const currentPackage = currentOffering?.availablePackages.find(
-          (candidate) =>
-            candidate.identifier === pkg.identifier &&
-            candidate.product.identifier === pkg.product.identifier,
-        )
+        const currentPackage = getLifetimePackageForOffer(currentOffering, verifiedOffer)
 
         if (
           !verifiedOffer ||
           !currentPackage ||
+          !currentPackage.product.priceString ||
+          currentPackage.identifier !== pkg.identifier ||
+          currentPackage.product.identifier !== pkg.product.identifier ||
           currentPackage.product.priceString !== pkg.product.priceString
         ) {
           track('lifetime_offer_mismatch', {
