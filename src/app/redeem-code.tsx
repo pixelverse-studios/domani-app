@@ -13,13 +13,12 @@ import {
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AlertCircle, ArrowLeft, ArrowRight, Check, Crown } from 'lucide-react-native'
-import { PACKAGE_TYPE } from 'react-native-purchases'
-import { useQuery } from '@tanstack/react-query'
 
 import { Text } from '~/components/ui'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { addBreadcrumb } from '~/lib/sentry'
-import { getOfferings, OFFERINGS, setRevenueCatPromoRedemptionAttributes } from '~/lib/revenuecat'
+import { getOfferings, setRevenueCatPromoRedemptionAttributes } from '~/lib/revenuecat'
+import { getLifetimePackageForOffer } from '~/lib/lifetimePricingProduct'
 import { findPromoPackage } from '~/lib/promoPackages'
 import { buildPromoAnalyticsProps, recordPromoRedemptionAttemptEvent } from '~/lib/promoAnalytics'
 import { useAppTheme } from '~/hooks/useAppTheme'
@@ -97,31 +96,31 @@ export default function RedeemCodeScreen() {
     subscription.accessSyncPhase === 'syncing' ||
     subscription.accessSyncPhase === 'os_confirmation_attempted' ||
     subscription.isSyncingAccess
-  const shouldLoadGeneralOfferingPrice =
-    !!validOffer && subscription.offeringIdentifier !== OFFERINGS.GENERAL
-  const { data: generalOffering } = useQuery({
-    queryKey: ['offerings', OFFERINGS.GENERAL],
-    queryFn: () => getOfferings(OFFERINGS.GENERAL),
-    enabled: shouldLoadGeneralOfferingPrice,
-    retry: false,
-  })
-  const comparisonOffering =
-    subscription.offeringIdentifier === OFFERINGS.GENERAL ? subscription.offerings : generalOffering
-  const comparisonLifetimePackage =
-    comparisonOffering?.availablePackages?.find(
-      (pkg) => pkg.packageType === PACKAGE_TYPE.LIFETIME,
-    ) ??
-    comparisonOffering?.availablePackages?.[0] ??
-    null
+  const comparisonLifetimePackage = getLifetimePackageForOffer(
+    subscription.offerings,
+    subscription.offeringIdentifier,
+  )
   const currentPriceString = comparisonLifetimePackage?.product.priceString ?? null
   const promoPriceString = validOffer
     ? validOffer.display.paymentRequired
       ? priceString
       : t('subscription.redeemCode.freePrice')
     : null
+  const hasVerifiedSavings =
+    !!comparisonLifetimePackage &&
+    !!validOffer &&
+    (validOffer.display.paymentRequired
+      ? validOffer.display.priceAmount !== null &&
+        validOffer.display.priceCurrency === comparisonLifetimePackage.product.currencyCode &&
+        validOffer.display.priceAmount < comparisonLifetimePackage.product.price
+      : true)
   const shouldShowCurrentPrice =
-    !!currentPriceString && !!promoPriceString && currentPriceString !== promoPriceString
+    hasVerifiedSavings &&
+    !!currentPriceString &&
+    !!promoPriceString &&
+    currentPriceString !== promoPriceString
   const discountLabel =
+    shouldShowCurrentPrice &&
     validOffer?.display.discountPercent !== null &&
     validOffer?.display.discountPercent !== undefined
       ? t('subscription.redeemCode.discountPercentLabel', {
@@ -591,12 +590,14 @@ export default function RedeemCodeScreen() {
                 style={{ color: theme.colors.brand.primary, lineHeight: 36 }}
               >
                 {validOffer.display.paymentRequired
-                  ? (validOffer.display.label ?? t('subscription.redeemCode.discountedAccess'))
+                  ? hasVerifiedSavings
+                    ? (validOffer.display.label ?? t('subscription.redeemCode.discountedAccess'))
+                    : t('subscription.paywall.purchaseCta')
                   : t('subscription.redeemCode.freeLifetimeAccess')}
               </Text>
               {validOffer.display.paymentRequired ? (
                 <Text className="text-sm text-content-secondary text-center mt-3">
-                  {priceString
+                  {priceString && hasVerifiedSavings
                     ? t('subscription.redeemCode.discountPrice', { price: priceString })
                     : t('subscription.redeemCode.paymentRequired')}
                 </Text>
