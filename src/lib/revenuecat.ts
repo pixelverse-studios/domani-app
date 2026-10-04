@@ -333,24 +333,6 @@ export async function getOfferings(offeringIdentifier?: string): Promise<Purchas
 }
 
 /**
- * Get the appropriate offering identifier based on user's signup cohort
- * Maps cohort to corresponding RevenueCat offering:
- * - early_adopter → early_adopter offering ($9.99)
- * - friends_family → general offering (friends/family pricing is promo-code only)
- * - general (or null/undefined) → general offering ($34.99)
- */
-export function getOfferingForCohort(
-  signupCohort: string | null | undefined,
-): (typeof OFFERINGS)[keyof typeof OFFERINGS] {
-  switch (signupCohort) {
-    case 'early_adopter':
-      return OFFERINGS.EARLY_ADOPTER
-    default:
-      return OFFERINGS.GENERAL
-  }
-}
-
-/**
  * Check if user has active access through the configured lifetime entitlement or trial.
  * Lifetime purchases have no expiration date; trials have expiration dates
  */

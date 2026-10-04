@@ -1,6 +1,6 @@
 jest.mock('~/lib/revenuecat', () => ({
   ENTITLEMENT_ID: 'test-entitlement',
-  getOfferingForCohort: jest.fn(),
+  OFFERINGS: { EARLY_ADOPTER: 'early_adopter', GENERAL: 'general' },
   getOfferings: jest.fn(),
   initializeRevenueCat: jest.fn(),
   loginRevenueCat: jest.fn(),
@@ -56,7 +56,6 @@ import Purchases from 'react-native-purchases'
 import { supabase } from '~/lib/supabase'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import {
-  getOfferingForCohort,
   getOfferings,
   initializeRevenueCat,
   loginRevenueCat,
@@ -81,7 +80,6 @@ const mockSupabaseRpc = supabase.rpc as unknown as jest.Mock
 const mockUseAnalytics = useAnalytics as jest.Mock
 const mockGetCustomerInfo = Purchases.getCustomerInfo as jest.Mock
 const mockTrack = jest.fn()
-const mockGetOfferingForCohort = getOfferingForCohort as jest.Mock
 const mockGetOfferings = getOfferings as jest.Mock
 const mockInitializeRevenueCat = initializeRevenueCat as jest.Mock
 const mockLoginRevenueCat = loginRevenueCat as jest.Mock
@@ -197,8 +195,9 @@ function setupSubscriptionHookMocks() {
       signup_method: null,
     },
   })
-  mockGetOfferingForCohort.mockReturnValue('default')
-  mockGetOfferings.mockResolvedValue(null)
+  mockGetOfferings.mockImplementation(async () => ({
+    availablePackages: [buildPurchasesPackage()],
+  }))
   mockInitializeRevenueCat.mockResolvedValue(undefined)
   mockLoginRevenueCat.mockResolvedValue(undefined)
   mockPresentCodeRedemptionSheet.mockResolvedValue(true)
@@ -239,6 +238,9 @@ function setupSubscriptionHookMocks() {
     }),
   )
   mockSupabaseRpc.mockImplementation((functionName: string) => {
+    if (functionName === 'get_my_lifetime_pricing_offer') {
+      return Promise.resolve({ data: 'early_adopter', error: null })
+    }
     if (functionName === 'confirm_current_user_promo_redemption') {
       return Promise.resolve({ data: { status: 'confirmed' }, error: null })
     }
@@ -374,7 +376,7 @@ describe('subscription product analytics', () => {
 
     expect(mockSupabaseRpc).toHaveBeenCalledWith('start_trial_with_posthog_outbox')
     expect(mockTrack).not.toHaveBeenCalledWith('trial_started', expect.anything())
-    expect(mockLogMetaStartTrial).toHaveBeenCalledWith({ userId: 'user-1', offer: 'default' })
+    expect(mockLogMetaStartTrial).toHaveBeenCalledWith({ userId: 'user-1', offer: null })
 
     unmount()
   })
@@ -409,8 +411,7 @@ describe('purchase access sync', () => {
     unmount()
   })
 
-  it('uses general pricing for friends-family cohort users outside promo redemption', async () => {
-    mockGetOfferingForCohort.mockReturnValue('general')
+  it('uses server-verified early pricing for a general-cohort account', async () => {
     mockUseProfile.mockReturnValue({
       isLoading: false,
       profile: {
@@ -424,7 +425,7 @@ describe('purchase access sync', () => {
         email: 'test@example.com',
         expo_push_token: null,
         full_name: 'Test User',
-        signup_cohort: 'friends_family',
+        signup_cohort: 'general',
         signup_method: null,
       },
     })
@@ -433,9 +434,79 @@ describe('purchase access sync', () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
-    expect(mockGetOfferingForCohort).toHaveBeenCalledWith('friends_family')
-    expect(result.current.offeringIdentifier).toBe('general')
+    expect(result.current.offeringIdentifier).toBe('early_adopter')
+    expect(mockGetOfferings).toHaveBeenCalledWith('early_adopter')
 
+    unmount()
+  })
+
+  it('does not load a purchasable offer when eligibility cannot be verified', async () => {
+    mockSupabaseRpc.mockImplementation((functionName: string) =>
+      Promise.resolve({
+        data: null,
+        error: functionName === 'get_my_lifetime_pricing_offer' ? { code: 'NETWORK' } : null,
+      }),
+    )
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.offeringIdentifier).toBeNull()
+    expect(result.current.offerings).toBeNull()
+    expect(mockGetOfferings).not.toHaveBeenCalled()
+
+    await expect(result.current.purchase(buildPurchasesPackage() as never)).rejects.toThrow(
+      'PRICE_OFFER_UNAVAILABLE',
+    )
+    expect(mockPurchasePackage).not.toHaveBeenCalled()
+    unmount()
+  })
+
+  it('blocks checkout if the package no longer matches the verified offer', async () => {
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.offeringIdentifier).toBe('early_adopter'))
+    const stalePackage = {
+      ...buildPurchasesPackage(),
+      product: { ...buildPurchasesPackage().product, identifier: 'other_product' },
+    }
+
+    await expect(result.current.purchase(stalePackage as never)).rejects.toThrow(
+      'PRICE_OFFER_UNAVAILABLE',
+    )
+    expect(mockPurchasePackage).not.toHaveBeenCalled()
+    expect(mockTrack).toHaveBeenCalledWith(
+      'lifetime_offer_mismatch',
+      expect.objectContaining({ offer: 'early_adopter' }),
+    )
+    unmount()
+  })
+
+  it('fetches the new account offer after an account switch', async () => {
+    mockSupabaseRpc.mockImplementation(
+      (functionName: string, args?: { p_expected_user_id?: string }) =>
+        Promise.resolve({
+          data:
+            functionName === 'get_my_lifetime_pricing_offer'
+              ? args?.p_expected_user_id === 'user-2'
+                ? 'general'
+                : 'early_adopter'
+              : null,
+          error: null,
+        }),
+    )
+
+    const { result, rerender, unmount } = renderHookWithProviders(() => useSubscription())
+    await waitFor(() => expect(result.current.offeringIdentifier).toBe('early_adopter'))
+
+    mockUseAuth.mockReturnValue({ user: { id: 'user-2', email: 'second@example.com' } })
+    rerender(undefined)
+    expect(result.current.offeringIdentifier).toBeNull()
+
+    await waitFor(() => expect(result.current.offeringIdentifier).toBe('general'))
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('get_my_lifetime_pricing_offer', {
+      p_expected_user_id: 'user-2',
+    })
     unmount()
   })
 

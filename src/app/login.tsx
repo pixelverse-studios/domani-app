@@ -21,13 +21,6 @@ import { useScreenTracking } from '~/hooks/useScreenTracking'
 import { useTranslation } from '~/hooks/useTranslation'
 import { waitForAuthSession } from '~/lib/authSession'
 import { supabase } from '~/lib/supabase'
-import { useAppConfig } from '~/stores/appConfigStore'
-import type { PublicPricingTier } from '~/types/appConfig'
-
-const PUBLIC_LIFETIME_PRICE_COPY: Record<PublicPricingTier, string> = {
-  early_adopter: '$9.99',
-  standard: '$34.99',
-}
 
 export default function LoginScreen() {
   useScreenTracking('login')
@@ -37,12 +30,10 @@ export default function LoginScreen() {
   const { signInWithGoogle, signInWithApple } = useAuth()
   const theme = useAppTheme()
   const { t } = useTranslation()
-  const { publicPricing, hasFetchedConfig } = useAppConfig()
   const brandColor = theme.colors.brand.primary
 
   // Determine if this is a new user or returning user
   const isNewUser = mode === 'new'
-  const lifetimePrice = hasFetchedConfig ? PUBLIC_LIFETIME_PRICE_COPY[publicPricing] : null
 
   const [googleLoading, setGoogleLoading] = useState(false)
   const [appleLoading, setAppleLoading] = useState(false)
@@ -217,9 +208,7 @@ export default function LoginScreen() {
                     </View>
                     <View style={styles.stepCopy}>
                       <Text style={[styles.stepLabel, { color: theme.colors.text.primary }]}>
-                        {lifetimePrice
-                          ? t('auth.login.stepKeepLabelWithPrice', { price: lifetimePrice })
-                          : t('auth.login.stepKeepLabelFallback')}
+                        {t('auth.login.stepKeepLabelFallback')}
                       </Text>
                       <Text style={[styles.stepBody, { color: theme.colors.text.secondary }]}>
                         {t('auth.login.stepKeepBody')}
@@ -357,11 +346,7 @@ export default function LoginScreen() {
                   ]}
                 />
                 <Text style={[styles.modalPointText, { color: theme.colors.text.secondary }]}>
-                  {lifetimePrice
-                    ? t('auth.login.trialConfirmPointLifetimeWithPrice', {
-                        price: lifetimePrice,
-                      })
-                    : t('auth.login.trialConfirmPointLifetimeFallback')}
+                  {t('auth.login.trialConfirmPointLifetimeFallback')}
                 </Text>
               </View>
 

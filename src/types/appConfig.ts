@@ -48,7 +48,6 @@ export interface AppConfig {
   phase: AppPhase
   showBadge: boolean
   features: FeatureFlags
-  publicPricing: PublicPricingTier
   betaAccess: BetaAccessConfig
   isLoading: boolean
   error: string | null

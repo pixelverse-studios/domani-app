@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   Modal,
   View,
@@ -6,6 +6,7 @@ import {
   Animated,
   TouchableOpacity,
   ActivityIndicator,
+  Platform,
   useWindowDimensions,
 } from 'react-native'
 import { Crown, Check, X, RotateCcw, AlertCircle, PartyPopper } from 'lucide-react-native'
@@ -17,12 +18,13 @@ import { Text } from '~/components/ui/Text'
 import { GradientButton } from '~/components/ui/GradientButton'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useTranslation } from '~/hooks/useTranslation'
+import { useAnalytics } from '~/providers/AnalyticsProvider'
 
 interface PaywallModalProps {
   visible: boolean
   onClose: () => void
   offerings: PurchasesOffering | null
-  offeringIdentifier: string
+  offeringIdentifier: string | null
   isPurchasing: boolean
   isRestoring: boolean
   isSyncingAccess?: boolean
@@ -50,12 +52,14 @@ export function PaywallModal({
   const theme = useAppTheme()
   const router = useRouter()
   const { catalog, t } = useTranslation()
+  const { track } = useAnalytics()
   const { height } = useWindowDimensions()
   const [scaleAnim] = useState(() => new Animated.Value(0.9))
   const [fadeAnim] = useState(() => new Animated.Value(0))
   const [error, setError] = useState<string | null>(null)
   const [failCount, setFailCount] = useState(0)
   const [showSuccess, setShowSuccess] = useState(false)
+  const trackedOfferRef = useRef<string | null>(null)
   const [successScaleAnim] = useState(() => new Animated.Value(0.8))
 
   const lifetimePackage =
@@ -63,13 +67,31 @@ export function PaywallModal({
     offerings?.availablePackages?.[0] ??
     null
   const priceString = lifetimePackage?.product?.priceString
+
+  useEffect(() => {
+    if (!visible) {
+      trackedOfferRef.current = null
+      return
+    }
+    if (!offeringIdentifier || !lifetimePackage || !priceString) return
+
+    const signature = `${offeringIdentifier}:${lifetimePackage.product.identifier}:${priceString}`
+    if (trackedOfferRef.current === signature) return
+    trackedOfferRef.current = signature
+    track('lifetime_offer_exposed', {
+      platform: Platform.OS,
+      offer: offeringIdentifier,
+      product_id: lifetimePackage.product.identifier,
+      price: priceString,
+    })
+  }, [visible, offeringIdentifier, lifetimePackage, priceString, track])
   const discountConfig: Record<string, { label: string; badge: string }> = {
     early_adopter: {
       label: t('subscription.paywall.discountLabelEarlyAdopter'),
       badge: t('subscription.paywall.discountBadgeEarlyAdopter'),
     },
   }
-  const discount = discountConfig[offeringIdentifier]
+  const discount = offeringIdentifier ? discountConfig[offeringIdentifier] : undefined
   const isCompactHeight = height < 780
   const isVeryCompactHeight = height < 700
 
@@ -132,7 +154,7 @@ export function PaywallModal({
   }
 
   const handlePurchase = async () => {
-    if (!lifetimePackage) return
+    if (!lifetimePackage || !priceString) return
     setError(null)
     try {
       const result = await onPurchase(lifetimePackage)
@@ -440,7 +462,7 @@ export function PaywallModal({
                 <GradientButton
                   onPress={handlePurchase}
                   loading={isPurchasing}
-                  disabled={!lifetimePackage || isProcessing}
+                  disabled={!lifetimePackage || !priceString || isProcessing}
                   fullWidth
                   icon={<Crown size={20} color="#fff" />}
                 >

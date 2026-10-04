@@ -1379,6 +1379,10 @@ export type Database = {
       }
     }
     Functions: {
+      get_my_lifetime_pricing_offer: {
+        Args: { p_expected_user_id: string }
+        Returns: string | null
+      }
       claim_posthog_trial_started: {
         Args: { p_client_properties: Json; p_user_id: string }
         Returns: {

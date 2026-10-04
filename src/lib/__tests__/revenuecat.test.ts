@@ -6,23 +6,7 @@ jest.mock('react-native-purchases', () => ({
 }))
 
 import Purchases from 'react-native-purchases'
-import { getOfferingForCohort, getOfferings, OFFERINGS } from '../revenuecat'
-
-describe('RevenueCat offering routing', () => {
-  it('routes friends-family cohort users to general pricing outside promo redemption', () => {
-    expect(getOfferingForCohort('friends_family')).toBe(OFFERINGS.GENERAL)
-  })
-
-  it('keeps early adopter cohort pricing available outside promo redemption', () => {
-    expect(getOfferingForCohort('early_adopter')).toBe(OFFERINGS.EARLY_ADOPTER)
-  })
-
-  it('routes unknown or missing cohorts to general pricing', () => {
-    expect(getOfferingForCohort('general')).toBe(OFFERINGS.GENERAL)
-    expect(getOfferingForCohort(null)).toBe(OFFERINGS.GENERAL)
-    expect(getOfferingForCohort(undefined)).toBe(OFFERINGS.GENERAL)
-  })
-})
+import { getOfferings, OFFERINGS } from '../revenuecat'
 
 describe('RevenueCat offering availability', () => {
   const mockGetOfferings = Purchases.getOfferings as jest.Mock
