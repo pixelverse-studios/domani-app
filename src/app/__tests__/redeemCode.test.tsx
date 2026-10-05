@@ -178,7 +178,7 @@ function mockValidAndroidFreeCode() {
   })
 }
 
-function mockValidAndroidDiscountCode(priceAmount = 17.49) {
+function mockValidAndroidDiscountCode(discountPercent = 50) {
   mockSupabaseRpc.mockResolvedValue({
     error: null,
     data: {
@@ -191,11 +191,11 @@ function mockValidAndroidDiscountCode(priceAmount = 17.49) {
       campaignType: 'percent_discount_lifetime',
       discountKind: 'percent',
       display: {
-        name: '50% off lifetime',
-        label: '50% Off Lifetime Access',
-        discountPercent: 50,
-        priceAmount,
-        priceCurrency: 'USD',
+        name: `${discountPercent}% off lifetime`,
+        label: `${discountPercent}% Off Lifetime Access`,
+        discountPercent,
+        priceAmount: null,
+        priceCurrency: null,
         paymentRequired: true,
       },
       routing: {
@@ -379,7 +379,12 @@ describe('RedeemCodeScreen Android promo routing', () => {
     const promoPackage = {
       identifier: 'discount_50_lifetime',
       packageType: 'LIFETIME',
-      product: { identifier: 'domani_lifetime_discount_50', priceString: '$17.49' },
+      product: {
+        identifier: 'domani_lifetime_discount_50',
+        priceString: '$17.49',
+        price: 17.49,
+        currencyCode: 'USD',
+      },
     }
     mockGetOfferings.mockResolvedValue({
       availablePackages: [promoPackage],
@@ -391,6 +396,7 @@ describe('RedeemCodeScreen Android promo routing', () => {
     fireEvent.press(screen.getByLabelText('Submit code'))
 
     await screen.findByText('Code Accepted')
+    await screen.findByText('Price after discount: $17.49')
 
     expect(screen.getByText('SAVE50')).toBeTruthy()
     expect(screen.getByText('50% Off Lifetime Access')).toBeTruthy()
@@ -431,6 +437,19 @@ describe('RedeemCodeScreen Android promo routing', () => {
 
   it('does not show a current-price comparison when it matches the promo price', async () => {
     mockValidAndroidDiscountCode()
+    mockGetOfferings.mockResolvedValue({
+      availablePackages: [
+        {
+          identifier: 'discount_50_lifetime',
+          product: {
+            identifier: 'domani_lifetime_discount_50',
+            priceString: '$17.49',
+            price: 17.49,
+            currencyCode: 'USD',
+          },
+        },
+      ],
+    })
     mockUseSubscription.mockImplementation(() =>
       buildMockSubscription({
         offerings: {
@@ -464,6 +483,19 @@ describe('RedeemCodeScreen Android promo routing', () => {
 
   it('uses the grandfathered lifetime price for promo comparisons', async () => {
     mockValidAndroidDiscountCode()
+    mockGetOfferings.mockResolvedValue({
+      availablePackages: [
+        {
+          identifier: 'discount_50_lifetime',
+          product: {
+            identifier: 'domani_lifetime_discount_50',
+            priceString: '$17.49',
+            price: 17.49,
+            currencyCode: 'USD',
+          },
+        },
+      ],
+    })
     mockUseSubscription.mockImplementation(() =>
       buildMockSubscription({
         offeringIdentifier: 'early_adopter',
@@ -497,13 +529,26 @@ describe('RedeemCodeScreen Android promo routing', () => {
     expect(screen.queryByText('50% Off Lifetime Access')).toBeNull()
     expect(screen.queryByText('Price after discount: $17.49')).toBeNull()
     expect(screen.getByText('Get Lifetime Access')).toBeTruthy()
-    expect(screen.getByText('Promo price')).toBeTruthy()
+    expect(await screen.findByText('Promo price')).toBeTruthy()
     expect(screen.getAllByText('$17.49').length).toBeGreaterThan(0)
     expect(mockGetOfferings).not.toHaveBeenCalledWith('general')
   })
 
   it('compares a cheaper promo with the grandfathered store price', async () => {
-    mockValidAndroidDiscountCode(4.99)
+    mockValidAndroidDiscountCode()
+    mockGetOfferings.mockResolvedValue({
+      availablePackages: [
+        {
+          identifier: 'discount_50_lifetime',
+          product: {
+            identifier: 'domani_lifetime_discount_50',
+            priceString: '$4.99',
+            price: 4.99,
+            currencyCode: 'USD',
+          },
+        },
+      ],
+    })
     mockUseSubscription.mockImplementation(() =>
       buildMockSubscription({
         offeringIdentifier: 'early_adopter',
@@ -530,14 +575,74 @@ describe('RedeemCodeScreen Android promo routing', () => {
 
     await screen.findByText('Code Accepted')
 
-    expect(screen.getByText('Current price')).toBeTruthy()
+    expect(await screen.findByText('Current price')).toBeTruthy()
     expect(screen.getByText('$9.99')).toBeTruthy()
     expect(screen.getAllByText('$4.99').length).toBeGreaterThan(0)
     expect(screen.queryByText('$34.99')).toBeNull()
   })
 
+  it('calculates percentage savings from the grandfathered price', async () => {
+    mockValidAndroidDiscountCode(80)
+    mockGetOfferings.mockResolvedValue({
+      availablePackages: [
+        {
+          identifier: 'discount_50_lifetime',
+          product: {
+            identifier: 'domani_lifetime_discount_50',
+            priceString: '$6.99',
+            price: 6.99,
+            currencyCode: 'USD',
+          },
+        },
+      ],
+    })
+    mockUseSubscription.mockImplementation(() =>
+      buildMockSubscription({
+        offeringIdentifier: 'early_adopter',
+        offerings: {
+          identifier: 'early_adopter',
+          availablePackages: [
+            {
+              packageType: 'LIFETIME',
+              product: {
+                identifier: 'domani_lifetime_early',
+                priceString: '$9.99',
+                price: 9.99,
+                currencyCode: 'USD',
+              },
+            },
+          ],
+        },
+      }),
+    )
+
+    renderWithProviders(<RedeemCodeScreen />)
+    fireEvent.changeText(screen.getByPlaceholderText('ENTER-CODE-HERE'), 'SAVE80')
+    fireEvent.press(screen.getByLabelText('Submit code'))
+
+    await screen.findByText('30% off')
+
+    expect(screen.getByText('Discounted Lifetime Access')).toBeTruthy()
+    expect(screen.queryByText('80% Off Lifetime Access')).toBeNull()
+    expect(screen.getByText('$9.99')).toBeTruthy()
+    expect(screen.getAllByText('$6.99').length).toBeGreaterThan(0)
+  })
+
   it('shows no regular price when account pricing is unavailable', async () => {
     mockValidAndroidDiscountCode()
+    mockGetOfferings.mockResolvedValue({
+      availablePackages: [
+        {
+          identifier: 'discount_50_lifetime',
+          product: {
+            identifier: 'domani_lifetime_discount_50',
+            priceString: '$17.49',
+            price: 17.49,
+            currencyCode: 'USD',
+          },
+        },
+      ],
+    })
     mockUseSubscription.mockImplementation(() =>
       buildMockSubscription({ offeringIdentifier: null, offerings: null }),
     )
@@ -601,7 +706,7 @@ describe('RedeemCodeScreen Android promo routing', () => {
 
     await screen.findByText('Code Accepted')
 
-    fireEvent.press(screen.getByText('Continue to Purchase - $17.49'))
+    fireEvent.press(screen.getByText('Continue to Purchase'))
 
     await screen.findByText(
       "We couldn't open the in-app store confirmation. Use the store fallback or try syncing if you already finished redemption.",
