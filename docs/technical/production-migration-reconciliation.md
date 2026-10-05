@@ -31,7 +31,7 @@ The following 22 versions were absent from the 1.1.3 branch. On 2026-09-28, each
 | `20260920191645` | `472653a08badb001d1ba8eed7bf55c16` | PVS server `20260920181147_domani_user_insights.sql` |
 | `20260920191655` | `93cb1c6cea364902d73d334122027708` | PVS server `20260920190254_domani_feedback_user_filter.sql` |
 
-The old Domani PostHog filename used its source timestamp, not the production-applied timestamp. Keeping both would make the CLI offer to replay the same DDL; only the applied-version filename remains executable. The PVS source timestamps likewise must not be used as Domani migration versions. DEV-1417 will remove Domani migration ownership from the PVS server repository.
+The old Domani PostHog filename used its source timestamp, not the production-applied timestamp. Keeping both would make the CLI offer to replay the same DDL; only the applied-version filename remains executable. The PVS source timestamps likewise must not be used as Domani migration versions. DEV-1417 moves Domani migration ownership and SQL contract tests out of the PVS server repository.
 
 ## Legacy and fresh-replay boundaries
 
@@ -43,4 +43,4 @@ The old default `db:push --linked --include-all` path and embedded staging conne
 
 The `:push` commands run the same dry run before applying and additionally require `DOMANI_DB_PUSH_CONFIRM=<environment>:<project-ref>`. Do not set this confirmation during DEV-1415 review. A production dry run must propose **no** already-applied version. Any unknown migration, mismatched project, or unexpected plan is a stop condition; reconcile it before a future approved deployment. Do not manually repair production history to make a diff look clean.
 
-At review time, the production ledger had 98 versions and this repository had the same 98 version numbers, with no local-only version. Staging ledger reads timed out, and the local CLI lacked an access token, so staging comparison and the CLI's production dry run remain explicit verification gates rather than claimed passes.
+At the DEV-1415 review point, the production ledger had 98 versions and this repository had the same 98 version numbers, with no local-only version. DEV-1417 now adds the forward `20261005002529_pvs_schema_contract.sql` migration. Its appearance as the single new migration in a later dry run is expected; none of the 98 historical versions should be proposed again. Apply it to Domani before deploying the PVS API that checks the contract. Staging ledger reads timed out, and the local CLI lacked an access token, so staging comparison and the CLI's production dry run remain explicit verification gates rather than claimed passes.

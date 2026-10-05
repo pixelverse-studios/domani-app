@@ -255,7 +255,9 @@ domani-app/
 │       └── typography.ts             # Type scale
 ├── supabase/
 │   ├── functions/                    # Edge Functions
-│   └── migrations/                   # Database migrations
+│   ├── migrations/                   # Executable Domani database migrations
+│   ├── pending-migration-sources/    # Unapplied SQL references, never pushed
+│   └── tests/                        # Domani SQL contract tests
 ├── docs/                             # All documentation
 │   ├── features/                     # Feature documentation
 │   ├── technical/                    # Technical docs
