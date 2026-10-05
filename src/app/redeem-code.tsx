@@ -13,13 +13,13 @@ import {
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AlertCircle, ArrowLeft, ArrowRight, Check, Crown } from 'lucide-react-native'
-import { PACKAGE_TYPE } from 'react-native-purchases'
 import { useQuery } from '@tanstack/react-query'
 
 import { Text } from '~/components/ui'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import { addBreadcrumb } from '~/lib/sentry'
-import { getOfferings, OFFERINGS, setRevenueCatPromoRedemptionAttributes } from '~/lib/revenuecat'
+import { getOfferings, setRevenueCatPromoRedemptionAttributes } from '~/lib/revenuecat'
+import { getLifetimePackageForOffer } from '~/lib/lifetimePricingProduct'
 import { findPromoPackage } from '~/lib/promoPackages'
 import { buildPromoAnalyticsProps, recordPromoRedemptionAttemptEvent } from '~/lib/promoAnalytics'
 import { useAppTheme } from '~/hooks/useAppTheme'
@@ -91,41 +91,73 @@ export default function RedeemCodeScreen() {
   const invalidResult =
     validation?.result.status && validation.result.status !== 'valid' ? validation.result : null
   const showInvalid = !!invalidResult || !!validatePromoCode.error
-  const priceString = validOffer ? formatPromoPrice(validOffer) : null
+  const promoOfferingId = validOffer?.routing.revenueCatOfferingId ?? null
+  const promoOffering = useQuery({
+    queryKey: ['promoOffering', validOffer?.redemptionAttemptId, promoOfferingId],
+    queryFn: () => getOfferings(promoOfferingId ?? undefined),
+    enabled: !!validOffer?.display.paymentRequired && !!promoOfferingId,
+    retry: false,
+  })
+  const promoPackage = validOffer
+    ? findPromoPackage(promoOffering.data?.availablePackages, validOffer)
+    : null
+  const promoProduct = promoPackage?.product
+  const priceString =
+    promoProduct?.priceString ??
+    (validOffer?.discountKind === 'fixed_price' ? formatPromoPrice(validOffer) : null)
+  const promoPriceAmount =
+    promoProduct?.price ??
+    (validOffer?.discountKind === 'fixed_price' ? validOffer.display.priceAmount : null)
+  const promoPriceCurrency =
+    promoProduct?.currencyCode ??
+    (validOffer?.discountKind === 'fixed_price' ? validOffer.display.priceCurrency : null)
   const isConfirmed = localTestConfirmed || subscription.accessSyncPhase === 'confirmed'
   const isSyncing =
     subscription.accessSyncPhase === 'syncing' ||
     subscription.accessSyncPhase === 'os_confirmation_attempted' ||
     subscription.isSyncingAccess
-  const shouldLoadGeneralOfferingPrice =
-    !!validOffer && subscription.offeringIdentifier !== OFFERINGS.GENERAL
-  const { data: generalOffering } = useQuery({
-    queryKey: ['offerings', OFFERINGS.GENERAL],
-    queryFn: () => getOfferings(OFFERINGS.GENERAL),
-    enabled: shouldLoadGeneralOfferingPrice,
-    retry: false,
-  })
-  const comparisonOffering =
-    subscription.offeringIdentifier === OFFERINGS.GENERAL ? subscription.offerings : generalOffering
-  const comparisonLifetimePackage =
-    comparisonOffering?.availablePackages?.find(
-      (pkg) => pkg.packageType === PACKAGE_TYPE.LIFETIME,
-    ) ??
-    comparisonOffering?.availablePackages?.[0] ??
-    null
+  const comparisonLifetimePackage = getLifetimePackageForOffer(
+    subscription.offerings,
+    subscription.offeringIdentifier,
+  )
   const currentPriceString = comparisonLifetimePackage?.product.priceString ?? null
+  const regularPriceAmount = comparisonLifetimePackage?.product.price ?? null
   const promoPriceString = validOffer
     ? validOffer.display.paymentRequired
       ? priceString
       : t('subscription.redeemCode.freePrice')
     : null
+  const hasVerifiedSavings =
+    !!comparisonLifetimePackage &&
+    !!currentPriceString &&
+    !!priceString &&
+    !!validOffer &&
+    (validOffer.display.paymentRequired
+      ? promoPriceAmount !== null &&
+        promoPriceCurrency === comparisonLifetimePackage.product.currencyCode &&
+        regularPriceAmount !== null &&
+        promoPriceAmount < regularPriceAmount
+      : true)
   const shouldShowCurrentPrice =
-    !!currentPriceString && !!promoPriceString && currentPriceString !== promoPriceString
+    hasVerifiedSavings &&
+    !!currentPriceString &&
+    !!promoPriceString &&
+    currentPriceString !== promoPriceString
+  const actualDiscountPercent =
+    shouldShowCurrentPrice &&
+    validOffer?.discountKind === 'percent' &&
+    promoPriceAmount !== null &&
+    regularPriceAmount !== null &&
+    regularPriceAmount > 0
+      ? Math.round((1 - promoPriceAmount / regularPriceAmount) * 100)
+      : null
+  const useCampaignLabel =
+    validOffer?.discountKind !== 'percent' ||
+    validOffer.display.discountPercent === actualDiscountPercent
   const discountLabel =
-    validOffer?.display.discountPercent !== null &&
-    validOffer?.display.discountPercent !== undefined
+    actualDiscountPercent !== null
       ? t('subscription.redeemCode.discountPercentLabel', {
-          percent: validOffer.display.discountPercent,
+          percent: actualDiscountPercent,
         })
       : null
   const primaryCtaLabel = isConfirmed
@@ -591,12 +623,16 @@ export default function RedeemCodeScreen() {
                 style={{ color: theme.colors.brand.primary, lineHeight: 36 }}
               >
                 {validOffer.display.paymentRequired
-                  ? (validOffer.display.label ?? t('subscription.redeemCode.discountedAccess'))
+                  ? hasVerifiedSavings
+                    ? useCampaignLabel
+                      ? (validOffer.display.label ?? t('subscription.redeemCode.discountedAccess'))
+                      : t('subscription.redeemCode.discountedAccess')
+                    : t('subscription.paywall.purchaseCta')
                   : t('subscription.redeemCode.freeLifetimeAccess')}
               </Text>
               {validOffer.display.paymentRequired ? (
                 <Text className="text-sm text-content-secondary text-center mt-3">
-                  {priceString
+                  {priceString && hasVerifiedSavings
                     ? t('subscription.redeemCode.discountPrice', { price: priceString })
                     : t('subscription.redeemCode.paymentRequired')}
                 </Text>

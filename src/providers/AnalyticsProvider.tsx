@@ -102,6 +102,19 @@ export type AnalyticsEvent =
   // Subscription events
   | { name: 'subscription_started'; properties: { tier: string } }
   | {
+      name: 'lifetime_offer_exposed' | 'lifetime_checkout_started'
+      properties: {
+        platform: string
+        offer: string
+        product_id: string
+        price: string
+      }
+    }
+  | {
+      name: 'lifetime_offer_mismatch'
+      properties: { platform: string; offer: string | null }
+    }
+  | {
       name: 'trial_started'
       properties: AnalyticsBaseProperties & {
         offer: string | null

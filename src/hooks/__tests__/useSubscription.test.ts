@@ -1,16 +1,17 @@
 jest.mock('~/lib/revenuecat', () => ({
   ENTITLEMENT_ID: 'test-entitlement',
-  getOfferingForCohort: jest.fn(),
+  OFFERINGS: { EARLY_ADOPTER: 'early_adopter', GENERAL: 'general' },
   getOfferings: jest.fn(),
-  initializeRevenueCat: jest.fn(),
-  loginRevenueCat: jest.fn(),
-  logoutRevenueCat: jest.fn(),
+  getCustomerInfoForUser: jest.fn(),
+  setRevenueCatSessionUser: jest.fn(),
   presentCodeRedemptionSheet: jest.fn(),
   purchasePackage: jest.fn(),
-  restorePurchases: jest.fn(),
+  purchasePackageForUser: jest.fn(),
+  restorePurchasesForUser: jest.fn(),
+  runRevenueCatOperationForUser: jest.fn(),
   setRevenueCatPromoRedemptionAttributes: jest.fn(),
-  syncPurchasesAndRefreshCustomerInfo: jest.fn(),
-  syncRevenueCatSubscriberAttributes: jest.fn(),
+  syncPurchasesAndRefreshCustomerInfoForUser: jest.fn(),
+  syncRevenueCatSubscriberAttributesForUser: jest.fn(),
 }))
 
 const mockLogMetaPurchase = jest.fn()
@@ -56,16 +57,17 @@ import Purchases from 'react-native-purchases'
 import { supabase } from '~/lib/supabase'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import {
-  getOfferingForCohort,
   getOfferings,
-  initializeRevenueCat,
-  loginRevenueCat,
+  getCustomerInfoForUser,
+  setRevenueCatSessionUser,
   presentCodeRedemptionSheet,
   purchasePackage,
-  restorePurchases,
+  purchasePackageForUser,
+  restorePurchasesForUser,
+  runRevenueCatOperationForUser,
   setRevenueCatPromoRedemptionAttributes,
-  syncPurchasesAndRefreshCustomerInfo,
-  syncRevenueCatSubscriberAttributes,
+  syncPurchasesAndRefreshCustomerInfoForUser,
+  syncRevenueCatSubscriberAttributesForUser,
 } from '~/lib/revenuecat'
 import {
   hasFullAccess,
@@ -80,18 +82,21 @@ const mockSupabaseFrom = supabase.from as unknown as jest.Mock
 const mockSupabaseRpc = supabase.rpc as unknown as jest.Mock
 const mockUseAnalytics = useAnalytics as jest.Mock
 const mockGetCustomerInfo = Purchases.getCustomerInfo as jest.Mock
+const mockGetCustomerInfoForUser = getCustomerInfoForUser as jest.Mock
 const mockTrack = jest.fn()
-const mockGetOfferingForCohort = getOfferingForCohort as jest.Mock
 const mockGetOfferings = getOfferings as jest.Mock
-const mockInitializeRevenueCat = initializeRevenueCat as jest.Mock
-const mockLoginRevenueCat = loginRevenueCat as jest.Mock
+const mockSetRevenueCatSessionUser = setRevenueCatSessionUser as jest.Mock
 const mockPresentCodeRedemptionSheet = presentCodeRedemptionSheet as jest.Mock
 const mockPurchasePackage = purchasePackage as jest.Mock
-const mockRestorePurchases = restorePurchases as jest.Mock
+const mockPurchasePackageForUser = purchasePackageForUser as jest.Mock
+const mockRestorePurchases = restorePurchasesForUser as jest.Mock
+const mockRunRevenueCatOperationForUser = runRevenueCatOperationForUser as jest.Mock
 const mockSetRevenueCatPromoRedemptionAttributes =
   setRevenueCatPromoRedemptionAttributes as jest.Mock
-const mockSyncPurchasesAndRefreshCustomerInfo = syncPurchasesAndRefreshCustomerInfo as jest.Mock
-const mockSyncRevenueCatSubscriberAttributes = syncRevenueCatSubscriberAttributes as jest.Mock
+const mockSyncPurchasesAndRefreshCustomerInfo =
+  syncPurchasesAndRefreshCustomerInfoForUser as jest.Mock
+const mockSyncRevenueCatSubscriberAttributesForUser =
+  syncRevenueCatSubscriberAttributesForUser as jest.Mock
 const revenueCatBlockingPhases = [
   'code_validated',
   'os_confirmation_attempted',
@@ -161,7 +166,7 @@ function buildPurchasesPackage() {
     identifier: 'lifetime',
     packageType: 'LIFETIME',
     product: {
-      identifier: 'domani_lifetime',
+      identifier: 'domani_lifetime_early',
       priceString: '$9.99',
       price: 9.99,
       currencyCode: 'USD',
@@ -171,6 +176,8 @@ function buildPurchasesPackage() {
 
 function setupSubscriptionHookMocks() {
   mockGetCustomerInfo.mockResolvedValue(buildCustomerInfo({}))
+  mockGetCustomerInfoForUser.mockImplementation(() => mockGetCustomerInfo())
+  mockRunRevenueCatOperationForUser.mockImplementation((_userId, operation) => operation())
   mockUseAnalytics.mockReturnValue({
     identify: jest.fn(),
     reset: jest.fn(),
@@ -197,15 +204,20 @@ function setupSubscriptionHookMocks() {
       signup_method: null,
     },
   })
-  mockGetOfferingForCohort.mockReturnValue('default')
-  mockGetOfferings.mockResolvedValue(null)
-  mockInitializeRevenueCat.mockResolvedValue(undefined)
-  mockLoginRevenueCat.mockResolvedValue(undefined)
+  mockGetOfferings.mockImplementation(async (identifier: string) => ({
+    identifier,
+    availablePackages: [buildPurchasesPackage()],
+  }))
+  mockSetRevenueCatSessionUser.mockImplementation(async (userId: string | null) => !!userId)
+  mockPurchasePackageForUser.mockImplementation(async (pkg, _userId, preparePurchase) => {
+    await preparePurchase?.()
+    return mockPurchasePackage(pkg)
+  })
   mockPresentCodeRedemptionSheet.mockResolvedValue(true)
   mockPurchasePackage.mockResolvedValue(null)
   mockRestorePurchases.mockResolvedValue(null)
   mockSetRevenueCatPromoRedemptionAttributes.mockResolvedValue(undefined)
-  mockSyncRevenueCatSubscriberAttributes.mockResolvedValue(undefined)
+  mockSyncRevenueCatSubscriberAttributesForUser.mockResolvedValue(undefined)
   mockLogMetaPurchase.mockResolvedValue('logged')
   mockCandidateMatchesEntitlement.mockReturnValue(true)
   mockClearMetaPurchaseCandidate.mockResolvedValue(undefined)
@@ -239,6 +251,9 @@ function setupSubscriptionHookMocks() {
     }),
   )
   mockSupabaseRpc.mockImplementation((functionName: string) => {
+    if (functionName === 'get_my_lifetime_pricing_offer') {
+      return Promise.resolve({ data: 'early_adopter', error: null })
+    }
     if (functionName === 'confirm_current_user_promo_redemption') {
       return Promise.resolve({ data: { status: 'confirmed' }, error: null })
     }
@@ -374,7 +389,7 @@ describe('subscription product analytics', () => {
 
     expect(mockSupabaseRpc).toHaveBeenCalledWith('start_trial_with_posthog_outbox')
     expect(mockTrack).not.toHaveBeenCalledWith('trial_started', expect.anything())
-    expect(mockLogMetaStartTrial).toHaveBeenCalledWith({ userId: 'user-1', offer: 'default' })
+    expect(mockLogMetaStartTrial).toHaveBeenCalledWith({ userId: 'user-1', offer: null })
 
     unmount()
   })
@@ -409,8 +424,7 @@ describe('purchase access sync', () => {
     unmount()
   })
 
-  it('uses general pricing for friends-family cohort users outside promo redemption', async () => {
-    mockGetOfferingForCohort.mockReturnValue('general')
+  it('uses server-verified early pricing for a general-cohort account', async () => {
     mockUseProfile.mockReturnValue({
       isLoading: false,
       profile: {
@@ -424,7 +438,7 @@ describe('purchase access sync', () => {
         email: 'test@example.com',
         expo_push_token: null,
         full_name: 'Test User',
-        signup_cohort: 'friends_family',
+        signup_cohort: 'general',
         signup_method: null,
       },
     })
@@ -433,9 +447,113 @@ describe('purchase access sync', () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
-    expect(mockGetOfferingForCohort).toHaveBeenCalledWith('friends_family')
-    expect(result.current.offeringIdentifier).toBe('general')
+    expect(result.current.offeringIdentifier).toBe('early_adopter')
+    expect(mockGetOfferings).toHaveBeenCalledWith('early_adopter')
 
+    unmount()
+  })
+
+  it('does not load a purchasable offer when eligibility cannot be verified', async () => {
+    mockSupabaseRpc.mockImplementation((functionName: string) =>
+      Promise.resolve({
+        data: null,
+        error: functionName === 'get_my_lifetime_pricing_offer' ? { code: 'NETWORK' } : null,
+      }),
+    )
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.offeringIdentifier).toBeNull()
+    expect(result.current.offerings).toBeNull()
+    expect(mockGetOfferings).not.toHaveBeenCalled()
+
+    await expect(result.current.purchase(buildPurchasesPackage() as never)).rejects.toThrow(
+      'PRICE_OFFER_UNAVAILABLE',
+    )
+    expect(mockPurchasePackage).not.toHaveBeenCalled()
+    unmount()
+  })
+
+  it('blocks checkout if the package no longer matches the verified offer', async () => {
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.offeringIdentifier).toBe('early_adopter'))
+    const stalePackage = {
+      ...buildPurchasesPackage(),
+      product: { ...buildPurchasesPackage().product, identifier: 'other_product' },
+    }
+
+    await expect(result.current.purchase(stalePackage as never)).rejects.toThrow(
+      'PRICE_OFFER_UNAVAILABLE',
+    )
+    expect(mockPurchasePackage).not.toHaveBeenCalled()
+    expect(mockTrack).toHaveBeenCalledWith(
+      'lifetime_offer_mismatch',
+      expect.objectContaining({ offer: 'early_adopter' }),
+    )
+    unmount()
+  })
+
+  it('blocks checkout when the verified offering contains the wrong lifetime product', async () => {
+    mockGetOfferings.mockImplementation(async (identifier: string) => ({
+      identifier,
+      availablePackages: [
+        {
+          ...buildPurchasesPackage(),
+          product: { ...buildPurchasesPackage().product, identifier: 'domani_lifetime' },
+        },
+      ],
+    }))
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.offeringIdentifier).toBe('early_adopter'))
+    await expect(result.current.purchase(buildPurchasesPackage() as never)).rejects.toThrow(
+      'PRICE_OFFER_UNAVAILABLE',
+    )
+    expect(mockPurchasePackage).not.toHaveBeenCalled()
+    unmount()
+  })
+
+  it('fetches the new account offer after an account switch', async () => {
+    let finishNewLogin: (() => void) | undefined
+    mockSetRevenueCatSessionUser.mockImplementation((userId: string | null) =>
+      userId === 'user-2'
+        ? new Promise<boolean>((resolve) => {
+            finishNewLogin = () => resolve(true)
+          })
+        : Promise.resolve(!!userId),
+    )
+    mockSupabaseRpc.mockImplementation(
+      (functionName: string, args?: { p_expected_user_id?: string }) =>
+        Promise.resolve({
+          data:
+            functionName === 'get_my_lifetime_pricing_offer'
+              ? args?.p_expected_user_id === 'user-2'
+                ? 'general'
+                : 'early_adopter'
+              : null,
+          error: null,
+        }),
+    )
+
+    const { result, rerender, unmount } = renderHookWithProviders(() => useSubscription())
+    await waitFor(() => expect(result.current.offeringIdentifier).toBe('early_adopter'))
+
+    const customerInfoReads = mockGetCustomerInfo.mock.calls.length
+    mockUseAuth.mockReturnValue({ user: { id: 'user-2', email: 'second@example.com' } })
+    rerender(undefined)
+    expect(result.current.offeringIdentifier).toBeNull()
+    expect(mockGetCustomerInfo).toHaveBeenCalledTimes(customerInfoReads)
+    await expect(result.current.restore()).rejects.toThrow('REVENUECAT_USER_MISMATCH')
+    expect(mockRestorePurchases).not.toHaveBeenCalled()
+
+    await act(async () => finishNewLogin?.())
+
+    await waitFor(() => expect(result.current.offeringIdentifier).toBe('general'))
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('get_my_lifetime_pricing_offer', {
+      p_expected_user_id: 'user-2',
+    })
     unmount()
   })
 
@@ -979,6 +1097,7 @@ describe('purchase access sync', () => {
     })
 
     expect(mockPurchasePackage).toHaveBeenCalledWith(pkg)
+    expect(mockPurchasePackageForUser).toHaveBeenCalledWith(pkg, 'user-1', expect.any(Function))
     expect(mockCreateMetaPurchaseCandidate.mock.invocationCallOrder[0]).toBeLessThan(
       mockPurchasePackage.mock.invocationCallOrder[0],
     )
@@ -1012,7 +1131,7 @@ describe('purchase access sync', () => {
     })
 
     expect(mockCreateMetaPurchaseCandidate).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'user-1', productId: 'domani_lifetime' }),
+      expect.objectContaining({ userId: 'user-1', productId: 'domani_lifetime_early' }),
     )
     expect(mockClearMetaPurchaseCandidate).toHaveBeenCalledWith('user-1')
     expect(mockLogMetaPurchase).not.toHaveBeenCalled()

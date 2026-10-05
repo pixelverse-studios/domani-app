@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
 import { AppState, Platform } from 'react-native'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import Purchases, { CustomerInfo, PurchasesPackage } from 'react-native-purchases'
+import type { CustomerInfo, PurchasesPackage } from 'react-native-purchases'
 import { addDays, parseISO } from 'date-fns'
 
 import { supabase } from '~/lib/supabase'
+import { getVerifiedPricingOffer } from '~/lib/pricingEligibility'
+import { getLifetimePackageForOffer } from '~/lib/lifetimePricingProduct'
 import { addBreadcrumb } from '~/lib/sentry'
 import {
   buildPromoAttemptAnalyticsProps,
@@ -32,15 +34,14 @@ import { useAppConfig } from '~/stores/appConfigStore'
 import { isBetaPhase } from '~/types/appConfig'
 import type { Profile } from '~/types'
 import {
-  initializeRevenueCat,
-  loginRevenueCat,
-  logoutRevenueCat,
-  syncRevenueCatSubscriberAttributes,
+  setRevenueCatSessionUser,
+  syncRevenueCatSubscriberAttributesForUser,
   getOfferings,
-  getOfferingForCohort,
-  purchasePackage,
-  restorePurchases,
-  syncPurchasesAndRefreshCustomerInfo,
+  getCustomerInfoForUser,
+  purchasePackageForUser,
+  restorePurchasesForUser,
+  runRevenueCatOperationForUser,
+  syncPurchasesAndRefreshCustomerInfoForUser,
   presentCodeRedemptionSheet,
   setRevenueCatPromoRedemptionAttributes,
   ENTITLEMENT_ID,
@@ -356,6 +357,9 @@ export function useSubscription() {
   const { profile, isLoading: profileLoading } = useProfile()
   const queryClient = useQueryClient()
   const [isInitialized, setIsInitialized] = useState(false)
+  const [initializedRevenueCatUserId, setInitializedRevenueCatUserId] = useState<string | null>(
+    null,
+  )
   const [revenueCatAttributeSyncRetryToken, setRevenueCatAttributeSyncRetryToken] = useState(0)
   const previousUserId = useRef<string | undefined>(undefined)
   const previousRevenueCatAttributeSignatureRef = useRef<string | null>(null)
@@ -382,62 +386,47 @@ export function useSubscription() {
   // Initialize RevenueCat when user changes (skip during beta)
   useEffect(() => {
     let isMounted = true
+    const previousId = previousUserId.current
+    previousUserId.current = user?.id
+    setInitializedRevenueCatUserId(null)
 
-    async function init() {
-      // During beta, skip RevenueCat entirely
-      if (shouldBypassRevenueCat) {
-        if (isMounted) {
-          setIsInitialized(true)
-        }
-        return
+    if (shouldBypassRevenueCat) {
+      setIsInitialized(true)
+      return () => {
+        isMounted = false
       }
-
-      // Handle logout when user signs out (previous user existed, now gone)
-      if (previousUserId.current && !user?.id) {
-        logoutRevenueCat()
-        metaPurchaseRecoveryUserRef.current = null
-        previousRevenueCatAttributeSignatureRef.current = null
-        previousAndroidMonetizationBreadcrumbRef.current = null
-        setRevenueCatAttributeSyncRetryToken(0)
-        if (revenueCatAttributeRetryTimeoutRef.current) {
-          clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
-          revenueCatAttributeRetryTimeoutRef.current = null
-        }
-        if (isMounted) {
-          setIsInitialized(false)
-        }
-      }
-
-      if (previousUserId.current && user?.id && previousUserId.current !== user.id) {
-        previousRevenueCatAttributeSignatureRef.current = null
-        previousAndroidMonetizationBreadcrumbRef.current = null
-        setRevenueCatAttributeSyncRetryToken(0)
-        if (revenueCatAttributeRetryTimeoutRef.current) {
-          clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
-          revenueCatAttributeRetryTimeoutRef.current = null
-        }
-      }
-
-      // Handle login when user signs in
-      if (user?.id) {
-        try {
-          await initializeRevenueCat(user.id)
-          await loginRevenueCat(user.id)
-        } catch (error) {
-          // RevenueCat failed to initialize - continue without it
-          // This can happen if Android API key is not configured
-          console.warn('[useSubscription] RevenueCat initialization failed:', error)
-        }
-        // Always mark as initialized so Settings doesn't hang
-        if (isMounted) {
-          setIsInitialized(true)
-        }
-      }
-
-      // Track the current user id for next comparison
-      previousUserId.current = user?.id
     }
-    init()
+
+    if (previousId && previousId !== user?.id) {
+      if (!user?.id) metaPurchaseRecoveryUserRef.current = null
+      pendingExternalPurchaseSyncRef.current = null
+      previousConfirmedAccessSyncSignatureRef.current = null
+      setAccessSyncAttempt(null)
+      setAccessSyncResult(null)
+      setAccessSyncPhase('idle')
+      previousRevenueCatAttributeSignatureRef.current = null
+      previousAndroidMonetizationBreadcrumbRef.current = null
+      setRevenueCatAttributeSyncRetryToken(0)
+      if (revenueCatAttributeRetryTimeoutRef.current) {
+        clearTimeout(revenueCatAttributeRetryTimeoutRef.current)
+        revenueCatAttributeRetryTimeoutRef.current = null
+      }
+    }
+
+    setIsInitialized(false)
+    void setRevenueCatSessionUser(user?.id ?? null)
+      .then((ready) => {
+        if (!isMounted) return
+        setIsInitialized(!!user?.id)
+        setInitializedRevenueCatUserId(ready ? (user?.id ?? null) : null)
+      })
+      .catch((error) => {
+        console.warn('[useSubscription] RevenueCat initialization failed:', error)
+        if (!isMounted) return
+        // Keep Settings responsive while pricing and checkout remain unavailable.
+        setIsInitialized(!!user?.id)
+        setInitializedRevenueCatUserId(null)
+      })
 
     return () => {
       isMounted = false
@@ -454,7 +443,14 @@ export function useSubscription() {
   }, [])
 
   useEffect(() => {
-    if (!user?.id || !isInitialized || shouldBypassRevenueCat || !profile) return
+    if (
+      !user?.id ||
+      !isInitialized ||
+      initializedRevenueCatUserId !== user.id ||
+      shouldBypassRevenueCat ||
+      !profile
+    )
+      return
 
     const attributeSignature = JSON.stringify({
       email: user.email ?? null,
@@ -468,7 +464,7 @@ export function useSubscription() {
 
     previousRevenueCatAttributeSignatureRef.current = attributeSignature
 
-    syncRevenueCatSubscriberAttributes({
+    syncRevenueCatSubscriberAttributesForUser(user.id, {
       email: user.email ?? null,
       displayName: profile.full_name ?? null,
       pushToken: profile.expo_push_token ?? null,
@@ -490,6 +486,7 @@ export function useSubscription() {
     })
   }, [
     isInitialized,
+    initializedRevenueCatUserId,
     shouldBypassRevenueCat,
     user?.email,
     user?.id,
@@ -508,9 +505,10 @@ export function useSubscription() {
   } = useQuery({
     queryKey: ['customerInfo', user?.id],
     queryFn: async () => {
-      if (!isInitialized || shouldBypassRevenueCat) return null
+      if (!user?.id || initializedRevenueCatUserId !== user.id || shouldBypassRevenueCat)
+        return null
       try {
-        const info = await Purchases.getCustomerInfo()
+        const info = await getCustomerInfoForUser(user.id)
         console.log('[useSubscription] Loaded RevenueCat customer info', {
           userId: user?.id ?? null,
           originalAppUserId: info.originalAppUserId,
@@ -523,7 +521,11 @@ export function useSubscription() {
         return null
       }
     },
-    enabled: isInitialized && !!user?.id && !shouldBypassRevenueCat,
+    enabled:
+      isInitialized &&
+      initializedRevenueCatUserId === user?.id &&
+      !!user?.id &&
+      !shouldBypassRevenueCat,
     retry: false, // Don't retry if RevenueCat is not configured
   })
 
@@ -534,19 +536,48 @@ export function useSubscription() {
     hasPendingExternalPurchaseSync: !!pendingExternalPurchaseSyncRef.current,
   })
   const effectiveCustomerInfo =
-    shouldBypassRevenueCat || !shouldUseRevenueCatForAccess ? null : customerInfo
+    shouldBypassRevenueCat ||
+    initializedRevenueCatUserId !== user?.id ||
+    !shouldUseRevenueCatForAccess
+      ? null
+      : customerInfo
 
-  // Get the cohort-specific offering identifier
-  const offeringIdentifier = getOfferingForCohort(profile?.signup_cohort)
-
-  // Query for offerings (available products) - disabled during beta
-  // Uses cohort-specific offering based on user's signup_cohort
-  const { data: offerings, isLoading: isLoadingOfferings } = useQuery({
-    queryKey: ['offerings', offeringIdentifier],
-    queryFn: () => getOfferings(offeringIdentifier),
-    enabled: isInitialized && !shouldBypassRevenueCat && !!profile,
-    retry: false, // Don't retry if RevenueCat is not configured
+  const pricingEligibility = useQuery({
+    queryKey: ['pricingEligibility', user?.id],
+    queryFn: () => getVerifiedPricingOffer(user?.id ?? ''),
+    enabled:
+      isInitialized &&
+      initializedRevenueCatUserId === user?.id &&
+      !shouldBypassRevenueCat &&
+      !!user?.id,
+    retry: false,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnReconnect: 'always',
   })
+  const offeringIdentifier =
+    pricingEligibility.isFetchedAfterMount && !pricingEligibility.isFetching
+      ? (pricingEligibility.data ?? null)
+      : null
+
+  const offeringsQuery = useQuery({
+    queryKey: ['offerings', user?.id, offeringIdentifier],
+    queryFn: () => (offeringIdentifier ? getOfferings(offeringIdentifier) : null),
+    enabled:
+      isInitialized &&
+      initializedRevenueCatUserId === user?.id &&
+      !shouldBypassRevenueCat &&
+      !!profile &&
+      !!offeringIdentifier,
+    retry: false,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnReconnect: 'always',
+  })
+  const offerings =
+    offeringIdentifier && offeringsQuery.isFetchedAfterMount && !offeringsQuery.isFetching
+      ? (offeringsQuery.data ?? null)
+      : null
 
   // Compute subscription state. Beta phase short-circuits everything else;
   // see computeSubscriptionState for the full state machine.
@@ -652,7 +683,12 @@ export function useSubscription() {
         attemptContext,
       }
 
-      if (!user?.id || shouldBypassRevenueCat || !isInitialized) {
+      if (
+        !user?.id ||
+        shouldBypassRevenueCat ||
+        !isInitialized ||
+        initializedRevenueCatUserId !== user.id
+      ) {
         const result: PurchaseAccessSyncResult = {
           ...baseResult,
           status: 'skipped',
@@ -692,12 +728,13 @@ export function useSubscription() {
       let info: CustomerInfo | null = null
 
       try {
-        if (request.customerInfo) {
-          info = request.customerInfo
+        const providedCustomerInfo = request.customerInfo
+        if (providedCustomerInfo) {
+          info = await runRevenueCatOperationForUser(user.id, async () => providedCustomerInfo)
         } else if (request.forceStoreSync) {
-          info = await syncPurchasesAndRefreshCustomerInfo()
+          info = await syncPurchasesAndRefreshCustomerInfoForUser(user.id)
         } else {
-          info = await Purchases.getCustomerInfo()
+          info = await getCustomerInfoForUser(user.id)
         }
       } catch (error) {
         const result: PurchaseAccessSyncResult = {
@@ -774,6 +811,7 @@ export function useSubscription() {
 
       let supabaseSyncStatus: SupabaseSubscriptionSyncStatus
       try {
+        await runRevenueCatOperationForUser(user.id, async () => undefined)
         supabaseSyncStatus = await syncSubscriptionToSupabase(user.id, info)
       } catch (error) {
         const result: PurchaseAccessSyncResult = {
@@ -988,6 +1026,7 @@ export function useSubscription() {
     },
     [
       isInitialized,
+      initializedRevenueCatUserId,
       profile?.purchased_at,
       profile?.refunded_at,
       profile?.tier,
@@ -1350,6 +1389,8 @@ export function useSubscription() {
           return
         }
         queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
+        queryClient.invalidateQueries({ queryKey: ['pricingEligibility', user.id] })
+        queryClient.invalidateQueries({ queryKey: ['offerings', user.id] })
       }
     })
 
@@ -1437,7 +1478,34 @@ export function useSubscription() {
   // Purchase lifetime access
   const purchaseMutation = useMutation({
     mutationFn: async (input: PurchasesPackage | PurchaseRequest) => {
-      const pkg = 'pkg' in input ? input.pkg : input
+      let pkg = 'pkg' in input ? input.pkg : input
+      let checkoutOffer: string | null = null
+      if (!user?.id) throw new Error('Not authenticated')
+      if (initializedRevenueCatUserId !== user.id) throw new Error('PRICE_OFFER_UNAVAILABLE')
+
+      if (!('pkg' in input && input.attemptContext?.redemptionAttemptId)) {
+        const verifiedOffer = await getVerifiedPricingOffer(user.id)
+        const currentOffering = verifiedOffer ? await getOfferings(verifiedOffer) : null
+        const currentPackage = getLifetimePackageForOffer(currentOffering, verifiedOffer)
+
+        if (
+          !verifiedOffer ||
+          !currentPackage ||
+          !currentPackage.product.priceString ||
+          currentPackage.identifier !== pkg.identifier ||
+          currentPackage.product.identifier !== pkg.product.identifier ||
+          currentPackage.product.priceString !== pkg.product.priceString
+        ) {
+          track('lifetime_offer_mismatch', {
+            platform: Platform.OS,
+            offer: verifiedOffer,
+          })
+          throw new Error('PRICE_OFFER_UNAVAILABLE')
+        }
+        pkg = currentPackage
+        checkoutOffer = verifiedOffer
+      }
+
       const providedAttemptContext =
         'pkg' in input
           ? (input.attemptContext ?? null)
@@ -1454,20 +1522,6 @@ export function useSubscription() {
         currency: pkg.product.currencyCode ?? null,
       }
 
-      if (attemptContext?.redemptionAttemptId) {
-        await setRevenueCatPromoRedemptionAttributes(attemptContext)
-      } else {
-        try {
-          await setRevenueCatPromoRedemptionAttributes(null)
-        } catch (error) {
-          console.warn('[useSubscription] Failed to clear promo RevenueCat attributes', {
-            userId: user?.id ?? null,
-            error,
-          })
-          throw new Error('PROMO_ATTRIBUTE_CLEAR_FAILED')
-        }
-      }
-
       console.log('[useSubscription] Purchase mutation started', {
         userId: user?.id ?? null,
         offeringIdentifier,
@@ -1477,8 +1531,6 @@ export function useSubscription() {
         productIdentifier: pkg.product.identifier,
       })
 
-      if (!user?.id) throw new Error('Not authenticated')
-
       let candidate: MetaPurchaseCandidate | null = null
       if (!attemptContext.redemptionAttemptId) {
         try {
@@ -1487,7 +1539,7 @@ export function useSubscription() {
             productId: pkg.product.identifier,
             amount: attemptContext.price,
             currency: attemptContext.currency,
-            offer: offeringIdentifier,
+            offer: checkoutOffer,
             baselinePurchaseDate:
               customerInfo?.entitlements.active[ENTITLEMENT_ID]?.latestPurchaseDate ?? null,
           })
@@ -1501,7 +1553,30 @@ export function useSubscription() {
 
       let purchaseResult
       try {
-        purchaseResult = await purchasePackage(pkg)
+        if (checkoutOffer) {
+          track('lifetime_checkout_started', {
+            platform: Platform.OS,
+            offer: checkoutOffer,
+            product_id: pkg.product.identifier,
+            price: pkg.product.priceString,
+          })
+        }
+        purchaseResult = await purchasePackageForUser(pkg, user.id, async () => {
+          if (attemptContext.redemptionAttemptId) {
+            await setRevenueCatPromoRedemptionAttributes(attemptContext)
+            return
+          }
+
+          try {
+            await setRevenueCatPromoRedemptionAttributes(null)
+          } catch (error) {
+            console.warn('[useSubscription] Failed to clear promo RevenueCat attributes', {
+              userId: user.id,
+              error,
+            })
+            throw new Error('PROMO_ATTRIBUTE_CLEAR_FAILED')
+          }
+        })
       } catch (error) {
         if (candidate) await clearMetaPurchaseCandidateSafely(user.id)
         throw error
@@ -1557,7 +1632,10 @@ export function useSubscription() {
       console.log('[useSubscription] Restore mutation started', {
         userId: user?.id ?? null,
       })
-      const info = await restorePurchases()
+      if (!user?.id || initializedRevenueCatUserId !== user.id) {
+        throw new Error('REVENUECAT_USER_MISMATCH')
+      }
+      const info = await restorePurchasesForUser(user.id)
       if (info) {
         const result = await syncExternalPurchaseAccess({
           source: 'restore',
@@ -1590,7 +1668,12 @@ export function useSubscription() {
     ...subscriptionState,
     offerings,
     offeringIdentifier, // Which pricing tier the user qualifies for
-    isLoading: isLoadingCustomerInfo || isLoadingOfferings || !isInitialized || profileLoading,
+    isLoading:
+      isLoadingCustomerInfo ||
+      pricingEligibility.isLoading ||
+      offeringsQuery.isLoading ||
+      !isInitialized ||
+      profileLoading,
     startTrial: startTrialMutation.mutateAsync,
     isStartingTrial: startTrialMutation.isPending,
     purchase: purchaseMutation.mutateAsync,

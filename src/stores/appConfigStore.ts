@@ -9,8 +9,6 @@ import type {
   PhaseConfig,
   FeatureFlags,
   FeatureFlagsByPhase,
-  PublicPricingConfig,
-  PublicPricingTier,
 } from '~/types/appConfig'
 
 const DEFAULT_PHASE_CONFIG: PhaseConfig = {
@@ -37,7 +35,6 @@ interface AppConfigState {
   showBadge: boolean
   features: FeatureFlags
   featureFlagsByPhase: FeatureFlagsByPhase | null
-  publicPricing: PublicPricingTier
   betaAccess: BetaAccessConfig
 
   // Loading state
@@ -55,13 +52,7 @@ interface AppConfigState {
 type PersistedAppConfigState = Partial<
   Pick<
     AppConfigState,
-    | 'phase'
-    | 'showBadge'
-    | 'features'
-    | 'featureFlagsByPhase'
-    | 'publicPricing'
-    | 'betaAccess'
-    | 'lastFetchedAt'
+    'phase' | 'showBadge' | 'features' | 'featureFlagsByPhase' | 'betaAccess' | 'lastFetchedAt'
   >
 >
 
@@ -73,7 +64,6 @@ export const useAppConfigStore = create<AppConfigState>()(
       showBadge: DEFAULT_PHASE_CONFIG.show_badge,
       features: DEFAULT_FEATURES,
       featureFlagsByPhase: null,
-      publicPricing: 'early_adopter',
       betaAccess: DEFAULT_BETA_ACCESS,
       isLoading: false,
       error: null,
@@ -92,7 +82,6 @@ export const useAppConfigStore = create<AppConfigState>()(
           let phase: AppPhase = DEFAULT_PHASE_CONFIG.current
           let showBadge = DEFAULT_PHASE_CONFIG.show_badge
           let featureFlagsByPhase: FeatureFlagsByPhase | null = null
-          let publicPricing: PublicPricingTier = 'early_adopter'
           let betaAccess: BetaAccessConfig = DEFAULT_BETA_ACCESS
 
           // Parse config rows
@@ -103,14 +92,6 @@ export const useAppConfigStore = create<AppConfigState>()(
               showBadge = phaseConfig.show_badge
             } else if (row.key === 'feature_flags') {
               featureFlagsByPhase = row.value as unknown as FeatureFlagsByPhase
-            } else if (row.key === 'public_pricing') {
-              const publicPricingConfig = row.value as unknown as PublicPricingConfig
-              if (
-                publicPricingConfig.tier === 'early_adopter' ||
-                publicPricingConfig.tier === 'standard'
-              ) {
-                publicPricing = publicPricingConfig.tier
-              }
             } else if (row.key === 'beta_access') {
               const betaAccessConfig = row.value as unknown as Partial<BetaAccessConfig>
               if (
@@ -135,7 +116,6 @@ export const useAppConfigStore = create<AppConfigState>()(
             showBadge,
             features,
             featureFlagsByPhase,
-            publicPricing,
             betaAccess,
             isLoading: false,
             lastFetchedAt: Date.now(),
@@ -161,13 +141,12 @@ export const useAppConfigStore = create<AppConfigState>()(
     }),
     {
       name: 'app-config-storage',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => AsyncStorage),
       migrate: (persistedState: unknown) => {
         const state = (persistedState ?? {}) as PersistedAppConfigState
 
         return {
-          publicPricing: state.publicPricing ?? 'early_adopter',
           betaAccess: state.betaAccess ?? DEFAULT_BETA_ACCESS,
           lastFetchedAt: state.lastFetchedAt ?? null,
         }
@@ -175,7 +154,6 @@ export const useAppConfigStore = create<AppConfigState>()(
       // Persist only non-phase config. Phase and derived feature state must come
       // from a fresh fetch each launch so stale beta values cannot stick locally.
       partialize: (state) => ({
-        publicPricing: state.publicPricing,
         betaAccess: state.betaAccess,
         lastFetchedAt: state.lastFetchedAt,
       }),
@@ -191,7 +169,6 @@ export function useAppConfig() {
     phase: store.phase,
     showBadge: store.showBadge,
     features: store.features,
-    publicPricing: store.publicPricing,
     betaAccess: store.betaAccess,
     hasFetchedConfig: store.hasFetchedConfigThisSession,
     isLoading: store.isLoading,

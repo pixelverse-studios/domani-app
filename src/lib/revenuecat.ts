@@ -290,6 +290,129 @@ export async function logoutRevenueCat() {
   }
 }
 
+// RevenueCat has one active account per app process. Every hook instance must
+// share this queue so an old screen cannot finish a login after a newer one.
+let requestedRevenueCatUserId: string | null = null
+let activeRevenueCatUserId: string | null = null
+let revenueCatSessionQueue: Promise<void> = Promise.resolve()
+
+function queueRevenueCatSessionOperation<T>(operation: () => Promise<T>): Promise<T> {
+  const result = revenueCatSessionQueue.then(operation, operation)
+  revenueCatSessionQueue = result.then(
+    () => undefined,
+    () => undefined,
+  )
+  return result
+}
+
+export function setRevenueCatSessionUser(userId: string | null): Promise<boolean> {
+  requestedRevenueCatUserId = userId
+
+  return queueRevenueCatSessionOperation(async () => {
+    if (requestedRevenueCatUserId !== userId) return false
+
+    if (!userId) {
+      if (activeRevenueCatUserId) await logoutRevenueCat()
+      activeRevenueCatUserId = null
+      return false
+    }
+
+    if (activeRevenueCatUserId === userId) {
+      try {
+        if ((await Purchases.getAppUserID()) === userId) {
+          return requestedRevenueCatUserId === userId
+        }
+      } catch {
+        // Reinitialize below if the SDK lost its active user.
+      }
+    }
+
+    await initializeRevenueCat(userId)
+    await loginRevenueCat(userId)
+    const sdkUserId = await Purchases.getAppUserID()
+    if (sdkUserId !== userId) {
+      activeRevenueCatUserId = null
+      throw new Error('PRICE_OFFER_UNAVAILABLE')
+    }
+
+    activeRevenueCatUserId = userId
+    return requestedRevenueCatUserId === userId
+  })
+}
+
+export function syncRevenueCatSubscriberAttributesForUser(
+  expectedUserId: string,
+  input: RevenueCatSubscriberAttributesInput,
+) {
+  return queueRevenueCatSessionOperation(async () => {
+    if (
+      requestedRevenueCatUserId !== expectedUserId ||
+      (await Purchases.getAppUserID()) !== expectedUserId
+    ) {
+      throw new Error('PRICE_OFFER_UNAVAILABLE')
+    }
+    await syncRevenueCatSubscriberAttributes(input)
+  })
+}
+
+export function purchasePackageForUser(
+  pkg: PurchasesPackage,
+  expectedUserId: string,
+  preparePurchase?: () => Promise<void>,
+) {
+  return queueRevenueCatSessionOperation(async () => {
+    if (
+      requestedRevenueCatUserId !== expectedUserId ||
+      (await Purchases.getAppUserID()) !== expectedUserId
+    ) {
+      throw new Error('PRICE_OFFER_UNAVAILABLE')
+    }
+
+    await preparePurchase?.()
+    if (requestedRevenueCatUserId !== expectedUserId) {
+      throw new Error('PRICE_OFFER_UNAVAILABLE')
+    }
+
+    return purchasePackage(pkg)
+  })
+}
+
+export function runRevenueCatOperationForUser<T>(
+  expectedUserId: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  return queueRevenueCatSessionOperation(async () => {
+    if (
+      requestedRevenueCatUserId !== expectedUserId ||
+      (await Purchases.getAppUserID()) !== expectedUserId
+    ) {
+      throw new Error('REVENUECAT_USER_MISMATCH')
+    }
+
+    const result = await operation()
+    if (
+      requestedRevenueCatUserId !== expectedUserId ||
+      (await Purchases.getAppUserID()) !== expectedUserId
+    ) {
+      throw new Error('REVENUECAT_USER_MISMATCH')
+    }
+
+    return result
+  })
+}
+
+export function getCustomerInfoForUser(userId: string) {
+  return runRevenueCatOperationForUser(userId, () => Purchases.getCustomerInfo())
+}
+
+export function restorePurchasesForUser(userId: string) {
+  return runRevenueCatOperationForUser(userId, restorePurchases)
+}
+
+export function syncPurchasesAndRefreshCustomerInfoForUser(userId: string) {
+  return runRevenueCatOperationForUser(userId, syncPurchasesAndRefreshCustomerInfo)
+}
+
 /**
  * Get current offerings (products available for purchase)
  * @param offeringIdentifier - Optional specific offering to fetch (for cohort-based pricing)
@@ -310,7 +433,16 @@ export async function getOfferings(offeringIdentifier?: string): Promise<Purchas
       return offerings.all[offeringIdentifier]
     }
 
-    // Fall back to the default/current offering
+    // A missing explicitly selected offering must not silently switch prices.
+    if (offeringIdentifier) {
+      console.error('[RevenueCat] Requested offering unavailable', {
+        requestedOfferingIdentifier: offeringIdentifier,
+        availableOfferingIds,
+      })
+      return null
+    }
+
+    // Fall back to the default/current offering only when no offer was selected.
     console.log('[RevenueCat] Returning current offering', {
       requestedOfferingIdentifier: offeringIdentifier ?? null,
       availableOfferingIds,
@@ -320,24 +452,6 @@ export async function getOfferings(offeringIdentifier?: string): Promise<Purchas
   } catch (error) {
     console.error('[RevenueCat] Error fetching offerings:', error)
     return null
-  }
-}
-
-/**
- * Get the appropriate offering identifier based on user's signup cohort
- * Maps cohort to corresponding RevenueCat offering:
- * - early_adopter → early_adopter offering ($9.99)
- * - friends_family → general offering (friends/family pricing is promo-code only)
- * - general (or null/undefined) → general offering ($34.99)
- */
-export function getOfferingForCohort(
-  signupCohort: string | null | undefined,
-): (typeof OFFERINGS)[keyof typeof OFFERINGS] {
-  switch (signupCohort) {
-    case 'early_adopter':
-      return OFFERINGS.EARLY_ADOPTER
-    default:
-      return OFFERINGS.GENERAL
   }
 }
 
