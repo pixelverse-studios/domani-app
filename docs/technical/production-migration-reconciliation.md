@@ -39,7 +39,7 @@ Numeric versions `001`–`056` are historical production entries. Some filenames
 
 ## Operator procedure
 
-The old default `db:push --linked --include-all` path and embedded staging connection string are removed. Use `npm run db:staging:dry-run` or `npm run db:production:dry-run` first. The wrapper checks that the manually managed `.env` Supabase URL matches the named project and that `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` are present. It passes an explicit project reference and `--skip-vault` to the pinned CLI; it never uses `--include-all`.
+The old default `db:push --linked --include-all` path and embedded staging connection string are removed. Use `npm run db:staging:dry-run` or `npm run db:production:dry-run` first. These commands require the manually selected `.env` file and Node 20.6 or newer for `--env-file`. The wrapper checks that the `.env` Supabase URL matches the named project and that `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` are present. It passes an explicit project reference and `--skip-vault` to the pinned CLI; it never uses `--include-all`.
 
 The `:push` commands run the same dry run before applying and additionally require `DOMANI_DB_PUSH_CONFIRM=<environment>:<project-ref>`. Do not set this confirmation during DEV-1415 review. A production dry run must propose **no** already-applied version. Any unknown migration, mismatched project, or unexpected plan is a stop condition; reconcile it before a future approved deployment. Do not manually repair production history to make a diff look clean.
 
