@@ -15,6 +15,7 @@ trap cleanup EXIT
   -f "$repo/supabase/tests/domani_feedback_fixture.sql" \
   -f "$repo/supabase/tests/domani_users_fixture.sql" \
   -f "$repo/supabase/migrations/20260920191645_domani_user_insights.sql" \
-  -f "$repo/supabase/pending-migration-sources/20260921160406_harden_domani_user_activity_projection.sql" \
+  -f "$repo/supabase/migrations/20261005002529_pvs_schema_contract.sql" \
+  -f "$repo/supabase/migrations/20261007134913_harden_domani_user_activity_projection.sql" \
   -f "$repo/supabase/tests/domani_users_assertions.sql"
 echo "User insights SQL tests passed"

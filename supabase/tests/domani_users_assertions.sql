@@ -4,6 +4,7 @@ DO $$ DECLARE r jsonb; a jsonb; b jsonb;
  item_keys text[]:=ARRAY['id','email','full_name','signup_cohort','signup_method','timezone','created_at','profile_created_at','joined_at','last_sign_in_at','last_active_at','activity_source','deleted_at','deletion_scheduled_for','banned_until','email_confirmed_at','email_verification_status','account_status','login_providers','latest_device_observation','feedback_count'];
  device_keys text[]:=ARRAY['source_id','source','observed_at','platform','device_brand','device_model','os_version','app_version','app_build'];
 BEGIN
+ IF public.pvs_domani_schema_contract_version()<>'20261007134913' THEN RAISE EXCEPTION 'PVS schema contract version did not advance'; END IF;
  r:=public.list_dashboard_domani_users('{"include_deleted":true,"limit":100}');
  IF (r->>'total')::int<>125 OR jsonb_array_length(r->'items')<>100 THEN RAISE EXCEPTION 'Global pagination failed'; END IF;
  a:=public.list_dashboard_domani_users('{"include_deleted":true,"limit":100,"offset":100}');
@@ -48,7 +49,7 @@ BEGIN
 END $$;
 RESET ROLE;
 DO $$ BEGIN
- IF has_table_privilege('anon','public.profiles_dashboard','SELECT') OR has_table_privilege('authenticated','public.dashboard_domani_user_insights','SELECT') OR has_function_privilege('anon','public.list_dashboard_domani_users(jsonb)','EXECUTE') THEN RAISE EXCEPTION 'Exposed insights'; END IF;
+ IF has_table_privilege('anon','public.profiles_dashboard','SELECT') OR has_table_privilege('authenticated','public.dashboard_domani_user_insights','SELECT') OR has_function_privilege('anon','public.list_dashboard_domani_users(jsonb)','EXECUTE') OR has_function_privilege('anon','public.pvs_domani_schema_contract_version()','EXECUTE') OR has_function_privilege('authenticated','public.pvs_domani_schema_contract_version()','EXECUTE') THEN RAISE EXCEPTION 'Exposed insights or PVS schema contract'; END IF;
 END $$;
 SET LOCAL ROLE authenticated;
 DO $$ BEGIN
