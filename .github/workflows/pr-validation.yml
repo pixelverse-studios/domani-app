@@ -19,6 +19,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  sql-contracts:
+    name: Domani SQL contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL
+        run: sudo apt-get update && sudo apt-get install -y postgresql postgresql-client
+
+      - name: Run isolated SQL contracts
+        run: |
+          for script in supabase/tests/domani_*_test.sh supabase/tests/pvs_schema_contract_test.sh; do
+            bash "$script"
+          done
+
   test:
     name: Typecheck, Jest, and lint
     runs-on: ubuntu-latest
