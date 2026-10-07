@@ -30,8 +30,10 @@
     "db:start": "npx supabase start",
     "db:stop": "npx supabase stop",
     "db:reset": "npx supabase db reset",
-    "db:push": "npx supabase db push --linked --include-all",
-    "db:staging:push": "npx supabase db push --db-url postgresql://postgres.ftgltnzejaxasdvfkqut:domani-staging1@aws-1-us-west-2.pooler.supabase.com:5432/postgres --include-all",
+    "db:staging:dry-run": "node --env-file=.env scripts/push-database.mjs staging",
+    "db:staging:push": "node --env-file=.env scripts/push-database.mjs staging --apply",
+    "db:production:dry-run": "node --env-file=.env scripts/push-database.mjs production",
+    "db:production:push": "node --env-file=.env scripts/push-database.mjs production --apply",
     "db:staging:types": "npx supabase gen types typescript --project-id ftgltnzejaxasdvfkqut > src/types/supabase.ts && npm run format"
   },
   "keywords": [],
@@ -110,6 +112,7 @@
     "jest-expo": "~54.0.17",
     "prettier": "^3.6.2",
     "react-test-renderer": "^19.1.0",
+    "supabase": "2.115.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.48.0"
   }
