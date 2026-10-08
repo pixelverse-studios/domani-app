@@ -1,5 +1,7 @@
 import { spawnSync } from 'node:child_process'
+import { rmSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { createProductionMigrationWorkspace } from './production-migration-workspace.mjs'
 
 const PROJECTS = {
   staging: 'ftgltnzejaxasdvfkqut',
@@ -25,27 +27,43 @@ if (!process.env.SUPABASE_ACCESS_TOKEN || !process.env.SUPABASE_DB_PASSWORD) {
   process.exit(1)
 }
 
-const cli = resolve('node_modules', '.bin', process.platform === 'win32' ? 'supabase.cmd' : 'supabase')
+const cli = resolve(
+  'node_modules',
+  '.bin',
+  process.platform === 'win32' ? 'supabase.cmd' : 'supabase',
+)
 const environment = { ...process.env, SUPABASE_TELEMETRY_DISABLED: '1' }
+const productionWorkspace =
+  target === 'production' ? createProductionMigrationWorkspace(process.cwd()) : null
 
 function push(dryRun) {
   const args = ['db', 'push', '--project-ref', projectRef, '--skip-vault']
+  if (productionWorkspace) args.push('--workdir', productionWorkspace)
   if (dryRun) args.push('--dry-run')
 
   const result = spawnSync(cli, args, { stdio: 'inherit', env: environment })
   if (result.error) throw result.error
-  if (result.status !== 0) process.exit(result.status ?? 1)
+  return result.status ?? 1
 }
 
-console.log(`Checking ${target} (${projectRef}) migration plan`)
-push(true)
+let status = 0
+try {
+  console.log(`Checking ${target} (${projectRef}) migration plan`)
+  status = push(true)
 
-if (action === '--apply') {
-  if (process.env.DOMANI_DB_PUSH_CONFIRM !== `${target}:${projectRef}`) {
-    console.error(`Dry run complete. Set DOMANI_DB_PUSH_CONFIRM=${target}:${projectRef} to apply.`)
-    process.exit(1)
+  if (status === 0 && action === '--apply') {
+    if (process.env.DOMANI_DB_PUSH_CONFIRM !== `${target}:${projectRef}`) {
+      console.error(
+        `Dry run complete. Set DOMANI_DB_PUSH_CONFIRM=${target}:${projectRef} to apply.`,
+      )
+      status = 1
+    } else {
+      console.log(`Applying migrations to ${target} (${projectRef})`)
+      status = push(false)
+    }
   }
-
-  console.log(`Applying migrations to ${target} (${projectRef})`)
-  push(false)
+} finally {
+  if (productionWorkspace) rmSync(productionWorkspace, { recursive: true, force: true })
 }
+
+process.exit(status)
