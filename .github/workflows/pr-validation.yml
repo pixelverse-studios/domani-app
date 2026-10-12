@@ -33,7 +33,7 @@ jobs:
 
       - name: Run isolated SQL contracts
         run: |
-          for script in supabase/tests/domani_*_test.sh supabase/tests/pvs_schema_contract_test.sh; do
+          for script in supabase/tests/domani_*_test.sh supabase/tests/pvs_schema_contract_test.sh supabase/tests/dev_1418_compatibility_test.sh; do
             bash "$script"
           done
 
