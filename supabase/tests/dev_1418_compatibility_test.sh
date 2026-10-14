@@ -36,6 +36,8 @@ CREATE TABLE public.user_category_preferences (
   position integer, updated_at timestamptz, is_favorite boolean DEFAULT false,
   PRIMARY KEY (user_id, system_category_id)
 );
+CREATE TABLE public.task_rls_probe (user_id uuid);
+ALTER TABLE public.task_rls_probe ENABLE ROW LEVEL SECURITY;
 CREATE FUNCTION public.schedule_account_deletion(p_user_id uuid) RETURNS void
 LANGUAGE sql SECURITY DEFINER AS
 \$\$ UPDATE public.profiles SET deleted_at = now() WHERE id = p_user_id \$\$;
@@ -48,6 +50,12 @@ CREATE FUNCTION public.get_user_cohort(uuid) RETURNS text
 LANGUAGE sql SECURITY DEFINER AS \$\$ SELECT NULL::text \$\$;
 CREATE FUNCTION public.get_user_tier(uuid) RETURNS text
 LANGUAGE sql STABLE SECURITY DEFINER AS \$\$ SELECT NULL::text \$\$;
+CREATE POLICY task_rls_probe_insert ON public.task_rls_probe FOR INSERT
+TO authenticated WITH CHECK (
+  user_id = auth.uid()
+  AND public.get_user_tier(auth.uid()) IN ('trialing', 'lifetime')
+);
+GRANT INSERT ON public.task_rls_probe TO authenticated;
 CREATE FUNCTION public.increment_category_usage(uuid,uuid,uuid) RETURNS void
 LANGUAGE sql SECURITY DEFINER AS \$\$ SELECT NULL::void \$\$;
 CREATE FUNCTION public.update_category_positions(uuid,jsonb) RETURNS void
@@ -191,6 +199,8 @@ SELECT public.update_category_positions(
 SELECT public.update_favorite_categories(
   '00000000-0000-0000-0000-000000000001',
   '["00000000-0000-0000-0000-000000000004"]'::jsonb);
+INSERT INTO public.task_rls_probe (user_id)
+VALUES ('00000000-0000-0000-0000-000000000001');
 DO \$\$
 BEGIN
   IF public.get_favorite_category_ids('00000000-0000-0000-0000-000000000001')
@@ -207,7 +217,8 @@ BEGIN
      OR (SELECT usage_count <> 1 OR position <> 7 OR NOT is_favorite
          FROM public.user_categories WHERE id = '00000000-0000-0000-0000-000000000004')
      OR (SELECT usage_count <> 0 OR position IS NOT NULL OR is_favorite
-         FROM public.user_categories WHERE id = '00000000-0000-0000-0000-000000000005') THEN
+         FROM public.user_categories WHERE id = '00000000-0000-0000-0000-000000000005')
+     OR (SELECT count(*) <> 1 FROM public.task_rls_probe) THEN
     RAISE EXCEPTION 'legacy writes changed the wrong account';
   END IF;
 END;
