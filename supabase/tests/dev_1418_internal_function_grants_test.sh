@@ -16,6 +16,15 @@ trap cleanup EXIT
 CREATE ROLE anon;
 CREATE ROLE authenticated;
 CREATE ROLE service_role;
+\i $repo/supabase/migrations/20261014163750_restrict_legacy_admin_helpers.sql
+CREATE TYPE public.admin_action AS ENUM ('read');
+CREATE TYPE public.audit_action AS ENUM ('create');
+CREATE FUNCTION public.get_user_role_level(uuid)
+  RETURNS integer LANGUAGE sql SECURITY DEFINER AS 'SELECT 1';
+CREATE FUNCTION public.has_permission(uuid,text,public.admin_action)
+  RETURNS boolean LANGUAGE sql SECURITY DEFINER AS 'SELECT true';
+CREATE FUNCTION public.log_audit_event(uuid,public.audit_action,text,text,text,jsonb,jsonb,jsonb)
+  RETURNS uuid LANGUAGE sql SECURITY DEFINER AS 'SELECT NULL::uuid';
 CREATE FUNCTION public.confirm_promo_redemption_for_user(uuid,uuid,uuid,uuid,text,text,text)
   RETURNS void LANGUAGE sql SECURITY DEFINER AS 'SELECT NULL::void';
 CREATE FUNCTION public.delete_expired_accounts()
@@ -54,6 +63,8 @@ CREATE FUNCTION public.cleanup_expired_sessions()
   RETURNS void LANGUAGE sql SECURITY DEFINER AS 'SELECT NULL::void';
 \i $repo/supabase/migrations/20261014153516_restrict_internal_function_execution.sql
 \i $repo/supabase/migrations/20261014153516_restrict_internal_function_execution.sql
+\i $repo/supabase/migrations/20261014163750_restrict_legacy_admin_helpers.sql
+\i $repo/supabase/migrations/20261014163750_restrict_legacy_admin_helpers.sql
 DO \$\$
 DECLARE target text;
 BEGIN
@@ -69,6 +80,17 @@ BEGIN
     IF has_function_privilege('anon', 'public.' || target, 'EXECUTE')
        OR has_function_privilege('authenticated', 'public.' || target, 'EXECUTE') THEN
       RAISE EXCEPTION 'internal function remains client-callable: %', target;
+    END IF;
+  END LOOP;
+  FOREACH target IN ARRAY ARRAY[
+    'get_user_role_level(uuid)',
+    'has_permission(uuid,text,public.admin_action)',
+    'log_audit_event(uuid,public.audit_action,text,text,text,jsonb,jsonb,jsonb)'
+  ] LOOP
+    IF has_function_privilege('anon', 'public.' || target, 'EXECUTE')
+       OR has_function_privilege('authenticated', 'public.' || target, 'EXECUTE')
+       OR NOT has_function_privilege('service_role', 'public.' || target, 'EXECUTE') THEN
+      RAISE EXCEPTION 'legacy admin helper grants are incorrect: %', target;
     END IF;
   END LOOP;
   IF NOT has_function_privilege('service_role',

@@ -10,6 +10,6 @@ The shell scripts reference production-applied Domani migration versions from DE
 
 `dev_1418_private_service_surfaces_test.sh` applies the forward-only private-surface migration twice in a disposable local cluster, checks client and service-role privileges, verifies the dashboard view uses invoker security and webhook RLS is enabled, and exercises service-role reads and writes.
 
-`dev_1418_internal_function_grants_test.sh` applies the targeted internal-function revocation with and without an optional legacy function present, then checks that client roles cannot execute those seven routines while released-client and production-only service RPC grants remain available.
+`dev_1418_internal_function_grants_test.sh` applies the targeted internal-function and legacy admin-helper revocations with and without optional legacy objects present, then checks that client roles cannot execute those routines while released-client and production-only service RPC grants remain available.
 
 `dev_1418_search_path_test.sh` reproduces temporary-table shadowing of an unpinned privileged function, applies the forward path migration twice, and verifies that trusted public relations win while existing empty-path functions and EXECUTE grants remain unchanged.
