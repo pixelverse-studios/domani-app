@@ -15,3 +15,5 @@ The shell scripts reference production-applied Domani migration versions from DE
 `dev_1418_search_path_test.sh` reproduces temporary-table shadowing of an unpinned privileged function, applies the forward path migration twice, and verifies that trusted public relations win while existing empty-path functions and EXECUTE grants remain unchanged.
 
 `dev_1418_forward_chain_test.sh` applies the full DEV-1417/1418 forward chain in migration order to a disposable synthetic production-head baseline and verifies caller-bound access, service dashboard behavior, and final grants. It is an integration fixture, not a dump or clone of the live production schema.
+
+`dev_1419_legacy_entitlement_bridge_test.sh` verifies the released direct trial request receives server dates and a one-time analytics event, forged direct profile entitlement/admin writes do not take effect, purchase attempts queue privately and coalesce, the current trial RPC still works, and service-role verified writes remain available. The forward-chain fixture also applies the DEV-1419 migration after DEV-1418.
