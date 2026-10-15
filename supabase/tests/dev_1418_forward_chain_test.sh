@@ -35,7 +35,16 @@ ALTER TABLE public.profiles
   ADD COLUMN refunded_at timestamptz,
   ADD COLUMN purchased_at timestamptz,
   ADD COLUMN trial_started_at timestamptz,
-  ADD COLUMN trial_ends_at timestamptz;
+  ADD COLUMN trial_ends_at timestamptz,
+  ADD COLUMN revenuecat_user_id text,
+  ADD COLUMN is_admin boolean NOT NULL DEFAULT false;
+CREATE TABLE public.posthog_trial_event_deliveries (
+  user_id uuid PRIMARY KEY REFERENCES public.profiles(id),
+  event_timestamp timestamptz NOT NULL,
+  event_properties jsonb NOT NULL,
+  claim_token uuid NOT NULL
+);
+ALTER TABLE public.posthog_trial_event_deliveries ENABLE ROW LEVEL SECURITY;
 UPDATE public.profiles SET tier = 'trialing', trial_started_at = now(),
   trial_ends_at = now() + interval '14 days'
 WHERE id = '10000000-0000-4000-8000-000000000001';
@@ -83,6 +92,7 @@ CREATE FUNCTION public.log_audit_event(uuid,public.audit_action,text,text,text,j
 \i $repo/supabase/migrations/20261014160903_bind_legacy_user_rpcs_to_caller.sql
 \i $repo/supabase/migrations/20261014163750_restrict_legacy_admin_helpers.sql
 \i $repo/supabase/migrations/20261015161005_restrict_legacy_admin_audit_log_writes.sql
+\i $repo/supabase/migrations/20261015164631_legacy_entitlement_compatibility_bridge.sql
 DO \$\$
 BEGIN
   IF public.pvs_domani_schema_contract_version() <> '20261007134913'
@@ -93,7 +103,9 @@ BEGIN
      OR has_function_privilege('authenticated', 'public.get_user_role_level(uuid)', 'EXECUTE')
      OR NOT has_function_privilege('service_role', 'public.get_user_role_level(uuid)', 'EXECUTE')
      OR has_table_privilege('authenticated', 'public.admin_audit_log', 'INSERT')
-     OR NOT has_table_privilege('service_role', 'public.admin_audit_log', 'INSERT') THEN
+     OR NOT has_table_privilege('service_role', 'public.admin_audit_log', 'INSERT')
+     OR has_table_privilege('authenticated',
+          'public.revenuecat_access_reconciliation_requests', 'SELECT') THEN
     RAISE EXCEPTION 'forward chain catalog state is incorrect';
   END IF;
 END;
