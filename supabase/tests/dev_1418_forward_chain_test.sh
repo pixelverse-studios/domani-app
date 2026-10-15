@@ -25,6 +25,11 @@ GRANT USAGE ON SCHEMA auth TO anon, authenticated;
 CREATE TYPE public.tier AS ENUM ('none', 'trialing', 'lifetime');
 CREATE TYPE public.admin_action AS ENUM ('read');
 CREATE TYPE public.audit_action AS ENUM ('create');
+CREATE TABLE public.admin_audit_log (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY);
+ALTER TABLE public.admin_audit_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "System can insert audit logs" ON public.admin_audit_log
+  FOR INSERT TO PUBLIC WITH CHECK (true);
+GRANT INSERT ON public.admin_audit_log TO PUBLIC, anon, authenticated;
 ALTER TABLE public.profiles
   ADD COLUMN tier public.tier DEFAULT 'none',
   ADD COLUMN refunded_at timestamptz,
@@ -77,6 +82,7 @@ CREATE FUNCTION public.log_audit_event(uuid,public.audit_action,text,text,text,j
 \i $repo/supabase/migrations/20261014155441_pin_legacy_function_search_paths.sql
 \i $repo/supabase/migrations/20261014160903_bind_legacy_user_rpcs_to_caller.sql
 \i $repo/supabase/migrations/20261014163750_restrict_legacy_admin_helpers.sql
+\i $repo/supabase/migrations/20261015161005_restrict_legacy_admin_audit_log_writes.sql
 DO \$\$
 BEGIN
   IF public.pvs_domani_schema_contract_version() <> '20261007134913'
@@ -85,7 +91,9 @@ BEGIN
      OR NOT (SELECT 'security_invoker=true' = ANY(reloptions) FROM pg_class
              WHERE oid = 'public.profiles_dashboard'::regclass)
      OR has_function_privilege('authenticated', 'public.get_user_role_level(uuid)', 'EXECUTE')
-     OR NOT has_function_privilege('service_role', 'public.get_user_role_level(uuid)', 'EXECUTE') THEN
+     OR NOT has_function_privilege('service_role', 'public.get_user_role_level(uuid)', 'EXECUTE')
+     OR has_table_privilege('authenticated', 'public.admin_audit_log', 'INSERT')
+     OR NOT has_table_privilege('service_role', 'public.admin_audit_log', 'INSERT') THEN
     RAISE EXCEPTION 'forward chain catalog state is incorrect';
   END IF;
 END;

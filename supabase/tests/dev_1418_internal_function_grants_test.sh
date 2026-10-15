@@ -65,6 +65,14 @@ CREATE FUNCTION public.cleanup_expired_sessions()
 \i $repo/supabase/migrations/20261014153516_restrict_internal_function_execution.sql
 \i $repo/supabase/migrations/20261014163750_restrict_legacy_admin_helpers.sql
 \i $repo/supabase/migrations/20261014163750_restrict_legacy_admin_helpers.sql
+\i $repo/supabase/migrations/20261015161005_restrict_legacy_admin_audit_log_writes.sql
+CREATE TABLE public.admin_audit_log (id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY);
+ALTER TABLE public.admin_audit_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "System can insert audit logs" ON public.admin_audit_log
+  FOR INSERT TO PUBLIC WITH CHECK (true);
+GRANT INSERT ON public.admin_audit_log TO PUBLIC, anon, authenticated;
+\i $repo/supabase/migrations/20261015161005_restrict_legacy_admin_audit_log_writes.sql
+\i $repo/supabase/migrations/20261015161005_restrict_legacy_admin_audit_log_writes.sql
 DO \$\$
 DECLARE target text;
 BEGIN
@@ -103,9 +111,45 @@ BEGIN
      OR has_function_privilege('anon', 'public.start_trial_with_posthog_outbox()', 'EXECUTE') THEN
     RAISE EXCEPTION 'released-client or service function grant changed';
   END IF;
+  IF has_table_privilege('anon', 'public.admin_audit_log', 'INSERT')
+     OR has_table_privilege('authenticated', 'public.admin_audit_log', 'INSERT')
+     OR NOT has_table_privilege('service_role', 'public.admin_audit_log', 'INSERT')
+     OR NOT EXISTS (
+       SELECT 1 FROM pg_policies
+       WHERE schemaname = 'public' AND tablename = 'admin_audit_log'
+         AND policyname = 'System can insert audit logs'
+         AND cmd = 'INSERT' AND roles = ARRAY['service_role']::name[]
+     ) THEN
+    RAISE EXCEPTION 'legacy audit log write access is incorrect';
+  END IF;
 END;
 \$\$;
+SET ROLE service_role;
+INSERT INTO public.admin_audit_log DEFAULT VALUES;
+RESET ROLE;
+SET ROLE anon;
+DO \$\$
+BEGIN
+  BEGIN
+    INSERT INTO public.admin_audit_log DEFAULT VALUES;
+    RAISE EXCEPTION 'anonymous audit insert succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END;
+\$\$;
+RESET ROLE;
 SET ROLE authenticated;
+DO \$\$
+BEGIN
+  BEGIN
+    INSERT INTO public.admin_audit_log DEFAULT VALUES;
+    RAISE EXCEPTION 'authenticated audit insert succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END;
+\$\$;
 SELECT public.start_trial_with_posthog_outbox();
 RESET ROLE;
 SET ROLE service_role;
