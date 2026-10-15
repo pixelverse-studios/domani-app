@@ -19,3 +19,5 @@ The shell scripts reference production-applied Domani migration versions from DE
 `dev_1419_legacy_entitlement_bridge_test.sh` verifies the released direct trial request receives server dates and a one-time analytics event, forged direct profile entitlement/admin writes do not take effect, purchase attempts queue privately and coalesce, the current trial RPC still works, and service-role verified writes remain available. The forward-chain fixture also applies the DEV-1419 migration after DEV-1418.
 
 `dev_1420_verified_access_test.sh` verifies service-only verified grants, duplicate calls, request leases, refund ordering, promo gating, and transactional rollback after promo confirmation failure. The forward-chain fixture applies the DEV-1420 migration after the compatibility bridge.
+
+`dev_1420_account_email_test.sh` verifies server-recorded account events, forged direct deletion-field writes, service-only claims, duplicate suppression, provider-failure release, stable recipient snapshots, and reactivation ordering. The forward-chain fixture applies this migration after verified access.

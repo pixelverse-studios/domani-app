@@ -1,14 +1,18 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import {
+  escapeEmailHtml,
+  formatRecordedDeletionDate,
+  parseAccountEmailType,
+  sendClaimedAccountEmail,
+  type AccountEmailType,
+} from './emailCore.ts'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'Domani <noreply@domani.app>'
-
-interface EmailRequest {
-  type: 'account_deletion' | 'account_reactivation'
-  email: string
-  name?: string
-  deletionDate?: string
-}
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
 const emailTemplates = {
   account_deletion: (name: string, deletionDate: string) => ({
@@ -110,8 +114,14 @@ const emailTemplates = {
   }),
 }
 
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
@@ -121,94 +131,83 @@ Deno.serve(async (req) => {
       },
     })
   }
-
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
-    })
+  if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405)
+  if (!RESEND_API_KEY || !SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[send-account-email] Required server configuration is missing')
+    return jsonResponse({ error: 'Server not configured' }, 500)
   }
 
+  const authHeader = req.headers.get('Authorization')
+  const accessToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+  if (!accessToken) return jsonResponse({ error: 'Unauthorized' }, 401)
+
+  const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: authHeader! } },
+    auth: { persistSession: false },
+  })
+  const { data: { user }, error: authError } = await authClient.auth.getUser(accessToken)
+  if (authError || !user?.email) return jsonResponse({ error: 'Unauthorized' }, 401)
+
+  let type: AccountEmailType | null
   try {
-    const body = await req.json()
-    console.log('[send-account-email] Received body:', JSON.stringify(body))
-
-    const { type, email, name, deletionDate } = body as EmailRequest
-
-    if (!type || !email) {
-      console.log('[send-account-email] Missing fields - type:', type, 'email:', email)
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields', received: { type, email } }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        },
-      )
-    }
-
-    if (!RESEND_API_KEY) {
-      console.error('RESEND_API_KEY is not configured')
-      return new Response(JSON.stringify({ error: 'Email service not configured' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    }
-
-    let emailContent: { subject: string; html: string }
-
-    if (type === 'account_deletion') {
-      if (!deletionDate) {
-        return new Response(
-          JSON.stringify({ error: 'deletionDate is required for account_deletion' }),
-          {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          },
-        )
-      }
-      emailContent = emailTemplates.account_deletion(name || '', deletionDate)
-    } else if (type === 'account_reactivation') {
-      emailContent = emailTemplates.account_reactivation(name || '')
-    } else {
-      return new Response(JSON.stringify({ error: 'Invalid email type' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    }
-
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: FROM_EMAIL,
-        to: [email],
-        subject: emailContent.subject,
-        html: emailContent.html,
-      }),
-    })
-
-    const data = await res.json()
-
-    if (!res.ok) {
-      console.error('Resend API error:', data)
-      return new Response(JSON.stringify({ error: 'Failed to send email', details: data }), {
-        status: res.status,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    }
-
-    return new Response(JSON.stringify({ success: true, id: data.id }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  } catch (error) {
-    console.error('Error sending email:', error)
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    type = parseAccountEmailType(await req.json())
+  } catch {
+    return jsonResponse({ error: 'Invalid request body' }, 400)
   }
+  if (!type) return jsonResponse({ error: 'Invalid email type' }, 400)
+
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false },
+  })
+  const { data: claim, error: claimError } = await admin.rpc('claim_account_email_event', {
+    p_user_id: user.id,
+    p_event_type: type,
+    p_verified_email: user.email,
+  })
+  if (claimError) {
+    console.error('[send-account-email] Event claim failed', { code: claimError.code ?? null })
+    return jsonResponse({ error: 'Email event unavailable' }, 503)
+  }
+  if (claim?.status === 'already_sent') return jsonResponse({ success: true, status: 'already_sent' })
+  if (claim?.status === 'in_progress') return jsonResponse({ status: 'in_progress' }, 409)
+  if (claim?.status !== 'claimed') return jsonResponse({ error: 'No recorded account event' }, 409)
+
+  let emailContent: { subject: string; html: string }
+  try {
+    const name = escapeEmailHtml(typeof claim.name === 'string' ? claim.name : '')
+    emailContent = type === 'account_deletion'
+      ? emailTemplates.account_deletion(name, formatRecordedDeletionDate(claim.deletionScheduledFor))
+      : emailTemplates.account_reactivation(name)
+  } catch {
+    await admin.rpc('finish_account_email_event', {
+      p_event_id: claim.id, p_claim_token: claim.claimToken, p_sent: false,
+    })
+    return jsonResponse({ error: 'Recorded account event invalid' }, 500)
+  }
+
+  const delivery = await sendClaimedAccountEmail({
+    apiKey: RESEND_API_KEY,
+    from: FROM_EMAIL,
+    eventId: claim.id,
+    email: claim.email,
+    subject: emailContent.subject,
+    html: emailContent.html,
+  })
+
+  const { data: finished, error: finishError } = await admin.rpc('finish_account_email_event', {
+    p_event_id: claim.id,
+    p_claim_token: claim.claimToken,
+    p_sent: delivery.sent,
+  })
+  if (finishError || finished !== true) {
+    console.error('[send-account-email] Event completion failed', {
+      code: finishError?.code ?? null,
+    })
+    return jsonResponse({ error: 'Email completion unavailable' }, 503)
+  }
+  if (!delivery.sent) {
+    console.error('[send-account-email] Provider send failed', { status: delivery.status })
+    return jsonResponse({ error: 'Email provider unavailable' }, 502)
+  }
+  return jsonResponse({ success: true })
 })

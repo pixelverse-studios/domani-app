@@ -1782,16 +1782,32 @@ async function syncSubscriptionToSupabase(
         campaignId: attemptContext.campaignId,
       }
     : null
-  const { data, error } = await supabase.functions.invoke('sync-revenuecat-access', {
-    body: { promoContext },
-  })
-  if (error) throw error
+  let data: unknown
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await supabase.functions.invoke('sync-revenuecat-access', {
+      body: { promoContext },
+    })
+    if (!response.error) {
+      data = response.data
+      break
+    }
+    const context = 'context' in response.error ? response.error.context : null
+    if (attempt === 0 && context && typeof context === 'object'
+      && 'status' in context && context.status === 429) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 10_500))
+      continue
+    }
+    throw response.error
+  }
 
-  const status =
+  const responseData =
     data && typeof data === 'object' && !Array.isArray(data) && 'status' in data
-      ? data.status
+      ? data
       : null
-  if ((status === 'synced' || status === 'synced_new_lifetime') && data.accessGranted === true) {
+  const status = responseData?.status
+  if ((status === 'synced' || status === 'synced_new_lifetime')
+    && responseData && 'accessGranted' in responseData
+    && responseData.accessGranted === true) {
     return status
   }
   if (

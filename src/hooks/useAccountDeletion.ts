@@ -75,9 +75,6 @@ export function useAccountDeletion() {
       // Send deletion confirmation email (must complete before signOut invalidates token)
       await sendAccountEmail({
         type: 'account_deletion',
-        email: user.email,
-        name: profile?.full_name || undefined,
-        deletionDate: formatDeletionDate(scheduledDate),
       })
 
       void sendTeamNotification({
@@ -109,8 +106,6 @@ export function useAccountDeletion() {
       // Send reactivation confirmation email
       await sendAccountEmail({
         type: 'account_reactivation',
-        email: user.email,
-        name: profile?.full_name || undefined,
       })
 
       void sendTeamNotification({

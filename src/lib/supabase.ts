@@ -18,9 +18,6 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 // Helper to send account-related emails via Edge Function
 export async function sendAccountEmail(params: {
   type: 'account_deletion' | 'account_reactivation'
-  email: string
-  name?: string
-  deletionDate?: string
 }) {
   try {
     const { data: sessionData } = await supabase.auth.getSession()
@@ -32,7 +29,7 @@ export async function sendAccountEmail(params: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(params),
+      body: JSON.stringify({ type: params.type }),
     })
 
     if (!response.ok) {

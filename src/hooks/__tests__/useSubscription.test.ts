@@ -469,6 +469,26 @@ describe('purchase access sync', () => {
     unmount()
   })
 
+  it('retries a rate-limited server verification after a purchase', async () => {
+    mockPurchasePackage.mockResolvedValue(buildPurchaseResult())
+    mockSupabaseFunctionsInvoke
+      .mockResolvedValueOnce({ data: null, error: { context: { status: 429 } } })
+      .mockResolvedValueOnce({ data: { status: 'synced_new_lifetime', accessGranted: true }, error: null })
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    jest.useFakeTimers()
+    await act(async () => {
+      const purchase = result.current.purchase(buildPurchasesPackage() as never)
+      await jest.advanceTimersByTimeAsync(10_500)
+      await expect(purchase).resolves.toBeTruthy()
+    })
+
+    expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledTimes(2)
+    unmount()
+  })
+
   it('passes promo context to the verified server without client purchase timestamps', async () => {
     mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(
       buildCustomerInfo({

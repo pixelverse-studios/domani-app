@@ -104,6 +104,7 @@ CREATE FUNCTION public.confirm_current_user_promo_redemption(
 \i $repo/supabase/migrations/20261015161005_restrict_legacy_admin_audit_log_writes.sql
 \i $repo/supabase/migrations/20261015164631_legacy_entitlement_compatibility_bridge.sql
 \i $repo/supabase/migrations/20261015165240_apply_verified_revenuecat_access.sql
+\i $repo/supabase/migrations/20261015175330_claim_account_email_events.sql
 DO \$\$
 BEGIN
   IF public.pvs_domani_schema_contract_version() <> '20261007134913'
@@ -118,7 +119,9 @@ BEGIN
      OR has_table_privilege('authenticated',
           'public.revenuecat_access_reconciliation_requests', 'SELECT')
      OR has_function_privilege('authenticated',
-          'public.apply_verified_revenuecat_lifetime_access(uuid,timestamptz,text,uuid,uuid,uuid,timestamptz)', 'EXECUTE') THEN
+          'public.apply_verified_revenuecat_lifetime_access(uuid,timestamptz,text,uuid,uuid,uuid,timestamptz)', 'EXECUTE')
+     OR has_function_privilege('authenticated',
+          'public.claim_account_email_event(uuid,text,text)', 'EXECUTE') THEN
     RAISE EXCEPTION 'forward chain catalog state is incorrect';
   END IF;
 END;
