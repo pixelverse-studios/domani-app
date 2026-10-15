@@ -78,6 +78,7 @@ import {
 
 const mockSupabaseFrom = supabase.from as unknown as jest.Mock
 const mockSupabaseRpc = supabase.rpc as unknown as jest.Mock
+const mockSupabaseFunctionsInvoke = supabase.functions.invoke as unknown as jest.Mock
 const mockUseAnalytics = useAnalytics as jest.Mock
 const mockGetCustomerInfo = Purchases.getCustomerInfo as jest.Mock
 const mockTrack = jest.fn()
@@ -244,6 +245,10 @@ function setupSubscriptionHookMocks() {
     }
 
     return Promise.resolve({ data: null, error: null })
+  })
+  mockSupabaseFunctionsInvoke.mockResolvedValue({
+    data: { status: 'synced', accessGranted: true },
+    error: null,
   })
 }
 
@@ -457,12 +462,34 @@ describe('purchase access sync', () => {
       profileSynced: true,
       recoverable: false,
     })
-    expect(mockSupabaseRpc).toHaveBeenCalledWith('clear_current_user_refund_request_state')
+    expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledWith('sync-revenuecat-access', {
+      body: { promoContext: null },
+    })
 
     unmount()
   })
 
-  it('uses the latest lifetime purchase date when syncing RevenueCat access', async () => {
+  it('retries a rate-limited server verification after a purchase', async () => {
+    mockPurchasePackage.mockResolvedValue(buildPurchaseResult())
+    mockSupabaseFunctionsInvoke
+      .mockResolvedValueOnce({ data: null, error: { context: { status: 429 } } })
+      .mockResolvedValueOnce({ data: { status: 'synced_new_lifetime', accessGranted: true }, error: null })
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    jest.useFakeTimers()
+    await act(async () => {
+      const purchase = result.current.purchase(buildPurchasesPackage() as never)
+      await jest.advanceTimersByTimeAsync(10_500)
+      await expect(purchase).resolves.toBeTruthy()
+    })
+
+    expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledTimes(2)
+    unmount()
+  })
+
+  it('passes promo context to the verified server without client purchase timestamps', async () => {
     mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(
       buildCustomerInfo({
         'test-entitlement': {
@@ -497,15 +524,16 @@ describe('purchase access sync', () => {
       })
     })
 
-    expect(
-      mockSupabaseFrom.mock.results.some((result) => {
-        const query = result.value as SupabaseQueryMock
-        return query.update.mock.calls.some(([values]) => {
-          const update = values as Record<string, unknown>
-          return update.tier === 'lifetime' && update.purchased_at === '2026-06-02T23:52:24.253Z'
-        })
-      }),
-    ).toBe(true)
+    expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledWith('sync-revenuecat-access', {
+      body: {
+        promoContext: {
+          campaignId: 'campaign-1',
+          codeId: 'code-1',
+          redemptionAttemptId: 'attempt-1',
+        },
+      },
+    })
+    expect(mockSupabaseFrom).not.toHaveBeenCalledWith('profiles')
 
     unmount()
   })
@@ -786,13 +814,14 @@ describe('purchase access sync', () => {
         sync_status: 'confirmed',
       }),
     )
-    expect(mockSupabaseRpc).toHaveBeenCalledWith('confirm_current_user_promo_redemption', {
-      p_campaign_id: 'campaign-1',
-      p_code_id: 'code-1',
-      p_redemption_attempt_id: 'attempt-1',
-      p_revenuecat_app_user_id: 'user-1',
-      p_store_product_id: 'domani_lifetime',
-      p_store_transaction_id: null,
+    expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledWith('sync-revenuecat-access', {
+      body: {
+        promoContext: {
+          campaignId: 'campaign-1',
+          codeId: 'code-1',
+          redemptionAttemptId: 'attempt-1',
+        },
+      },
     })
     expect(mockTrack).toHaveBeenCalledWith(
       'promo_redemption_completed',
@@ -838,15 +867,9 @@ describe('purchase access sync', () => {
 
   it('does not report paid promo redemption as confirmed when attempt confirmation fails', async () => {
     mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())
-    mockSupabaseRpc.mockImplementation((functionName: string) => {
-      if (functionName === 'confirm_current_user_promo_redemption') {
-        return Promise.resolve({
-          data: { status: 'product_mismatch' },
-          error: null,
-        })
-      }
-
-      return Promise.resolve({ data: null, error: null })
+    mockSupabaseFunctionsInvoke.mockResolvedValue({
+      data: null,
+      error: new Error('Promo confirmation failed'),
     })
 
     const { result, unmount } = renderHookWithProviders(() => useSubscription())
@@ -879,22 +902,7 @@ describe('purchase access sync', () => {
       recoverable: true,
     })
     expect(result.current.accessSyncPhase).toBe('verification_failed')
-    expect(mockSupabaseFrom).toHaveBeenCalledWith('profiles')
-    expect(
-      mockSupabaseFrom.mock.results.some((result) => {
-        const query = result.value as SupabaseQueryMock
-        return query.update.mock.calls.some(([values]) => {
-          const update = values as Record<string, unknown>
-          return (
-            update.tier === 'none' &&
-            update.purchased_at === null &&
-            update.refunded_at === null &&
-            update.trial_ends_at === null &&
-            update.revenuecat_user_id === null
-          )
-        })
-      }),
-    ).toBe(true)
+    expect(mockSupabaseFrom).not.toHaveBeenCalledWith('profiles')
     expect(mockTrack).toHaveBeenCalledWith(
       'promo_sync_failed',
       expect.objectContaining({
@@ -1120,24 +1128,11 @@ describe('purchase access sync', () => {
     unmount()
   })
 
-  it('does not confirm access when the profile link update affects zero rows', async () => {
+  it('does not confirm access when server verification fails', async () => {
     mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())
-    let profileQueryCount = 0
-    mockSupabaseFrom.mockImplementation(() => {
-      profileQueryCount += 1
-      return createSupabaseQueryMock(
-        profileQueryCount === 1
-          ? {
-              data: {
-                id: 'user-1',
-                tier: 'none',
-                purchased_at: null,
-                refunded_at: null,
-              },
-              error: null,
-            }
-          : { data: null, error: null },
-      )
+    mockSupabaseFunctionsInvoke.mockResolvedValue({
+      data: null,
+      error: new Error('verification unavailable'),
     })
 
     const { result, unmount } = renderHookWithProviders(() => useSubscription())
@@ -1157,24 +1152,11 @@ describe('purchase access sync', () => {
     unmount()
   })
 
-  it('does not confirm access when the lifetime tier update affects zero rows', async () => {
+  it('does not confirm access when the server returns an invalid result', async () => {
     mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())
-    let profileQueryCount = 0
-    mockSupabaseFrom.mockImplementation(() => {
-      profileQueryCount += 1
-      return createSupabaseQueryMock(
-        profileQueryCount < 3
-          ? {
-              data: {
-                id: 'user-1',
-                tier: 'none',
-                purchased_at: null,
-                refunded_at: null,
-              },
-              error: null,
-            }
-          : { data: null, error: null },
-      )
+    mockSupabaseFunctionsInvoke.mockResolvedValue({
+      data: { status: 'synced', accessGranted: false },
+      error: null,
     })
 
     const { result, unmount } = renderHookWithProviders(() => useSubscription())
@@ -1189,7 +1171,7 @@ describe('purchase access sync', () => {
       status: 'supabase_sync_failed',
       profileSynced: false,
     })
-    expect(mockSupabaseRpc).not.toHaveBeenCalledWith('clear_current_user_refund_request_state')
+    expect(mockSupabaseFrom).not.toHaveBeenCalledWith('profiles')
 
     unmount()
   })

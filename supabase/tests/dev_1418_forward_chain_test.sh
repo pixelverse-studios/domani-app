@@ -61,6 +61,13 @@ CREATE TABLE public.user_category_preferences (
 CREATE TABLE public.revenuecat_webhook_events (
   event_id text PRIMARY KEY, raw_event jsonb NOT NULL
 );
+CREATE TABLE public.promo_campaigns (
+  id uuid PRIMARY KEY, payment_required boolean, campaign_type text,
+  discount_kind text
+);
+CREATE TABLE public.promo_redemption_attempts (
+  id uuid PRIMARY KEY, user_id uuid, code_id uuid, campaign_id uuid
+);
 CREATE FUNCTION public.schedule_account_deletion(uuid) RETURNS void
   LANGUAGE sql SECURITY DEFINER AS 'SELECT NULL::void';
 CREATE FUNCTION public.cancel_account_deletion(uuid) RETURNS void
@@ -83,6 +90,9 @@ CREATE FUNCTION public.has_permission(uuid,text,public.admin_action) RETURNS boo
   LANGUAGE sql SECURITY DEFINER AS 'SELECT false';
 CREATE FUNCTION public.log_audit_event(uuid,public.audit_action,text,text,text,jsonb,jsonb,jsonb)
   RETURNS uuid LANGUAGE sql SECURITY DEFINER AS 'SELECT NULL::uuid';
+CREATE FUNCTION public.confirm_current_user_promo_redemption(
+  uuid,uuid,uuid,text,text,text
+) RETURNS jsonb LANGUAGE sql SECURITY DEFINER AS 'SELECT ''{"status":"confirmed"}''::jsonb';
 \i $repo/supabase/migrations/20261005002529_pvs_schema_contract.sql
 \i $repo/supabase/migrations/20261007134913_harden_domani_user_activity_projection.sql
 \i $repo/supabase/migrations/20261012143100_add_current_user_security_rpcs.sql
@@ -93,6 +103,10 @@ CREATE FUNCTION public.log_audit_event(uuid,public.audit_action,text,text,text,j
 \i $repo/supabase/migrations/20261014163750_restrict_legacy_admin_helpers.sql
 \i $repo/supabase/migrations/20261015161005_restrict_legacy_admin_audit_log_writes.sql
 \i $repo/supabase/migrations/20261015164631_legacy_entitlement_compatibility_bridge.sql
+\i $repo/supabase/migrations/20261015165240_apply_verified_revenuecat_access.sql
+\i $repo/supabase/migrations/20261015175330_claim_account_email_events.sql
+\i $repo/supabase/migrations/20261015183555_retry_pending_account_emails.sql
+\i $repo/supabase/migrations/20261015183639_resolve_stale_revenuecat_reconciliations.sql
 DO \$\$
 BEGIN
   IF public.pvs_domani_schema_contract_version() <> '20261007134913'
@@ -105,7 +119,11 @@ BEGIN
      OR has_table_privilege('authenticated', 'public.admin_audit_log', 'INSERT')
      OR NOT has_table_privilege('service_role', 'public.admin_audit_log', 'INSERT')
      OR has_table_privilege('authenticated',
-          'public.revenuecat_access_reconciliation_requests', 'SELECT') THEN
+          'public.revenuecat_access_reconciliation_requests', 'SELECT')
+     OR has_function_privilege('authenticated',
+          'public.apply_verified_revenuecat_lifetime_access(uuid,timestamptz,text,uuid,uuid,uuid,timestamptz)', 'EXECUTE')
+     OR has_function_privilege('authenticated',
+          'public.claim_account_email_event(uuid,text,text)', 'EXECUTE') THEN
     RAISE EXCEPTION 'forward chain catalog state is incorrect';
   END IF;
 END;
