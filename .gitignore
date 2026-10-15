@@ -32,6 +32,7 @@ yarn-error.log*
 
 # Supabase
 supabase/.temp/
+supabase/.branches/
 docs/apple-keys/
 docs/planning/*.private.md
 *.p8
