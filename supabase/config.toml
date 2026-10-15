@@ -1,9 +1,10 @@
 # Supabase Function Configuration
 # See: https://supabase.com/docs/guides/functions/function-configuration
 
-# Account email requests require the caller's Supabase session JWT.
+# Account email requests validate the caller's session JWT in the handler;
+# a trusted retry scheduler uses a separate shared secret.
 [functions.send-account-email]
-verify_jwt = true
+verify_jwt = false
 
 # RevenueCat sends a shared-secret Authorization header, not a Supabase JWT.
 # The function performs its own Bearer token check against

@@ -105,6 +105,8 @@ CREATE FUNCTION public.confirm_current_user_promo_redemption(
 \i $repo/supabase/migrations/20261015164631_legacy_entitlement_compatibility_bridge.sql
 \i $repo/supabase/migrations/20261015165240_apply_verified_revenuecat_access.sql
 \i $repo/supabase/migrations/20261015175330_claim_account_email_events.sql
+\i $repo/supabase/migrations/20261015183555_retry_pending_account_emails.sql
+\i $repo/supabase/migrations/20261015183639_resolve_stale_revenuecat_reconciliations.sql
 DO \$\$
 BEGIN
   IF public.pvs_domani_schema_contract_version() <> '20261007134913'

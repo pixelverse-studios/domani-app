@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
   }
 
   let verified = 0
+  let resolved = 0
   let pending = 0
   let failed = 0
   for (const request of claimed ?? []) {
@@ -69,6 +70,21 @@ Deno.serve(async (req) => {
       )
       if (access.status !== 'verified') {
         pending += 1
+        continue
+      }
+
+      const resolveStaleRefund = () => admin.rpc('resolve_stale_revenuecat_reconciliation', {
+        p_user_id: request.user_id,
+        p_verified_purchased_at: access.purchasedAt,
+        p_request_seen_at: request.requested_at,
+      })
+      const { data: stale, error: staleError } = await resolveStaleRefund()
+      if (staleError) {
+        failed += 1
+        continue
+      }
+      if (stale === true) {
+        resolved += 1
         continue
       }
 
@@ -99,6 +115,7 @@ Deno.serve(async (req) => {
         ? promoCandidates
         : [...promoCandidates, null]
       let applied = false
+      let staleRefund = false
       for (const promo of candidates) {
         const { data, error } = await admin.rpc('apply_verified_revenuecat_lifetime_access', {
           p_user_id: request.user_id,
@@ -113,7 +130,16 @@ Deno.serve(async (req) => {
           applied = true
           break
         }
-        if (!error && data?.status === 'stale_refund') break
+        if (!error && data?.status === 'stale_refund') {
+          staleRefund = true
+          break
+        }
+      }
+      if (staleRefund) {
+        const { data, error } = await resolveStaleRefund()
+        if (error || data !== true) failed += 1
+        else resolved += 1
+        continue
       }
       if (applied) verified += 1
       else pending += 1
@@ -122,5 +148,5 @@ Deno.serve(async (req) => {
     }
   }
 
-  return jsonResponse({ claimed: claimed?.length ?? 0, verified, pending, failed })
+  return jsonResponse({ claimed: claimed?.length ?? 0, verified, resolved, pending, failed })
 })

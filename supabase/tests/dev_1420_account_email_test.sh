@@ -53,13 +53,16 @@ INSERT INTO public.profiles (id, full_name, deleted_at, deletion_scheduled_for)
 VALUES ('00000000-0000-0000-0000-000000000002', 'In-flight deletion',
   now() - interval '1 minute', now() + interval '30 days');
 \i $repo/supabase/migrations/20261015175330_claim_account_email_events.sql
+\i $repo/supabase/migrations/20261015183555_retry_pending_account_emails.sql
 DO \$\$
 BEGIN
   IF has_table_privilege('authenticated', 'public.account_email_events', 'SELECT')
      OR has_function_privilege('authenticated',
        'public.claim_account_email_event(uuid,text,text)', 'EXECUTE')
      OR NOT has_function_privilege('service_role',
-       'public.claim_account_email_event(uuid,text,text)', 'EXECUTE') THEN
+       'public.claim_account_email_event(uuid,text,text)', 'EXECUTE')
+     OR has_function_privilege('authenticated',
+       'public.list_pending_account_email_events(integer)', 'EXECUTE') THEN
     RAISE EXCEPTION 'email claim permissions are wrong';
   END IF;
   IF NOT EXISTS (
@@ -89,6 +92,9 @@ SET ROLE service_role;
 DO \$\$
 DECLARE result jsonb; token uuid; event_id uuid;
 BEGIN
+  IF (SELECT count(*) FROM public.list_pending_account_email_events()) <> 2 THEN
+    RAISE EXCEPTION 'pending account emails were not listed for retry';
+  END IF;
   result := public.claim_account_email_event(
     '00000000-0000-0000-0000-000000000001',
     'account_reactivation', 'verified@example.com'
@@ -115,12 +121,20 @@ BEGIN
   IF result->>'status' <> 'in_progress' THEN
     RAISE EXCEPTION 'duplicate email claim was not blocked';
   END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.list_pending_account_email_events()
+    WHERE user_id = '00000000-0000-0000-0000-000000000001'
+  ) THEN RAISE EXCEPTION 'leased email appeared in retry list'; END IF;
   IF public.finish_account_email_event(event_id, gen_random_uuid(), true) THEN
     RAISE EXCEPTION 'wrong claim token completed delivery';
   END IF;
   IF NOT public.finish_account_email_event(event_id, token, false) THEN
     RAISE EXCEPTION 'provider failure did not release claim';
   END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.list_pending_account_email_events()
+    WHERE user_id = '00000000-0000-0000-0000-000000000001'
+  ) THEN RAISE EXCEPTION 'failed email was not retryable'; END IF;
   result := public.claim_account_email_event(
     '00000000-0000-0000-0000-000000000001',
     'account_deletion', 'forged@example.com'
@@ -138,6 +152,10 @@ BEGIN
   IF result->>'status' <> 'already_sent' THEN
     RAISE EXCEPTION 'sent email was claimable again';
   END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.list_pending_account_email_events()
+    WHERE user_id = '00000000-0000-0000-0000-000000000001'
+  ) THEN RAISE EXCEPTION 'sent email remained in retry list'; END IF;
 END;
 \$\$;
 RESET ROLE;
@@ -148,6 +166,11 @@ SET ROLE service_role;
 DO \$\$
 DECLARE result jsonb;
 BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.list_pending_account_email_events()
+    WHERE user_id = '00000000-0000-0000-0000-000000000001'
+      AND event_type = 'account_deletion'
+  ) THEN RAISE EXCEPTION 'stale deletion remained in retry list'; END IF;
   result := public.claim_account_email_event(
     '00000000-0000-0000-0000-000000000001',
     'account_deletion', 'verified@example.com'
@@ -161,6 +184,25 @@ BEGIN
   );
   IF result->>'status' <> 'claimed' THEN
     RAISE EXCEPTION 'recorded reactivation was not claimable';
+  END IF;
+END;
+\$\$;
+RESET ROLE;
+INSERT INTO public.profiles (id, full_name) VALUES
+  ('00000000-0000-0000-0000-000000000003', 'Retry A'),
+  ('00000000-0000-0000-0000-000000000004', 'Retry B');
+UPDATE public.profiles SET deleted_at = now(),
+  deletion_scheduled_for = now() + interval '30 days'
+WHERE id IN ('00000000-0000-0000-0000-000000000003',
+  '00000000-0000-0000-0000-000000000004');
+SET ROLE service_role;
+DO \$\$
+DECLARE first_user uuid; second_user uuid;
+BEGIN
+  SELECT user_id INTO first_user FROM public.list_pending_account_email_events(1);
+  SELECT user_id INTO second_user FROM public.list_pending_account_email_events(1);
+  IF first_user IS NULL OR second_user IS NULL OR first_user = second_user THEN
+    RAISE EXCEPTION 'failed retry monopolized the queue';
   END IF;
 END;
 \$\$;

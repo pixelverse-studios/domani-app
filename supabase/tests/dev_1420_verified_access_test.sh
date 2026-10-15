@@ -79,6 +79,16 @@ INSERT INTO public.promo_redemption_attempts
    '00000000-0000-0000-0000-000000000011');
 \i $repo/supabase/migrations/20261015164631_legacy_entitlement_compatibility_bridge.sql
 \i $repo/supabase/migrations/20261015165240_apply_verified_revenuecat_access.sql
+\i $repo/supabase/migrations/20261015183639_resolve_stale_revenuecat_reconciliations.sql
+DO \$\$
+BEGIN
+  IF has_function_privilege('authenticated',
+    'public.resolve_stale_revenuecat_reconciliation(uuid,timestamptz,timestamptz)',
+    'EXECUTE') THEN
+    RAISE EXCEPTION 'client can resolve a reconciliation request';
+  END IF;
+END;
+\$\$;
 DO \$\$
 BEGIN
   IF has_function_privilege('authenticated',
@@ -120,7 +130,7 @@ END;
 RESET ROLE;
 SET ROLE service_role;
 DO \$\$
-DECLARE result jsonb; v_seen_at timestamptz;
+DECLARE result jsonb; v_seen_at timestamptz; v_resolved boolean;
 BEGIN
   v_seen_at := public.claim_current_user_revenuecat_sync(
     '00000000-0000-0000-0000-000000000001'
@@ -180,6 +190,44 @@ BEGIN
   );
   IF result->>'status' <> 'stale_refund' THEN
     RAISE EXCEPTION 'stale entitlement reversed a refund';
+  END IF;
+  v_resolved := public.resolve_stale_revenuecat_reconciliation(
+    '00000000-0000-0000-0000-000000000001', now() - interval '1 day',
+    v_seen_at
+  );
+  IF NOT v_resolved OR NOT EXISTS (
+    SELECT 1 FROM public.revenuecat_access_reconciliation_requests
+    WHERE user_id = '00000000-0000-0000-0000-000000000001'
+      AND requested_at > reconciled_at
+  ) THEN
+    RAISE EXCEPTION 'old verification cleared a newer queue request';
+  END IF;
+  v_resolved := public.resolve_stale_revenuecat_reconciliation(
+    '00000000-0000-0000-0000-000000000001', now() - interval '1 day',
+    (SELECT requested_at FROM public.revenuecat_access_reconciliation_requests
+      WHERE user_id = '00000000-0000-0000-0000-000000000001')
+  );
+  IF NOT v_resolved OR EXISTS (
+    SELECT 1 FROM public.revenuecat_access_reconciliation_requests
+    WHERE user_id = '00000000-0000-0000-0000-000000000001'
+      AND requested_at > reconciled_at
+  ) THEN
+    RAISE EXCEPTION 'stale refunded purchase remained queued';
+  END IF;
+  UPDATE public.revenuecat_access_reconciliation_requests
+    SET requested_at = requested_at + interval '1 minute', last_attempt_at = NULL
+    WHERE user_id = '00000000-0000-0000-0000-000000000001';
+  v_resolved := public.resolve_stale_revenuecat_reconciliation(
+    '00000000-0000-0000-0000-000000000001', now() + interval '1 day',
+    (SELECT requested_at FROM public.revenuecat_access_reconciliation_requests
+      WHERE user_id = '00000000-0000-0000-0000-000000000001')
+  );
+  IF v_resolved OR NOT EXISTS (
+    SELECT 1 FROM public.revenuecat_access_reconciliation_requests
+    WHERE user_id = '00000000-0000-0000-0000-000000000001'
+      AND requested_at > reconciled_at
+  ) THEN
+    RAISE EXCEPTION 'newer verified purchase request was closed';
   END IF;
   BEGIN
     PERFORM public.apply_verified_revenuecat_lifetime_access(
