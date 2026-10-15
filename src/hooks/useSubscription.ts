@@ -774,7 +774,7 @@ export function useSubscription() {
 
       let supabaseSyncStatus: SupabaseSubscriptionSyncStatus
       try {
-        supabaseSyncStatus = await syncSubscriptionToSupabase(user.id, info)
+        supabaseSyncStatus = await syncSubscriptionToSupabase(user.id, attemptContext)
       } catch (error) {
         const result: PurchaseAccessSyncResult = {
           ...baseResult,
@@ -843,54 +843,6 @@ export function useSubscription() {
             store: entitlement.store ?? null,
           })
         }
-        return result
-      }
-
-      try {
-        await confirmCurrentUserPromoRedemption({
-          attemptContext,
-          revenueCatAppUserId: info.originalAppUserId,
-          storeProductId: entitlement.productIdentifier ?? null,
-        })
-      } catch (error) {
-        if (attemptContext && !hasActiveRecordedLifetime(profile)) {
-          try {
-            await rollbackFailedPromoAccessSync(user.id)
-          } catch (rollbackError) {
-            console.warn('[useSubscription] Failed to roll back unconfirmed promo access sync', {
-              userId: user.id,
-              redemptionAttemptId: attemptContext.redemptionAttemptId ?? null,
-              error: rollbackError,
-            })
-          }
-        }
-
-        const result: PurchaseAccessSyncResult = {
-          ...baseResult,
-          status: 'supabase_sync_failed',
-          customerInfo: info,
-          hasEntitlement: true,
-          profileSynced: false,
-          error,
-        }
-
-        setAccessSyncResult(result)
-        setAccessSyncPhase('verification_failed')
-        addBreadcrumb(
-          'Promo redemption confirmation failed after access sync',
-          'promo.confirmation',
-          {
-            userId: user.id,
-            source: request.source,
-            redemptionAttemptId: attemptContext?.redemptionAttemptId ?? null,
-            codeId: attemptContext?.codeId ?? null,
-            campaignId: attemptContext?.campaignId ?? null,
-            productIdentifier: entitlement.productIdentifier ?? null,
-            error: error instanceof Error ? error.message : String(error),
-          },
-        )
-        await recordPromoSyncFailure(request, 'supabase_sync_failed', error)
-        queryClient.invalidateQueries({ queryKey: ['profile', user.id] })
         return result
       }
 
@@ -1816,134 +1768,39 @@ function computeSubscriptionState(
   }
 }
 
-/**
- * Sync RevenueCat purchase status to Supabase
- * Lifetime-only model: purchases are either lifetime or trialing
- */
+/** Ask the server to verify this user's lifetime entitlement with RevenueCat. */
 async function syncSubscriptionToSupabase(
   userId: string | undefined,
-  customerInfo: CustomerInfo,
+  attemptContext: PurchaseAccessSyncAttemptContext | null,
 ): Promise<SupabaseSubscriptionSyncStatus> {
   if (!userId) return 'non_lifetime_entitlement'
 
-  const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID]
-  const { data: currentProfile, error: profileError } = await supabase
-    .from('profiles')
-    .select('tier,purchased_at,refunded_at')
-    .eq('id', userId)
-    .maybeSingle()
-  if (profileError) throw profileError
-  if (!currentProfile) throw new Error('PROFILE_NOT_FOUND')
-
-  console.log('[useSubscription] Syncing RevenueCat state to Supabase', {
-    userId,
-    originalAppUserId: customerInfo.originalAppUserId,
-    entitlementId: ENTITLEMENT_ID,
-    hasEntitlement: !!entitlement,
-    activeEntitlementIds: Object.keys(customerInfo.entitlements.active ?? {}),
+  const promoContext = attemptContext && hasPromoRedemptionAttemptContext(attemptContext)
+    ? {
+        redemptionAttemptId: attemptContext.redemptionAttemptId,
+        codeId: attemptContext.codeId,
+        campaignId: attemptContext.campaignId,
+      }
+    : null
+  const { data, error } = await supabase.functions.invoke('sync-revenuecat-access', {
+    body: { promoContext },
   })
-
-  // Always update revenuecat_user_id so the customer is linked
-  const { data: linkedProfile, error: rcError } = await supabase
-    .from('profiles')
-    .update({ revenuecat_user_id: customerInfo.originalAppUserId })
-    .eq('id', userId)
-    .select('id')
-    .single()
-  if (rcError) throw rcError
-  if (!linkedProfile) throw new Error('PROFILE_LINK_NOT_APPLIED')
-
-  console.log('[useSubscription] Linked RevenueCat user in Supabase', {
-    userId,
-    revenuecatUserId: customerInfo.originalAppUserId,
-  })
-
-  // Only update tier when there is an active entitlement — never write 'none'
-  // unconditionally, as a RevenueCat propagation delay could downgrade a valid user
-  if (entitlement) {
-    const isTrialing = entitlement.periodType === 'TRIAL'
-    const hasRecordedLifetime =
-      currentProfile?.tier === 'lifetime' || !!currentProfile?.purchased_at
-    const isNewLifetimePurchase = !isTrialing && !hasRecordedLifetime
-    const hasActiveRecordedLifetime = hasRecordedLifetime && !currentProfile?.refunded_at
-
-    if (isTrialing && !hasActiveRecordedLifetime) {
-      console.log('[useSubscription] Ignored non-lifetime RevenueCat entitlement for access sync', {
-        userId,
-        entitlementId: ENTITLEMENT_ID,
-        productIdentifier: entitlement.productIdentifier ?? null,
-        hasRecordedLifetime,
-        refundedAt: currentProfile?.refunded_at ?? null,
-      })
-      return 'non_lifetime_entitlement'
-    }
-
-    if (isTrialing && hasActiveRecordedLifetime) {
-      console.log('[useSubscription] Preserved existing lifetime profile during trial sync', {
-        userId,
-        entitlementId: ENTITLEMENT_ID,
-        productIdentifier: entitlement.productIdentifier ?? null,
-      })
-      return 'preserved_existing_lifetime'
-    }
-
-    const tier: 'trialing' | 'lifetime' = isTrialing ? 'trialing' : 'lifetime'
-    const purchasedAt = !isTrialing
-      ? entitlement.latestPurchaseDate ||
-        entitlement.originalPurchaseDate ||
-        new Date().toISOString()
-      : null
-    const trialEndsAt = isTrialing ? entitlement.expirationDate : null
-
-    const { data: updatedProfile, error: tierError } = await supabase
-      .from('profiles')
-      .update({
-        tier,
-        purchased_at: purchasedAt,
-        refunded_at: null,
-        trial_ends_at: trialEndsAt,
-      })
-      .eq('id', userId)
-      .select('id')
-      .single()
-    if (tierError) throw tierError
-    if (!updatedProfile) throw new Error('PROFILE_TIER_UPDATE_NOT_APPLIED')
-
-    const { error: clearRefundStateError } = await supabase.rpc(
-      'clear_current_user_refund_request_state',
-    )
-    if (clearRefundStateError) {
-      console.warn('[useSubscription] Failed to clear persisted refund state after access sync', {
-        userId,
-        error: clearRefundStateError,
-      })
-    }
-
-    console.log('[useSubscription] Updated Supabase tier from RevenueCat', {
-      userId,
-      tier,
-      entitlementId: ENTITLEMENT_ID,
-      productIdentifier: entitlement.productIdentifier ?? null,
-    })
-    return isNewLifetimePurchase ? 'synced_new_lifetime' : 'synced'
-  }
-
-  return 'non_lifetime_entitlement'
-}
-
-async function rollbackFailedPromoAccessSync(userId: string | undefined) {
-  if (!userId) return
-
-  const { error } = await supabase
-    .from('profiles')
-    .update({
-      tier: 'none',
-      purchased_at: null,
-      refunded_at: null,
-      trial_ends_at: null,
-      revenuecat_user_id: null,
-    })
-    .eq('id', userId)
-
   if (error) throw error
+
+  const status =
+    data && typeof data === 'object' && !Array.isArray(data) && 'status' in data
+      ? data.status
+      : null
+  if ((status === 'synced' || status === 'synced_new_lifetime') && data.accessGranted === true) {
+    return status
+  }
+  if (
+    status === 'missing_entitlement' ||
+    status === 'expired_entitlement' ||
+    status === 'invalid_entitlement' ||
+    status === 'stale_refund'
+  ) {
+    return 'non_lifetime_entitlement'
+  }
+  throw new Error('INVALID_SERVER_ACCESS_SYNC_RESULT')
 }

@@ -13,6 +13,12 @@ verify_jwt = false
 [functions.revenuecat-webhook]
 verify_jwt = false
 
+[functions.sync-revenuecat-access]
+verify_jwt = true
+
+[functions.reconcile-revenuecat-access]
+verify_jwt = false
+
 # App-originated team notifications require a valid Supabase user session.
 [functions.team-notification]
 verify_jwt = true

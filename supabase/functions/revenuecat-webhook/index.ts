@@ -93,18 +93,6 @@ interface RevenueCatWebhookPayload {
   api_version?: string
 }
 
-interface PromoConfirmationResult {
-  status?: unknown
-  [key: string]: unknown
-}
-
-interface ProfileAccessSnapshot {
-  tier: string | null
-  purchased_at: string | null
-  refunded_at: string | null
-  trial_ends_at: string | null
-}
-
 interface RevenueSlackProfile {
   id: string
   email: string | null
@@ -159,12 +147,15 @@ function getEventTimestampIso(
   return timestamp ? new Date(timestamp).toISOString() : new Date().toISOString()
 }
 
-function getLifetimeGrantPurchasedAtIso(event: RevenueCatWebhookEvent, isPromoGatedGrant: boolean) {
-  if (isPromoGatedGrant) {
-    return getEventTimestampIso(event, 'event_timestamp_ms')
+function getRequiredEventTimestampIso(
+  event: RevenueCatWebhookEvent,
+  field: 'purchased_at_ms' | 'event_timestamp_ms',
+) {
+  const value = event[field]
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    throw new Error(`RevenueCat event missing ${field}`)
   }
-
-  return getEventTimestampIso(event, 'purchased_at_ms')
+  return new Date(value).toISOString()
 }
 
 function getSubscriberAttributeValue(event: RevenueCatWebhookEvent, key: string) {
@@ -195,16 +186,6 @@ function getPromoRedemptionContext(event: RevenueCatWebhookEvent) {
     codeId,
     campaignId,
   }
-}
-
-function getPromoConfirmationStatus(data: unknown) {
-  if (!data || typeof data !== 'object' || Array.isArray(data)) return null
-  const status = (data as PromoConfirmationResult).status
-  return typeof status === 'string' ? status : null
-}
-
-function isSuccessfulPromoConfirmationStatus(status: string | null) {
-  return status === 'confirmed' || status === 'already_confirmed'
 }
 
 function isUuid(value: unknown): value is string {
@@ -540,77 +521,42 @@ async function grantLifetimeAccess(
     }
   }
 
-  const { data: previousProfile, error: snapshotError } = await supabase
-    .from('profiles')
-    .select('tier,purchased_at,refunded_at,trial_ends_at')
-    .eq('id', userId)
-    .maybeSingle<ProfileAccessSnapshot>()
-
-  if (snapshotError) {
-    console.error('[revenuecat-webhook] failed to snapshot profile access:', {
-      ...getEventLogContext(event),
-      userId,
-      error: snapshotError,
-    })
-    throw snapshotError
-  }
-
-  const { error } = await supabase
-    .from('profiles')
-    .update({
-      tier: 'lifetime',
-      purchased_at: getLifetimeGrantPurchasedAtIso(event, isPromoGatedGrant),
-      refunded_at: null,
-      trial_ends_at: null,
-    })
-    .eq('id', userId)
-
+  const { data: transition, error } = await supabase.rpc(
+    'apply_revenuecat_webhook_transition',
+    {
+      p_user_id: userId,
+      p_action: processedAction === 'restored_refund' ? 'reversal' : 'grant',
+      p_event_at: getRequiredEventTimestampIso(event, 'event_timestamp_ms'),
+      p_purchase_at: getRequiredEventTimestampIso(
+        event,
+        processedAction === 'restored_refund' || isPromoGatedGrant
+          ? 'event_timestamp_ms'
+          : 'purchased_at_ms',
+      ),
+      p_store_product_id: getProductId(event),
+      p_redemption_attempt_id: promoContext?.redemptionAttemptId ?? null,
+      p_code_id: promoContext?.codeId ?? null,
+      p_campaign_id: promoContext?.campaignId ?? null,
+      p_store_transaction_id:
+        typeof event.transaction_id === 'string'
+          ? event.transaction_id
+          : typeof event.original_transaction_id === 'string'
+            ? event.original_transaction_id
+            : null,
+    },
+  )
   if (error) {
-    console.error('[revenuecat-webhook] failed to grant lifetime access:', {
-      ...getEventLogContext(event),
-      userId,
-      error,
+    console.error('[revenuecat-webhook] verified grant transaction failed:', {
+      ...getEventLogContext(event), userId, code: error.code ?? null,
     })
     throw error
   }
-
-  await clearRefundState(supabase, userId, event)
-
-  if (requiresPromoConfirmation) {
-    try {
-      await confirmPromoRedemptionFromWebhook(supabase, userId, event)
-    } catch (confirmationError) {
-      if (previousProfile) {
-        const { error: restoreError } = await supabase
-          .from('profiles')
-          .update({
-            tier: previousProfile.tier,
-            purchased_at: previousProfile.purchased_at,
-            refunded_at: previousProfile.refunded_at,
-            trial_ends_at: previousProfile.trial_ends_at,
-          })
-          .eq('id', userId)
-
-        if (restoreError) {
-          console.error('[revenuecat-webhook] failed to restore access after promo failure:', {
-            ...getEventLogContext(event),
-            userId,
-            confirmationError,
-            restoreError,
-          })
-          throw restoreError
-        }
-      }
-
-      console.error('[revenuecat-webhook] rolled back unconfirmed promo lifetime grant:', {
-        ...getEventLogContext(event),
-        userId,
-        promoContext,
-        error:
-          confirmationError instanceof Error ? confirmationError.message : String(confirmationError),
-      })
-      throw confirmationError
-    }
+  if (transition?.status === 'stale') {
+    await finalizeWebhookEvent(supabase, event, 'ignored_stale')
+    return jsonResponse({ received: true, ignored: 'stale' })
+  }
+  if (transition?.status !== 'applied') {
+    throw new Error('Invalid webhook grant transition result')
   }
 
   await finalizeWebhookEvent(supabase, event, processedAction)
@@ -630,75 +576,6 @@ async function grantLifetimeAccess(
   })
 
   return null
-}
-
-async function confirmPromoRedemptionFromWebhook(
-  supabase: ReturnType<typeof createClient>,
-  userId: string,
-  event: RevenueCatWebhookEvent,
-) {
-  const promoContext = getPromoRedemptionContext(event)
-  if (!promoContext) return
-
-  const { data, error } = await supabase.rpc('confirm_promo_redemption_for_user', {
-    p_user_id: userId,
-    p_redemption_attempt_id: promoContext.redemptionAttemptId,
-    p_code_id: promoContext.codeId,
-    p_campaign_id: promoContext.campaignId,
-    p_revenuecat_app_user_id: typeof event.app_user_id === 'string' ? event.app_user_id : null,
-    p_store_product_id: typeof event.product_id === 'string' ? event.product_id : null,
-    p_store_transaction_id:
-      typeof event.transaction_id === 'string'
-        ? event.transaction_id
-        : typeof event.original_transaction_id === 'string'
-          ? event.original_transaction_id
-          : null,
-  })
-
-  if (error) {
-    console.error('[revenuecat-webhook] failed to confirm promo redemption:', {
-      ...getEventLogContext(event),
-      userId,
-      promoContext,
-      error,
-    })
-    throw error
-  }
-
-  const confirmationStatus = getPromoConfirmationStatus(data)
-  if (!isSuccessfulPromoConfirmationStatus(confirmationStatus)) {
-    console.error('[revenuecat-webhook] promo redemption was not confirmed:', {
-      ...getEventLogContext(event),
-      userId,
-      promoContext,
-      result: data,
-    })
-    throw new Error(`PROMO_CONFIRMATION_${confirmationStatus ?? 'INVALID_RESULT'}`)
-  }
-
-  console.log('[revenuecat-webhook] promo redemption confirmation result', {
-    ...getEventLogContext(event),
-    userId,
-    promoContext,
-    result: data,
-  })
-}
-
-async function clearRefundState(
-  supabase: ReturnType<typeof createClient>,
-  userId: string,
-  event: RevenueCatWebhookEvent,
-) {
-  const { error } = await supabase.from('purchase_refund_states').delete().eq('user_id', userId)
-
-  if (error) {
-    console.error('[revenuecat-webhook] failed to clear purchase refund state:', {
-      ...getEventLogContext(event),
-      userId,
-      error,
-    })
-    throw error
-  }
 }
 
 async function upsertApprovedRefundState(
@@ -752,22 +629,26 @@ async function revokeLifetimeAccess(
     return jsonResponse({ received: true, ignored: 'user_not_found' })
   }
 
-  const { error } = await supabase
-    .from('profiles')
-    .update({
-      tier: 'none',
-      purchased_at: null,
-      refunded_at: getEventTimestampIso(event),
-    })
-    .eq('id', userId)
-
+  const { data: transition, error } = await supabase.rpc(
+    'apply_revenuecat_webhook_transition',
+    {
+      p_user_id: userId,
+      p_action: 'refund',
+      p_event_at: getRequiredEventTimestampIso(event, 'event_timestamp_ms'),
+    },
+  )
   if (error) {
-    console.error('[revenuecat-webhook] failed to revoke access:', {
-      ...getEventLogContext(event),
-      userId,
-      error,
+    console.error('[revenuecat-webhook] verified refund transaction failed:', {
+      ...getEventLogContext(event), userId, code: error.code ?? null,
     })
     throw error
+  }
+  if (transition?.status === 'stale') {
+    await finalizeWebhookEvent(supabase, event, 'ignored_stale')
+    return jsonResponse({ received: true, ignored: 'stale' })
+  }
+  if (transition?.status !== 'applied' && transition?.status !== 'already_applied') {
+    throw new Error('Invalid webhook refund transition result')
   }
 
   if (isAppStoreEvent(event)) {
