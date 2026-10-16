@@ -5,3 +5,19 @@ These SQL fixtures and test scripts moved from the PVS server repository in DEV-
 The shell scripts reference production-applied Domani migration versions from DEV-1415. The users test applies the executable forward activity-projection migration `20261007134913_harden_domani_user_activity_projection.sql` and checks the advanced PVS schema contract. `domani_release_contract_test.sh` replays the canonical release migrations and checks the current table/RPC security contract against a disposable local database. The transferred `dev_*` assertions and race scripts are historical fixtures; some use version/date examples that no longer satisfy the current schema. Reconcile those fixtures before adding them to CI. If running a race script directly, point `DATABASE_URL` only at a disposable local database, never at staging or production.
 
 `pvs_schema_contract_test.sh` validates the additive PVS startup contract migration and its service-role-only grant in a disposable local cluster.
+
+`dev_1418_compatibility_test.sh` applies the current-user and legacy caller-binding migrations twice in a disposable local cluster. It reproduces a legacy cross-account write before the binding, then checks anonymous and cross-account denial, authenticated self-service reads and writes, and expired-trial access.
+
+`dev_1418_private_service_surfaces_test.sh` applies the forward-only private-surface migration twice in a disposable local cluster, checks client and service-role privileges, verifies the dashboard view uses invoker security and webhook RLS is enabled, and exercises service-role reads and writes.
+
+`dev_1418_internal_function_grants_test.sh` applies the targeted internal-function and legacy admin-helper revocations with and without optional legacy objects present. It also applies the optional legacy audit-table hardening before and after that table exists, checks direct client inserts are denied and service inserts work, and verifies released-client and production-only service RPC grants remain available.
+
+`dev_1418_search_path_test.sh` reproduces temporary-table shadowing of an unpinned privileged function, applies the forward path migration twice, and verifies that trusted public relations win while existing empty-path functions and EXECUTE grants remain unchanged.
+
+`dev_1418_forward_chain_test.sh` applies the full DEV-1417/1418 forward chain in migration order to a disposable synthetic production-head baseline and verifies caller-bound access, service dashboard behavior, and final grants. It is an integration fixture, not a dump or clone of the live production schema.
+
+`dev_1419_legacy_entitlement_bridge_test.sh` verifies the released direct trial request receives server dates and a one-time analytics event, forged direct profile entitlement/admin writes do not take effect, purchase attempts queue privately and coalesce, the current trial RPC still works, and service-role verified writes remain available. The forward-chain fixture also applies the DEV-1419 migration after DEV-1418.
+
+`dev_1420_verified_access_test.sh` verifies service-only verified grants, duplicate calls, request leases, refund ordering, promo gating, and transactional rollback after promo confirmation failure. The forward-chain fixture applies the DEV-1420 migration after the compatibility bridge.
+
+`dev_1420_account_email_test.sh` verifies server-recorded account events, forged direct deletion-field writes, service-only claims, duplicate suppression, provider-failure release, stable recipient snapshots, and reactivation ordering. The forward-chain fixture applies this migration after verified access.
