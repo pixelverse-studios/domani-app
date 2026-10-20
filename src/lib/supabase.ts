@@ -11,6 +11,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     storage: secureStorage,
     autoRefreshToken: true,
     persistSession: true,
+    flowType: 'pkce',
     detectSessionInUrl: false, // CRITICAL: Must be false for React Native
   },
 })

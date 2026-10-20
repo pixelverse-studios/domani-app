@@ -1,4 +1,5 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
+import { recordRolloutEvent } from '../_shared/rolloutTelemetry.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import {
   parsePromoConfirmationContext,
@@ -54,6 +55,12 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Unauthorized' }, 401)
   }
 
+  const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false },
+  })
+  const metric = (event: Parameters<typeof recordRolloutEvent>[1]) =>
+    recordRolloutEvent(adminClient, event, user.id)
+
   let promoContext = null
   try {
     const rawBody = await req.text()
@@ -61,7 +68,8 @@ Deno.serve(async (req) => {
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return jsonResponse({ error: 'Invalid request body' }, 400)
     }
-    if ('userId' in body && body.userId !== user.id) {
+    if (body.userId !== user.id) {
+      await metric('rejection')
       return jsonResponse({ error: 'User mismatch' }, 403)
     }
     promoContext = parsePromoConfirmationContext(body.promoContext)
@@ -82,9 +90,6 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Access verification unavailable' }, 503)
   }
 
-  const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false },
-  })
   const { data: requestSeenAt, error: queueClaimError } = await adminClient.rpc(
     'claim_current_user_revenuecat_sync',
     { p_user_id: user.id },
@@ -109,6 +114,7 @@ Deno.serve(async (req) => {
       },
     )
   } catch {
+    await metric('unresolved_failure')
     return jsonResponse({ error: 'RevenueCat unavailable' }, 502)
   }
 
@@ -116,6 +122,7 @@ Deno.serve(async (req) => {
     console.error('[sync-revenuecat-access] RevenueCat lookup failed', {
       status: revenueCatResponse.status,
     })
+    await metric('unresolved_failure')
     return jsonResponse({ error: 'RevenueCat verification failed' }, 502)
   }
 
@@ -126,14 +133,17 @@ Deno.serve(async (req) => {
       REVENUECAT_ENTITLEMENT_ID,
     )
   } catch {
+    await metric('unresolved_failure')
     return jsonResponse({ error: 'RevenueCat response invalid' }, 502)
   }
 
   if (verifiedAccess.status !== 'verified') {
+    await metric('delayed_reconciliation')
     return jsonResponse({ status: verifiedAccess.status, accessGranted: false, recoverable: true })
   }
 
   if (PROMO_GATED_LIFETIME_PRODUCT_IDS.has(verifiedAccess.productId) && !promoContext) {
+    await metric('rejection')
     return jsonResponse({ error: 'Promo confirmation context required' }, 400)
   }
 
@@ -151,11 +161,14 @@ Deno.serve(async (req) => {
     console.error('[sync-revenuecat-access] Verified access transaction failed', {
       code: error.code ?? null,
     })
+    await metric('unresolved_failure')
     return jsonResponse({ error: 'Access sync failed' }, 500)
   }
 
   if (!data || typeof data !== 'object' || !('status' in data)) {
+    await metric('unresolved_failure')
     return jsonResponse({ error: 'Invalid access sync result' }, 500)
   }
+  await metric(data.accessGranted === true ? 'verified_success' : 'rejection')
   return jsonResponse(data)
 })

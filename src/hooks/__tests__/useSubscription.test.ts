@@ -357,7 +357,7 @@ describe('RevenueCat access gating', () => {
 describe('subscription product analytics', () => {
   it('starts an explicit trial atomically with its server-confirmed PostHog outbox row', async () => {
     mockSupabaseRpc.mockImplementation((functionName: string) => {
-      if (functionName === 'start_trial_with_posthog_outbox') {
+      if (functionName === 'start_current_user_trial') {
         return Promise.resolve({
           data: {
             tier: 'trialing',
@@ -377,7 +377,9 @@ describe('subscription product analytics', () => {
       await result.current.startTrial()
     })
 
-    expect(mockSupabaseRpc).toHaveBeenCalledWith('start_trial_with_posthog_outbox')
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('start_current_user_trial', {
+      p_expected_user_id: 'user-1',
+    })
     expect(mockTrack).not.toHaveBeenCalledWith('trial_started', expect.anything())
     expect(mockLogMetaStartTrial).toHaveBeenCalledWith({ userId: 'user-1', offer: 'default' })
 
@@ -463,7 +465,7 @@ describe('purchase access sync', () => {
       recoverable: false,
     })
     expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledWith('sync-revenuecat-access', {
-      body: { promoContext: null },
+      body: { userId: 'user-1', promoContext: null },
     })
 
     unmount()
@@ -473,7 +475,10 @@ describe('purchase access sync', () => {
     mockPurchasePackage.mockResolvedValue(buildPurchaseResult())
     mockSupabaseFunctionsInvoke
       .mockResolvedValueOnce({ data: null, error: { context: { status: 429 } } })
-      .mockResolvedValueOnce({ data: { status: 'synced_new_lifetime', accessGranted: true }, error: null })
+      .mockResolvedValueOnce({
+        data: { status: 'synced_new_lifetime', accessGranted: true },
+        error: null,
+      })
 
     const { result, unmount } = renderHookWithProviders(() => useSubscription())
     await waitFor(() => expect(result.current.isLoading).toBe(false))
@@ -526,6 +531,7 @@ describe('purchase access sync', () => {
 
     expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledWith('sync-revenuecat-access', {
       body: {
+        userId: 'user-1',
         promoContext: {
           campaignId: 'campaign-1',
           codeId: 'code-1',
@@ -816,6 +822,7 @@ describe('purchase access sync', () => {
     )
     expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledWith('sync-revenuecat-access', {
       body: {
+        userId: 'user-1',
         promoContext: {
           campaignId: 'campaign-1',
           codeId: 'code-1',

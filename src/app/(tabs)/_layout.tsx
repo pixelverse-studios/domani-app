@@ -58,8 +58,8 @@ export default function TabLayout() {
   // Handle tutorial pause/resume on app lifecycle and navigation changes
   useTutorialLifecycle()
 
-  // Show loading while checking auth
-  if (loading) {
+  // Do not mount user or paid screens until both identity and access are resolved.
+  if (loading || subscriptionLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-surface-bg">
         <ActivityIndicator size="large" color={theme.colors.brand.primary} />
@@ -70,14 +70,6 @@ export default function TabLayout() {
   // Redirect to welcome if not authenticated
   if (!user) {
     return <Redirect href="/welcome" />
-  }
-
-  if (isRestrictedPath && subscriptionLoading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-surface-bg">
-        <ActivityIndicator size="large" color={theme.colors.brand.primary} />
-      </View>
-    )
   }
 
   if (isRestrictedPath && !userHasFullAccess) {
