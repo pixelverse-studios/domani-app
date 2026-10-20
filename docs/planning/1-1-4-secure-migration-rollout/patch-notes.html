@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>Domani — More reliable account access</title>
+<style>
+:root { color-scheme: light; font-family: ui-sans-serif, system-ui, -apple-system,
+  BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #18262d; background: #eef1f2; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 48px 24px; line-height: 1.65; }
+article { max-width: 920px; margin: auto; background: #fff; border: 1px solid #d8dfe2; }
+header { padding: 48px 56px 40px; border-bottom: 1px solid #d8dfe2; }
+.eyebrow { color: #42575f; font-size: .78rem; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; margin: 0 0 14px; }
+h1 { font-size: clamp(2rem, 4vw, 3rem); line-height: 1.12; letter-spacing: -.035em;
+  max-width: 23ch; margin: 0 0 26px; overflow-wrap: anywhere; }
+.meta { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center;
+  font-size: .875rem; color: #42575f; }
+.status { color: #174f53; background: #e9f3f1; padding: 5px 12px;
+  border: 1px solid #bad5d1; border-radius: 4px; font-weight: 650; }
+main { padding: 8px 56px 40px; }
+section { padding: 28px 0; border-bottom: 1px solid #e3e8ea; }
+section:last-child { border: 0; padding-bottom: 0; }
+h2 { font-size: 1.125rem; line-height: 1.3; margin: 0 0 12px; letter-spacing: -.015em; }
+p { margin: 0; overflow-wrap: anywhere; }
+.overview { font-size: 1.08rem; color: #32484f; }
+ul { padding-left: 21px; margin: 0; }
+li { padding-left: 4px; overflow-wrap: anywhere; }
+li + li { margin-top: 10px; }
+footer { padding: 20px 56px; border-top: 1px solid #d8dfe2; font-size: .8rem; color: #42575f; }
+@media (max-width: 600px) {
+  body { padding: 16px 12px; }
+  header { padding: 28px 24px; }
+  main { padding: 0 24px 28px; }
+  footer { padding: 18px 24px; }
+  h1 { font-size: 2rem; }
+  section { padding: 24px 0; }
+}
+@page { size: auto; margin: 16mm; }
+@media print {
+  :root, body { background: white; color: #111; }
+  body { padding: 0; font-size: 10.5pt; }
+  article { max-width: none; border: 0; }
+  header { padding: 0 0 20px; }
+  main { padding: 0; }
+  footer { padding: 16px 0 0; }
+  h1 { font-size: 26pt; }
+  h2 { break-after: avoid; }
+  li { break-inside: avoid; }
+  section { padding: 18px 0; }
+  .status { background: white; color: #111; border-color: #777; }
+}
+</style>
+</head>
+<body>
+<article aria-labelledby="title">
+<header>
+<p class="eyebrow">Domani · Patch notes</p>
+<h1 id="title">More reliable account access</h1>
+<div class="meta"><time datetime="2026-10-20">October 20, 2026</time><span class="status">Partially complete</span></div>
+</header>
+<main>
+<section aria-labelledby="overview"><h2 id="overview">Overview</h2><p class="overview">Account access improvements are prepared for the next Domani release. They are not available in the public app yet.</p></section>
+<section aria-labelledby="added"><h2 id="added">Added</h2><ul><li>A clear update prompt can guide people to the store when a newer release becomes required.</li></ul></section>
+<section aria-labelledby="improved"><h2 id="improved">Improved</h2><ul><li>Purchase recovery handles delayed confirmations and refunds more consistently.</li>
+<li>Account changes keep earlier sign-in actions tied to the account that started them.</li></ul></section>
+<section aria-labelledby="fixed"><h2 id="fixed">Fixed</h2><ul><li>Repeated purchase notifications no longer leave access updates stuck after an interruption.</li></ul></section>
+<section aria-labelledby="next_steps"><h2 id="next_steps">What happens next</h2><ul><li>These improvements will become available after the release rollout is complete.</li></ul></section>
+</main>
+<footer>Domani · Work summary · Partially complete</footer>
+</article>
+</body>
+</html>
