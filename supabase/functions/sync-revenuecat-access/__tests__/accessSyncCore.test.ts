@@ -44,6 +44,20 @@ describe('RevenueCat access sync core', () => {
     ).toEqual({ status: 'expired_entitlement' })
   })
 
+  it('never converts future finite access into permanent lifetime access', () => {
+    expect(
+      parseVerifiedLifetimeAccess(
+        buildPayload({
+          expires_date: '2026-12-01T00:00:00.000Z',
+          product_identifier: 'domani_lifetime',
+          purchase_date: '2026-08-18T12:00:00.000Z',
+        }),
+        entitlementId,
+        new Date('2026-08-20T12:00:00.000Z'),
+      ),
+    ).toEqual({ status: 'invalid_entitlement' })
+  })
+
   it('rejects unknown products and malformed purchase timestamps', () => {
     expect(
       parseVerifiedLifetimeAccess(

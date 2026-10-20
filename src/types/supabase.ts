@@ -1379,6 +1379,25 @@ export type Database = {
       }
     }
     Functions: {
+      claim_current_user_push_token: {
+        Args: { p_expected_user_id: string; p_push_token: string }
+        Returns: undefined
+      }
+      unclaim_current_user_push_token: {
+        Args: { p_expected_user_id: string; p_push_token: string }
+        Returns: undefined
+      }
+      cancel_current_user_account_deletion: {
+        Args: { p_expected_user_id: string }
+        Returns: undefined
+      }
+      get_client_version_policy: { Args: { p_platform: string }; Returns: Json }
+      observe_current_user_client: {
+        Args: { p_app_version: string | null; p_build: string | null; p_platform: string }
+        Returns: undefined
+      }
+      start_current_user_trial: { Args: { p_expected_user_id: string }; Returns: Json }
+
       claim_posthog_trial_started: {
         Args: { p_client_properties: Json; p_user_id: string }
         Returns: {

@@ -89,6 +89,8 @@ export function parseVerifiedLifetimeAccess(
     if (new Date(expiresAt).getTime() <= now.getTime()) {
       return { status: 'expired_entitlement' }
     }
+    // Lifetime nonconsumables must never turn finite access into a permanent grant.
+    return { status: 'invalid_entitlement' }
   }
 
   return {

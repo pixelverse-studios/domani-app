@@ -7,8 +7,9 @@ import * as AppleAuthentication from 'expo-apple-authentication'
 
 import { supabase, sendAccountEmail } from '~/lib/supabase'
 import { sendTeamNotification } from '~/lib/teamNotifications'
+import { unclaimCurrentUserPushToken } from '~/lib/pushTokenOwnership'
 import { captureException, addBreadcrumb } from '~/lib/sentry'
-import { parseOAuthTokensFromUrl, runSingleFlight, waitForAuthSession } from '~/lib/authSession'
+import { completeOAuthCallback, runSingleFlight } from '~/lib/authSession'
 import { useTranslation } from '~/hooks/useTranslation'
 import { formatLocalizedDate } from '~/i18n/date'
 import type { AppLocale } from '~/i18n'
@@ -63,6 +64,20 @@ const getDeviceTimezone = (): string => {
   }
 }
 
+// Native token lookup/revocation can fail offline; local signout remains usable.
+async function signOutExpectedUser(expectedUserId: string): Promise<boolean> {
+  try {
+    await unclaimCurrentUserPushToken(expectedUserId)
+  } catch {
+    console.warn('[AuthProvider] Push token cleanup unavailable')
+  }
+  const { data } = await supabase.auth.getSession()
+  if (data.session?.user.id !== expectedUserId) return false
+  const { error } = await supabase.auth.signOut()
+  if (error) throw error
+  return true
+}
+
 // Check if account is pending deletion and prompt for reactivation
 const checkPendingDeletion = async (
   userId: string,
@@ -90,6 +105,11 @@ const checkPendingDeletion = async (
       locale,
     )
 
+    const isCurrentAccount = async () => {
+      const { data, error: sessionError } = await supabase.auth.getSession()
+      return !sessionError && data.session?.user.id === userId
+    }
+
     return new Promise((resolve) => {
       Alert.alert(
         t('auth.pendingDeletion.title'),
@@ -98,13 +118,23 @@ const checkPendingDeletion = async (
           {
             text: t('auth.actions.reactivate'),
             onPress: async () => {
+              if (!(await isCurrentAccount())) {
+                resolve(true)
+                return
+              }
+              // Bind this delayed alert action to the account it described.
               // Cancel the deletion
-              const { error: cancelError } = await supabase.rpc('cancel_account_deletion', {
-                p_user_id: userId,
-              })
+              const { error: cancelError } = await supabase.rpc(
+                'cancel_current_user_account_deletion',
+                { p_expected_user_id: userId },
+              )
               if (cancelError) {
                 console.error('[AuthProvider] Failed to cancel deletion:', cancelError)
               } else {
+                if (!(await isCurrentAccount())) {
+                  resolve(true)
+                  return
+                }
                 // Signal that account was reactivated for celebration
                 onReactivated()
 
@@ -129,6 +159,10 @@ const checkPendingDeletion = async (
             text: t('auth.actions.keepDeletion'),
             style: 'destructive',
             onPress: async () => {
+              if (!(await isCurrentAccount())) {
+                resolve(true)
+                return
+              }
               await signOutFn()
               resolve(true) // Block login
             },
@@ -289,8 +323,8 @@ interface AuthContextValue {
   session: Session | null
   user: User | null
   loading: boolean
-  signInWithGoogle: () => Promise<void>
-  signInWithApple: () => Promise<void>
+  signInWithGoogle: () => Promise<boolean>
+  signInWithApple: () => Promise<boolean>
   signOut: () => Promise<void>
   accountReactivated: boolean
   clearAccountReactivated: () => void
@@ -304,7 +338,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [accountReactivated, setAccountReactivated] = useState(false)
-  const googleSignInPromiseRef = useRef<Promise<void> | null>(null)
+  const googleSignInPromiseRef = useRef<Promise<boolean> | null>(null)
 
   // Configure OAuth redirect for mobile app
   // Uses the native scheme defined in app.json: domani://
@@ -339,7 +373,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (!isValid) {
           console.warn('[AuthProvider] Orphaned session detected - user no longer exists')
           // Clear the invalid session
-          await supabase.auth.signOut()
+          void signOutExpectedUser(session.user.id)
           setSession(null)
           setUser(null)
           setLoading(false)
@@ -367,14 +401,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             )
 
             // Sign out and alert the user (run async)
-            supabase.auth.signOut().then(() => {
+            signOutExpectedUser(session.user.id).then((signedOut) => {
+              if (!signedOut) return
               Alert.alert(
                 t('auth.errors.accountExistsTitle'),
                 t('auth.errors.accountExistsMessage'),
                 [{ text: t('auth.actions.ok') }],
               )
-              setSession(null)
-              setUser(null)
             })
             return
           }
@@ -389,11 +422,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             session.user.id,
             session.user.email!,
             async () => {
-              const { error } = await supabase.auth.signOut()
-              if (!error) {
-                setSession(null)
-                setUser(null)
-              }
+              await signOutExpectedUser(session.user.id)
             },
             () => setAccountReactivated(true),
             locale,
@@ -432,48 +461,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         console.log('[AuthProvider] Browser result type:', result.type)
 
-        if (result.type === 'success') {
-          // Note: Don't log result.url as it contains OAuth tokens
-          const tokens = parseOAuthTokensFromUrl(result.url)
+        if (result.type !== 'success') return false
 
-          console.log('[AuthProvider] Tokens received:', {
-            hasAccessToken: !!tokens?.access_token,
-            hasRefreshToken: !!tokens?.refresh_token,
-          })
-
-          if (tokens) {
-            // Set the session manually
-            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-              access_token: tokens.access_token,
-              refresh_token: tokens.refresh_token,
-            })
-
-            if (sessionError) {
-              console.error('[AuthProvider] Session error:', sessionError)
-              throw sessionError
-            }
-
-            console.log('[AuthProvider] Session set successfully!')
-            addBreadcrumb('Google sign in completed', 'auth', { provider: 'google' })
-            const persistedSession =
-              sessionData.session ??
-              (await waitForAuthSession(() => supabase.auth.getSession(), {
-                attempts: 8,
-                intervalMs: 150,
-              }))
-
-            if (!persistedSession) {
-              throw new Error('Google sign in completed, but no session was persisted.')
-            }
-            // Profile creation is handled by onAuthStateChange callback
-          } else {
-            console.error('[AuthProvider] No tokens in redirect URL')
-            throw new Error('Google sign in completed, but no session tokens were returned.')
-          }
-        } else {
-          console.log('[AuthProvider] OAuth was cancelled or failed')
-          throw new Error('Google sign in was cancelled.')
-        }
+        await completeOAuthCallback(
+          result.url,
+          (code) => supabase.auth.exchangeCodeForSession(code),
+          () => supabase.auth.getSession(),
+        )
+        addBreadcrumb('Google sign in completed', 'auth', { provider: 'google' })
+        return true
       } else {
         throw new Error('Google sign in could not start.')
       }
@@ -538,6 +534,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       // Profile creation is handled by onAuthStateChange callback
+      return true
     } catch (error: unknown) {
       // Handle user cancellation
       if (
@@ -547,7 +544,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         error.code === 'ERR_REQUEST_CANCELED'
       ) {
         console.log('[AuthProvider] Apple Sign In cancelled by user')
-        return
+        return false
       }
       console.error('[AuthProvider] Apple sign in error:', error)
       throw error
@@ -557,8 +554,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       addBreadcrumb('User signing out', 'auth')
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
+      const { data } = await supabase.auth.getSession()
+      const expectedUserId = user?.id ?? data.session?.user.id
+      if (expectedUserId) await signOutExpectedUser(expectedUserId)
     } catch (error) {
       console.error('[AuthProvider] Sign out error:', error)
       throw error

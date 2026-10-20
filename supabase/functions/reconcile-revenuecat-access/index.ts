@@ -1,4 +1,5 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
+import { recordRolloutEvent } from '../_shared/rolloutTelemetry.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import {
   parseVerifiedLifetimeAccess,
@@ -49,7 +50,15 @@ Deno.serve(async (req) => {
   let resolved = 0
   let pending = 0
   let failed = 0
+  // Worker invocations also apply the bounded telemetry/queue retention policy.
+  try {
+    await admin.rpc('prune_rollout_telemetry').abortSignal(AbortSignal.timeout(1500))
+  } catch {
+    // A cleanup outage cannot block access reconciliation.
+  }
   for (const request of claimed ?? []) {
+    const metric = (event: Parameters<typeof recordRolloutEvent>[1]) =>
+      recordRolloutEvent(admin, event, request.user_id)
     try {
       const response = await fetch(
         `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(request.user_id)}`,
@@ -63,6 +72,7 @@ Deno.serve(async (req) => {
       )
       if (!response.ok) {
         failed += 1
+        await metric('unresolved_failure')
         continue
       }
       const access = parseVerifiedLifetimeAccess(
@@ -70,6 +80,7 @@ Deno.serve(async (req) => {
       )
       if (access.status !== 'verified') {
         pending += 1
+        await metric('delayed_reconciliation')
         continue
       }
 
@@ -81,10 +92,12 @@ Deno.serve(async (req) => {
       const { data: stale, error: staleError } = await resolveStaleRefund()
       if (staleError) {
         failed += 1
+        await metric('unresolved_failure')
         continue
       }
       if (stale === true) {
         resolved += 1
+        await metric('reconciliation_success')
         continue
       }
 
@@ -102,12 +115,14 @@ Deno.serve(async (req) => {
         .limit(5)
       if (attemptError) {
         failed += 1
+        await metric('unresolved_failure')
         continue
       }
       promoCandidates = attempts ?? []
       const isPromoGated = PROMO_GATED_LIFETIME_PRODUCT_IDS.has(access.productId)
       if (isPromoGated && !promoCandidates.length) {
         pending += 1
+        await metric('delayed_reconciliation')
         continue
       }
 
@@ -137,14 +152,25 @@ Deno.serve(async (req) => {
       }
       if (staleRefund) {
         const { data, error } = await resolveStaleRefund()
-        if (error || data !== true) failed += 1
-        else resolved += 1
+        if (error || data !== true) {
+          failed += 1
+          await metric('unresolved_failure')
+        } else {
+          resolved += 1
+          await metric('reconciliation_success')
+        }
         continue
       }
-      if (applied) verified += 1
-      else pending += 1
+      if (applied) {
+        verified += 1
+        await metric('reconciliation_success')
+      } else {
+        pending += 1
+        await metric('delayed_reconciliation')
+      }
     } catch {
       failed += 1
+      await metric('unresolved_failure')
     }
   }
 

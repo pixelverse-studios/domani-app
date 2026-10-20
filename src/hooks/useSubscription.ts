@@ -1330,7 +1330,9 @@ export function useSubscription() {
         throw new Error('Trial cannot be started from current state')
       }
 
-      const { data, error } = await supabase.rpc('start_trial_with_posthog_outbox')
+      const { data, error } = await supabase.rpc('start_current_user_trial', {
+        p_expected_user_id: user.id,
+      })
 
       if (error) throw error
       if (!data || Array.isArray(data) || typeof data !== 'object') {
@@ -1785,7 +1787,7 @@ async function syncSubscriptionToSupabase(
   let data: unknown
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const response = await supabase.functions.invoke('sync-revenuecat-access', {
-      body: { promoContext },
+      body: { userId, promoContext },
     })
     if (!response.error) {
       data = response.data

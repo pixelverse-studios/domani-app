@@ -1,3 +1,4 @@
+import { recordRolloutEvent } from '../_shared/rolloutTelemetry.ts'
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import {
@@ -107,7 +108,6 @@ const LIFETIME_PRODUCT_IDS = new Set([
 ])
 const PROMO_GATED_LIFETIME_PRODUCT_IDS = new Set(['domani_lifetime_friends'])
 const REFUND_LIKE_CANCELLATION_REASONS = new Set(['CUSTOMER_SUPPORT'])
-const APP_STORE_EVENT_STORES = new Set(['APP_STORE', 'MAC_APP_STORE'])
 
 function getEventLogContext(event: RevenueCatWebhookEvent) {
   return {
@@ -251,11 +251,6 @@ function isPromoGatedLifetimeProductEvent(event: RevenueCatWebhookEvent) {
   return !!productId && PROMO_GATED_LIFETIME_PRODUCT_IDS.has(productId)
 }
 
-function isAppStoreEvent(event: RevenueCatWebhookEvent) {
-  const store = typeof event.store === 'string' ? event.store.toUpperCase() : null
-  return !!store && APP_STORE_EVENT_STORES.has(store)
-}
-
 async function ignoreNonLifetimeProduct(
   supabase: ReturnType<typeof createClient>,
   event: RevenueCatWebhookEvent,
@@ -264,38 +259,18 @@ async function ignoreNonLifetimeProduct(
   console.log('[revenuecat-webhook] non-lifetime product ignored', getEventLogContext(event))
 }
 
+const webhookClaimTokens = new WeakMap<RevenueCatWebhookEvent, string>()
+
 async function claimWebhookEvent(
   supabase: ReturnType<typeof createClient>,
   event: RevenueCatWebhookEvent,
-) {
-  if (!event.id) return false
-
-  const { data, error } = await supabase
-    .from('revenuecat_webhook_events')
-    .upsert(
-      {
-        event_id: event.id,
-        event_type: event.type,
-        app_user_id: typeof event.app_user_id === 'string' ? event.app_user_id : null,
-        original_app_user_id:
-          typeof event.original_app_user_id === 'string' ? event.original_app_user_id : null,
-        aliases: getAliases(event),
-        product_id: typeof event.product_id === 'string' ? event.product_id : null,
-        store: typeof event.store === 'string' ? event.store : null,
-        environment: typeof event.environment === 'string' ? event.environment : null,
-        event_timestamp:
-          typeof event.event_timestamp_ms === 'number'
-            ? new Date(event.event_timestamp_ms).toISOString()
-            : null,
-        processed_action: 'processing',
-        raw_event: event,
-      },
-      {
-        onConflict: 'event_id',
-        ignoreDuplicates: true,
-      },
-    )
-    .select('event_id')
+): Promise<
+  | { status: 'claimed'; event: RevenueCatWebhookEvent }
+  | { status: 'in_progress' | 'already_processed' }
+> {
+  const { data, error } = await supabase.rpc('claim_revenuecat_webhook_event', {
+    p_event: event,
+  })
 
   if (error) {
     console.error('[revenuecat-webhook] failed to claim event:', {
@@ -305,7 +280,14 @@ async function claimWebhookEvent(
     throw error
   }
 
-  return !!data?.length
+  if (data?.status === 'claimed' && typeof data.token === 'string' && data.event?.id === event.id) {
+    const canonicalEvent = data.event as RevenueCatWebhookEvent
+    webhookClaimTokens.set(canonicalEvent, data.token)
+    return { status: 'claimed', event: canonicalEvent }
+  }
+  if (data?.status === 'in_progress') return { status: 'in_progress' }
+  if (data?.status === 'already_processed') return { status: 'already_processed' }
+  throw new Error('Invalid webhook claim result')
 }
 
 async function finalizeWebhookEvent(
@@ -316,15 +298,33 @@ async function finalizeWebhookEvent(
 ) {
   if (!event.id) return
 
-  const { error } = await supabase
+  const token = webhookClaimTokens.get(event)
+  if (!token) throw new Error('Webhook claim missing')
+  const { data, error } = await supabase
     .from('revenuecat_webhook_events')
     .update({
       processed_action: processedAction,
       processed_at: new Date().toISOString(),
       processing_error: processingError,
+      claim_token: null,
+      claimed_at: null,
     })
     .eq('event_id', event.id)
+    .eq('claim_token', token)
+    .select('event_id')
 
+  if (!error && !data?.length) throw new Error('Webhook claim expired')
+
+  if (!error) {
+    await recordRolloutEvent(
+      supabase,
+      processingError
+        ? 'unresolved_failure'
+        : processedAction.startsWith('ignored')
+          ? 'rejection'
+          : 'webhook_success',
+    )
+  }
   if (error) {
     console.error('[revenuecat-webhook] failed to finalize event log:', {
       ...getEventLogContext(event),
@@ -341,10 +341,13 @@ async function releaseWebhookClaim(
 ) {
   if (!event.id) return
 
+  const token = webhookClaimTokens.get(event)
+  if (!token) return
   const { error } = await supabase
     .from('revenuecat_webhook_events')
-    .delete()
+    .update({ processed_action: 'retry_pending', claim_token: null, claimed_at: null })
     .eq('event_id', event.id)
+    .eq('claim_token', token)
 
   if (error) {
     console.error('[revenuecat-webhook] failed to release claimed event:', {
@@ -522,16 +525,16 @@ async function grantLifetimeAccess(
   }
 
   const { data: transition, error } = await supabase.rpc(
-    'apply_revenuecat_webhook_transition',
+    'apply_revenuecat_webhook_transition_with_refund_state',
     {
       p_user_id: userId,
+      p_store: typeof event.store === 'string' ? event.store : '',
+      p_event_type: event.type,
       p_action: processedAction === 'restored_refund' ? 'reversal' : 'grant',
       p_event_at: getRequiredEventTimestampIso(event, 'event_timestamp_ms'),
       p_purchase_at: getRequiredEventTimestampIso(
         event,
-        processedAction === 'restored_refund' || isPromoGatedGrant
-          ? 'event_timestamp_ms'
-          : 'purchased_at_ms',
+        processedAction === 'restored_refund' ? 'event_timestamp_ms' : 'purchased_at_ms',
       ),
       p_store_product_id: getProductId(event),
       p_redemption_attempt_id: promoContext?.redemptionAttemptId ?? null,
@@ -547,7 +550,9 @@ async function grantLifetimeAccess(
   )
   if (error) {
     console.error('[revenuecat-webhook] verified grant transaction failed:', {
-      ...getEventLogContext(event), userId, code: error.code ?? null,
+      ...getEventLogContext(event),
+      userId,
+      code: error.code ?? null,
     })
     throw error
   }
@@ -578,36 +583,6 @@ async function grantLifetimeAccess(
   return null
 }
 
-async function upsertApprovedRefundState(
-  supabase: ReturnType<typeof createClient>,
-  userId: string,
-  event: RevenueCatWebhookEvent,
-) {
-  const eventTimestamp = getEventTimestampIso(event)
-  const { error } = await supabase.from('purchase_refund_states').upsert(
-    {
-      user_id: userId,
-      platform: 'ios',
-      status: 'approved',
-      client_hint: null,
-      requested_at: eventTimestamp,
-      resolved_at: eventTimestamp,
-      last_source: `revenuecat:${event.type}`,
-      last_error: null,
-    },
-    { onConflict: 'user_id' },
-  )
-
-  if (error) {
-    console.error('[revenuecat-webhook] failed to persist approved refund state:', {
-      ...getEventLogContext(event),
-      userId,
-      error,
-    })
-    throw error
-  }
-}
-
 async function revokeLifetimeAccess(
   supabase: ReturnType<typeof createClient>,
   event: RevenueCatWebhookEvent,
@@ -630,16 +605,20 @@ async function revokeLifetimeAccess(
   }
 
   const { data: transition, error } = await supabase.rpc(
-    'apply_revenuecat_webhook_transition',
+    'apply_revenuecat_webhook_transition_with_refund_state',
     {
       p_user_id: userId,
+      p_store: typeof event.store === 'string' ? event.store : '',
+      p_event_type: event.type,
       p_action: 'refund',
       p_event_at: getRequiredEventTimestampIso(event, 'event_timestamp_ms'),
     },
   )
   if (error) {
     console.error('[revenuecat-webhook] verified refund transaction failed:', {
-      ...getEventLogContext(event), userId, code: error.code ?? null,
+      ...getEventLogContext(event),
+      userId,
+      code: error.code ?? null,
     })
     throw error
   }
@@ -649,10 +628,6 @@ async function revokeLifetimeAccess(
   }
   if (transition?.status !== 'applied' && transition?.status !== 'already_applied') {
     throw new Error('Invalid webhook refund transition result')
-  }
-
-  if (isAppStoreEvent(event)) {
-    await upsertApprovedRefundState(supabase, userId, event)
   }
 
   await finalizeWebhookEvent(supabase, event, processedAction)
@@ -729,7 +704,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Invalid JSON payload' }, 400)
   }
 
-  const event = payload?.event
+  let event = payload?.event
   if (!event || typeof event !== 'object' || !event.type || !event.id) {
     console.error('[revenuecat-webhook] payload missing required event fields', {
       hasEvent: !!event,
@@ -755,11 +730,16 @@ Deno.serve(async (req) => {
 
   // --- Claim and event routing ------------------------------------------
   try {
-    claimedEvent = await claimWebhookEvent(supabase, event)
+    const claim = await claimWebhookEvent(supabase, event)
+    if (claim.status === 'in_progress') {
+      return jsonResponse({ error: 'Event processing in progress' }, 503)
+    }
+    claimedEvent = claim.status === 'claimed'
     if (!claimedEvent) {
       console.log('[revenuecat-webhook] duplicate event ignored', getEventLogContext(event))
       return jsonResponse({ received: true, duplicate: true })
     }
+    if (claim.status === 'claimed') event = claim.event
 
     switch (event.type) {
       case 'INITIAL_PURCHASE':
@@ -816,6 +796,7 @@ Deno.serve(async (req) => {
       }
     }
   } catch (err) {
+    await recordRolloutEvent(supabase, 'unresolved_failure')
     if (claimedEvent) {
       await releaseWebhookClaim(supabase, event)
     }

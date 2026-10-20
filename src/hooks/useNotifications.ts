@@ -6,6 +6,9 @@ import Constants from 'expo-constants'
 import { NotificationService } from '~/lib/notifications'
 import { useNotificationStore } from '~/stores/notificationStore'
 import { supabase } from '~/lib/supabase'
+import { getAllowedNotificationRoute } from '~/lib/navigationSecurity'
+import { useAuth } from '~/hooks/useAuth'
+import { claimCurrentUserPushToken } from '~/lib/pushTokenOwnership'
 
 // Check if notifications are supported (not in Expo Go on Android SDK 53+)
 const isExpoGo = Constants.appOwnership === 'expo'
@@ -23,59 +26,17 @@ const INITIAL_RETRY_DELAY_MS = 1000
  * @param attempt Current attempt number (1-based)
  * @returns True if registration succeeded, false otherwise
  */
-async function registerPushTokenWithRetry(attempt: number = 1): Promise<boolean> {
+async function registerPushTokenWithRetry(expectedUserId: string, attempt = 1): Promise<boolean> {
   try {
-    const token = await NotificationService.getExpoPushToken()
-    if (!token) {
-      console.log(`[Notifications] No push token available (attempt ${attempt})`)
-      return false
-    }
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      console.log('[Notifications] No authenticated user')
-      return false
-    }
-
-    // Get current profile to check if token changed
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('expo_push_token, push_token_invalid_at')
-      .eq('id', user.id)
-      .single()
-
-    // Only update if token is different or was previously invalid
-    if (profile?.expo_push_token !== token || profile?.push_token_invalid_at !== null) {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          expo_push_token: token,
-          push_token_invalid_at: null, // Clear invalid flag on re-registration
-        })
-        .eq('id', user.id)
-
-      if (error) {
-        throw error
-      }
-
-      console.log('[Notifications] Push token registered successfully')
-    }
-
-    return true
-  } catch (error) {
-    console.error(`[Notifications] Push token registration failed (attempt ${attempt}):`, error)
-
-    // Retry with exponential backoff
+    return await claimCurrentUserPushToken(expectedUserId)
+  } catch {
+    // Retry the captured account, never whichever account replaced it.
     if (attempt < MAX_RETRY_ATTEMPTS) {
       const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1)
-      console.log(`[Notifications] Retrying in ${delay}ms...`)
       await new Promise((resolve) => setTimeout(resolve, delay))
-      return registerPushTokenWithRetry(attempt + 1)
+      return registerPushTokenWithRetry(expectedUserId, attempt + 1)
     }
-
-    console.error('[Notifications] Max retry attempts reached')
+    console.warn('[Notifications] Push token registration unavailable')
     return false
   }
 }
@@ -85,21 +46,24 @@ async function registerPushTokenWithRetry(attempt: number = 1): Promise<boolean>
  * Should be called in the root layout to enable deep linking
  */
 export function useNotificationObserver() {
+  const { user } = useAuth()
   const notificationListener = useRef<{ remove: () => void } | null>(null)
   const responseListener = useRef<{ remove: () => void } | null>(null)
   const appStateRef = useRef<AppStateStatus>(AppState.currentState)
-  const hasRegisteredToken = useRef(false)
+  const registeredUserId = useRef<string | null>(null)
   const hasCheckedPermission = useRef(false)
+  const handledResponseIds = useRef(new Set<string>())
+
+  useEffect(() => {
+    registeredUserId.current = null
+  }, [user?.id])
 
   // Memoized function to handle push token registration
   const handleTokenRegistration = useCallback(async () => {
-    if (hasRegisteredToken.current) return
-
-    const success = await registerPushTokenWithRetry()
-    if (success) {
-      hasRegisteredToken.current = true
-    }
-  }, [])
+    if (!user?.id || registeredUserId.current === user.id) return
+    const success = await registerPushTokenWithRetry(user.id)
+    if (success) registeredUserId.current = user.id
+  }, [user?.id])
 
   useEffect(() => {
     // Skip if notifications aren't supported
@@ -142,10 +106,10 @@ export function useNotificationObserver() {
       // App came to foreground
       if (wasBackground && nextAppState === 'active') {
         // Reset flag to allow re-registration attempt
-        hasRegisteredToken.current = false
+        registeredUserId.current = null
         // Small delay for stability
         setTimeout(() => {
-          registerPushTokenWithRetry()
+          void handleTokenRegistration()
         }, 500)
       }
     })
@@ -365,36 +329,32 @@ export function useNotificationObserver() {
     )
 
     // Handle notification interactions (user taps notification)
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      (response: { notification: { request: { content: { data?: { url?: unknown } } } } }) => {
-        const url = response.notification.request.content.data?.url
-        console.log('[Notifications] User tapped notification, URL:', url)
+    type NotificationResponse = {
+      notification: { request: { identifier: string; content: { data?: { url?: unknown } } } }
+    }
 
-        if (typeof url === 'string') {
-          // Small delay to ensure app is ready
-          setTimeout(() => {
-            router.push(url as `/${string}`)
-          }, 100)
-        }
-      },
+    const handleNotificationResponse = (response: NotificationResponse, delayMs: number) => {
+      const request = response.notification.request
+      if (handledResponseIds.current.has(request.identifier)) return
+
+      const route = getAllowedNotificationRoute(request.content.data?.url)
+      if (!route) {
+        console.warn('[Notifications] Rejected unapproved notification destination')
+        return
+      }
+
+      handledResponseIds.current.add(request.identifier)
+      setTimeout(() => router.push(route), delayMs)
+    }
+
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(
+      (response: NotificationResponse) => handleNotificationResponse(response, 100),
     )
 
     // Check if app was opened from a notification
     Notifications.getLastNotificationResponseAsync().then(
-      (
-        response: { notification: { request: { content: { data?: { url?: unknown } } } } } | null,
-      ) => {
-        if (response?.notification) {
-          const url = response.notification.request.content.data?.url
-          console.log('[Notifications] App opened from notification, URL:', url)
-
-          if (typeof url === 'string') {
-            // Longer delay for cold start
-            setTimeout(() => {
-              router.push(url as `/${string}`)
-            }, 500)
-          }
-        }
+      (response: NotificationResponse | null) => {
+        if (response) handleNotificationResponse(response, 500)
       },
     )
 
@@ -413,6 +373,7 @@ export function useNotificationObserver() {
  * Hook to get notification state and actions
  */
 export function useNotifications() {
+  const { user } = useAuth()
   const store = useNotificationStore()
 
   const schedulePlanningReminder = async (hour: number, minute: number) => {
@@ -477,7 +438,7 @@ export function useNotifications() {
     // If permissions granted, trigger token registration
     if (granted) {
       // Register token with retry
-      registerPushTokenWithRetry()
+      if (user?.id) void registerPushTokenWithRetry(user.id)
     }
 
     return granted

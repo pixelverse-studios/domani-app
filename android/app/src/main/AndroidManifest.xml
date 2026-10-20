@@ -35,6 +35,12 @@
         <data android:scheme="domani"/>
         <data android:scheme="exp+domani-app"/>
       </intent-filter>
+      <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="https" android:host="www.domani-app.com" android:pathPrefix="/auth/callback"/>
+      </intent-filter>
     </activity>
     <activity android:name="com.facebook.FacebookActivity" android:configChanges="keyboard|keyboardHidden|screenLayout|screenSize|orientation" android:label="@string/app_name"/>
     <activity android:name="com.facebook.CustomTabActivity" android:exported="true">
