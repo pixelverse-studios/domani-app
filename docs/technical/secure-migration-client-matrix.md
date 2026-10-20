@@ -7,12 +7,12 @@ DEV-1422 preparation, 2026-10-20. No real-device, store, or signed QA pass is as
 | Client | Repository evidence | Contract reproduced | Provenance status |
 | --- | --- | --- | --- |
 | 1.1.1 | Exact required commit `86c091059971fe4ef7f2e1fbc43d6263c62e0b82`, `src/hooks/useSubscription.ts:1217` | Direct `profiles.update({tier:'trialing',trial_started_at,trial_ends_at}).eq('id',user.id).select().single()` | Exact source supplied by milestone; `app.json` says 1.1.1 |
-| 1.1.3 | Release preparation `f9f5f103a5926f97bb2150d0b2873a47d78b4125`, `src/hooks/useSubscription.ts:1381`; app/native versions 1.1.3, Android versionCode 126, iOS build 13 | No-argument `start_trial_with_posthog_outbox()`; returns profile JSON | Source candidate, **released artifact match unproven** |
-| Current combined 1.1.4 | Secure integration baseline `906c0767`; final candidate SHA/build must be recorded after platform and secure changes combine | `start_current_user_trial(p_expected_user_id)`; current verified RevenueCat sync and `{type}` account email | Final integrated artifact pending |
+| 1.1.3 | Latest release candidate `640a5daab14f81d8dacefa895f1514985776be98`, `src/hooks/useSubscription.ts:1381`; app/native versions 1.1.3, Android versionCode 126, iOS build 13 | No-argument `start_trial_with_posthog_outbox()`; returns profile JSON | Latest candidate selected provisionally by the user; **released artifact match unproven**, store screenshots pending |
+| Current combined 1.1.4 | Secure implementation `a63c687a5604e304518be97fa5d3c22efe7ce438`; final candidate SHA/build must be recorded after platform and secure changes combine | `start_current_user_trial(p_expected_user_id)`; current verified RevenueCat sync and `{type}` account email | Final integrated artifact pending |
 
 There is only a `v1.1.1` tag locally. The 1.1.3 version preparation is followed by commits `dc4b0ece` (telemetry configuration), `891fcdb0` (Android Meta initialization), and `640a5daab14f81d8dacefa895f1514985776be98` (iOS Meta automatic events), which retain 1.1.3 native version identifiers. Thus version numbers alone cannot identify the released source. Obtain the distributed iOS/Android artifact build provenance and match its source SHA before signing 1.1.3 QA. The no-argument trial RPC is verified in the candidate source; this does not prove its full device behavior matches the distributed binary.
 
-At the secure integration baseline, the current client still calls the no-argument trial RPC. The expected-user wrapper and client switch must land before the current-path contract test passes. Preserve the legacy RPC for released 1.1.3.
+The current secure implementation calls the expected-user wrapper and passes the installed-schema current-path contract. The legacy no-argument RPC remains available for released 1.1.3.
 
 Released purchase synchronization (both source candidates, `useSubscription.ts` final sync helper) writes RevenueCat identity and entitlement fields directly. The bridge must accept those request shapes while retaining previous authority and queuing verified reconciliation. A successful old database update is **not** evidence of a successful purchase or of recorded lifetime access. Released account deletion uses UUID RPCs (`src/hooks/useAccountDeletion.ts`); email uses legacy `{type,email,name,deletionDate}` input through `src/lib/supabase.ts`. Current email derives the recipient and dates on the server from `{type}`.
 
@@ -20,9 +20,9 @@ Reproduce source inspection without checking out or changing branches:
 
 ```sh
 git show 86c091059971fe4ef7f2e1fbc43d6263c62e0b82:src/hooks/useSubscription.ts
-git show f9f5f103a5926f97bb2150d0b2873a47d78b4125:src/hooks/useSubscription.ts
-git show f9f5f103a5926f97bb2150d0b2873a47d78b4125:android/app/build.gradle
-git show f9f5f103a5926f97bb2150d0b2873a47d78b4125:ios/Domani/Info.plist
+git show 640a5daab14f81d8dacefa895f1514985776be98:src/hooks/useSubscription.ts
+git show 640a5daab14f81d8dacefa895f1514985776be98:android/app/build.gradle
+git show 640a5daab14f81d8dacefa895f1514985776be98:ios/Domani/Info.plist
 git log --all -- app.json android/app/build.gradle ios/Domani/Info.plist
 git tag --list
 ```
