@@ -6,6 +6,7 @@ export const REPLAY_ONLY_MIGRATIONS = [
   '0035_capture_dashboard_baseline.sql',
   '0135_replay_feedback_device_metadata.sql',
   '0245_backfill_top_priority.sql',
+  '20261004000000_replay_production_catalog_baseline.sql',
 ]
 
 export function createProductionMigrationWorkspace(repoRoot) {

@@ -4,7 +4,7 @@ const { resolve } = require('node:path')
 
 const repoRoot = resolve(__dirname, '..', '..')
 
-it('excludes only the three fresh-replay shims from the production plan', () => {
+it('excludes only the four fresh-replay shims from the production plan', () => {
   const result = spawnSync(
     process.execPath,
     [
@@ -32,6 +32,7 @@ it('excludes only the three fresh-replay shims from the production plan', () => 
           '0035_capture_dashboard_baseline.sql',
           '0135_replay_feedback_device_metadata.sql',
           '0245_backfill_top_priority.sql',
+          '20261004000000_replay_production_catalog_baseline.sql',
         ].includes(file),
     ),
   )
