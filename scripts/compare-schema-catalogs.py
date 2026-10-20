@@ -12,8 +12,16 @@ def normalize(value, key=''):
                 if k != 'table_catalog'}
     if key == 'acl' and isinstance(value, str):
         return sorted(value.strip('{}').split(','))
+    if key == 'default' and value == 'extensions.uuid_generate_v4()':
+        return 'uuid_generate_v4()'
     if isinstance(value, list):
         values = [normalize(v) for v in value]
+        if key == 'default_acl':
+            # Platform-admin creation defaults are managed configuration. A
+            # schema-level owner-only supplement adds no effective privilege.
+            values = [v for v in values if v['owner'] != 'supabase_admin'
+                      and not (v['schema'] is not None and all(
+                          entry.split('=', 1)[0] == v['owner'] for entry in v['acl']))]
         if key == 'versions':
             values = [v for v in values if v not in REPLAY_VERSIONS]
         # Enum declaration order is meaningful; catalog row/column order is not.
@@ -34,7 +42,10 @@ def main():
                  if key not in excluded and fresh.get(key) != upgrade.get(key)]
     print(json.dumps({'equal': not different, 'different_sections': sorted(different),
                       'excluded_sections': sorted(excluded),
-                      'normalized_fields': ['table_catalog', 'catalog row and column order', 'ACL order'],
+                      'normalized_fields': ['table_catalog', 'catalog row and column order',
+                                            'ACL order', 'extensions.uuid_generate_v4 qualification',
+                                            'redundant schema owner default privileges'],
+                      'managed_defaults_checked_separately': ['supabase_admin'],
                       'excluded_replay_versions': sorted(REPLAY_VERSIONS)}))
     return bool(different)
 
