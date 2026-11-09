@@ -66,7 +66,7 @@ const getDeviceTimezone = (): string => {
 
 // Native token lookup can hang indefinitely (iOS simulators, no APNs/offline), so
 // cleanup is bounded; local signout must always remain usable.
-export const PUSH_CLEANUP_TIMEOUT_MS = 3000
+export const PUSH_CLEANUP_TIMEOUT_MS = 1500
 
 async function signOutExpectedUser(expectedUserId: string): Promise<boolean> {
   let timer: ReturnType<typeof setTimeout> | undefined

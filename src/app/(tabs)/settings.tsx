@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { View, ScrollView, TouchableOpacity, Alert } from 'react-native'
+import { View, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { LogOut } from 'lucide-react-native'
@@ -60,6 +60,7 @@ function SettingsContent() {
   const router = useRouter()
   const { openPaywall } = useLocalSearchParams<{ openPaywall?: string }>()
   const { signOut } = useAuth()
+  const [isSigningOut, setIsSigningOut] = useState(false)
   const theme = useAppTheme()
   const { locale } = useTranslation()
   const copy = getMainScreenCopy(locale)
@@ -147,8 +148,13 @@ function SettingsContent() {
         text: copy.settings.logOut,
         style: 'destructive',
         onPress: async () => {
-          await signOut()
-          router.replace('/welcome')
+          setIsSigningOut(true)
+          try {
+            await signOut()
+            router.replace('/welcome')
+          } catch {
+            setIsSigningOut(false)
+          }
         },
       },
     ])
@@ -379,15 +385,22 @@ function SettingsContent() {
         {/* Log Out Button */}
         <TouchableOpacity
           onPress={handleSignOut}
+          disabled={isSigningOut}
+          accessibilityState={{ disabled: isSigningOut, busy: isSigningOut }}
           activeOpacity={0.7}
           className="flex-row items-center justify-center py-3.5 rounded-xl mb-6"
           style={{
             backgroundColor: theme.colors.interactive.hover,
             borderWidth: 1,
             borderColor: theme.colors.border.primary,
+            opacity: isSigningOut ? 0.6 : 1,
           }}
         >
-          <LogOut size={18} color={theme.colors.text.secondary} />
+          {isSigningOut ? (
+            <ActivityIndicator size="small" color={theme.colors.text.secondary} />
+          ) : (
+            <LogOut size={18} color={theme.colors.text.secondary} />
+          )}
           <Text className="font-semibold ml-2" style={{ color: theme.colors.text.secondary }}>
             {copy.settings.logOut}
           </Text>
