@@ -64,12 +64,26 @@ const getDeviceTimezone = (): string => {
   }
 }
 
-// Native token lookup/revocation can fail offline; local signout remains usable.
+// Native token lookup can hang indefinitely (iOS simulators, no APNs/offline), so
+// cleanup is bounded; local signout must always remain usable.
+export const PUSH_CLEANUP_TIMEOUT_MS = 3000
+
 async function signOutExpectedUser(expectedUserId: string): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    await unclaimCurrentUserPushToken(expectedUserId)
+    await Promise.race([
+      unclaimCurrentUserPushToken(expectedUserId),
+      new Promise((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error('Push token cleanup timed out')),
+          PUSH_CLEANUP_TIMEOUT_MS,
+        )
+      }),
+    ])
   } catch {
     console.warn('[AuthProvider] Push token cleanup unavailable')
+  } finally {
+    clearTimeout(timer)
   }
   const { data } = await supabase.auth.getSession()
   if (data.session?.user.id !== expectedUserId) return false

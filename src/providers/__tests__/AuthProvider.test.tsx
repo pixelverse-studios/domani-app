@@ -1,7 +1,7 @@
 import React from 'react'
 import { Alert, Text } from 'react-native'
 import { act, render, renderHook, waitFor } from '@testing-library/react-native'
-import { AuthProvider, AuthContext } from '../AuthProvider'
+import { AuthProvider, AuthContext, PUSH_CLEANUP_TIMEOUT_MS } from '../AuthProvider'
 import { unclaimCurrentUserPushToken } from '~/lib/pushTokenOwnership'
 import { supabase, sendAccountEmail } from '~/lib/supabase'
 
@@ -124,6 +124,25 @@ it('unclaims the current device before explicit signout', async () => {
     await result.current!.signOut()
   })
   expect(unclaimCurrentUserPushToken).toHaveBeenCalledWith('account-a')
+  expect(supabase.auth.signOut).toHaveBeenCalledTimes(1)
+})
+it('still signs out when push token cleanup never settles', async () => {
+  jest.mocked(supabase.auth.signOut).mockResolvedValue({ error: null })
+  jest.mocked(unclaimCurrentUserPushToken).mockImplementationOnce(() => new Promise(() => {}))
+  const { result } = renderHook(() => React.useContext(AuthContext), { wrapper: AuthProvider })
+  jest.useFakeTimers()
+  try {
+    let pending: Promise<void> | undefined
+    act(() => {
+      pending = result.current!.signOut()
+    })
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(PUSH_CLEANUP_TIMEOUT_MS)
+      await pending
+    })
+  } finally {
+    jest.useRealTimers()
+  }
   expect(supabase.auth.signOut).toHaveBeenCalledTimes(1)
 })
 it('does not sign out a replacement account after asynchronous token cleanup', async () => {
