@@ -175,15 +175,22 @@ Do not leave temporary staging/production switches in place after the build work
 
 ### Version File Locations
 
-- `android/app/build.gradle` - lines ~95-96 (`versionCode` and `versionName`)
-- `app.json` - `expo.version` (display version)
+- `android/app/build.gradle` - lines ~98-99 (`versionCode` and `versionName`)
+- `app.json` - `expo.version`, `expo.ios.buildNumber`, `expo.android.versionCode`
+- `ios/Domani.xcodeproj/project.pbxproj` - `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` (2 places each)
+- `ios/Domani/Info.plist` - hardcoded `CFBundleShortVersionString` and `CFBundleVersion` (editing app.json alone does not change the iOS build)
 
 **Current versions (update after each build):**
 
-- Android versionCode: 114
-- Android versionName: 1.0.36
-- app.json version: 1.0.36
-- iOS uses EAS auto-increment
+- Version: 1.1.4 (internal QA build against staging, Nov 9 2026)
+- Android versionCode: 128
+- iOS build number: 15
+
+### Local Build Notes
+
+- iOS builds/archives must use Xcode 26.6 (`DEVELOPER_DIR=/Applications/Xcode-26.6.app/Contents/Developer`); Xcode 27.x cannot compile RevenueCat 5.48.0
+- Set `LANG=en_US.UTF-8` before running CocoaPods
+- Android release AAB: `cd android && ./gradlew bundleRelease` → `android/app/build/outputs/bundle/release/app-release.aab`
 
 ## Linear Ticket Creation
 

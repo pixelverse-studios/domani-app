@@ -129,6 +129,11 @@ jest.doMock('~/lib/supabase', () => ({
       signInWithOAuth: jest.fn(() => Promise.resolve({ data: null, error: null })),
       signOut: jest.fn(() => Promise.resolve({ error: null })),
     },
+    functions: {
+      invoke: jest.fn(() =>
+        Promise.resolve({ data: { status: 'synced', accessGranted: true }, error: null }),
+      ),
+    },
     from: jest.fn(() => createSupabaseQueryMock()),
     rpc: jest.fn(() => Promise.resolve({ data: null, error: null })),
   },
@@ -197,9 +202,35 @@ jest.doMock('posthog-react-native', () => {
   }
 })
 
+jest.doMock('expo-tracking-transparency', () => ({
+  getTrackingPermissionsAsync: jest.fn(),
+  isAvailable: jest.fn(() => true),
+  PermissionStatus: {
+    DENIED: 'denied',
+    GRANTED: 'granted',
+    UNDETERMINED: 'undetermined',
+  },
+  requestTrackingPermissionsAsync: jest.fn(),
+}))
+
+jest.doMock('react-native-fbsdk-next', () => {
+  const supportedMock = require('react-native-fbsdk-next/jest/mocks').default
+
+  return {
+    ...supportedMock,
+    Settings: {
+      ...supportedMock.Settings,
+      setAutoLogAppEventsEnabled: jest.fn(),
+      setAdvertiserIDCollectionEnabled: jest.fn(),
+      setAdvertiserTrackingEnabled: jest.fn(() => Promise.resolve(true)),
+    },
+  }
+})
+
 jest.doMock('~/providers/AnalyticsProvider', () => {
   const React = require('react')
   const analytics = {
+    captureTrialStarted: jest.fn(() => Promise.resolve(true)),
     identify: jest.fn(),
     reset: jest.fn(),
     screen: jest.fn(),

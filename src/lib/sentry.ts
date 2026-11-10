@@ -1,7 +1,28 @@
 import * as Sentry from '@sentry/react-native'
+import * as Application from 'expo-application'
 import Constants from 'expo-constants'
+import { Platform } from 'react-native'
 
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN || ''
+
+export function getSentryRelease() {
+  const appId =
+    Application.applicationId ||
+    (Platform.OS === 'ios' ? 'com.baitedz.domani-app' : 'com.baitedz.domaniapp')
+  const appVersion =
+    Application.nativeApplicationVersion || Constants.expoConfig?.version || '1.0.0'
+  const buildNumber =
+    Application.nativeBuildVersion ||
+    (Platform.OS === 'ios'
+      ? Constants.expoConfig?.ios?.buildNumber
+      : Constants.expoConfig?.android?.versionCode?.toString()) ||
+    '1'
+
+  return {
+    appVersion,
+    release: `${appId}@${appVersion}+${buildNumber}`,
+  }
+}
 
 /**
  * Initialize Sentry for error monitoring.
@@ -22,17 +43,13 @@ export function initSentry() {
     return
   }
 
-  const appVersion = Constants.expoConfig?.version || '1.0.0'
-  const buildNumber =
-    Constants.expoConfig?.ios?.buildNumber ||
-    Constants.expoConfig?.android?.versionCode?.toString() ||
-    '1'
+  const { appVersion, release } = getSentryRelease()
 
   Sentry.init({
     dsn: SENTRY_DSN,
 
     // Release tracking for correlating errors with versions
-    release: `com.baitedz.domani-app@${appVersion}+${buildNumber}`,
+    release,
 
     // Environment differentiation
     environment: __DEV__ ? 'development' : 'production',
@@ -67,7 +84,7 @@ export function initSentry() {
     initialScope: {
       tags: {
         appVersion,
-        platform: Constants.platform?.ios ? 'ios' : 'android',
+        platform: Platform.OS,
       },
     },
   })

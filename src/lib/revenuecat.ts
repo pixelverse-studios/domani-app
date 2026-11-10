@@ -398,13 +398,14 @@ export async function purchasePackage(packageToPurchase: PurchasesPackage) {
       offeringIdentifier: packageToPurchase.presentedOfferingContext?.offeringIdentifier ?? null,
     })
 
-    const { customerInfo } = await Purchases.purchasePackage(packageToPurchase)
+    const result = await Purchases.purchasePackage(packageToPurchase)
     console.log('[RevenueCat] Purchase completed', {
       packageIdentifier: packageToPurchase.identifier,
       productIdentifier: packageToPurchase.product.identifier,
-      ...getActiveEntitlementSummary(customerInfo),
+      transactionIdentifier: result.transaction.transactionIdentifier,
+      ...getActiveEntitlementSummary(result.customerInfo),
     })
-    return customerInfo
+    return result
   } catch (error: unknown) {
     if (
       error &&

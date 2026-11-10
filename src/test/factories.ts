@@ -16,6 +16,7 @@ export function buildProfile(overrides: Partial<Profile> = {}): Profile {
     id: 'profile-test-id',
     last_active_at: null,
     notification_onboarding_completed: false,
+    planning_activated_at: null,
     planning_reminder_enabled: false,
     planning_reminder_time: null,
     purchased_at: null,

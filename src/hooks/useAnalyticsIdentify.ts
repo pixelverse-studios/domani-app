@@ -20,6 +20,11 @@ export function useAnalyticsIdentify() {
     }
 
     if (currentUserId && user) {
+      if (previousUserId.current && previousUserId.current !== currentUserId) {
+        reset()
+        console.log('[Analytics] User reset (account switch)')
+      }
+
       // User signed in - identify them
       // Only include defined values
       const traits: Record<string, string | number | boolean | null> = {}

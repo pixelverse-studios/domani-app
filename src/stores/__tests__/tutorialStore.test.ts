@@ -95,6 +95,58 @@ describe('tutorialStore', () => {
     })
   })
 
+  it('ignores a stale initialization result after an account switch', async () => {
+    let resolveFirst: (value: { data: unknown; error: unknown }) => void = () => {}
+    const firstQuery = createProfilesQuery()
+    firstQuery.single.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveFirst = resolve
+        }),
+    )
+    const secondQuery = createProfilesQuery({
+      data: { tutorial_completed_at: '2026-05-15T20:00:00.000Z' },
+      error: null,
+    })
+    mockFrom.mockReturnValueOnce(firstQuery).mockReturnValueOnce(secondQuery)
+
+    const firstInitialization = useTutorialStore.getState().initializeTutorialState('user-1')
+    await useTutorialStore.getState().initializeTutorialState('user-2')
+    resolveFirst({ data: { tutorial_completed_at: null }, error: null })
+    await firstInitialization
+
+    expect(useTutorialStore.getState()).toMatchObject({
+      isActive: false,
+      currentStep: null,
+      hasCompletedTutorial: true,
+      isLoading: false,
+    })
+  })
+
+  it('clears volatile tutorial state when the authenticated account changes', () => {
+    resetTutorialStore({
+      isActive: true,
+      currentStep: 'task_priority',
+      hasCompletedTutorial: true,
+      isLoading: false,
+      pausedAt: Date.now(),
+      pausedStep: 'task_category',
+      analyticsViewedSteps: new Set<TutorialStep>(['welcome']),
+    })
+
+    useTutorialStore.getState().clearSessionState()
+
+    expect(useTutorialStore.getState()).toMatchObject({
+      isActive: false,
+      currentStep: null,
+      hasCompletedTutorial: false,
+      isLoading: true,
+      pausedAt: null,
+      pausedStep: null,
+    })
+    expect(useTutorialStore.getState().analyticsViewedSteps.size).toBe(0)
+  })
+
   it('marks the tutorial complete when skipped', async () => {
     const query = createProfilesQuery()
     mockFrom.mockReturnValue(query)

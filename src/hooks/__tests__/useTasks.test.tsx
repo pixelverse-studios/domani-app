@@ -3,7 +3,15 @@ import type { QueryClient } from '@tanstack/react-query'
 import { act, renderHookWithProviders, waitFor, buildTaskWithCategory } from '~/test/test-utils'
 import { supabase } from '~/lib/supabase'
 import { NotificationService } from '~/lib/notifications'
-import { useCreateTask, useDeleteTask, useTasks, useUpdateTask } from '../useTasks'
+import { useAnalytics } from '~/providers/AnalyticsProvider'
+import { useTutorialStore } from '~/stores/tutorialStore'
+import { useCreateTask, useDeleteTask, useTasks, useToggleTask, useUpdateTask } from '../useTasks'
+
+const mockLogMetaPlanningActivated = jest.fn()
+
+jest.mock('~/lib/metaAcquisitionEvents', () => ({
+  logMetaPlanningActivated: (...args: unknown[]) => mockLogMetaPlanningActivated(...args),
+}))
 
 const mockIncrementUsageMutate = jest.fn()
 
@@ -33,6 +41,7 @@ type QueryMock = {
   is: jest.Mock<QueryMock, [string, unknown]>
   order: jest.Mock<Promise<{ data: unknown; error: unknown }>, [string]>
   single: jest.Mock<Promise<{ data: unknown; error: unknown }>, []>
+  maybeSingle: jest.Mock<Promise<{ data: unknown; error: unknown }>, []>
 }
 
 function createQueryMock(result: { data: unknown; error: unknown } = { data: null, error: null }) {
@@ -45,6 +54,7 @@ function createQueryMock(result: { data: unknown; error: unknown } = { data: nul
     is: jest.fn((_column: string, _value: unknown) => query),
     order: jest.fn((_column: string) => Promise.resolve(result)),
     single: jest.fn(() => Promise.resolve(result)),
+    maybeSingle: jest.fn(() => Promise.resolve(result)),
   }
 
   return query
@@ -54,6 +64,7 @@ const mockFrom = supabase.from as unknown as jest.Mock
 const mockGetUser = supabase.auth.getUser as unknown as jest.Mock
 const mockScheduleTaskReminder = NotificationService.scheduleTaskReminder as jest.Mock
 const mockCancelTaskReminder = NotificationService.cancelTaskReminder as jest.Mock
+const mockTrack = jest.fn()
 const queryClients: QueryClient[] = []
 const unmountHooks: Array<() => void> = []
 
@@ -68,6 +79,13 @@ function trackQueryClient<T extends { queryClient: QueryClient; unmount: () => v
 describe('task hooks', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    ;(useAnalytics as jest.Mock).mockReturnValue({
+      identify: jest.fn(),
+      reset: jest.fn(),
+      screen: jest.fn(),
+      track: mockTrack,
+    })
+    useTutorialStore.setState({ isActive: false })
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
   })
 
@@ -109,6 +127,52 @@ describe('task hooks', () => {
     expect(mockFrom).not.toHaveBeenCalled()
   })
 
+  it.each([
+    { completed: true, initialCompletedAt: null, label: 'completion' },
+    {
+      completed: false,
+      initialCompletedAt: '2026-05-16T10:00:00.000Z',
+      label: 'uncompletion',
+    },
+  ])(
+    'invalidates progress analytics after task $label',
+    async ({ completed, initialCompletedAt }) => {
+      const task = buildTaskWithCategory({
+        id: 'task-toggle',
+        scheduled_date: '2026-05-16',
+        completed_at: initialCompletedAt,
+      })
+      const existingQuery = createQueryMock({ data: { notification_id: null }, error: null })
+      const updateQuery = createQueryMock({
+        data: {
+          ...task,
+          completed_at: completed ? '2026-05-16T12:00:00.000Z' : null,
+        },
+        error: null,
+      })
+      mockFrom.mockReturnValueOnce(existingQuery).mockReturnValueOnce(updateQuery)
+
+      const { result, queryClient } = trackQueryClient(
+        renderHookWithProviders(() => useToggleTask()),
+      )
+      queryClient.setQueryData(
+        ['tasks', 'user-1', '2026-05-16'],
+        [task, buildTaskWithCategory({ id: 'task-still-incomplete', completed_at: null })],
+      )
+      const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries')
+
+      await act(async () => {
+        await result.current.mutateAsync({ taskId: 'task-toggle', completed })
+      })
+
+      expect(updateQuery.update).toHaveBeenCalledWith({
+        completed_at: completed ? expect.any(String) : null,
+      })
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['analytics', 'user-1'] })
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'user-1'] })
+    },
+  )
+
   it('inserts the expected create payload and invalidates the scheduled date', async () => {
     const createdTask = buildTaskWithCategory({
       id: 'task-created',
@@ -149,6 +213,7 @@ describe('task hooks', () => {
       scheduled_date: '2026-05-16',
     })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'user-1', '2026-05-16'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['analytics', 'user-1'] })
     expect(mockIncrementUsageMutate).toHaveBeenCalledWith({
       systemCategoryId: 'system-category-test-id',
       userCategoryId: null,
@@ -176,6 +241,66 @@ describe('task hooks', () => {
     })
 
     expect(invalidateSpy).not.toHaveBeenCalled()
+  })
+
+  it('claims planning activation once for a real task scheduled today', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-05-16T12:00:00.000Z'))
+    const createdTask = buildTaskWithCategory({
+      id: 'task-activation',
+      scheduled_date: '2026-05-16',
+      priority: 'top',
+    })
+    const insertQuery = createQueryMock({ data: createdTask, error: null })
+    const activationQuery = createQueryMock({
+      data: { planning_activated_at: '2026-05-16T12:00:00.000Z' },
+      error: null,
+    })
+    mockFrom.mockReturnValueOnce(insertQuery).mockReturnValueOnce(activationQuery)
+
+    const { result, unmount } = trackQueryClient(renderHookWithProviders(() => useCreateTask()))
+
+    await act(async () => {
+      await result.current.mutateAsync({ scheduledDate: '2026-05-16', title: 'Start the day' })
+    })
+
+    expect(mockFrom).toHaveBeenNthCalledWith(2, 'profiles')
+    expect(activationQuery.update).toHaveBeenCalledWith({
+      planning_activated_at: '2026-05-16T12:00:00.000Z',
+    })
+    expect(activationQuery.is).toHaveBeenCalledWith('planning_activated_at', null)
+    expect(mockTrack).toHaveBeenCalledWith(
+      'planning_activated',
+      expect.objectContaining({ scheduled_for: 'today' }),
+    )
+    expect(mockLogMetaPlanningActivated).toHaveBeenCalledWith({
+      userId: 'user-1',
+      scheduledFor: 'today',
+    })
+
+    unmount()
+    jest.useRealTimers()
+  })
+
+  it('does not claim planning activation while the tutorial is active', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-05-16T12:00:00.000Z'))
+    useTutorialStore.setState({ isActive: true })
+    const insertQuery = createQueryMock({
+      data: buildTaskWithCategory({ scheduled_date: '2026-05-16' }),
+      error: null,
+    })
+    mockFrom.mockReturnValue(insertQuery)
+
+    const { result, unmount } = trackQueryClient(renderHookWithProviders(() => useCreateTask()))
+    await act(async () => {
+      await result.current.mutateAsync({ scheduledDate: '2026-05-16', title: 'Tutorial task' })
+    })
+
+    expect(mockFrom).toHaveBeenCalledTimes(1)
+    expect(mockTrack).not.toHaveBeenCalledWith('planning_activated', expect.any(Object))
+    expect(mockLogMetaPlanningActivated).not.toHaveBeenCalled()
+
+    unmount()
+    jest.useRealTimers()
   })
 
   it('persists reminder fields after task reminder scheduling succeeds', async () => {
@@ -287,6 +412,11 @@ describe('task hooks', () => {
     ])
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'user-1', '2026-05-17'] })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'user-1', '2026-05-16'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['analytics', 'user-1'] })
+    expect(mockTrack).toHaveBeenCalledWith(
+      'task_edited',
+      expect.objectContaining({ moved_day: true }),
+    )
   })
 
   it('clears reminder fields when updated task reminder scheduling fails', async () => {
@@ -359,5 +489,6 @@ describe('task hooks', () => {
     expect(deleteQuery.delete).toHaveBeenCalledTimes(1)
     expect(deleteQuery.eq).toHaveBeenCalledWith('id', 'task-delete')
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'user-1'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['analytics', 'user-1'] })
   })
 })

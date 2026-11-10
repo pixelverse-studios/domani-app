@@ -69,6 +69,7 @@ describe('useCarryForwardTasks', () => {
     expect(mockCarryForwardTasks).toHaveBeenCalledWith(input, expect.any(Object))
     expect(returnedTasks).toEqual(createdTasks)
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'user-1'] })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['analytics', 'user-1'] })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['rolloverTasks', 'user-1'] })
   })
 })

@@ -24,11 +24,17 @@ import { supabase } from '~/lib/supabase'
 import { LocalizationProvider } from '~/providers/LocalizationProvider'
 import { ThemeProvider } from '~/providers/ThemeProvider'
 import { AuthProvider } from '~/providers/AuthProvider'
+import { RolloutProvider } from '~/providers/RolloutProvider'
 import { AnalyticsProvider, useAnalytics } from '~/providers/AnalyticsProvider'
 import { useNotificationObserver } from '~/hooks/useNotifications'
 import { useAnalyticsIdentify } from '~/hooks/useAnalyticsIdentify'
 import { useSentryIdentify } from '~/hooks/useSentryIdentify'
 import { useAuthAnalytics } from '~/hooks/useAuthAnalytics'
+import { useMetaAcquisitionEventReplay } from '~/hooks/useMetaAcquisitionEventReplay'
+import { usePostHogTrialEvent } from '~/hooks/usePostHogTrialEvent'
+import { useAccessStateAnalytics } from '~/hooks/useAccessStateAnalytics'
+import { useAppLifecycleAnalytics } from '~/hooks/useAppLifecycleAnalytics'
+import { initializeMetaAppEvents } from '~/lib/metaAppEvents'
 import { useAuth } from '~/hooks/useAuth'
 import { useTranslation } from '~/hooks/useTranslation'
 import { useAppConfigStore } from '~/stores/appConfigStore'
@@ -46,21 +52,38 @@ import { getMainScreenCopy } from '~/i18n/mainScreenCopy'
 const queryClient = new QueryClient()
 
 function RootLayoutContent() {
+  React.useEffect(() => {
+    void initializeMetaAppEvents()
+  }, [])
+
   const router = useRouter()
   const queryClient = useQueryClient()
   const { locale } = useTranslation()
   const copy = getMainScreenCopy(locale)
+  const { user, accountReactivated, clearAccountReactivated, loading } = useAuth()
+  const previousUserIdRef = React.useRef(user?.id ?? null)
 
   // Clear React Query cache on sign out to prevent stale data leaking into new accounts.
   // Note: queryClient is stable for the lifetime of the provider — [] is intentional.
   React.useEffect(() => {
+    const clearAuthScopedState = () => {
+      queryClient.clear()
+      useCelebrationStore.getState().dismiss()
+      useTutorialStore.getState().clearSessionState()
+      useNotificationStore.getState().setEveningRolloverSource(null)
+      clearAccountReactivated()
+    }
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') {
-        if (__DEV__) console.log('[RootLayout] Clearing React Query cache on SIGNED_OUT')
-        queryClient.clear()
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      const nextUserId = session?.user.id ?? null
+      if (
+        event === 'SIGNED_OUT' ||
+        (previousUserIdRef.current && nextUserId !== previousUserIdRef.current)
+      ) {
+        clearAuthScopedState()
       }
+      previousUserIdRef.current = nextUserId
     })
     return () => subscription.unsubscribe()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -72,11 +95,23 @@ function RootLayoutContent() {
   // Initialize analytics user identification
   useAnalyticsIdentify()
 
+  // Emit one server-confirmed trial start with its authoritative timestamp.
+  usePostHogTrialEvent()
+
+  // Track stable first-open/app-open events for acquisition and retention reporting
+  useAppLifecycleAnalytics()
+
   // Initialize Sentry user identification
   useSentryIdentify()
 
   // Track auth events (sign in, sign out)
   useAuthAnalytics()
+
+  // Replay interrupted one-time Meta acquisition events for the authenticated user.
+  useMetaAcquisitionEventReplay()
+
+  // Track server-confirmed access revocation once per refund timestamp
+  useAccessStateAnalytics()
 
   // Analytics tracking
   const { track } = useAnalytics()
@@ -87,7 +122,6 @@ function RootLayoutContent() {
     fetchConfig()
   }, [fetchConfig])
 
-  const { accountReactivated, clearAccountReactivated, loading } = useAuth()
   const { status: subscriptionStatus, isLoading: subscriptionLoading } = useSubscription()
   const hasAppAccess = !subscriptionLoading && hasFullAccess(subscriptionStatus)
 
@@ -122,7 +156,7 @@ function RootLayoutContent() {
   // - Tutorial is not active (don't conflict with tutorial)
   // - Auth is complete
   // Celebration takes precedence over evening rollover
-  const showCelebration = celebrationVisible && !tutorialActive && !loading
+  const showCelebration = celebrationVisible && !tutorialActive && !loading && hasAppAccess
 
   // Evening rollover (app-open path)
   const showEveningAppOpenRollover =
@@ -296,7 +330,7 @@ function RootLayoutContent() {
 
   // Wait for auth to initialize before rendering routes
   // This prevents the race condition where (tabs) renders before auth check completes
-  if (loading) {
+  if (loading || (user && subscriptionLoading)) {
     return (
       <View className="flex-1 items-center justify-center" style={{ backgroundColor: '#FAF8F5' }}>
         <ActivityIndicator size="large" color="#7D9B8A" />
@@ -384,7 +418,9 @@ export default function RootLayout() {
               <AuthProvider>
                 <ThemeProvider>
                   <QueryClientProvider client={queryClient}>
-                    <RootLayoutContent />
+                    <RolloutProvider>
+                      <RootLayoutContent />
+                    </RolloutProvider>
                   </QueryClientProvider>
                 </ThemeProvider>
               </AuthProvider>

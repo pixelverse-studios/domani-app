@@ -2,4 +2,7 @@
   <string name="app_name">Domani</string>
   <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
   <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string>
+  <string name="facebook_app_id">1378815353582072</string>
+  <string name="facebook_client_token">16744d197d09de3b8fbe963bee30b999</string>
+  <string name="fb_login_protocol_scheme">fb1378815353582072</string>
 </resources>

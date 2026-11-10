@@ -9,6 +9,7 @@ import { GradientButton } from '~/components/ui/GradientButton'
 import { useAppTheme } from '~/hooks/useAppTheme'
 import { useSubscription } from '~/hooks/useSubscription'
 import { useTranslation } from '~/hooks/useTranslation'
+import { requestMetaTrackingPermission } from '~/lib/metaAppEvents'
 
 /**
  * Gate shown to users in the `pre_trial` state — authenticated users who
@@ -31,6 +32,9 @@ export function PreTrialScreen() {
   const handleStartTrial = async () => {
     setStartError(null)
     try {
+      // ATT must never gate trial access. The helper also resolves safely for
+      // Android, unavailable ATT, declined permission, and missing Meta config.
+      await requestMetaTrackingPermission().catch(() => undefined)
       await subscription.startTrial()
     } catch (err) {
       // Log the underlying error so we can distinguish guard-check failures

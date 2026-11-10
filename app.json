@@ -2,7 +2,7 @@
   "expo": {
     "name": "Domani",
     "slug": "domani-app",
-    "version": "1.1.1",
+    "version": "1.1.4",
     "orientation": "portrait",
     "scheme": "domani",
     "icon": "./assets/AppIcon-sage.png",
@@ -16,12 +16,15 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.baitedz.domani-app",
+      "buildNumber": "15",
       "usesAppleSignIn": true,
+      "associatedDomains": ["applinks:www.domani-app.com"],
       "infoPlist": {
         "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {
+      "versionCode": 128,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-adaptive-icon-foreground.png",
         "backgroundColor": "#FAF8F5"
@@ -31,7 +34,21 @@
         "resizeMode": "contain",
         "backgroundColor": "#FAF8F5"
       },
-      "package": "com.baitedz.domaniapp"
+      "package": "com.baitedz.domaniapp",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "www.domani-app.com",
+              "pathPrefix": "/auth/callback"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -60,8 +77,7 @@
     "extra": {
       "eas": {
         "projectId": "5341e2b9-b8e9-4faf-8caf-f4d3847fd92e"
-      },
-      "posthogApiKey": "phc_zIMNv3qWfQHyXlXgTnQJEaomiOXO38LTNS6JyNddK57"
+      }
     }
   }
 }

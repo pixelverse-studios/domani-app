@@ -1,36 +1,136 @@
 import React, { createContext, useContext, useCallback } from 'react'
+import { Platform } from 'react-native'
 import { PostHogProvider, usePostHog } from 'posthog-react-native'
 import Constants from 'expo-constants'
+import {
+  getPostHogOptions,
+  getPostHogRuntimeConfig,
+  isPostHogSessionReplayEnabled,
+  type AnalyticsEnvironment,
+} from '~/lib/posthog'
 
-const POSTHOG_API_KEY =
-  Constants.expoConfig?.extra?.posthogApiKey || process.env.EXPO_PUBLIC_POSTHOG_KEY || ''
-const POSTHOG_HOST = 'https://us.i.posthog.com'
+export interface AnalyticsBaseProperties {
+  platform: 'ios' | 'android'
+  app_version: string | null
+  app_build: string | null
+  country: string | null
+}
+
+const POSTHOG_RUNTIME = getPostHogRuntimeConfig({
+  apiKey: Constants.expoConfig?.extra?.posthogApiKey,
+  environment:
+    (Constants.expoConfig?.extra?.analyticsEnvironment as AnalyticsEnvironment | undefined) ??
+    'development',
+  host: Constants.expoConfig?.extra?.posthogHost,
+  isDevelopment: __DEV__,
+  releaseChannel: Constants.expoConfig?.extra?.analyticsReleaseChannel ?? 'local',
+})
+const POSTHOG_SESSION_REPLAY_ENABLED = isPostHogSessionReplayEnabled(
+  __DEV__,
+  process.env.EXPO_PUBLIC_POSTHOG_SESSION_REPLAY_ENABLED,
+  Platform.OS,
+  Platform.Version,
+)
+const POSTHOG_OPTIONS = getPostHogOptions(POSTHOG_SESSION_REPLAY_ENABLED, POSTHOG_RUNTIME)
 
 // Event types for type-safe tracking
 export type AnalyticsEvent =
-  // Plan events
+  // Acquisition and lifecycle events
+  | { name: 'first_open'; properties: AnalyticsBaseProperties }
   | {
-      name: 'plan_created'
-      properties: { task_count: number; has_mit: boolean; plan_date: string }
+      name: 'app_opened'
+      properties: AnalyticsBaseProperties & { session_source: 'cold_start' | 'foreground' }
+    }
+  | {
+      name: 'sign_in_completed'
+      properties: AnalyticsBaseProperties & {
+        provider: 'google' | 'apple'
+        is_new_registration: boolean
+      }
     }
   // Task events
   | {
       name: 'task_created'
-      properties: { priority: string; has_duration: boolean; has_notes: boolean; category?: string }
+      properties: AnalyticsBaseProperties & {
+        priority: string
+        has_duration: boolean
+        has_notes: boolean
+        has_reminder: boolean
+        category_type: 'system' | 'custom' | 'none'
+        system_category?: string
+        scheduled_for: 'today' | 'tomorrow' | 'other'
+        tutorial_active: boolean
+      }
+    }
+  | {
+      name: 'planning_activated'
+      properties: AnalyticsBaseProperties & {
+        priority: string
+        has_reminder: boolean
+        category_type: 'system' | 'custom' | 'none'
+        scheduled_for: 'today' | 'tomorrow'
+      }
+    }
+  | {
+      name: 'task_edited'
+      properties: AnalyticsBaseProperties & {
+        changed_priority: boolean
+        changed_category: boolean
+        changed_notes: boolean
+        changed_reminder: boolean
+        moved_day: boolean
+      }
     }
   | {
       name: 'task_completed'
-      properties: { is_mit: boolean; priority: string; time_to_complete_hours?: number }
+      properties: AnalyticsBaseProperties & {
+        is_mit: boolean
+        priority: string
+        time_to_complete_hours?: number
+      }
     }
   | { name: 'task_uncompleted'; properties: { is_mit: boolean } }
   | { name: 'task_deleted'; properties: { was_completed: boolean } }
   | { name: 'task_reordered'; properties: { task_count: number } }
+  | {
+      name: 'task_rolled_forward'
+      properties: AnalyticsBaseProperties & { task_count: number; kept_reminders: boolean }
+    }
   // Auth events
   | { name: 'signed_in'; properties: { provider: 'google' | 'apple' } }
   | { name: 'signed_out'; properties?: Record<string, never> }
   // Subscription events
   | { name: 'subscription_started'; properties: { tier: string } }
-  | { name: 'trial_started'; properties?: Record<string, never> }
+  | {
+      name: 'trial_started'
+      properties: AnalyticsBaseProperties & {
+        offer: string | null
+        signup_cohort: string | null
+        trial_expires_at: string
+      }
+    }
+  | {
+      name: 'lifetime_purchase_completed'
+      properties: AnalyticsBaseProperties & {
+        product_id: string
+        store: string | null
+        price: number | null
+        currency: string | null
+        offer: string | null
+        purchase_timestamp: string | null
+        campaign_id: string | null
+        campaign_slug: string | null
+        promo_outcome: 'free' | 'discounted' | null
+      }
+    }
+  | {
+      name: 'purchase_restored'
+      properties: AnalyticsBaseProperties & { product_id: string; store: string | null }
+    }
+  | {
+      name: 'access_revoked'
+      properties: AnalyticsBaseProperties & { revoked_at: string }
+    }
   // Promo events
   | { name: 'promo_entry_opened'; properties: Record<string, never> }
   | {
@@ -147,7 +247,12 @@ export type AnalyticsEvent =
     }
   | {
       name: 'evening_rollover_started_fresh'
-      properties: { task_count: number; had_mit: boolean; source: 'notification' | 'app_open'; mode?: 'morning' | 'evening' }
+      properties: {
+        task_count: number
+        had_mit: boolean
+        source: 'notification' | 'app_open'
+        mode?: 'morning' | 'evening'
+      }
     }
   // Celebration events
   | {
@@ -157,12 +262,42 @@ export type AnalyticsEvent =
 
 interface AnalyticsContextValue {
   track: <T extends AnalyticsEvent>(eventName: T['name'], properties?: T['properties']) => void
+  captureTrialStarted: (
+    expectedUserId: string,
+    properties: Extract<AnalyticsEvent, { name: 'trial_started' }>['properties'],
+    eventUuid: string,
+    eventTimestamp: string,
+  ) => Promise<boolean>
   identify: (userId: string, traits?: Record<string, string | number | boolean | null>) => void
   reset: () => void
   screen: (screenName: string) => void
 }
 
 const AnalyticsContext = createContext<AnalyticsContextValue | undefined>(undefined)
+
+export async function captureTrialStartedForIdentity(
+  posthog: NonNullable<ReturnType<typeof usePostHog>>,
+  expectedUserId: string,
+  properties: Extract<AnalyticsEvent, { name: 'trial_started' }>['properties'],
+  eventUuid: string,
+  eventTimestamp: string,
+) {
+  if (posthog.getDistinctId() !== expectedUserId) {
+    console.warn('[Analytics] Skipping durable trial event after analytics identity changed')
+    return false
+  }
+
+  posthog.capture(
+    'trial_started',
+    { ...properties },
+    {
+      uuid: eventUuid,
+      timestamp: new Date(eventTimestamp),
+    },
+  )
+  await posthog.flush()
+  return true
+}
 
 function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
   const posthog = usePostHog()
@@ -174,7 +309,30 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
         return
       }
       console.log('[Analytics] Tracking event:', eventName, properties)
-      posthog.capture(eventName, properties)
+      posthog.capture(eventName, properties as Parameters<typeof posthog.capture>[1])
+    },
+    [posthog],
+  )
+
+  const captureTrialStarted = useCallback(
+    async (
+      expectedUserId: string,
+      properties: Extract<AnalyticsEvent, { name: 'trial_started' }>['properties'],
+      eventUuid: string,
+      eventTimestamp: string,
+    ) => {
+      if (!posthog) {
+        console.warn('[Analytics] Cannot track durable trial event, PostHog not initialized')
+        return false
+      }
+
+      return captureTrialStartedForIdentity(
+        posthog,
+        expectedUserId,
+        properties,
+        eventUuid,
+        eventTimestamp,
+      )
     },
     [posthog],
   )
@@ -212,17 +370,20 @@ function AnalyticsContextProvider({ children }: { children: React.ReactNode }) {
     [posthog],
   )
 
-  const value = { track, identify, reset, screen }
+  const value = { track, captureTrialStarted, identify, reset, screen }
 
   return <AnalyticsContext.Provider value={value}>{children}</AnalyticsContext.Provider>
 }
 
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
-  // Skip PostHog if no API key (e.g., in development without .env)
-  if (!POSTHOG_API_KEY) {
-    console.warn('[Analytics] No PostHog API key found, analytics disabled')
+  // Local development stays isolated even when the active .env contains production values.
+  if (!POSTHOG_RUNTIME.enabled) {
+    console.warn(
+      `[Analytics] PostHog disabled for ${POSTHOG_RUNTIME.environment}/${POSTHOG_RUNTIME.releaseChannel}`,
+    )
     const noopValue: AnalyticsContextValue = {
       track: () => {},
+      captureTrialStarted: async () => false,
       identify: () => {},
       reset: () => {},
       screen: () => {},
@@ -230,29 +391,14 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     return <AnalyticsContext.Provider value={noopValue}>{children}</AnalyticsContext.Provider>
   }
 
-  console.log(
-    '[Analytics] Initializing PostHog with key:',
-    POSTHOG_API_KEY.substring(0, 10) + '...',
-  )
-  console.log('[Analytics] PostHog host:', POSTHOG_HOST)
+  console.log('[Analytics] Initializing PostHog for:', POSTHOG_RUNTIME.environment)
+  console.log('[Analytics] PostHog host:', POSTHOG_OPTIONS.host)
+  console.log('[Analytics] Session replay enabled:', POSTHOG_SESSION_REPLAY_ENABLED)
 
   return (
     <PostHogProvider
-      apiKey={POSTHOG_API_KEY}
-      options={{
-        host: POSTHOG_HOST,
-        // Capture app lifecycle events automatically
-        captureAppLifecycleEvents: true,
-        // Disable session replay for now (requires custom dev build, not Expo Go)
-        enableSessionReplay: false,
-        // Note: Uncomment below when using custom dev builds (not Expo Go)
-        // enableSessionReplay: true,
-        // sessionReplayConfig: {
-        //   maskAllTextInputs: true,
-        //   maskAllImages: false,
-        //   captureNetworkTelemetry: true,
-        // },
-      }}
+      apiKey={POSTHOG_RUNTIME.apiKey}
+      options={POSTHOG_OPTIONS}
       // Enable autocapture for screen views
       autocapture={{
         captureScreens: true,

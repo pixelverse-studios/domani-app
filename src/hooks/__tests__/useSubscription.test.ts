@@ -13,6 +13,33 @@ jest.mock('~/lib/revenuecat', () => ({
   syncRevenueCatSubscriberAttributes: jest.fn(),
 }))
 
+const mockLogMetaPurchase = jest.fn()
+const mockLogMetaPurchaseRestored = jest.fn()
+const mockLogMetaStartTrial = jest.fn()
+const mockCandidateMatchesEntitlement = jest.fn()
+const mockClearMetaPurchaseCandidate = jest.fn()
+const mockCreateMetaPurchaseCandidate = jest.fn()
+const mockGetMetaPurchaseCandidate = jest.fn()
+const mockIsMetaPurchaseCandidateExpired = jest.fn()
+const mockRecordMetaPurchaseCandidateTransaction = jest.fn()
+
+jest.mock('~/lib/metaAcquisitionEvents', () => ({
+  logMetaPurchase: (...args: unknown[]) => mockLogMetaPurchase(...args),
+  logMetaPurchaseRestored: (...args: unknown[]) => mockLogMetaPurchaseRestored(...args),
+  logMetaStartTrial: (...args: unknown[]) => mockLogMetaStartTrial(...args),
+}))
+
+jest.mock('~/lib/metaPurchaseCandidate', () => ({
+  candidateMatchesEntitlement: (...args: unknown[]) => mockCandidateMatchesEntitlement(...args),
+  clearMetaPurchaseCandidate: (...args: unknown[]) => mockClearMetaPurchaseCandidate(...args),
+  createMetaPurchaseCandidate: (...args: unknown[]) => mockCreateMetaPurchaseCandidate(...args),
+  getMetaPurchaseCandidate: (...args: unknown[]) => mockGetMetaPurchaseCandidate(...args),
+  isMetaPurchaseCandidateExpired: (...args: unknown[]) =>
+    mockIsMetaPurchaseCandidateExpired(...args),
+  recordMetaPurchaseCandidateTransaction: (...args: unknown[]) =>
+    mockRecordMetaPurchaseCandidateTransaction(...args),
+}))
+
 const mockUseAuth = jest.fn()
 const mockUseProfile = jest.fn()
 
@@ -25,6 +52,7 @@ jest.mock('~/hooks/useProfile', () => ({
 }))
 
 import { act, renderHookWithProviders, waitFor } from '~/test/test-utils'
+import Purchases from 'react-native-purchases'
 import { supabase } from '~/lib/supabase'
 import { useAnalytics } from '~/providers/AnalyticsProvider'
 import {
@@ -50,7 +78,9 @@ import {
 
 const mockSupabaseFrom = supabase.from as unknown as jest.Mock
 const mockSupabaseRpc = supabase.rpc as unknown as jest.Mock
+const mockSupabaseFunctionsInvoke = supabase.functions.invoke as unknown as jest.Mock
 const mockUseAnalytics = useAnalytics as jest.Mock
+const mockGetCustomerInfo = Purchases.getCustomerInfo as jest.Mock
 const mockTrack = jest.fn()
 const mockGetOfferingForCohort = getOfferingForCohort as jest.Mock
 const mockGetOfferings = getOfferings as jest.Mock
@@ -75,6 +105,7 @@ type SupabaseQueryMock = {
   update: jest.Mock<SupabaseQueryMock, [unknown]>
   eq: jest.Mock<SupabaseQueryMock, [string, unknown]>
   maybeSingle: jest.Mock<Promise<{ data: unknown; error: unknown }>, []>
+  single: jest.Mock<Promise<{ data: unknown; error: unknown }>, []>
   then: jest.Mock<unknown, [(result: { data: unknown; error: unknown }) => unknown]>
 }
 
@@ -86,6 +117,7 @@ function createSupabaseQueryMock(
     update: jest.fn((_values: unknown) => query),
     eq: jest.fn((_column: string, _value: unknown) => query),
     maybeSingle: jest.fn(() => Promise.resolve(result)),
+    single: jest.fn(() => Promise.resolve(result)),
     then: jest.fn((resolve) => resolve(result)),
   }
 
@@ -113,6 +145,18 @@ function buildLifetimeCustomerInfo() {
   })
 }
 
+function buildPurchaseResult() {
+  return {
+    productIdentifier: 'domani_lifetime',
+    customerInfo: buildLifetimeCustomerInfo(),
+    transaction: {
+      transactionIdentifier: 'transaction-1',
+      productIdentifier: 'domani_lifetime',
+      purchaseDate: '2026-05-20T12:00:00.000Z',
+    },
+  }
+}
+
 function buildPurchasesPackage() {
   return {
     identifier: 'lifetime',
@@ -120,11 +164,14 @@ function buildPurchasesPackage() {
     product: {
       identifier: 'domani_lifetime',
       priceString: '$9.99',
+      price: 9.99,
+      currencyCode: 'USD',
     },
   }
 }
 
 function setupSubscriptionHookMocks() {
+  mockGetCustomerInfo.mockResolvedValue(buildCustomerInfo({}))
   mockUseAnalytics.mockReturnValue({
     identify: jest.fn(),
     reset: jest.fn(),
@@ -160,13 +207,48 @@ function setupSubscriptionHookMocks() {
   mockRestorePurchases.mockResolvedValue(null)
   mockSetRevenueCatPromoRedemptionAttributes.mockResolvedValue(undefined)
   mockSyncRevenueCatSubscriberAttributes.mockResolvedValue(undefined)
-  mockSupabaseFrom.mockImplementation(() => createSupabaseQueryMock())
+  mockLogMetaPurchase.mockResolvedValue('logged')
+  mockCandidateMatchesEntitlement.mockReturnValue(true)
+  mockClearMetaPurchaseCandidate.mockResolvedValue(undefined)
+  mockCreateMetaPurchaseCandidate.mockResolvedValue({
+    userId: 'user-1',
+    productId: 'domani_lifetime',
+    amount: 9.99,
+    currency: 'USD',
+    offer: 'default',
+    startedAt: '2026-05-20T11:59:00.000Z',
+    baselinePurchaseDate: null,
+    transactionId: null,
+    transactionPurchaseDate: null,
+  })
+  mockGetMetaPurchaseCandidate.mockResolvedValue(null)
+  mockIsMetaPurchaseCandidateExpired.mockReturnValue(false)
+  mockRecordMetaPurchaseCandidateTransaction.mockImplementation(async (candidate, transaction) => ({
+    ...candidate,
+    transactionId: transaction.transactionId,
+    transactionPurchaseDate: transaction.purchaseDate,
+  }))
+  mockSupabaseFrom.mockImplementation(() =>
+    createSupabaseQueryMock({
+      data: {
+        id: 'user-1',
+        tier: 'none',
+        purchased_at: null,
+        refunded_at: null,
+      },
+      error: null,
+    }),
+  )
   mockSupabaseRpc.mockImplementation((functionName: string) => {
     if (functionName === 'confirm_current_user_promo_redemption') {
       return Promise.resolve({ data: { status: 'confirmed' }, error: null })
     }
 
     return Promise.resolve({ data: null, error: null })
+  })
+  mockSupabaseFunctionsInvoke.mockResolvedValue({
+    data: { status: 'synced', accessGranted: true },
+    error: null,
   })
 }
 
@@ -272,6 +354,39 @@ describe('RevenueCat access gating', () => {
   })
 })
 
+describe('subscription product analytics', () => {
+  it('starts an explicit trial atomically with its server-confirmed PostHog outbox row', async () => {
+    mockSupabaseRpc.mockImplementation((functionName: string) => {
+      if (functionName === 'start_current_user_trial') {
+        return Promise.resolve({
+          data: {
+            tier: 'trialing',
+            trial_started_at: '2026-08-16T12:00:00.000Z',
+            trial_ends_at: '2026-08-30T12:00:00.000Z',
+          },
+          error: null,
+        })
+      }
+
+      return Promise.resolve({ data: null, error: null })
+    })
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await act(async () => {
+      await result.current.startTrial()
+    })
+
+    expect(mockSupabaseRpc).toHaveBeenCalledWith('start_current_user_trial', {
+      p_expected_user_id: 'user-1',
+    })
+    expect(mockTrack).not.toHaveBeenCalledWith('trial_started', expect.anything())
+    expect(mockLogMetaStartTrial).toHaveBeenCalledWith({ userId: 'user-1', offer: 'default' })
+
+    unmount()
+  })
+})
+
 describe('purchase access sync', () => {
   it('reports refunded when a stale lifetime profile also has refunded_at', async () => {
     mockUseProfile.mockReturnValue({
@@ -349,12 +464,37 @@ describe('purchase access sync', () => {
       profileSynced: true,
       recoverable: false,
     })
-    expect(mockSupabaseRpc).toHaveBeenCalledWith('clear_current_user_refund_request_state')
+    expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledWith('sync-revenuecat-access', {
+      body: { userId: 'user-1', promoContext: null },
+    })
 
     unmount()
   })
 
-  it('uses the latest lifetime purchase date when syncing RevenueCat access', async () => {
+  it('retries a rate-limited server verification after a purchase', async () => {
+    mockPurchasePackage.mockResolvedValue(buildPurchaseResult())
+    mockSupabaseFunctionsInvoke
+      .mockResolvedValueOnce({ data: null, error: { context: { status: 429 } } })
+      .mockResolvedValueOnce({
+        data: { status: 'synced_new_lifetime', accessGranted: true },
+        error: null,
+      })
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    jest.useFakeTimers()
+    await act(async () => {
+      const purchase = result.current.purchase(buildPurchasesPackage() as never)
+      await jest.advanceTimersByTimeAsync(10_500)
+      await expect(purchase).resolves.toBeTruthy()
+    })
+
+    expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledTimes(2)
+    unmount()
+  })
+
+  it('passes promo context to the verified server without client purchase timestamps', async () => {
     mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(
       buildCustomerInfo({
         'test-entitlement': {
@@ -389,18 +529,17 @@ describe('purchase access sync', () => {
       })
     })
 
-    expect(
-      mockSupabaseFrom.mock.results.some((result) => {
-        const query = result.value as SupabaseQueryMock
-        return query.update.mock.calls.some(([values]) => {
-          const update = values as Record<string, unknown>
-          return (
-            update.tier === 'lifetime' &&
-            update.purchased_at === '2026-06-02T23:52:24.253Z'
-          )
-        })
-      }),
-    ).toBe(true)
+    expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledWith('sync-revenuecat-access', {
+      body: {
+        userId: 'user-1',
+        promoContext: {
+          campaignId: 'campaign-1',
+          codeId: 'code-1',
+          redemptionAttemptId: 'attempt-1',
+        },
+      },
+    })
+    expect(mockSupabaseFrom).not.toHaveBeenCalledWith('profiles')
 
     unmount()
   })
@@ -529,6 +668,8 @@ describe('purchase access sync', () => {
       profileSynced: false,
     })
     expect(result.current.accessSyncPhase).toBe('verification_failed')
+    expect(mockLogMetaPurchaseRestored).not.toHaveBeenCalled()
+    expect(mockLogMetaPurchase).not.toHaveBeenCalled()
     expect(
       mockSupabaseFrom.mock.results.some((result) => {
         const query = result.value as SupabaseQueryMock
@@ -538,6 +679,27 @@ describe('purchase access sync', () => {
         })
       }),
     ).toBe(false)
+
+    unmount()
+  })
+
+  it('logs a verified restore without logging Purchase', async () => {
+    mockRestorePurchases.mockResolvedValue(buildLifetimeCustomerInfo())
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await act(async () => {
+      await result.current.restore()
+    })
+
+    expect(mockLogMetaPurchaseRestored).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        productId: 'domani_lifetime',
+      }),
+    )
+    expect(mockLogMetaPurchase).not.toHaveBeenCalled()
 
     unmount()
   })
@@ -658,13 +820,15 @@ describe('purchase access sync', () => {
         sync_status: 'confirmed',
       }),
     )
-    expect(mockSupabaseRpc).toHaveBeenCalledWith('confirm_current_user_promo_redemption', {
-      p_campaign_id: 'campaign-1',
-      p_code_id: 'code-1',
-      p_redemption_attempt_id: 'attempt-1',
-      p_revenuecat_app_user_id: 'user-1',
-      p_store_product_id: 'domani_lifetime',
-      p_store_transaction_id: null,
+    expect(mockSupabaseFunctionsInvoke).toHaveBeenCalledWith('sync-revenuecat-access', {
+      body: {
+        userId: 'user-1',
+        promoContext: {
+          campaignId: 'campaign-1',
+          codeId: 'code-1',
+          redemptionAttemptId: 'attempt-1',
+        },
+      },
     })
     expect(mockTrack).toHaveBeenCalledWith(
       'promo_redemption_completed',
@@ -704,21 +868,15 @@ describe('purchase access sync', () => {
         .length,
     ).toBe(completedCount)
 
-    jest.useRealTimers()
     unmount()
+    jest.useRealTimers()
   })
 
   it('does not report paid promo redemption as confirmed when attempt confirmation fails', async () => {
     mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())
-    mockSupabaseRpc.mockImplementation((functionName: string) => {
-      if (functionName === 'confirm_current_user_promo_redemption') {
-        return Promise.resolve({
-          data: { status: 'product_mismatch' },
-          error: null,
-        })
-      }
-
-      return Promise.resolve({ data: null, error: null })
+    mockSupabaseFunctionsInvoke.mockResolvedValue({
+      data: null,
+      error: new Error('Promo confirmation failed'),
     })
 
     const { result, unmount } = renderHookWithProviders(() => useSubscription())
@@ -751,22 +909,7 @@ describe('purchase access sync', () => {
       recoverable: true,
     })
     expect(result.current.accessSyncPhase).toBe('verification_failed')
-    expect(mockSupabaseFrom).toHaveBeenCalledWith('profiles')
-    expect(
-      mockSupabaseFrom.mock.results.some((result) => {
-        const query = result.value as SupabaseQueryMock
-        return query.update.mock.calls.some(([values]) => {
-          const update = values as Record<string, unknown>
-          return (
-            update.tier === 'none' &&
-            update.purchased_at === null &&
-            update.refunded_at === null &&
-            update.trial_ends_at === null &&
-            update.revenuecat_user_id === null
-          )
-        })
-      }),
-    ).toBe(true)
+    expect(mockSupabaseFrom).not.toHaveBeenCalledWith('profiles')
     expect(mockTrack).toHaveBeenCalledWith(
       'promo_sync_failed',
       expect.objectContaining({
@@ -775,10 +918,8 @@ describe('purchase access sync', () => {
         sync_status: 'supabase_sync_failed',
       }),
     )
-    expect(mockTrack).not.toHaveBeenCalledWith(
-      'promo_redemption_completed',
-      expect.any(Object),
-    )
+    expect(mockTrack).not.toHaveBeenCalledWith('promo_redemption_completed', expect.any(Object))
+    expect(mockLogMetaPurchase).not.toHaveBeenCalled()
 
     unmount()
   })
@@ -831,7 +972,7 @@ describe('purchase access sync', () => {
           resolveAttributeClear = resolve
         }),
     )
-    mockPurchasePackage.mockResolvedValue(buildLifetimeCustomerInfo())
+    mockPurchasePackage.mockResolvedValue(buildPurchaseResult())
 
     const { result, unmount } = renderHookWithProviders(() => useSubscription())
 
@@ -853,6 +994,234 @@ describe('purchase access sync', () => {
     })
 
     expect(mockPurchasePackage).toHaveBeenCalledWith(pkg)
+    expect(mockCreateMetaPurchaseCandidate.mock.invocationCallOrder[0]).toBeLessThan(
+      mockPurchasePackage.mock.invocationCallOrder[0],
+    )
+    expect(mockTrack).toHaveBeenCalledWith(
+      'lifetime_purchase_completed',
+      expect.objectContaining({
+        currency: 'USD',
+        price: 9.99,
+        product_id: 'domani_lifetime',
+      }),
+    )
+    expect(mockLogMetaPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        productId: 'domani_lifetime',
+        amount: 9.99,
+        currency: 'USD',
+      }),
+    )
+
+    unmount()
+  })
+
+  it('clears a durable purchase candidate when native checkout is cancelled', async () => {
+    mockPurchasePackage.mockResolvedValue(null)
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await act(async () => {
+      await result.current.purchase(buildPurchasesPackage() as never)
+    })
+
+    expect(mockCreateMetaPurchaseCandidate).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'user-1', productId: 'domani_lifetime' }),
+    )
+    expect(mockClearMetaPurchaseCandidate).toHaveBeenCalledWith('user-1')
+    expect(mockLogMetaPurchase).not.toHaveBeenCalled()
+
+    unmount()
+  })
+
+  it('recovers a confirmed purchase candidate after an app restart', async () => {
+    const customerInfo = buildLifetimeCustomerInfo()
+    mockGetCustomerInfo.mockResolvedValue(customerInfo)
+    mockGetMetaPurchaseCandidate.mockResolvedValue({
+      userId: 'user-1',
+      productId: 'domani_lifetime',
+      amount: 9.99,
+      currency: 'USD',
+      offer: 'default',
+      startedAt: '2026-05-20T11:59:00.000Z',
+      baselinePurchaseDate: null,
+      transactionId: null,
+      transactionPurchaseDate: null,
+    })
+    mockUseProfile.mockReturnValue({
+      isLoading: false,
+      profile: {
+        id: 'user-1',
+        tier: 'lifetime',
+        purchased_at: '2026-05-20T12:00:00.000Z',
+        refunded_at: null,
+        trial_started_at: null,
+        trial_ends_at: null,
+        created_at: '2026-05-20T11:00:00.000Z',
+        email: 'test@example.com',
+        expo_push_token: null,
+        full_name: 'Test User',
+        signup_cohort: null,
+        signup_method: null,
+      },
+    })
+    mockSupabaseFrom.mockImplementation(() =>
+      createSupabaseQueryMock({
+        data: {
+          id: 'user-1',
+          tier: 'lifetime',
+          purchased_at: '2026-05-20T12:00:00.000Z',
+          refunded_at: null,
+        },
+        error: null,
+      }),
+    )
+
+    const { unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(mockLogMetaPurchase).toHaveBeenCalledTimes(1))
+    expect(mockLogMetaPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        productId: 'domani_lifetime',
+        amount: 9.99,
+      }),
+    )
+    expect(mockClearMetaPurchaseCandidate).toHaveBeenCalledWith('user-1')
+
+    unmount()
+  })
+
+  it('retains the purchase candidate when Meta intent persistence fails', async () => {
+    mockPurchasePackage.mockResolvedValue(buildPurchaseResult())
+    mockLogMetaPurchase.mockResolvedValue('error')
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await act(async () => {
+      await result.current.purchase(buildPurchasesPackage() as never)
+    })
+
+    expect(mockLogMetaPurchase).toHaveBeenCalledTimes(1)
+    expect(mockClearMetaPurchaseCandidate).not.toHaveBeenCalled()
+
+    unmount()
+  })
+
+  it('logs the acquisition when a webhook records lifetime before client sync', async () => {
+    mockPurchasePackage.mockResolvedValue(buildPurchaseResult())
+    mockSupabaseFrom.mockImplementation(() =>
+      createSupabaseQueryMock({
+        data: {
+          id: 'user-1',
+          tier: 'lifetime',
+          purchased_at: '2026-05-20T12:00:00.000Z',
+          refunded_at: null,
+        },
+        error: null,
+      }),
+    )
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await act(async () => {
+      await result.current.purchase(buildPurchasesPackage() as never)
+    })
+
+    expect(mockLogMetaPurchase).toHaveBeenCalledTimes(1)
+    expect(mockClearMetaPurchaseCandidate).toHaveBeenCalledWith('user-1')
+
+    unmount()
+  })
+
+  it('does not confirm access when server verification fails', async () => {
+    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())
+    mockSupabaseFunctionsInvoke.mockResolvedValue({
+      data: null,
+      error: new Error('verification unavailable'),
+    })
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    let syncResult: unknown
+    await act(async () => {
+      syncResult = await result.current.syncAccess({ source: 'manual', forceStoreSync: true })
+    })
+
+    expect(syncResult).toMatchObject({
+      status: 'supabase_sync_failed',
+      profileSynced: false,
+    })
+    expect(mockLogMetaPurchase).not.toHaveBeenCalled()
+
+    unmount()
+  })
+
+  it('does not confirm access when the server returns an invalid result', async () => {
+    mockSyncPurchasesAndRefreshCustomerInfo.mockResolvedValue(buildLifetimeCustomerInfo())
+    mockSupabaseFunctionsInvoke.mockResolvedValue({
+      data: { status: 'synced', accessGranted: false },
+      error: null,
+    })
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    let syncResult: unknown
+    await act(async () => {
+      syncResult = await result.current.syncAccess({ source: 'manual', forceStoreSync: true })
+    })
+
+    expect(syncResult).toMatchObject({
+      status: 'supabase_sync_failed',
+      profileSynced: false,
+    })
+    expect(mockSupabaseFrom).not.toHaveBeenCalledWith('profiles')
+
+    unmount()
+  })
+
+  it('does not report an already-recorded lifetime owner as a new acquisition', async () => {
+    mockPurchasePackage.mockResolvedValue(buildPurchaseResult())
+    mockUseProfile.mockReturnValue({
+      isLoading: false,
+      profile: {
+        id: 'user-1',
+        tier: 'lifetime',
+        purchased_at: '2026-05-20T12:00:00.000Z',
+        refunded_at: null,
+        trial_started_at: null,
+        trial_ends_at: null,
+        created_at: '2026-05-20T11:00:00.000Z',
+        email: 'test@example.com',
+        expo_push_token: null,
+        full_name: 'Test User',
+        signup_cohort: null,
+        signup_method: null,
+      },
+    })
+    mockSupabaseFrom.mockImplementation(() =>
+      createSupabaseQueryMock({
+        data: {
+          tier: 'lifetime',
+          purchased_at: '2026-05-20T12:00:00.000Z',
+          refunded_at: null,
+        },
+        error: null,
+      }),
+    )
+
+    const { result, unmount } = renderHookWithProviders(() => useSubscription())
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    await act(async () => {
+      await result.current.purchase(buildPurchasesPackage() as never)
+    })
+
+    expect(mockTrack).not.toHaveBeenCalledWith('lifetime_purchase_completed', expect.any(Object))
+    expect(mockLogMetaPurchase).not.toHaveBeenCalled()
 
     unmount()
   })
@@ -875,7 +1244,7 @@ describe('purchase access sync', () => {
   })
 
   it('keeps promo attributes after a promo package purchase settles', async () => {
-    mockPurchasePackage.mockResolvedValue(buildLifetimeCustomerInfo())
+    mockPurchasePackage.mockResolvedValue(buildPurchaseResult())
     const { result, unmount } = renderHookWithProviders(() => useSubscription())
 
     await waitFor(() => expect(result.current.isLoading).toBe(false))
@@ -896,7 +1265,10 @@ describe('purchase access sync', () => {
       })
     })
 
-    expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenNthCalledWith(1, attemptContext)
+    expect(mockSetRevenueCatPromoRedemptionAttributes).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining(attemptContext),
+    )
     expect(mockSetRevenueCatPromoRedemptionAttributes).not.toHaveBeenCalledWith(null)
 
     unmount()
