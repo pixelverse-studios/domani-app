@@ -183,8 +183,8 @@ Do not leave temporary staging/production switches in place after the build work
 **Current versions (update after each build):**
 
 - Version: 1.1.4 (internal QA build against staging, Nov 9 2026)
-- Android versionCode: 127
-- iOS build number: 14
+- Android versionCode: 128
+- iOS build number: 15
 
 ### Local Build Notes
 

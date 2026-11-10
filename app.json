@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.baitedz.domani-app",
-      "buildNumber": "14",
+      "buildNumber": "15",
       "usesAppleSignIn": true,
       "associatedDomains": ["applinks:www.domani-app.com"],
       "infoPlist": {
@@ -24,7 +24,7 @@
       }
     },
     "android": {
-      "versionCode": 127,
+      "versionCode": 128,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-adaptive-icon-foreground.png",
         "backgroundColor": "#FAF8F5"
