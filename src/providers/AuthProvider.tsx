@@ -1,6 +1,6 @@
 import React, { createContext, useEffect, useRef, useState } from 'react'
 import { Alert, Platform, NativeModules } from 'react-native'
-import { Session, User } from '@supabase/supabase-js'
+import { AuthChangeEvent, Session, User } from '@supabase/supabase-js'
 import * as WebBrowser from 'expo-web-browser'
 import * as AuthSession from 'expo-auth-session'
 import * as AppleAuthentication from 'expo-apple-authentication'
@@ -371,10 +371,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // State will be set by onAuthStateChange callback
     })
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    let active = true
+    let authEventQueue: Promise<void> = Promise.resolve()
+
+    const handleAuthChange = async (event: AuthChangeEvent, session: Session | null) => {
+      if (!active) return
       console.log('[AuthProvider] Auth state changed:', event)
       console.log('[AuthProvider] Session:', session ? 'Found' : 'None')
 
@@ -446,9 +447,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const signupMethod = session.user.app_metadata?.provider
         ensureProfileExists(session.user.id, session.user.email!, fullName, signupMethod)
       }
+    }
+
+    // Supabase holds its auth lock while this callback runs, so awaiting any
+    // Supabase call here (queries, getSession) can deadlock startup. Return
+    // immediately and process events in order once the lock is released.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      authEventQueue = authEventQueue
+        .then(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
+        .then(() => handleAuthChange(event, session))
+        .catch((error) => {
+          console.error('[AuthProvider] Auth state handling failed:', error)
+          captureException(error as Error, { context: 'onAuthStateChange' })
+        })
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      active = false
+      subscription.unsubscribe()
+    }
   }, [locale, t])
 
   const signInWithGoogle = () =>
