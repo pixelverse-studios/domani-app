@@ -62,6 +62,17 @@
   **Files to modify**: `src/app/(tabs)/planning.tsx`
   **Reference**: See `development-plan.md` for detailed planning flow specs
 
+### Revoke Apple Sign-In Tokens on Account Deletion
+
+**Context**: App Store guideline 5.1.1(v) expects apps that offer Sign in with Apple and account deletion to revoke the user's Apple tokens when the account is deleted. Domani's deletion flow doesn't do this today (no call to Apple's `auth/revoke` endpoint anywhere). Apple hasn't flagged it so far, but any App Review could.
+**Scope**:
+
+- Capture the Apple authorization code at sign-in (native `expo-apple-authentication` returns one) and exchange it server-side for a refresh token, stored privately per user
+- On account deletion (or the hard-delete job), call `https://appleid.apple.com/auth/revoke` with a client secret signed by the Sign in with Apple key
+- Client secrets are signed tokens that last at most 6 months; generate them on the server per request rather than storing one
+  **Files**: `src/providers/AuthProvider.tsx`, a new or existing Supabase Edge Function for deletion, a private table for Apple refresh tokens
+  **Dependencies**: Sign in with Apple key `6XA78B4TH9` (created 2026-11-12, stored in Phil's password manager, never in the repo), Team ID, Services ID / bundle ID as audience
+
 ---
 
 ## Medium Priority
